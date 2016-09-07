@@ -1,0 +1,750 @@
+<link rel="stylesheet" type="text/css" href="/Stylesheets/download_generator.css">
+<script src="/JavaScripts/tabs.js" language="JavaScript" type="text/javascript"></script>
+<script src="/assets/js/lib/jquery-2.0.3.min.js" language="JavaScript" type="text/javascript"></script>
+<script src="/JavaScripts/download_generator.js" language="JavaScript" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+<!-- Begin
+
+var base_data_url = '%%data_url%%';
+var is_contributor = '%%is_contributor%%';
+
+//  End -->
+</script>
+
+<div name="intro" style="margin-left: 1em; margin-right: 1em;">
+
+  <p align="center" class="pageTitle">Download Records</p>
+  
+  <p class="small"> This form allows you to download data about fossil occurrences, collections,
+  specimens, taxa, and opinions from the Paleobiology Database.  You can also retrieve information
+  about the bibliographic references from
+  which this information was entered, and the geological strata in which they were found.  Use the various
+  fields and selectors to specify which information you are looking for, and the form will
+  generate a URL that will retrieve that specific set of records from the
+  <a class="dlBoldURL" target="_blank" href="%%data_url%%">data service</a>.</p>
+
+  <p class="small">To learn more about the various parts of this form, use the
+  <img width="16" height="16" src="/JavaScripts/img/hidden_help.png"> buttons. If you prefer, you can still use the
+  <a class="dlBoldURL" href="%%read_url%%?a=displayDownloadForm">old download form</a>.</p>
+  
+</div>
+
+<div name="selector" style="margin-left: 1em; margin-right: 1em;">
+
+<form id="download_form">
+
+<hr/>
+
+<span class="dlTopHeader dlHelp">What do you want to download?</span>
+<img id="qh1" class="dlHelpMarker" onClick="helpClick('h1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<table width="100%">
+  
+  <tr><td style="margin-left: 1em;">
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="occs" checked="1" onClick="setRecordType('occs')"/>Occurrences</span><br/>
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="specs" onClick="setRecordType('specs')"/>Specimens</span> /
+    <input type="radio" name="record_type" value="meas" onClick="setRecordType('meas')"/>Measurements<br/>
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="strata" onClick="setRecordType('strata')"/>Geological strata</span><br/>
+    <span class="dlRTColumn">
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="colls" onClick="setRecordType('colls')"/>Collections</span><br/>
+    <input type="radio" name="record_type" value="diversity" onClick="setRecordType('diversity')"/>Diversity over time</span><br/>
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="taxa" onClick="setRecordType('taxa')"/>Taxa</span><br/>
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="ops" onClick="setRecordType('ops')"/>Opinions</span><br/>
+    <span class="dlRTColumn">
+    <input type="radio" name="record_type" value="refs" onClick="setRecordType('refs')"/>Bibliographic references</span> /
+    <input type="radio" name="record_type" value="byref" onClick="setRecordType('byref')"/>Taxa by ref<br/>
+  </td><td>
+    <input type="radio" name="output_format" value="csv" id="rb.csv" checked="1" onClick="setFormat('csv')"/>Comma-separated values (csv)<br/>
+    <input type="radio" name="output_format" value="tsv" id="rb.tsv" onClick="setFormat('tsv')"/>Tab-separated values (tsv)<br/>
+    <input type="radio" name="output_format" value="json" id="rb.json" onClick="setFormat('json')"/>JSON<br/>
+    <input type="radio" name="output_format" value="ris" id="rb.ris" disabled="1" onClick="setFormat('ris')"/>RIS<br/>
+
+    <p id="pd_private" style="display: none;">
+    <input type="radio" name="private" value="1" id="rb.private.yes" onClick="setPrivate(1)" checked="1"/>Include non-public data<br/>
+    <input type="radio" name="private" value="0" id="rb.private.no" onClick="setPrivate(0)"/>Public data only<br/>
+    </p>
+  </td><td>
+    <input type="radio" name="form_mode" value="simple" checked="1" onClick="setAdvanced(false)"><b>Simple options</b><br/>
+    <input type="radio" name="form_mode" value="advanced" onClick="setAdvanced(true)"><b>Advanced options</b><br/>
+    <hr style="margin-top: 20px; margin-bottom: 20px;"/>
+    <input type="button" value="Clear form" onClick="resetForm()"/>
+  </td></tr>
+  
+  <tr class="vis_help_h1"><td colspan="3">
+    <p class="dlHelp">Using the left column of radio buttons, you can select any of the various kinds of data
+    records available from the database.  Using the middle column, you can choose from the
+    available data formats.  With few exceptions, you can select any type of record based on
+    any criteria specified in the bottom section of this form.  If you ask for taxa, opinions, or
+    references, then your query will be evaluated using the full set of taxa known to the database
+    if you specify only taxonomic criteria.  Otherwise, it will be evaluated based on the table of fossil
+    occurrences, using only the taxa which are associated with occurrences matching the criteria
+    you specify.</p>
+    
+    <p class="dlHelp">If you are logged in, you can also choose to include non-public data in your result set
+    (the default) or to retrieve public data only.  This choice is found in the middle column.  Unless you change
+    this setting, the download will contain all matching data that you have permission to view, including your own
+    embargoed data and any embargoed data whose authorizer has given you permission.  Please be aware that in this
+    case <b>the generated URL will only work if used when you are logged in!</b>  If you share this URL with another
+    member of the PaleoBioDB community, it will only work when they are logged in, and then they will only see the data that
+    <b>they</b> have permission to view.  So if you are planning to publish a URL or share it with someone who is not a
+    database contributor, or if you want to generate a URL that will work even when you are not logged in, you must
+    <i>select the "public data only" option</i>.</p>
+    
+    <p class="dlHelp">If you wish to get a list of bibliographic references according
+    to some criteria and also find out which taxa are listed from each reference, you must
+    download both "bibliographic references" and "taxa by ref" and match up the
+    reference_no values between the two files yourself.  Likewise, if you wish to get a list of
+    specimens and their associated measurements, you must download both "specimens" and "measurements" and match up
+    the specimen_no values yourself.</p>
+  </td></tr>
+    
+</table>
+
+<hr/>
+
+<div align="center">
+  <p id="mainURL" class="dlMainURL">URL</p>
+    <button type="button" value="test" onClick="testMainURL()">Test</button> &nbsp; &nbsp; 
+    <button type="button" value="download" onClick="downloadMainURL()">Download</button>
+    <br/>&nbsp;
+</div>
+
+<hr/>
+
+<p class="dlHelp" style="margin-top: 0px">Use one or more of the following sections to select
+a set of records and choose output options.  If you close a section, you remove those parameters
+from the download URL until the section is opened again.</p>
+
+<!-- Type-specific filters -->
+
+<table class="vis_type_ops" width="100%" cellpadding="3">
+  <tr><td width="30%">Opinion type:</td>
+    <td><select id="pm_op_select" onChange="updateFormState()">
+	  <option value="all">all opinions</option>
+	  <option value="class">classification opinions only</option>
+	  <option value="valid">opinions declaring valid names</option>
+	  <option value="accepted">opinions declaring accepted names</option>
+	  <option value="junior">opinions declaring junior synonyms</option>
+	  <option value="invalid">opinions declaring invalid names</option>
+	</select>
+      <span class="dlSep">
+	<img id="qh2a" class="dlHelpMarker" onClick="helpClick('h2a', event)" src="/JavaScripts/img/hidden_help.png">
+      </span>
+    </td></tr>
+  <tr class="vis_help_h2a"><td colspan="2">
+    <p class="dlHelp">By default, you will get all opinions concerning the
+    taxa selected by whatever criteria you specify below.  You can choose instead to just get the
+    opinions that were selected algorithmically as classification opinions, or you can choose to just retrieve
+    opinions which declare valid names, or junior synonyms, or invalid names.  If you want, for example, just
+    the classification opinions which declare junior synonyms, choose "classification opinions only" and then
+    choose "junior synonyms" using the "Taxonomic status" meny below.</p>
+  </td></tr>
+</table>
+
+<table class="vis_type_refs" width="100%" cellpadding="3">
+  <tr><td width="20%">Reference types:</td>
+  <td><div id="pd_reftypes"></div></td>
+  <td><img id="qh2b" class="dlHelpMarker" onClick="helpClick('h2b', event)" src="/JavaScripts/img/hidden_help.png">
+  </td></tr>
+  <tr class="vis_help_h2b"><td colspan="3">
+    <p class="dlHelp">By selecting from this list of checkboxes, you can choose among the various
+    types of references known to the database selected according to the criteria you specify in
+    the subsequent sections of this form.  For more information, you can read the
+    <a target="_blank" href="%%data_url%%bibliographic_refs_doc.html#ref_type">documentation on
+    bibliographic references</a>.</p>
+  </td></tr>
+</table>
+
+<!-- Select by taxon -->
+
+<h3 id="hf1" onClick="showHideSection('f1')">
+<img id="mf1" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Select by taxonomy</span>
+<img id="qf1" class="dlHelpMarker" onClick="helpClick('f1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<div id="f1" class="dlSectionBody" style="display: none;">
+
+  <table width="100%" cellpadding="3">
+
+    <tr><td width="30%" valign="top">Taxon or taxa to include:</td>
+      <td colspan="2">
+	<textarea id="pm_base_name" name="base_name" rows="2" cols="60" align="top" onChange="checkTaxon()"></textarea>
+        <ul id="pe_base_name" class="dlErrmsg"></ul></td>
+    </tr>
+
+    <tr class="vis_help_f1"><td colspan="3">
+      <p class="dlHelp">Select records associated with the specified taxa plus all subtaxa.  Subgroups can
+      be excluded using the ^ symbol.  Homonyms can be resolved using the : symbol.  For more information, you can read
+      the <a target="_blank" href="%%data_url%%taxonomic_names_doc.html">instructions on
+      specifying taxonomic names</a>.</p>
+      <p class="dlHelp">Examples:
+      <span class="dlSep">Dinosauria</span>
+      <span class="dlSep">Theropoda, Sauropoda</span>
+      <span class="dlSep">Dinosauria ^Aves</span>
+      <span class="dlSep">Gastropoda:Ficus</span>
+      <span class="dlSep">Plant:Ficus</span></p>
+      </td></tr>
+      
+    <tr><td align="top">
+      <span class="vis_taxon_reso">Taxonomic resolution:</span>
+      <span class="vis_type_diversity">Taxonomic resolution:</span>
+      <span class="vis_taxon_range">Taxonomic rank(s):</span></td>
+      <td><div class="vis_taxon_reso">
+	  <select id="pm_taxon_reso" onChange="updateFormState()">
+	    <option value="">all</option>
+	    <option value="species">species</option>
+	    <option value="genus">genus</option>
+	    <option value="family">family</option>
+	    <option value="" disabled="1">--</option>
+	    <option value="lump_genus">lump by genus</option>
+	    <option value="lump_gensub">lump by genus/subgenus</option>
+	  </select></div>
+	<div class="vis_taxon_range">
+	  <select id="pm_taxon_rank" onChange="updateFormState()">
+	    <option value="">all</option>
+	    <option value="" disabled="1">--</option>
+	    <option value="species">species</option>
+	    <option value="genus">genera</option>
+	    <option value="genus,subgenus">genera and subgenera</option>
+	    <option value="" disabled="1">--</option>
+	    <option value="max_genus">genera and below</option>
+	    <option value="min_genus">genera and above</option>
+	    <option value="above_genus">above genera</option>
+	    <option value="" disabled="1">--</option>
+	    <option value="genus-family">genera through families</option>
+	    <option value="family">families</option>
+	    <option value="max_family">families and below</option>
+	    <option value="min_family">families and above</option>
+	    <option value="" disabled="1">--</option>
+	    <option value="genus-order">genera through orders</option>
+	    <option value="order">orders</option>
+	    <option value="max_order">orders and below</option>
+	    <option value="min_order">orders and above</option>
+	  </select></div>
+	<div class="vis_type_diversity">
+	  <select id="pm_div_count" onChange="updateFormState()">
+            <option value="species">species</option>
+	    <option value="genera" selected="1">genera</option>
+	    <option value="genera_plus">genera + subgenera</option>
+	    <option value="families">families</option>
+	    <option value="orders">orders</option>
+	  </select></div>
+      </td>
+      <td><div class="vis_acc_only">
+	<input type="checkbox" id="pm_acc_only" onChange="checkTaxonStatus('box')"> Show accepted names only
+	</div>
+    </td></tr>
+    
+    <tr class="vis_help_f1 vis_type_occs"><td colspan="3">
+      <p class="dlHelp">You can select only occurences that are identified at least to the level
+      of genus, family, etc.  If you choose
+      one of the "lump by" options, then only one record is reported for each occurrence of a given genus and/or subgenus
+      in a given collection.  If you check "Show accepted names only", then the exact name by which an occurrence was
+      identified will not be shown; only the corresponding accepted taxonomic name will be returned.</p>
+    </td></tr>
+    
+    <tr class="vis_help_f1 vis_type_specs"><td colspan="3">
+      <p class="dlHelp">You can select only specimens that are identified at least to the level
+      of genus, family, etc.  The "lump by" options have no effect for specimens.  If you check
+      "Show accepted names only", then the exact name by which a specimen was
+      identified will not be shown; only the corresponding accepted taxonomic name will be returned.</p>
+    </td></tr>
+    
+    <tr class="vis_help_f1 vis_type_colls"><td colspan="3">
+      <p class="dlHelp">You can select only collections containing an occurrence that is
+      identified at least to the level of genus,
+      family, etc.  The "lump by" options and "show accepted names only" have no effect for collections.</p>
+    </td></tr>
+    
+    <tr class="vis_help_f1 vis_type_strata"><td colspan="3">
+      <p class="dlHelp">You can select only strata containing an occurrence that is identified at
+      least to the level of genus,
+      family, etc.  The "lump by" options and "show accepted names only" have no effect for strata.</p>
+    </td></tr>
+
+    <tr class="vis_help_f1 vis_type_diversity"><td colspan="3">
+      <p class="dlHelp">You can select the diversity metric you wish to use, in other words, the
+      taxonomic level at which to count.  The option "genera + subgenera"
+      counts subgenera as if they were genera.</p>
+    </td></tr>
+    
+    <tr class="vis_help_f1 vis_taxon_range"><td colspan="3">
+      <p class="dlHelp">You can select any range of taxonomic ranks using the "rank" parameter.
+      A set of useful choices is given in this menu.  Note that unranked clades that match the
+      specification (i.e. "genera through orders") will be returned.  If you check "Show accepted
+      names only", that is equivalent to choosing "accepted" from the Taxonomic status menu.</p>
+    </td></tr>
+
+    <tr class="vis_taxon_range"><td>
+      Taxonomic status:</td><td>
+	<select id="pm_taxon_status" onChange="checkTaxonStatus('selector')">
+	  <option value="">all names</option>
+	  <option value="valid">all valid names</option>
+	  <option value="accepted">accepted names</option>
+	  <option value="junior">junior synonyms</option>
+	  <option value="invalid">invalid names</option>
+	</select></td>
+      <td><span class="vis_advanced vis_taxon_range">
+	<input type="checkbox" id="pm_taxon_variants" onChange="checkTaxonStatus('variants')">
+	Show obsolete name variants</span>
+      </td></tr>
+      
+    <tr class="vis_help_f1 vis_taxon_range"><td colspan="3">
+      <p class="dlHelp">By default, all taxonomic names matching the criteria you specify are
+      returned.  You can also choose to get
+      only accepted names, only valid names (this includes junior synonyms), only junior synonyms, or only
+      invalid names. <span class="vis_advanced">If you check "show obsolete name variants",
+      then all variants of the names matching the other criteria will be returned.  All but
+      the current variant will be marked with the flag "V".</span></p>
+    </td></tr>
+    
+    <tr class="vis_advanced vis_taxon_reso">
+      <td>Identification:</td><td colspan="2">
+	<select id="pm_ident" onChange="checkTaxon()">
+	  <option select="1" value="latest">latest</option>
+	  <option value="orig">original</option>
+	  <option value="all">all</option>
+	</select>
+      </td>
+
+    <tr class="vis_help_f1 vis_advanced vis_taxon_reso"><td colspan="3">
+      <p class="dlHelp">The identification parameter affects only occurrences that have more than one identification
+      recorded in the database.  If you choose "all", then occurrences that have been reidentified will generate
+      a separate record for each identification that matches the other filters you have specified
+      (i.e. are subtaxa of the specified base name).  If you choose "orig" then only the original
+      identification of each occurrence is reported and reidentifications will be ignored.</p>
+    </td></tr>
+    
+    <tr class="vis_advanced">
+	<td>Preservation:</td><td colspan="2">
+	<select id="pm_pres" onChange="checkTaxon()">
+	  <option select="1" value="all">all taxa</option>
+	  <option value="regular">regular taxa only</option>
+	  <option value="form">form taxa only</option>
+	  <option value="ichno">ichnotaxa only</option>
+	  <option value="form,ichno">form and ichnotaxa</option>
+	</select>
+      </td></tr>
+
+    <tr class="vis_help_f1 vis_advanced"><td colspan="3">
+      <p class="dlHelp">The preservation parameter lets you choose whether to return
+      information about ichnotaxa, form taxa and/or regular taxa.</p>
+    </td></tr>
+    
+  </table>
+
+</div>
+
+<!-- &nbsp;<small class="dlTaxonHelp">
+    <i><a href="%%data_url%%taxonomic_names_doc.html">instructions on specifying taxonomic names</a></i></small></td>
+-->
+  
+<!-- Select by time -->
+
+<h3 id="hf2" onClick="showHideSection('f2')">
+<img id="mf2" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Select by time</span>
+<img id="qf2" class="dlHelpMarker" onClick="helpClick('f2', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<div id="f2" class="dlSectionBody" style="display: none;">
+
+  <table width="100%" cellpadding="3">
+    
+    <tr><td width="30%" valign="top">Interval or Ma range:</td>
+      <td><input id="pm_interval" size="30" onChange="checkInterval(1)">
+	<span class="dlSmall dlSep">through</span>
+	<input id="pm_interval_2" size="30" onChange="checkInterval(2)">
+        <ul id="pe_interval" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_help_f2"><td colspan="2">
+      <p class="dlHelp">You can specify an interval or a range of intervals by name.  The
+      selected records will range from the beginning of the earliest specified interval to the end
+      of the latest, regardless of the order in which you specify them.  Alternatively,
+      you can specify a maximun and/or minimum age in units of Ma.</p>
+    </td></tr>
+    
+    <!-- <tr class="vis_advanced"><td>Ma range:</td> -->
+    <!--   <td>max <input id="pm_ma_max" size="10" onChange="checkInterval()"> -->
+    <!-- 	<span class="dlSep">min <input id="pm_ma_min" size="10" onChange="checkInterval()"></span> -->
+    <!--   </td></tr> -->
+    
+    <tr class="vis_advanced"><td>Time rule:</td>
+      <td><select id="pm_timerule" onChange="checkInterval()">
+	    <option value="contain">contain</option>
+	    <option selected="1" value="major">major (default)</option>
+	    <option value="buffer">buffer</option>
+	    <option value="overlap">overlap</option>
+	    </select>
+	  <span id="pd_timebuffer" class="dlSmall dlSep" style="display: none;">
+	    Time buffer in Ma: <input id="pm_timebuffer" size="10" onChange="checkInterval()"></span></td>
+   
+    <tr class="vis_advanced vis_help_f2"><td colspan="2">
+      <p class="dlHelp inv_type_diversity">The <b>contain</b> time rule is the strictest.  It
+      selects occurrences whose temporal range is contained in the specified interval.  The
+      <b>major</b> time rule (default) is more permissive and selects occurrences for which a
+      majority of their temporal range overlaps the specified interval.  The <b>buffer</b> time
+      rule selects occurrences whose temporal range overlaps the specified interval and is
+      contained inside a buffer zone around the interval.  The default buffer is 5 Ma outside of
+      the interval for the Cenozoic, 12 Ma for the earlier eras.  The <b>overlap</b> time rule is
+      the most permissive and selects all occurrences whose temporal range overlaps the specified
+      interval by any amount.</p>
+      
+      <p class="dlHelp vis_type_diversity">The <b>contain</b> time rule is the strictest.  It
+      counts each occurrence in the bin (interval) that contains the occurrence's temporal range, if
+      one exists.  Each occurrence will be counted at most once, many will not be counted at all
+      because their temporal range overlaps two or more bins.  The <b>major</b> time rule
+      (default) bins each occurrence into an interval overlapped by a majority of the occurrence's
+      temporal range, if one exists.  Each occurrence will be counted at most once, some will not
+      be counted at all but fewer than with the 'contain' rule.  The <b>buffer</b> time rule counts
+      each occurrence in every interval that overlaps its temporal range, provided the temporal
+      range is contained in a buffer zone around the interval.  The default buffer is 5 Ma for the
+      Cenozoic, 12 Ma for the earlier eras.  This rule may count some occurrences more than once;
+      fewer will be left uncounted than with the above rules.  The <b>overlap</b> time rule is the
+      most permissive.  It counts each occurrence in every interval that overlaps its temporal
+      range.  This guarantees that every occurrence will be counted, but many will be
+      counted more than once.</p> </td></tr>
+    
+    <tr class="vis_type_diversity">
+      <td>Temporal resolution:</td>
+      <td><select id="pm_div_time" onChange="updateFormState()">
+          <option value="stage">stage</option>
+	  <option value="epoch">epoch</option>
+	  <option value="period">period</option>
+	  <option value="era">era</option>
+	</select>
+	<span class="dlSep"><input type="checkbox" id="pm_div_recent" onChange="updateFormState()">
+	Assume extant taxa range through to present
+	</span>
+      </td></tr>
+
+    <tr class="vis_help_f2 vis_type_diversity"><td colspan="2"> <p class="dlHelp">You can select
+      the temporal resolution at which to tabulate the results.  Each bin will be an interval
+      of the selected type.</p>
+    </td></tr>
+
+  </table>
+   
+</div>
+
+<!-- Select by location -->
+
+<h3 id="hf3" onClick="showHideSection('f3')">
+<img id="mf3" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Select by location</span>
+<img id="qf3" class="dlHelpMarker" onClick="helpClick('f3', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<div id="f3" class="dlSectionBody" style="display: none;">
+
+  <table width="100%" cellpadding="3">
+
+    <tr class="vis_help_f3"><td>
+      <p class="dlHelp">Each row in this section is applied separately to the query.  If you specify values in
+      more than one row, then only data records that satisfy <b>all of them together</b> will be selected.</p>
+    </td></tr>
+    
+    <tr><td>
+      <select id="pm_ccex" onChange="checkCC()">
+	<option value="include">select</option>
+	<option value="exclude">exclude</option>
+      </select></span> &nbsp;
+      Continent: <select id="pm_continent" name="continent" onChange="checkCC()"></select> &nbsp;
+     <select id="pm_ccmod" onChange="checkCC()">
+	<option value="add">plus</option>
+	<option value="sub">minus</option>
+      </select> &nbsp;
+      Country: <select id="pm_country" onChange="checkCC()"></select>
+    </td></tr>
+
+    <tr class="vis_mult_cc3"><td><div id="pd_continents"></div></td></tr>
+    
+    <tr class="vis_mult_cc2"><td><div id="pd_countries">
+      Countries: <input id="pm_countries" size="60" onchange="checkCC()"></div>
+      <ul id="pe_cc" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_help_f3"><td>
+      <p class="dlHelp">If you specify one or more countries but not a continent, then just those countries will
+      be selected or excluded.  To specify multiple countries, you must type a list of the 2-letter codes.</p>
+    </td></tr>
+ 
+    <tr><td>
+      <div style="margin-top: 10px">
+      Longitude: min <input id="pm_lngmin" size="15" onChange="checkCoords()"> 
+	max <input id="pm_lngmax" size="15" onChange="checkCoords()">
+	&nbsp;&nbsp; Latitude: min <input id="pm_latmin" size="15" onChange="checkCoords()">
+	max <input id="pm_latmax" size="15" onChange="checkCoords()">
+	<ul id="pe_coords" class="dlErrmsg"></ul>
+      </div>
+    </td></tr>
+    
+    <tr class="vis_help_f3"><td>
+	<p class="dlHelp">Latitude and Longitude are specified in decimal degrees.  You can use a minus sign for
+	  W/S, or you can append N or S to the latitude and E or W to the longitude values.</p>
+    </td></tr>
+
+    <tr class="vis_advanced"><td>
+      <div style="margin-top: 10px">
+	Plate: <input id="pm_plate" size="40" onChange="checkCC()">
+	<select id="pm_pgmodel" onChange="checkCC()">
+	  <option selected="1" value="G">GPlates</option>
+	  <option value="S">Scotese</option></select>
+      </div>
+    </td></tr>
+
+    <tr class="vis_advanced vis_help_f3"><td>
+      <p class="dlHelp">You can specify one or more plate numbers, from either the GPlates or the Scotese model.  To find out these
+      numbers, you can search for either occurrences or geological strata using whatever criteria
+      are appropriate and include one of the following output blocks: <b>gplate</b>,
+      <b>splate</b>, or <b>paleoloc</b>.</p>
+    </td></tr>
+    
+    </table>
+
+</div>
+
+<!-- Select by geological context -->
+
+<h3 id="hf4" onClick="showHideSection('f4')">
+<img id="mf4" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Select by geological context</span>
+<img id="qf4" class="dlHelpMarker" onClick="helpClick('f4', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<div id="f4" class="dlSectionBody" style="display: none;">
+  
+  <table width="100%" cellpadding="3">
+
+    <tr><td width="40%" valign="top">Name(s) of geological strata:</td>
+      <td><textarea id="pm_strat" rows="2" cols="60" align="top" onChange="checkStrat()"></textarea>
+        <ul id="pe_strat" class="dlErrmsg"></ul></td>
+    </tr>
+    
+    <tr class="vis_help_f4"><td colspan="2">
+      <p class="dlHelp">You can specify one or more geological strata by name.  The database does
+	not exert any spelling discipline on the names entered, so be aware that misspellings may
+	occur.  You can use the symbols % and _ as wildcards.  You may add either 'fm', 'gp' or
+	'mbr' to the end of a name, as in "Green River fm".  If you do not do this, then all
+	matching strata will be selected regardless of whether they are groups, formations, or
+	members.</p>
+    </td></tr>
+    
+  </table>
+  
+  <table width="100%" cellpadding="3">
+    <tr class="vis_advanced">
+      <td valign="top">Environment:</td>
+      <td><select id="pm_envex" onChange="checkEnv()">
+	  <option selected="1" value="include">select</option>
+	  <option value="exclude">exclude</option>
+	</select></td><td><div id="pd_envtype"></div>
+      </td></tr>
+    <tr class="vis_advanced"><td>&nbsp;</td>
+      <td><select id="pm_envmod" onChange="checkEnv()">
+	<option selected="1", value="add">plus</option>
+	<option value="sub">minus</option>
+      </select></td>
+      <td><div id="pd_envzone"></div>
+    </td></tr>
+    
+    <tr class="vis_advanced vis_help_f4"><td colspan="3">
+      <p class="dlHelp">You can select any combination of the main environments from the top row, then modify
+	  this selection using the bottom rows.  This set of major and minor environment types is
+	  the same as was used with the old download form.</p>
+    </td></tr>
+    
+  </table>
+
+</div>
+
+<!-- Select by metadata -->
+
+<h3 id="hf5" onClick="showHideSection('f5')">
+<img id="mf5" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Select by metadata</span>
+<img id="qf5" class="dlHelpMarker" onClick="helpClick('f5', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<div id="f5" class="dlSectionBody" style="display: none;">
+
+  <table width="100%" cellpadding="3">
+
+    <tr id="pd_meta_coll_re"><td valign="top">
+      Collection name/description (regex):
+      <input id="pm_coll_re" size="60" onChange="checkMetaText('coll_re')">
+    </td></tr>
+
+    <tr id="pd_meta_id"><td valign="top">
+      <select id="pm_meta_id_select" onChange="checkMetaId('type')">
+	<option value="col">Collection</option>
+	<option value="clu">Cluster</option>
+	<option value="occ">Occurrence</option>
+	<option value="spm">Specimen</option>
+      </select> &nbsp; identifier(s):
+          <input id="pm_meta_id_list" size="60" onChange="checkMetaId('list')">
+          <ul id="pe_meta_id" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_help_f5"><td>
+      <p class="dlHelp">Anything you put in this field will be applied as a regular expression
+      to the collection_name and collection_aka fields.  Records will be returned only if they are
+      associated with a matching collection.  If you just put in regular text, it will match any
+      collection with that text anywhere in either field.  You can also use any of the standard
+      regular expression syntax, including the backslash character and vertical bar.</p>
+    </td></tr>
+    
+    <!--<tr><td valign="top">Bibliographic reference by &nbsp;
+      <select id="pm_ref_select" onChange="checkRef()">
+	<option value="ref_id">reference id</option>
+	<option value="ref_title">reference title</option>
+	<option value="pub_title">publication title</option>
+	<option value="ref_primary">primary author</option>
+	<option value="ref_author">any author</option>
+      </select> &nbsp;
+      <input id="pm_ref_id" size="60" onChange="checkRef()"/>
+      <input id="pm_ref_title" size="60" style="display: none" onChange="checkRef()"/>
+      <input id="pm_pub_title" size="60" style="display: none" onChange="checkRef()"/>
+      <input id="pm_ref_author" size="60" style="display: none" onChange="checkRef()"/>
+    </td></tr>-->
+    
+    <tr id="pd_meta_occs" style="display: none;"><td valign="top">Occurrences
+      <select id="pm_occs_crmod" onChange="checkMeta('occs')"></select>
+      <input id="pm_occs_cmdate" size="20" onChange="checkMeta('occs')"/>
+      <select id="pm_occs_authent" onChange="checkMeta('occs')"></select>
+      <input id="pm_occs_aename" size="40" onChange="checkMeta('occs')"/>
+      <ul id="pe_meta_occs" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr id="pd_meta_colls" style="display: none;"><td valign="top">Collections
+      <select id="pm_colls_crmod" onChange="checkMeta('colls')"></select>
+      <input id="pm_colls_cmdate" size="20" onChange="checkMeta('colls')"/>
+      <select id="pm_colls_authent" onChange="checkMeta('colls')"></select>
+      <input id="pm_colls_aename" size="40"  onChange="checkMeta('colls')"/>
+      <ul id="pe_meta_colls" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr id="pd_meta_taxa" style="display: none;"><td valign="top">Taxa
+      <select id="pm_taxa_crmod" onChange="checkMeta('taxa')"></select>
+      <input id="pm_taxa_cmdate" size="20" onChange="checkMeta('taxa')"/>
+      <select id="pm_taxa_authent" onChange="checkMeta('taxa')"></select>
+      <input id="pm_taxa_aename" size="40" onChange="checkMeta('taxa')"/>
+      <ul id="pe_meta_taxa" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr id="pd_meta_ops" style="display: none;"><td valign="top">Opinions
+      <select id="pm_ops_crmod" onChange="checkMeta('ops')"></select>
+      <input id="pm_ops_cmdate" size="20" onChange="checkMeta('ops')"/>
+      <select id="pm_ops_authent" onChange="checkMeta('ops')"></select>
+      <input id="pm_ops_aename" size="40" onChange="checkMeta('ops')"/>
+      <ul id="pe_meta_ops" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr id="pd_meta_refs" style="display: none;"><td valign="top">References
+      <select id="pm_refs_crmod" onChange="checkMeta('refs')"></select>
+      <input id="pm_refs_cmdate" size="20" onChange="checkMeta('refs')"/>
+      <select id="pm_refs_authent" onChange="checkMeta('refs')"></select>
+      <input id="pm_refs_aename" size="40" onChange="checkMeta('refs')"/>
+      <ul id="pe_meta_refs" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_help_f5"><td>
+      <p class="dlHelp">Dates should be entered either as yyyy-mm-dd, or as a number of "days ago", "months ago",
+      etc. These are documented <a href="%%data_url%%datetime_doc.html" target="_blank">here</a>.
+      Names can be entered with or without first initial, as in "Alroy" or "J. Alroy".</p>
+    </td></tr>
+
+    <tr><td>
+      <input type="checkbox" id="pm_all_records" onChange="updateFormState()">
+      Select all <span id="label_all_records">records of this type</span> in the database
+    </td></tr>
+
+    <tr class="vis_help_f5"><td>
+      <p class="dlHelp">If you check this box, then all records of the selected type in the database will be
+      returned.  Any other criteria you specify are still applied.  Please do this only if you are
+      able to accept a download that might be well over 100 MB in size.</p>
+    </td></tr>
+    
+  </table>
+      
+</div>
+
+
+<!-- Output options -->
+
+<h3 id="ho1" onClick="showHideSection('o1')">
+<img id="mo1" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Choose output options</span>
+<img id="qo1" class="dlHelpMarker" onClick="helpClick('o1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+
+<div id="o1" style="margin-left: 1em; display: none;">
+    
+  <div style="margin-bottom: 10px">
+    Output order: 
+    <select id="pm_occs_order" class="dlOutputOrder" onChange="checkOrder('occs')"></select>
+    <select id="pm_colls_order" class="dlOutputOrder" onChange="checkOrder('colls')"></select>
+    <select id="pm_taxa_order" class="dlOutputOrder" onChange="checkOrder('taxa')"></select>
+    <select id="pm_ops_order" class="dlOutputOrder" onChange="checkOrder('ops')"></select>
+    <select id="pm_strata_order" class="dlOutputOrder" onChange="checkOrder('strata')"></select>
+    <select id="pm_refs_order" class="dlOutputOrder" onChange="checkOrder('refs')"></select>
+      
+    <select id="pm_order_dir" onChange="checkOrder('dir')">
+      <option value="--">default</option>
+      <option value="asc">ascending</option>
+      <option value="desc">descending</option>
+    </select>
+    
+    <span class="dlSep">Limit number of records
+      <input id="pm_limit" size="20" onChange="checkLimit()">
+    </span>
+    <ul id="pe_limit" class="dlErrmsg"></ul>
+
+    <p class="dlHelp vis_help_o1">You can select any of the available output orderings for the
+    record type you have chosen.  You can specify a limit on the number of records returned,
+    either a positive number or zero.  You can also specify a record offset and limit together,
+    i.e. "21, 10" will return 10 records starting with the 21st selected record.</p>
+    
+  </div>
+  
+  Additional output blocks: <br/>
+  <table id="od_occs" class="dlOutputSection" width="100%"></table>
+  <table id="od_colls" class="dlOutputSection" width="100%"></table>
+  <table id="od_specs" class="dlOutputSection" width="100%"></table>
+  <table id="od_meas" class="dlOutputSection" width="100%"></table>
+  <table id="od_taxa" class="dlOutputSection" width="100%"></table>
+  <table id="od_ops" class="dlOutputSection" width="100%"></table>
+  <table id="od_strata" class="dlOutputSection" width="100%"></table>
+  <table id="od_refs" class="dlOutputSection" width="100%"></table>
+
+  <table width="100%">
+    
+    <tr><td><input type="checkbox" id="pm_output_metadata" checked="1" onChange="checkOutputOpts()">
+      Include metadata at the beginning of the output
+    </td></tr>
+
+    <tr class="vis_help_o1"><td>
+      <p class="dlHelp">You can uncheck this box for CSV or TSV responses if you want the output to start with
+      the field names and skip the metadata.  We recommend that you leave this box checked for
+      result sets that you plan to save, so that the resulting files will contain information
+      about when they were generated and what parameters were used to generate them.</p>
+    </td></tr>
+    
+  </table>
+  
+</div>
+
+</div>
+
+</form>
+  
+</div>
+
+<div id="db_initmsg" class="dlMessageBox" style="width: 300px; height: 100px;">
+<span id="initmsg" class="large">Initializing form, please wait...</span>
+</div>
+
+
+

@@ -1,0 +1,22 @@
+,
+
+To reset your password click on this link: 
+
+https:///account/reset-password-code?code=
+
+
+Or follow these instructions:
+
+1) Go to https:///account/reset-password-code
+
+2) Enter "" in the reset code field.
+
+3) Enter a new password into the password fields.
+
+4) Click "Save".
+
+NOTE: The password reset code contained in this email is only valid for 24 hours.
+
+
+If you did not request this password reset, you can ignore this message.
+

@@ -1,0 +1,184 @@
+
+    <script language="JavaScript">
+    <!-- Begin
+
+	// This is a handy little function for seeing what properties an object has
+	function showProperties ( obj ) {
+		var result = "";
+
+		for ( var i in obj ) {
+			result += "o." + i + " = " + obj[i] + "<br>\n";
+		}
+		document.write ( result );
+	}
+
+
+    function checkForm() {
+	var frm = document.forms[1];
+	var errors = "";
+	
+	// first compute the set of selected roles
+	
+	var role_list = ""; var comma = "";
+	var role_set = {};
+	
+	for ( var i=0; i < frm.role.length; i++ )
+	{
+	    if ( frm.role[i].checked )
+	    {
+		role_list = role_list + comma;
+		role_list = role_list + frm.role[i].value;
+		role_set[frm.role[i].value] = 1;
+		comma = ',';
+	    }
+	}
+	
+	frm.new_roles.value = role_list;
+	
+		// checks
+		if ( frm.first_name.value == "" ) errors += "Enter the first name\n";
+		if ( frm.last_name.value == "" ) errors += "Enter the last name\n";
+		if ( frm.name.value == "" ) errors += "Enter the name\n";
+		if ( frm.reversed_name.value == "" ) errors += "Enter the reversed name\n";
+		if ( frm.gender.value == "" ) errors += "Enter the gender\n";
+		if ( frm.email.value == "" ) errors += "Enter the e-mail address\n";
+		if ( frm.institution.value == "" ) errors += "Enter the institution\n";
+		if ( frm.country.value == "" ) errors += "Enter the country\n";
+		if ( role_list == "" ) { errors += "Enter the role\n"; }
+		else if ( role_set["authorizer"] ) {
+			if ( frm.plaintext.value == "" ) errors += "Authorizers must have passwords\n";
+		}
+
+		if ( frm.email.value != "" && ! /^[A-Za-z].*@.*[a-z]$/.test(frm.email.value) )	{
+			errors += frm.email.value + " is misformatted\n";
+		}
+		if ( frm.country.value != "" && ( ! /^[A-Z].*[a-z]$/.test(frm.country.value) || /[^A-Za-z ]/.test(frm.country.value) ) )	{
+			errors += frm.country.value + " is misformatted\n";
+		}
+
+		// Report errors
+		if ( errors != "" ) {
+			alert ( errors );
+			return false;
+		}
+
+		var names = new Array("%%names%%");
+		if ( frm.person_no.value == 0 )	{
+			for ( var i=0; i < names.length; i++ )	{
+				if ( names[i] == frm.name.value )	{
+					errors = frm.name.value + " is already in the system";
+					alert ( errors );
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+    //  End -->
+    </script>
+
+<form action="%%write_url%%" method="POST" onSubmit="return checkForm();">
+<input id="action" type="hidden">
+<input id="person_no" type="hidden">
+<input id="new_roles" type="hidden">
+
+<center><p class="pageTitle">%%title%%</p></center>
+
+<div show="error">
+<center><div style="margin-bottom: 2em;"><i>%%error%%</i></div></center>
+</div>
+
+<div style="overflow: hidden; margin-left: auto; margin-right: auto;">
+
+<div style="float: left; clear: none; margin-left: 4em; padding: 1em; border: 1px solid LightGray;"">
+<table border=0 cellpadding=4 cellspacing=1>
+
+<tr>
+	<td>First name/initial:<br></td>
+	<td><input size=8 id="first_name" type="text" maxlength="30"><input size=3 id="middle" type="text"></td>
+</tr>
+<tr>
+	<td>Last name:<br></td>
+	<td><input id="last_name" type="text" maxlength="30"></td>
+</tr>
+<tr>
+	<td>Name:<br><font size="1">e.g. J. Smith</font></td>
+	<td><input id="name" type="text" maxlength="64"></td>
+</tr>
+<tr>
+	<td nowrap>Reversed name:</td>
+	<td><input id="reversed_name" type="text" value="" maxlength="64"></td>
+</tr>
+<tr>
+	<td nowrap>Gender:</td>
+	<td><select name="gender"><option></option><option>F</option><option>M</option></select></td>
+</tr>
+<tr>
+	<td>Password: </td>
+	<td><input id="plaintext" type="text" value="" maxlength="20"></td>
+</tr>
+<tr>
+	<td>Homepage: </td>
+	<td><input id="homepage" type="text" maxlength="80"></td>
+</tr>
+<tr>
+	<td nowrap>E-mail address:</td>
+	<td><input id="email" type="text" value="" size="24" maxlength="255"></td>
+</tr>
+</table>
+</div>
+
+<div style="float: left; clear: none; margin-left: 2em; padding: 1em; padding-right: 3em; border: 1px solid LightGray;">
+<table border=0 cellpadding=4 cellspacing=1">
+<tr>
+	<td>Institution: </td>
+	<td><input id="institution" type="text" value="" size="26" maxlength="80"></td>
+</tr>
+<tr>
+	<td>Country: </td>
+	<td><input id="country" type="text" value="" size="26" maxlength="80"></td>
+</tr>
+
+<tr>
+	<td valign="top">Groups:</td>
+        <td>
+        <select id="research_group"></select><br>
+        <select id="research_group"></select><br>
+        <select id="research_group"></select><br>
+        <select id="research_group"></select><br>
+        </td>
+</tr>
+<tr>
+	<td nowrap valign="top">Role:</td>
+	<td class="tiny">
+        <input type="checkbox" name="role" value="authorizer"> authorizer
+        <input type="checkbox" name="role" value="officer"> officer<br>
+        <input type="checkbox" name="role" value="limited"> limited
+        <input type="checkbox" name="role" value="student"> student
+        <input type="checkbox" name="role" value="technician"> technician
+        </td>
+</tr>
+<tr>
+	<td nowrap>Is active?</td>
+	<td>
+		<input id="active" type="radio" name="active" value="1"> Yes
+		<input id="active" type="radio" name="active" value="0"> No
+	</td>
+</tr>
+<tr>
+	<td colspan="2" align="center" style="padding-top: 1em;">
+	<input type="submit" name="submit" value="Submit">	
+	</td>
+</table>
+
+</div>
+
+</div>
+
+</center>
+
+</form>
+
+

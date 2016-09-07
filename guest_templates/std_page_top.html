@@ -1,0 +1,100 @@
+<head>
+  <title>The Paleobiology Database</title>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+
+  <link rel="stylesheet" type="text/css" href="/Stylesheets/common.css">
+  <link href='//fonts.googleapis.com/css?family=Raleway' rel='stylesheet' type='text/css'/>
+  <link href='//fonts.googleapis.com/css?family=Open+Sans:300' rel='stylesheet' type='text/css'>
+
+  <meta name="keywords" content="paleobiology, paleontology, database, fossil, fossils, evolution, history of life">
+  <meta name="description" content="The Paleobiology Database is an international, non-governmental, community-based project involving more than 300 professional scientific researchers. Its goal is to document the history of life by providing taxonomic, distributional, and ecological data about the entire fossil record.">
+
+  <!-- <script src="/JavaScripts/login.js" language="JavaScript" type="text/javascript"></script> -->
+  <script src="/JavaScripts/common.js" language="JavaScript" type="text/javascript"></script>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-43999005-1', 'paleobiodb.org');
+    ga('send', 'pageview');
+  </script>
+
+</head>
+
+<!-- <body> -->
+
+<div class="container">
+
+<div class="mainBodyGuest">
+
+<div class="bannerColor" id="homeLinks">
+  <div id="title">
+    <a href="/"><img id="logo" src="/images/logo_white.png"></a>
+    <h2>Paleobiology Database</h2><p id="classic">Classic</p>
+  </div>
+
+	<div id="quickSearchDiv" class="small" style="left: 33.5em;">
+    <form method="POST" action="/classic/quickSearch" onSubmit="return checkName(0,2);">
+      <input type="hidden" name="a" value="quickSearch">
+      <input type="hidden" name="last_taxon" value="$taxon_no">
+      <input type="text" name="quick_search" value="Quick search" onFocus="textClear(quick_search);" onBlur="textRestore(quick_search);" style="position: relative; bottom: 1px; width: 9em; padding-left: 0.2em; font-size: 0.9em; border: 1px solid white; color: #aaa; border-radius:3px; -moz-border-radius:3px;">
+    </form>
+  </div>
+
+	<div id="dropDown" style="left: 43em;">
+    <div id="dropDownVertSpacer">
+      <div>Full search</div>
+    </div>
+    <ul>
+      <li><a href="/classic/displaySearchColls?type=view">Fossil collection records</a></li>
+      <li><a href="/classic/beginTaxonInfo">Fossil organisms</a></li>
+      <li><a href="/classic/displaySearchRefs?type=view">Published references</a></li>
+      <li><a href="/classic/classificationForm">Classifications of taxa in groups</a></li>
+      <li><a href="/classic/displaySearchStrataForm">Stratigraphic units</a></li>
+    </ul>
+  </div>
+
+	<div id="dropDown" style="left: 49.5em;">
+    <div id="dropDownVertSpacer">
+      <div>Download</div>
+    </div>
+    <ul>
+      <li><a href="/classic/displayDownloadGenerator">Data records of all types</a></li>
+      <li><a href="/classic/displayDownloadForm">Old form for collections and occurrences</a></li>
+      <li><a href="/classic/displayDownloadTaxonomyForm">Old form for taxonomic names</a></li>
+      <li><a href="/classic/displayDownloadMeasurementsForm">Old form for measurements</a></li>
+      <li><a href="/classic?page=OSA">Data Archives</a></li>
+    </ul>
+  </div>
+
+	<div id="dropDown" style="left: 55.5em;">
+    <div id="dropDownVertSpacer">
+      <div><a href="/#/faq">About</a></div>
+    </div>
+    <ul>
+      <li><a href="/#/faq">Frequently asked questions</a></li>
+      <li><a href="?page=OSA">Online Systematics Archives</a></li>
+      <li><a href="/#/publications">Official publications</a></li>
+      <li><a href="/#/people/members">Contributors</a></li>
+      <li><a href="/#/people">Executive Committee</a></li>
+    </ul>
+  </div>
+
+  <!-- 	<div id="dropDown" style="left: 59.5em;"> -->
+  <!--   <div id="dropDownVertSpacer"> -->
+  <!--     <div><a href="%%write_url%%?a=login">Log in</a></div> -->
+  <!--   </div> -->
+  <!-- </div> -->
+
+</div> <!-- end homeLinks -->
+
+<div class="outerMainPanel">
+
+<!-- <h4><br>message</h4> --> %%message_banner%%
+
+<div class="innerMainPanel">
+
+<!-- End std_page_top.html -->

@@ -1,0 +1,77 @@
+<div id="terms">
+
+<div class="displayPanel">
+<span class="displayPanelHeader">Download Results</span>
+<div class="displayPanelContent">
+
+<p>The following files will become available when you click the Download link below:</p>
+
+<table border="1" width="90%" align="center">
+<tr><td width="30%">%%filename%%-occurrences.csv</td><td>occurrence data you specified for download</td></tr>
+<tr><td>%%filename%%-ranges.csv</td><td>ranges of taxa in the occurrences you specified for download</td></tr>
+<tr><td>%%filename%%-references.csv</td><td>references from which your downloaded data was extracted in comma separated value (CSV) format</td></tr>
+<tr><td>%%filename%%-RIS.txt</td><td>references from which your downloaded data was extracted in Research Information System (RIS) format</td></tr>
+</table>
+
+<p align="center"><a href="#" onClick="document.getElementById('mainPanel').style.display='inline'; document.getElementById('terms').style.display='none';">DOWNLOAD THE DATA</a></p>
+
+</div>
+</div>
+
+<div class="displayPanel">
+<span class="displayPanelHeader">Citation</span>
+<div class="displayPanelContent">
+
+<p>When you use Paleobiology Database data in publications, we ask that you cite the data in two
+ways. First, please cite the database itself and/or the relevant data archive.  If you cite a data
+archive, you can use a format like this:
+
+<blockquote>
+Alroy, J. 2013.  North American Fossil Mammal Systematics.  Paleobiology Database.
+http://paleobiodb.org/classic?page=OSA_3_North_American_mammals.
+</blockquote>
+
+<p>We also suggest that you include citations to all of the papers from which data was extracted in
+your bibliography, or include a data bibliography as an electronic supplement to your paper. You can
+import the data into your reference management software from either the %%filename%%-references.csv file or
+the %%filename%%-RIS.txt file to make this process simple for you to exectute.</p>
+
+<p>If your paper relies heavily on Palebiology Database data, you can also request an official PbDb
+publication number after the paper is accepted for publication by sending e-mail to
+<a href="mailto:sec@paleobiodb.org?subject=PBDB%20publication%20number%20request">sec@paleobiodb.org</a>.
+
+</div>
+</div>
+
+<div class="displayPanel">
+<span class="displayPanelHeader">Major contributors</span>
+<div class="displayPanelContent">
+
+<p>The major contributors to this data set were:</p>
+
+<ul>
+%%major_contributor_list%%
+</ul>
+
+<p>Additional contributors include
+%%other_contributors%%.
+</p>
+
+<p class="small">Each percentage is based on the estimated amount of time spent entering data by the authorizer and associated data enterers. The grand total is %%hours%% hours (equivalent to %%monthyears%%). The estimate is based on (1) date stamps for keystroked collections and (2) counts of published references used to document uploaded collections.</p>
+
+</div>
+</div>
+
+<div class="displayPanel">
+<span class="displayPanelHeader">Major sources</span>
+<div class="displayPanelContent">
+
+<p>Here are the publications that yielded the most records in this data set, in order of importance. Please cite some or all of them in any publication based on it. If possible, please also include the <a href="%%file_path%%">%%file_name%%</a> file as online supplementary information.</p>
+
+<p>%%cites%%</p>
+
+</div>
+
+</div>
+<div id="mainPanel" style="display: none;">
+

@@ -1,0 +1,125 @@
+package MyApp::DB::Result::Classic;
+
+# use PBDB::Main;
+
+use Moose;
+use Wing::Perl;
+use Ouch;
+extends 'Wing::DB::Result';
+
+with 'Wing::Role::Result::Field';
+with 'Wing::Role::Result::UriPart';
+with 'Wing::Role::Result::UserControlled';
+with 'Wing::Role::Result::DateTimeField';
+
+#with 'Wing::Role::Result::Child';
+#with 'Wing::Role::Result::Parent';
+
+#with 'Wing::Role::Result::PrivilegeControlled';
+#__PACKAGE__->wing_controlled_by_privilege('supervisor');
+#__PACKAGE__->wing_viewed_by_privilege('employee');
+
+#__PACKAGE__->wing_children(
+#    votes => {
+#        view           => 'public',
+#        related_class  => 'MyApp::DB::Result::ClassicVote',
+#        related_id     => 'classic_id',
+#    },
+#
+#    #Add children here
+#
+#);
+#
+#__PACKAGE__->wing_parents(
+#    classic_container => {
+#        view           => 'public',
+#        edit           => 'required',
+#        related_class  => 'MyApp::DB::Result::ClassicContainer',
+#    },
+#
+#    #Add parents here
+#
+#);
+
+__PACKAGE__->wing_fields(
+    name => {
+        dbic 		    => { data_type => 'varchar', size => 60, is_nullable => 0 },
+        view		    => 'public',
+        edit		    => 'required',
+    },
+    description => {
+        dbic 		    => { data_type => 'mediumtext', is_nullable => 0 },
+        view		    => 'public',
+        edit		    => 'postable',
+    },
+    status => {
+        dbic 		    => { data_type => 'varchar', size => 60, is_nullable => 0, default_value => 'pending' },
+        view		    => 'admin',
+        edit		    => 'admin',
+        options         => [qw(pending open closed)],
+        _options        => {
+            pending         => 'Pending',
+            open            => 'Open',
+            closed          => 'Closed',
+        },
+    },
+    is_cool => {
+        dbic            => { data_type => 'tinyint', is_nullable => 0, default_value => 0 },
+        view            => 'private',
+        edit            => 'required',
+        options         => [0,1],
+        _options        => { 0 => 'No', 1 => 'Yes' },
+        skip_duplicate  => 1,
+    },
+
+    #Add more fields here
+    
+);
+
+__PACKAGE__->wing_datetime_fields(
+    start_date => {
+        set_on_create   => 1,
+        view            => 'public',
+        edit            => 'postable',
+        skip_duplicate  => 1,
+    },
+    end_date => {
+        set_on_create   => 1,
+        view            => 'public',
+        edit            => 'postable',
+        skip_duplicate  => 1,
+    },
+);
+
+__PACKAGE__->wing_finalize_class( table_name => 'classics');
+
+# uncomment if you want to create a special DB index
+#around sqlt_deploy_hook  => sub {
+#    my ($orig, $self, $sqlt_table) = @_;
+#    $orig->($self, $sqlt_table);
+#    $sqlt_table->add_index(name => 'idx_ending_soon', fields => ['status','end_date']);
+#};
+
+around describe => sub {
+    my ($orig, $self, %options) = @_;
+    my $out = $orig->($self, %options);
+    $out->{view_uri} = $self->view_uri;
+    if ($options{include_private}) {
+        $out->{edit_uri} = $self->edit_uri;
+    }
+    return $out;
+};
+
+sub view_uri {
+    my $self = shift;
+    return '/classics/'.$self->uri_part;
+}
+
+sub edit_uri {
+    my $self = shift;
+    return '/classics/'.$self->id.'/edit';
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable(inline_constructor => 0);
+

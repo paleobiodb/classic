@@ -1,0 +1,99 @@
+[% page_title = "Edit Classic" %]
+[% INCLUDE header_include.tt %]
+<div class="container" ng-app="classicApp" ng-controller="classicCtrl" ng-cloak>
+    <h1><a href="/classics">Classics</a> &gt; <a href="{{classic.properties.view_uri}}">{{classic.properties.name}}</a> &gt; Edit</h1>
+
+    <form>
+		<fieldset>
+			<legend>Classic</legend>
+			
+			<div class="form-group">
+				<label class="control-label" for="is_cool">Is_cool</label>
+				<div>
+					<wing-select object="classic" property="is_cool"></wing-select>
+				</div>
+			</div>
+			
+			<div class="form-group">
+				<label class="control-label" for="name">Name</label>
+				<div>
+					<input class="form-control" type="text" id="name" autosave="classic" ng-model="classic.properties.name">
+				</div>
+			</div>
+			
+			<div class="form-group">
+				<label class="control-label" for="description">Description</label>
+				<div>
+					<input class="form-control" type="text" id="description" autosave="classic" ng-model="classic.properties.description">
+				</div>
+			</div>
+			
+			<div class="form-group">
+				<label class="control-label" for="end_date">End_date</label>
+				<div>
+					<input class="form-control" type="text" id="end_date" autosave="classic" ng-model="classic.properties.end_date">
+				</div>
+			</div>
+			
+			<div class="form-group">
+				<label class="control-label" for="start_date">Start_date</label>
+				<div>
+					<input class="form-control" type="text" id="start_date" autosave="classic" ng-model="classic.properties.start_date">
+				</div>
+			</div>
+			
+		</fieldset>
+        
+        [% IF current_user.is_admin %]
+			<fieldset>
+				<legend>Admin Only</legend>
+				
+				[% field %]
+				<div class="form-group">
+					<label class="control-label" for="status">Status</label>
+					<div>
+						<wing-select object="classic" property="status"></wing-select>
+					</div>
+				</div>
+				
+			</fieldset>
+        [% END %]
+        
+    </form>
+
+    <hr>
+    <a href="{{classic.properties.view_uri}}" class="btn btn-default">View</a>
+
+</div>
+
+[% foot_tags = BLOCK %]
+[% INCLUDE angular_js_include.tt %]
+[% INCLUDE bootstrapui_js_include.tt %]
+
+<script type="text/javascript">
+'use strict';
+
+var classicapp = angular.module('classicApp', ['ui.bootstrap','wing']);
+
+classicapp.controller('classicCtrl', function($scope, $http, objectManager) {
+
+    $scope.classic = new objectManager({
+		fetch_options : {
+			_include_relationships: 1,
+			_include_related_objects: 1,
+			_include_options: 1,
+		},
+		fetch_api : '[% classic._relationships.self %]',
+		on_update : function(properties, index) {
+			wing.success(properties.name + ' saved.');
+		},
+		on_delete : function(properties) {
+			wing.success(properties.name + ' deleted.');
+		},
+	});
+	$scope.classic.fetch();    
+});
+</script>
+[% END %]
+
+[% INCLUDE footer_include.tt %]

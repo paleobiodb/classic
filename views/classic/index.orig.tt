@@ -1,0 +1,133 @@
+[% page_title = "Classics" %]
+[% INCLUDE header_include.tt %]
+
+<h1>Classic</h1>
+
+<div class="container" ng-app="classicApp" ng-controller="classicCtrl" ng-cloak>
+    <div class="row">
+    
+        <div class="col-sm-8">
+            <h1>[% page_title %]</h1>
+            
+            <p>
+                <button class="btn btn-danger" ng-click="confirmations.toggle()"><span class="glyphicon glyphicon-question-sign"></span> <span ng-if="confirmations.disabled()">Enable</span> <span ng-if="confirmations.enabled()">Disable</span> Confirmations</button>
+            </p>
+    
+            <form class="form-search" ng-submit="search()">
+                <div class="input-group">
+                    <input class="form-control" type="text" ng-model="query" class="search-query">
+                    <span class="input-group-btn">
+                        <button ng-click="search();" type="button" class="btn btn-primary">Search</button>
+                    </span>
+                </div>
+            </form>
+            
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Last Updated</th>
+                        [% IF current_user.is_admin %]<th>Manage</th>[% END %]
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="classic in classics.objects" id="{{classic.properties.id}}">
+                        <td><a href="{{classic.properties.view_uri}}">{{classic.properties.name}}</a></td>
+                        <td>{{classic.properties.date_updated|datetime:'longDate'}}</td>
+                        <td ng-if="classic.properties.can_edit == 1">
+                            <a href="{{classic.properties.edit_uri}}" class="btn btn-primary">Edit</a>
+                            <button class="btn btn-danger" ng-click="classic.delete()">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <uib-pagination ng-show="classics.paging.total_pages > 1" max-size="5" rotate="false" ng-click="classics.search()" items-per-page="classics.paging.items_per_page" direction-links="false" boundary-links="true" total-items="classics.paging.total_items" ng-model="classics.paging.page_number"></uib-pagination>
+    
+        </div><!-- col-sm-8 -->
+        
+        <div class="col-sm-4">
+            <form>
+                <fieldset>
+                    <legend>Create A Classic</legend>
+                    [% IF current_user %]
+                        
+                        <div class="form-group">
+                            <label class="control-label" for="is_cool">Is_cool</label>
+                            <div>
+                                [% INCLUDE select_list_include.tt options=options field="is_cool" ng="ng-model=\"new_classic.is_cool\"" %]
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="control-label" for="name">Name</label>
+                            <div>
+                                <input class="form-control" type="text" name="name" id="name" value="[% classic.name FILTER html %]" ng-model="new_classic.name">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div>
+                                <button class="btn btn-primary" ng-click="create()">Create</button>
+                            </div>
+                        </div>
+                    [% ELSE %]
+                        You must <a href="/account?redirect_after=/classics">login or create an account</a> to create a new classic.
+                    [% END %]
+                </fieldset>
+            </form>
+        </div><!-- col-sm-4 -->
+        
+    </div><!-- row -->
+</div><!-- container -->
+
+[% foot_tags = BLOCK %]
+[% INCLUDE angular_js_include.tt %]
+[% INCLUDE bootstrapui_js_include.tt %]
+
+<script type="text/javascript">
+'use strict';
+
+var classicapp = angular.module('classicApp', ['ui.bootstrap','wing']);
+
+classicapp.controller('classicCtrl', function($scope, $http, objectListManager, confirmations) {
+
+    $scope.query = ''; // what to search on
+    $scope.new_classic = {}; // Classic to create
+
+    $scope.confirmations = confirmations;
+    
+    $scope.search = function () {
+        // get a list of objects with paging
+        $scope.classics = new objectListManager({
+            fetch_options : {
+                query: $scope.query,
+                _include_relationships: 1,
+                _include_related_objects: 1,
+            },
+            list_api : '/api/classic',
+            create_api : '/api/classic',
+            on_update : function(properties, index) {
+                wing.success(properties.name + ' saved.');
+            },
+            on_delete : function(properties) {
+                wing.success(properties.name + ' deleted.');
+            },
+        });
+        $scope.classics.search(); // calling .all() instead of .search() would return all objects, instead of paging
+    };
+    $scope.search();
+
+    $scope.create = function() {
+        $scope.classics.create($scope.new_classic, {
+            on_success : function(properties) {
+                wing.success('Classic added.');
+                window.location.href = properties.edit_uri;
+            },
+        })
+    };
+
+});
+</script>
+[% END %]
+[% INCLUDE footer_include.tt %]

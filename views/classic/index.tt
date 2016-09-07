@@ -1,0 +1,13 @@
+[% page_title = "PBDB Classic" %]
+[% INCLUDE header_include.tt %]
+
+<h1>PBDB Classic</h1>
+
+[% PERL %]
+
+print join(' ', @INC);
+print "\n\n";
+
+[% END %]
+
+[% INCLUDE footer_include.tt %]

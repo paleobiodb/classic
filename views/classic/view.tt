@@ -1,0 +1,47 @@
+[% page_title = classic.name %]
+[% INCLUDE header_include.tt %]
+<div class="container">
+    <h1><a href="/classics">Classics</a> &gt; [% page_title %]</h1>
+    <div>
+    
+        <div>
+            <b>Is_cool:</b> [% classic._options._is_cool.${classic.is_cool} %]
+        </div>
+    
+        <div>
+            <b>Name:</b> [% classic.name %]
+        </div>
+    
+        <div>
+            <b>Description:</b> [% classic.description %]
+        </div>
+    
+        <div>
+            <b>End_date:</b> [% classic.end_date %]
+        </div>
+    
+        <div>
+            <b>Start_date:</b> [% classic.start_date %]
+        </div>
+    
+        <div>
+            <b>User_id:</b> [% classic.user.display_name %] ([% classic.user_id %])
+        </div>
+    
+    
+        [% IF current_user.is_admin %]
+            <div>
+                <b>Status:</b> [% classic._options._status.${classic.status} %]
+            </div>
+        [% END %]
+    
+    </div>
+
+    [% IF classic.can_edit %]
+        <hr>
+        <a href="[% classic.edit_uri %]" class="btn btn-success">Edit</a>
+        <button class="btn btn-danger" onclick="wing.delete_object('classic','');">Delete</button>
+    [% END %]
+</div>
+   
+[% INCLUDE footer_include.tt %]

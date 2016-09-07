@@ -1,0 +1,68 @@
+# config-file-type: JSON 1
+
+{
+   "api_key_permissions" : [
+      "view_my_account",
+      "edit_my_account"
+   ],
+   "app_namespace" : "MyApp",
+   "aws" : {
+      "access_key" : "",
+      "image1_bucket_name_goes_here" : "images1.example.com",
+      "secret_key" : ""
+   },
+   "cache" : {
+      "cache_size" : "512M",
+      "driver" : "FastMmap",
+      "root_dir" : "/tmp/PROJECTfastmmap",
+      "serializer" : "JSON"
+   },
+   "db" : [
+      "DBI:mysql:database=myapp",
+      "USERNAME",
+      "PASSWORD",
+      {
+         "mysql_enable_utf8" : 1
+      },
+      {
+         "quote_names" : 1
+      }
+   ],
+   "facebook" : {
+      "access_token" : "ACCESSTOKEN",
+      "api_key" : "APIKEY",
+      "app_id" : "APPID",
+      "page_id" : "PAGEID",
+      "postback" : "https://WWW.EXAMPLE.COM/account/facebook/postback",
+      "secret" : "SECRET"
+   },
+   "log4perl_config" : "/data/MyApp/etc/log4perl.conf",
+   "mkits" : "/data/MyApp/var/mkits/",
+   "rpc_limit" : 30,
+   "sitename" : "PROJECT.EXAMPLE.COM",
+   "smtp" : {
+      "host" : "MAIL.EXAMPLE.COM",
+      "port" : 465,
+      "sasl_password" : "PASSWORD",
+      "sasl_username" : "USER@EXAMPLE.COM",
+      "ssl" : 1,
+      "timeout" : 30
+   },
+   "wingman" : {
+      "beanstalkd" : {
+         "default_tube" : "wingman",
+         "server" : "127.0.0.1",
+         "ttr" : 60
+      },
+      "max_workers" : 2,
+      "pid_file_path" : "/var/run/wingman.pid",
+      "plugins" : {
+         "Wingman::Plugin::EmailAllAdmins" : {
+            "phase" : "EmailAllAdmins"
+         },
+         "Wingman::Plugin::SendTemplatedEmail" : {
+            "phase" : "SendTemplatedEmail"
+         }
+      }
+   }
+}

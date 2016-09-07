@@ -1,0 +1,6 @@
+[% page_title = "PBDB Classic" %]
+[% INCLUDE header_include.tt %]
+
+<h1>PBDB Classic</h1>
+
+[% INCLUDE footer_include.tt %]

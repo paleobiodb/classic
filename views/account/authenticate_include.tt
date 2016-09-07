@@ -1,0 +1,8 @@
+<div class="row">
+    <div class="col-sm-6">
+        [% INCLUDE account/login_include.tt %]
+    </div>
+    <div class="col-sm-6">
+        [% INCLUDE account/create_account_include.tt %]
+    </div>
+</div>

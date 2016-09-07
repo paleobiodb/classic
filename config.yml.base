@@ -1,0 +1,23 @@
+---
+appname: MyApp
+behind_proxy: 1
+charset: UTF-8
+engines:
+  JSON:
+    pretty: 1
+    utf8: 1
+  template_toolkit:
+    ABSOLUTE: 1
+    ANYCASE: 1
+    INCLUDE_PATH: /data/MyApp/views
+    encoding: utf8
+    end_tag: '%]'
+    start_tag: '[%'
+    EVAL_PERL: 1
+error_template: error
+layout: main
+log4perl:
+  config_file: /data/MyApp/etc/log4perl.conf
+logger: log4perl
+show_errors: 0
+template: template_toolkit
