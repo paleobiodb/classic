@@ -10,13 +10,25 @@ use MyApp::Web;
 
     # my $request = Dancer::Request->new();
     
-    # $DB::single = 1;
+$DB::single = 1;
     
-    if ( $ARGV[0] =~ /^get$|^post$/i )
-    {
-	set apphandler => 'Debug';
-	set logger => 'console';
-	set show_errors => 0;
-    }
+if ( $ARGV[0] =~ /^get$|^post$/i )
+{
+    set apphandler => 'Debug';
+    set logger => 'console';
+    set show_errors => 0;
     
+    # if ( defined $ARGV[2] && $ARGV[2] =~ /cookie=([^&]+)/ )
+    # {
+    # 	param session_id => $1;
+    # }
+}
+
+# else
+# {
+#     die "You must run this with a first argument of GET or POST\n";
+# }
+
+# $DB::single = 1;
+
 dance;

@@ -5,6 +5,7 @@ use Wing::Perl;
 use Ouch;
 use Wing;
 use Wing::Web;
+use Wing::Dancer;
 use Carp qw(carp);
 
 # CPAN modules
@@ -86,20 +87,25 @@ sub classic_request {
 
     my ($action) = @_;
     
-    my $user = eval { get_user_by_session_id(); };
-    my $vars = {};
-    if ($user) {
-        $vars->{current_user} = $user;
-        $vars->{options} = MyApp::DB::Result::Classic->field_options;
-    }
-    
     $DB::single = 1;
+
+    my $db = site_db();
+    my $wing_session = get_session();
+
+    my ($user, $person_no, $session_id);
+    
+    if ( $wing_session )
+    {
+	$user = $wing_session->user;
+	$person_no = $user->person_no;
+	$session_id = $wing_session->id;
+    }
     
     my $q = PBDB::Request->new(request->method, scalar(params), request->uri);
     
-    my $dbt = new PBDB::DBTransactionManager();
+    my $dbt = PBDB::DBTransactionManager->new();
     
-    my $s = new PBDB::Session($dbt,cookie('session_id'));
+    my $s = PBDB::Session->new($dbt, $session_id, $person_no);
     
     my $use_guest = (!$s->isDBMember()) ? 1 : 0;
     
@@ -114,7 +120,7 @@ sub classic_request {
     
 #     if ( $q->path_info() =~ m{^/nexus/} ) {
 # 	$action = 'getNexusFile';
-#     } 
+#     } $DB::single = 1;
     
 #     elsif ( $action ne 'processNexusUpload' and $action ne 'updateNexusFile' and $action ne 'getNexusFile' ) {
 #         print $q->header(-type => "text/html", 
@@ -126,10 +132,18 @@ sub classic_request {
     
     $action = \&{"PBDB::$action"}; # Hack so use strict doesn't break
     
+    my $vars = {};
+    if ($user) {
+        $vars->{current_user} = $user;
+        $vars->{options} = MyApp::DB::Result::Classic->field_options;
+    }
+    
     my $output = template 'header_include', $vars;	# Displays Wing header, but doesn't work
 							# when run from command line.
     
     my $action_output;
+    
+    open(SAVE_STDOUT, '>&1');
     
     close(STDOUT);
     open(STDOUT, '>', \$action_output);
@@ -138,9 +152,16 @@ sub classic_request {
     
     $output .= $action_output;
     
-    $output .= template 'footer_include', $vars;
+    $vars = {};
+    if ($user) {
+        $vars->{current_user} = $user;
+        $vars->{options} = MyApp::DB::Result::Classic->field_options;
+    }
     
-    return $output;
+    $output .= template 'footer_include', $vars;
+
+    close(STDOUT);
+    open(STDOUT, '>&SAVE_STDOUT');
     
     return $output;
 };
@@ -5434,7 +5455,7 @@ sub Vars {
     
     my ($request) = @_;
     
-    return $request->{params};
+    return wantarray ? %{$request->{params}} : $request->{params};
 }
 
 

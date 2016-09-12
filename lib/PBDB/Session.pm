@@ -6,6 +6,80 @@ use Digest::MD5;
 use PBDB::Constants qw($WRITE_URL $IP_MAIN $IP_BACKUP);
 use Dancer ();
 
+
+# Create a new session record in response to a login.
+
+sub start_login_session {
+    
+    my ($class, $session_id, $enterer_no, $authorizer_no, $login_role) = @_;
+    
+    # print STDERR "session_id = $session_id\n";
+    # print STDERR "authorizer_no = $authorizer_no\n";
+    # print STDERR "enterer_no = $enterer_no\n";
+    # print STDERR "login_role = $login_role\n";
+    
+    my $dbh = PBDB::DBConnection::connect();
+    
+    unless ( $session_id && $session_id =~ qr{ ^ [0-9A-F-]+ $ }xs )
+    {
+	die "Error: invalid session_id\n";
+    }
+    
+    unless ( $enterer_no && $enterer_no =~ qr{ ^ [0-9]+ $ }xs )
+    {
+	die "Error: invalid enterer_no\n";
+    }
+    
+    unless ( $authorizer_no && $authorizer_no =~ qr{ ^ [0-9]+ $ }xs )
+    {
+	die "Error: invalid authorizer_no\n";
+    }
+    
+    unless ( $login_role && $login_role =~ qr{ ^ (?: authorizer | enterer ) $ }xs )
+    {
+	die "Error: invalid role\n";
+    }
+    
+    my $quoted_id = $dbh->quote($session_id);
+    my $quoted_role = $dbh->quote($login_role);
+    
+    my $sql = "
+	REPLACE INTO session_data (session_id, authorizer_no, enterer_no, role, record_date)
+	VALUES ($quoted_id, $authorizer_no, $enterer_no, $quoted_role, now())";
+    
+    my $result = $dbh->do($sql);
+    
+    $sql = "
+	UPDATE session_data as s join person as pa on pa.person_no = authorizer_no
+		join person as pe on pe.person_no = enterer_no
+	SET s.authorizer = pa.name,
+	    s.enterer = pe.name,
+	    s.roles = s.role";
+    
+    $result = $dbh->do($sql);
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
+sub end_login_session {
+    
+    my ($class, $session_id) = @_;
+    
+    return unless $session_id;
+    
+    my $dbh = PBDB::DBConnection::connect();
+    
+    my $quoted_id = $dbh->quote($session_id);
+    
+    my $sql = "DELETE FROM session_data WHERE session_id = $quoted_id";
+    
+    my $result = $dbh->do($sql);
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
 # Handles validation of the user
 sub new {
     my ($class,$dbt,$session_id) = @_;

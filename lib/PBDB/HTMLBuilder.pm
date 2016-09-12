@@ -188,7 +188,7 @@ sub new {
 # disappear, they aren't carried through as hiddens right now
 sub populateHTML {
     my ($self, $template, $vars_ref, $legacy_keys_ref, $read_only) = @_;
-    $DB::single = 1;
+    
     my $vars;
     if(ref($vars_ref) eq "HASH"){
         $vars = $vars_ref;

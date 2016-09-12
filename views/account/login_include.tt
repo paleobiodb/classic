@@ -6,6 +6,9 @@
 <input class="form-control" type="hidden" name="sso_id" value="[% sso_id || params.sso_id %]">
 [% END %]
 <fieldset>
+[% IF error_message %]
+<p align="center">[% error_message %]</p>
+[% END %]
 <legend>Login</legend>
   <div class="form-group">
     <label class="col-sm-4 control-label" for="login">Username or Email Address</label>
@@ -17,6 +20,12 @@
     <label class="col-sm-4 control-label" for="password">Password</label>
     <div class="col-sm-8"> 
       <input class="form-control" type="password" name="password" value="[% params.password %]" id="password">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-4 control-label" for="login">Authorizer</label>
+    <div class="col-sm-8"> 
+      <input class="form-control" type="text" name="authorizer" value="[% params.authorizer %]" id="login">
     </div>
   </div>
   <div class="form-group">
