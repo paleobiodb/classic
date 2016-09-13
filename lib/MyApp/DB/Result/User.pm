@@ -2,7 +2,7 @@ package MyApp::DB::Result::User;
 
 use Moose;
 use Wing::Perl;
-use Wing::Dancer;
+# use Dancer ':syntax';
 
 extends 'Wing::DB::Result';
 with 'Wing::Role::Result::User';
@@ -118,14 +118,14 @@ around check_login => sub {
     
     elsif ( $self->role =~ /admin/ )
     {
-	$self->login_role('');
+	$self->login_role('guest');
 	$self->login_authorizer_no(0);
 	return 0;
     }
     
     elsif ( $self->role =~ /enterer/ )
     {
-	my $authorizer_name = Dancer::param 'authorizer';
+	my $authorizer_name = $params->{'authorizer'};
 	print STDERR "authorizer = $authorizer_name\n";
 	return "Enterer login is not yet enabled";
     }
