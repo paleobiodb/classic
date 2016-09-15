@@ -6,9 +6,6 @@
 <input class="form-control" type="hidden" name="sso_id" value="[% sso_id || params.sso_id %]">
 [% END %]
 <fieldset>
-[% IF error_message %]
-<p align="center">[% error_message %]</p>
-[% END %]
 <legend>Login</legend>
   <div class="form-group">
     <label class="col-sm-4 control-label" for="login">Username or Email Address</label>

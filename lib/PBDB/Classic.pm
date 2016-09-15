@@ -63,6 +63,14 @@ get '/classic' => sub {
 };
 
 
+get '/classic/' => sub {
+
+    my $action = param('page') ? 'page' : (param('a') || param('action') || 'menu');
+    
+    return classic_request($action);
+};
+
+
 get '/classic/:path_action' => sub {
     
     return classic_request(params->{path_action});
@@ -88,16 +96,14 @@ sub classic_request {
     my ($action) = @_;
     
     $DB::single = 1;
-
-    my $db = site_db();
+    
     my $wing_session = get_session();
-
-    my ($user, $person_no, $session_id);
+    
+    my ($user, $session_id);
     
     if ( $wing_session )
     {
 	$user = $wing_session->user;
-	$person_no = $user->person_no;
 	$session_id = $wing_session->id;
     }
     
@@ -105,7 +111,7 @@ sub classic_request {
     
     my $dbt = PBDB::DBTransactionManager->new();
     
-    my $s = PBDB::Session->new($dbt, $session_id, $person_no);
+    my $s = PBDB::Session->new($dbt, $session_id);
     
     my $use_guest = (!$s->isDBMember()) ? 1 : 0;
     
@@ -148,7 +154,14 @@ sub classic_request {
     close(STDOUT);
     open(STDOUT, '>', \$action_output);
     
-    &$action($q, $s, $dbt, $hbo);
+    eval {
+	&$action($q, $s, $dbt, $hbo);
+    };
+    
+    unless ( $action_output )
+    {
+	ouch 404, 'Page Not Found', { path => request->path };
+    }
     
     $output .= $action_output;
     

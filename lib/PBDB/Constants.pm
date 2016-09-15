@@ -50,8 +50,9 @@ $PBDB::Constants::INTERVAL_URL = $conf->{INTERVAL_URL} || '';
 
 sub read_conf {
     my $base_dir = $FindBin::RealBin;
+    
     # $base_dir =~ s/\/(upload|cgi-bin|scripts|html)(\/.*)*$/\/config/;
-    $base_dir =~ s/\/bin//;
+    $base_dir =~ s{ /bin | /scripts }{}xs;
     $PBDB::Constants::APP_DIR = $base_dir;
     # $PBDB::Constants::APP_DIR =~ s/\/config$//;
     my $filename = "$base_dir/pbdb.conf";

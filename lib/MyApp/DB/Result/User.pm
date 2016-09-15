@@ -52,7 +52,7 @@ __PACKAGE__->wing_fields(
       },
       role => {
 	dbic		=> { data_type => 'varchar(80)', is_nullable => 0 },
-	options		=> ['guest', 'student', 'enterer', 'authorizer'],
+	options		=> ['guest', 'student', 'enterer', 'authorizer', 'technician'],
 	view		=> 'public',
 	indxeded	=> 1,
       },
