@@ -19,6 +19,9 @@
             [% IF current_user.admin %]
               <li><a href="/admin/users">Admin</a></li>
             [% END %]
+	    [% IF current_user.role == 'authorizer' %]
+	       <li><a href="/account/enterers">Enterers</a></li>
+	    [% END %]
             <li><a href="/logout">Log Out</a></li>
           </ul>
         </div><!--/.nav-collapse -->

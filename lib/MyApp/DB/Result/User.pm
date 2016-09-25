@@ -102,40 +102,6 @@ after insert => sub {
     $self->log_trend('users_created', 1, $self->username.' / '.$self->id);
 };
 
-# Check to make sure that the person logging in is either an authorizer or administrator,
-# or if they are an enterer that they have entered a valid authorizer name.
-
-around check_login => sub {
-    
-    my ($orig, $self, $params) = @_;
-    
-    if ( $self->role =~ /authorizer/ )
-    {
-	$self->login_role('authorizer');
-	$self->login_authorizer_no($self->person_no);
-	return 0;
-    }
-    
-    elsif ( $self->role =~ /admin/ )
-    {
-	$self->login_role('guest');
-	$self->login_authorizer_no(0);
-	return 0;
-    }
-    
-    elsif ( $self->role =~ /enterer/ )
-    {
-	my $authorizer_name = $params->{'authorizer'};
-	print STDERR "authorizer = $authorizer_name\n";
-	return "Enterer login is not yet enabled";
-    }
-    
-    else
-    {
-	return "You must be an administrator to log in";
-    }
-};
-
 around start_session => sub {
     
     my ($orig, $self, $options) = @_;
@@ -167,6 +133,21 @@ before end_session => sub {
     
     PBDB::Session->end_login_session($session->id);
 };
+
+after verify_posted_params => sub {
+    
+    my ($self, $params) = @_;
+
+    # need to construct real_name from first_name, middle_name, last_name
+};
+
+sub is_authorizer {
+
+    my ($self);
+    print STDERR "IS_AUTHORIZER\n";
+    return 1 if $self->role =~ /authorizer/;
+    return;
+}
 
 __PACKAGE__->wing_finalize_class( table_name => 'users');
 
