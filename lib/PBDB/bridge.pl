@@ -1049,7 +1049,7 @@ sub displaySearchColls {
 	print $hbo->stdIncludes($PAGE_TOP);
 	print Person::makeAuthEntJavascript($dbt);
 	$vars{'page_title'} = "Collection search form";
-	print PBDBUtil::printIntervalsJava($dbt,1);
+	# print PBDBUtil::printIntervalsJava($dbt,1);
 	print $hbo->populateHTML('search_collections_form', \%vars);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
 }

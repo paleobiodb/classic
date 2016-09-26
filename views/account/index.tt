@@ -37,6 +37,7 @@
                             <wing-select object="user" property="use_as_display_name"></wing-select>
                         </div>
                     </div>
+<!--
                     <div class="form-group">
                         <label class="col-sm-4 control-label">Are you a software developer?</label>
                         <div class="col-sm-8">
@@ -44,6 +45,7 @@
                             <p ng-if="user.properties.developer == 1"><a href="/account/apikeys">Manage API keys.</a></p>
                         </div>
                     </div>
+-->
                 </fieldset>
 
             </form>
@@ -75,9 +77,6 @@
         </div>
 
     </div><!-- row -->
-    [% UNLESS current_user.facebook_uid %] 
-        <div class="well"><p><a href="/account/facebook" class="btn btn-default">Connect This Account To Your Facebook Account</a></p></div>
-    [% END %]
 </div>
 [% foot_tags = BLOCK %]
 
