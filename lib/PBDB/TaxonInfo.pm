@@ -14,9 +14,11 @@ use PBDB::EcologyEntry;
 use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($HOST_URL $WRITE_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECORD $PAGE_TOP $PAGE_BOTTOM $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($HOST_URL $READ_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECORD 
+		       $PAGE_TOP $PAGE_BOTTOM $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeATag makeAnchor makeURL);
 
 use strict;
+
 
 # JA: rjp did a big complicated reformatting of the following and I can't
 #  confirm that no damage was done in the course of it
@@ -146,13 +148,15 @@ sub checkTaxonInfo {
                 # If nothing, print out an error message
                 searchForm($hbo, $q, 1); # param for not printing header with form
                 if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
-                    print "<center><p><a href=\"$WRITE_URL?a=submitTaxonSearch&amp;goal=authority&amp;taxon_name=".$q->param('taxon_name')."\"><b>Add taxonomic information</b></a></center>";
+		    my $link = makeURL('submitTaxonSearch', "goal=authority&amp;taxon_name=".$q->param('taxon_name'));
+                    print "<center><p><a href=\"$link\"><b>Add taxonomic information</b></a></center>";
                 }
             }
         } elsif(scalar @results < 1 && ! $q->param('taxon_name'))	{
             searchForm($hbo, $q, 1); # param for not printing header with form
             if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
-                print "<center><p><a href=\"$WRITE_URL?a=submitTaxonSearch&amp;goal=authority&amp;taxon_name=".$q->param('taxon_name')."\"><b>Add taxonomic information</b></a></center>";
+		my $link = makeURL('submitTaxonSearch', "goal=authority&amp;taxon_name=".$q->param('taxon_name'));
+                print "<center><p><a href=\"$link\"><b>Add taxonomic information</b></a></center>";
             }
         } elsif(scalar @results == 1)	{
             $q->param('taxon_no'=>$results[0]->{'taxon_no'});
@@ -338,9 +342,9 @@ sub displayTaxonInfoResults {
 
 	# JA 5.9.11
 	if ( $discussion )	{
-		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/<a href="?a=basicTaxonInfo&amp;taxon_no=$4">/g;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/<a href="?a=displayReference&amp;reference_no=$4">/g;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/<a href="?a=basicCollectionSearch&amp;collection_no=$4">/g;
+		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeATag('basicTaxonInfo', "taxon_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag('displayReference', "reference_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeATag('basicCollectionSearch', "collection_no=$4")/ge;
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;
 
@@ -391,20 +395,19 @@ sub displayTaxonInfoResults {
         if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
             # Entered Taxon
             if ($entered_no) {
-                print "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$entered_no\">";
+                print makeATag("displayAuthorityForm", "taxon_no=$entered_no");
                 print "<b>Edit taxonomic data for $entered_name</b></a> - ";
             } else {
-                print "<a href=\"$WRITE_URL?a=submitTaxonSearch&amp;goal=authority&amp;taxon_no=-1&amp;taxon_name=$entered_name\">";
+                print makeATag("submitTaxonSearch", "goal=authority&amp;taxon_no=-1&amp;taxon_name=$entered_name");
                 print "<b>Enter taxonomic data for $entered_name</b></a> - ";
             }
 
             if ($entered_no) {
-                print "<a href=\"$WRITE_URL?a=displayOpinionChoiceForm&amp;taxon_no=$entered_no\"><b>Edit taxonomic opinions about $entered_name</b></a> -<br> ";
-                print "<a href=\"$WRITE_URL?a=startPopulateEcologyForm&amp;taxon_no=$taxon_no\"><b>Add/edit ecological/taphonomic data</b></a> - ";
+                print makeATag("displayOpinionChoiceForm", "taxon_no=$entered_no");
+		print "<b>Edit taxonomic opinions about $entered_name</b></a> -<br> ";
+                print makeATag("startPopulateEcologyForm", "taxon_no=$taxon_no");
+		print "<b>Add/edit ecological/taphonomic data</b></a> - ";
             }
-            
-            print "<a href=\"$WRITE_URL?a=startImage\">".
-                  "<b>Enter an image</b></a>\n";
         }
 
         print "</div>\n";
@@ -427,9 +430,9 @@ sub displayTaxonInfoResults {
 	}
     	print displaySynonymyList($dbt, $taxon_no);
         if ( $taxon_no )	{
-            print "<p>Is something missing? <a href=\"?page=join_us\">Join the Paleobiology Database</a> and enter the data</p>\n";
+            print "<p>Is something missing? <a href=\"$READ_URL?page=join_us\">Join the Paleobiology Database</a> and enter the data</p>\n";
         } else	{
-            print "<p>Please <a href=\"?page=join_us\">join the Paleobiology Database</a> and enter some data</p>\n";
+            print "<p>Please <a href=\"$READ_URL?page=join_us\">join the Paleobiology Database</a> and enter some data</p>\n";
         }
         print "</div>\n</div>\n</div>\n";
 	}
@@ -632,112 +635,6 @@ sub doCladograms {
     print "</div>\n</div>\n\n";
 
 } 
-
-# sub doThumbs {
-#     my ($dbt,$in_list) = @_;
-#     my $images_per_row = 6;
-#     my $thumbnail_size = 100;
-# 	my @thumbs = Images::getImageList($dbt, $in_list);
-
-#     if (@thumbs) {
-#         print '<div align="center" style="margin-left: 2em; margin-bottom: 2em;">';
-#         print "<table border=0 cellspacing=8 cellpadding=0>";
-#         for (my $i = 0;$i < scalar(@thumbs);$i+= $images_per_row) {
-#             print "<tr>";
-#             for( my $j = $i;$j<$i+$images_per_row;$j++) {
-#                 print "<td>";
-#                 my $thumb = $thumbs[$j];
-#                 if ($thumb) {
-#                     my $thumb_path = $thumb->{path_to_image};
-#                     $thumb_path =~ s/(.*)?(\d+)(.*)$/$1$2_thumb$3/;
-#                     my $caption = $thumb->{'caption'};
-#                     my $width = ($thumb->{'width'}  || 300);
-#                     my $height = ($thumb->{'height'}  || 400);
-#                     my $maxwidth = $width;
-#                     my $maxheight = $height;
-#                     if ( $maxwidth > 300 || $maxheight > 400 )	{
-#                         $maxheight = 400;
-#                         $maxwidth = 400 * $width / $height;
-#                     }
-#                     $height =  $maxheight + 150;
-#                     $width = $maxwidth;
-#                     if ( $width < 300 )	{
-#                         $width = 300;
-#                     }
-#                     $width += 80;
-#                     my $t_width=$thumbnail_size;
-#                     my $t_height=$thumbnail_size;
-#                     if ($thumb->{'width'} && $thumb->{'height'}) {
-#                         if ($thumb->{'width'} > $thumb->{'height'}) {
-#                             $t_width = $thumbnail_size;
-#                             $t_height = int($thumb->{'height'}/$thumb->{'width'}*$thumbnail_size);
-#                         } else {
-#                             $t_width = int($thumb->{'width'}/$thumb->{'height'}*$thumbnail_size);
-#                             $t_height = $thumbnail_size;
-#                         }
-#                     }
-
-#                     print "<a href=\"javascript: imagePopup('?a=displayImage&amp;image_no=$thumb->{image_no}&amp;maxheight=$maxheight&amp;maxwidth=$maxwidth&amp;display_header=NO',$width,$height)\">";
-#                     print "<img src=\"$thumb_path\" border=1 vspace=3 width=$t_width height=$t_height alt=\"$caption\">";
-#                     print "</a>";
-#                 } else {
-#                     print "&nbsp;";
-#                 }
-#                 print "</td>";
-#             }
-#             print "</tr>";
-#         }
-#         print "</td></tr></table>";
-#         print "</div>\n";
-#     }
-# } 
-
-# sub displayMap {
-#     my ($dbt,$q,$s,$collectionsSet)  = @_;
-#     require Map;
-    
-# 	my @map_params = ('projection', 'maptime', 'mapbgcolor', 'gridsize', 'gridcolor', 'coastlinecolor', 'borderlinecolor', 'usalinecolor', 'pointshape1', 'dotcolor1', 'dotborder1');
-# 	my %user_prefs = $s->getPreferences();
-# 	foreach my $pref (@map_params){
-# 		if($user_prefs{$pref}){
-# 			$q->param($pref => $user_prefs{$pref});
-# 		}
-# 	}
-
-# 	# we need to get the number of collections out of dataRowsRef
-# 	#  before figuring out the point size
-#     my ($map_html_path,$errors,$warnings);
-# #    if (ref $in_list && @$in_list) {
-#         $q->param("simple_map"=>'YES');
-#         $q->param('mapscale'=>'auto');
-#         $q->param('autoborders'=>'yes');
-#         $q->param('pointsize1'=>'auto');
-#         my $m = Map->new($q,$dbt,$s);
-#         ($map_html_path,$errors,$warnings) = $m->buildMap('dataSet'=>$collectionsSet);
-# #    }
-
-#     # MAP USES $q->param("taxon_name") to determine what it's doing.
-#     if ( $map_html_path )	{
-#         if($map_html_path =~ /^\/public/){
-#             # reconstruct the full path the image.
-#             $map_html_path = $HTML_DIR.$map_html_path;
-#         }
-#         open(MAP, $map_html_path) or die "couldn't open $map_html_path ($!)";
-#         while(<MAP>){
-#             print;
-#         }
-#         close MAP;
-#     } else {
-#         print qq|<div class="displayPanel" align="left" style="width: 36em; margin-top: 0em; padding-bottom: 1em;">
-# <span class="displayPanelHeader" class="large">Map</span>
-# <div class="displayPanelContent">
-#   <div align="center"><i>No distribution data are available</i></div>
-# </div>
-# </div>
-# |;
-#     }
-# }
-
 
 
 # age_range_format changes appearance html formatting of age/range information, used by the strata module
@@ -1061,10 +958,11 @@ sub doCollections{
 					$formatted_no =~ s/([0-9])/type locality: $1/;
 				}
 				if ( $iscrown{$no} > 0 )	{
-					$formatted_no =~ s/([0-9])/<a href=\"?a=basicCollectionSearch&amp;collection_no=$no&amp;is_real_user=$is_real_user\"><b>$1/;
-                                	$formatted_no .= "</b>";
+				    my $link = makeATag("basicCollectionSearch", "collection_no=$no&amp;is_real_user=$is_real_user");
+				    $formatted_no =~ s/([0-9])/$link<b>$1<\/b>/;
 				} else	{
-					$formatted_no =~ s/([0-9])/<a href=\"?a=basicCollectionSearch&amp;collection_no=$no&amp;is_real_user=$is_real_user\">$1/;
+				    my $link = makeATag("basicCollectionSearch", "collection_no=$no&amp;is_real_user=$is_real_user");
+				    $formatted_no =~ s/([0-9])/${link}$1/;
 				}
 				$output .= $formatted_no;
 			}
@@ -1305,7 +1203,7 @@ sub displayTaxonClassification {
                 }
                 my $pub_info = PBDB::Reference::formatShortRef($authority);
                 if ($authority->{'ref_is_authority'} =~ /yes/i) {
-                    $pub_info = "<a href=\"?a=displayReference&amp;reference_no=$authority->{reference_no}&amp;is_real_user=$is_real_user\">$pub_info</a>";
+                    $pub_info = makeAnchor("displayReference?reference_no=$authority->{reference_no}&amp;is_real_user=$is_real_user", $pub_info);
                 }
                 my $orig_no = getOriginalCombination($dbt,$taxon_no);
                 if ($orig_no != $taxon_no) {
@@ -1313,9 +1211,9 @@ sub displayTaxonClassification {
                 } 
                 my $link;
                 if ($taxon_no) {
-                    $link = qq|<a href="?a=checkTaxonInfo&amp;taxon_no=$taxon_no&amp;is_real_user=$is_real_user">$show_name</a>|;
+                    $link = makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=$is_real_user", $show_name);
                 } else {
-                    $link = qq|<a href="?a=checkTaxonInfo&amp;taxon_name=$taxon_name&amp;is_real_user=$is_real_user">$show_name</a>|;
+                    $link = makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=$is_real_user", $show_name);
                 }
                 $output .= qq|<td align="center">$taxon_rank</td>|.
                            qq|<td align="center">$link</td>|.
@@ -1412,7 +1310,7 @@ sub displayRelatedTaxa {
 		my @syn_links;                                                         
 		my @synonyms = @{$record->{'synonyms'}};
 		push @syn_links, $_->{'taxon_name'} for @synonyms;
-		my $link = qq|<a href="?a=checkTaxonInfo&amp;taxon_no=$record->{taxon_no}&amp;is_real_user=$is_real_user">$record->{taxon_name}|;
+		my $link = makeATag("checkTaxonInfo", "taxon_no=$record->{taxon_no}&amp;is_real_user=$is_real_user") . $record->{taxon_name};
 		$link .= " (syn. ".join(", ",@syn_links).")" if @syn_links;
 		$link .= "</a>";
 		if ($type_taxon_no && $type_taxon_no == $record->{'taxon_no'}) {
@@ -1439,7 +1337,7 @@ sub displayRelatedTaxa {
                     my @syn_links;
                     my @synonyms = @{$record->{'synonyms'}};
                     push @syn_links, $_->{'taxon_name'} for @synonyms;
-                    my $link = qq|<a href="?a=checkTaxonInfo&amp;taxon_no=$record->{taxon_no}&amp;is_real_user=$is_real_user">$record->{taxon_name}|;
+                    my $link = makeAnchor("checkTaxonInfo", "taxon_no=$record->{taxon_no}&amp;is_real_user=$is_real_user") . $record->{taxon_name};
                     $link .= " (syn. ".join(", ",@syn_links).")" if @syn_links;
                     $link .= "</a>";
                     push @sister_taxa_links, $link;
@@ -1492,11 +1390,11 @@ sub displayRelatedTaxa {
                     $occ_name .= " ".$row->{'species_name'};
                     if ($species) {
                         if ($species ne $row->{'species_name'}) {
-                            my $link = qq|<a href="?a=checkTaxonInfo&amp;taxon_name=$occ_name&amp;is_real_user=$is_real_user">$occ_name</a>|;
+                            my $link = makeAnchor("checkTaxonInfo", "taxon_name=$occ_name&amp;is_real_user=$is_real_user", $occ_name);
                             push @possible_sister_taxa_links, $link;
                         }
                     } else {
-                        my $link = qq|<a href="?a=checkTaxonInfo&amp;taxon_name=$occ_name&amp;is_real_user=$is_real_user">$occ_name</a>|;
+                        my $link = makeAnchor("checkTaxonInfo", "taxon_name=$occ_name&amp;is_real_user=$is_real_user", $occ_name);
                         push @possible_child_taxa_links, $link;
                     }
                 }
@@ -1716,17 +1614,20 @@ sub getSynonymyParagraph	{
 		for my $row ( @results )	{
 			if ( $row->{'spelling_reason'} =~ /rank/ )	{
 			# rank was changed at some point
-				$text .= "<a href=\"?a=checkTaxonInfo&amp;taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user\">$taxon->{taxon_name}</a> was named as $article $rank. ";
+				$text .= makeAnchor("checkTaxonInfo", "taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user", $taxon->{taxon_name}) .
+				    " was named as $article $rank. ";
 				$rankchanged++;
 				last;
 			}
 		}
 		# rank was never changed
 		if ( ! $rankchanged )	{
-			$text .= "<a href=\"?a=checkTaxonInfo&amp;taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user\">$taxon->{taxon_name}</a> is $article $rank. ";
+			$text .= makeAnchor("checkTaxonInfo", "taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user", $taxon->{taxon_name}) .
+			    " is $article $rank. ";
 		}
 	} else	{
-		$text .= "<i><a href=\"?a=checkTaxonInfo&amp;taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user\">$taxon->{taxon_name}</a></i> was named by ";
+		$text .= "<i>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user", $taxon->{taxon_name}) . 
+		    "</i> was named by ";
 	        if ($taxon->{'ref_is_authority'}) {
 			$text .= PBDB::Reference::formatShortRef($taxon,'alt_pubyr'=>1,'show_comments'=>1,'link_id'=>1);
 		} else {
@@ -1759,7 +1660,7 @@ sub getSynonymyParagraph	{
             if ($row->{'taxon_rank'} =~ /genus|species/) {
                 $taxon_name = "<i>".$taxon_name."</i>";
             }
-            $text .= "<a href=\"?a=checkTaxonInfo&amp;taxon_no=$row->{taxon_no}&amp;is_real_user=$is_real_user\">$taxon_name</a>, ";
+            $text .= makeAnchor("checkTaxonInfo", "taxon_no=$row->{taxon_no}&amp;is_real_user=$is_real_user", $taxon_name) . ", ";
         }
         $text =~ s/, $/. /;
     }
@@ -1934,7 +1835,7 @@ sub getSynonymyParagraph	{
         #if ($taxon->{'taxon_rank'} =~ /genus|species/) {
         #    $taxon_name = "<i>$taxon_name</i>";
         #}
-        #$text .= "<a href=\"?a=checkTaxonInfo&amp;taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user\">$taxon_name</a> was assigned ";
+        #$text .= makeAnchor("checkTaxonInfo", "taxon_no=$taxon->{taxon_no}&amp;is_real_user=$is_real_user", $taxon_name) . " was assigned ";
         $text .= "It was assigned";
         for(my $j=0;$j<@parents_ordered;$j++) {
             my $parent_no = $parents_ordered[$j];
@@ -1945,7 +1846,7 @@ sub getSynonymyParagraph	{
             if ($parent->{'taxon_rank'} =~ /genus|species/) {
                 $parent_name = "<i>$parent_name</i>";
             }
-            $text .= " to <a href=\"?a=checkTaxonInfo&amp;taxon_no=$parent->{taxon_no}&amp;is_real_user=$is_real_user\">$parent_name</a> by ";
+            $text .= " to " . makeAnchor("checkTaxonInfo", "taxon_no=$parent->{taxon_no}&amp;is_real_user=$is_real_user", $parent_name) . " by ";
             $text .= printReferenceList(\@parent_array,$best_opinion);
             $text .= "; ";
         }
@@ -2092,7 +1993,10 @@ sub printTypeInfo	{
                 $coll_row->{'place'} =~ s/Syrian Arab Republic/Syria/;
                 $coll_row->{'place'} =~ s/Lao People's Democratic Republic/Laos/;
                 $coll_row->{'place'} =~ s/(United Kingdom|Russian Federation|Czech Republic|Netherlands|Dominican Republic|Bahamas|Philippines|Netherlands Antilles|United Arab Emirates|Marshall Islands|Congo|Seychelles)/the $1/;
-                $text .= "Its type locality is <a href=\"?a=basicCollectionSearch&amp;collection_no=".$taxon->{'type_locality'}."&amp;is_real_user=$is_real_user\">".$coll_row->{'collection_name'}."</a>, which is in $strat $lith $fm $coll_row->{'place'}. ";
+                $text .= "Its type locality is ";
+		$text .= makeAnchor("basicCollectionSearch", "collection_no=$taxon->{type_locality}&amp;is_real_user=$is_real_user", 
+				    $coll_row->{'collection_name'});
+		$text .= ", which is in $strat $lith $fm $coll_row->{'place'}. ";
             }
         }
     } else {
@@ -2107,7 +2011,7 @@ sub printTypeInfo	{
             if ( $preface )	{
                 $text .= "Its type is ";
             }
-            $text .= "<a href=\"?a=$taxonInfoGoal&amp;taxon_no=$type_taxon->{taxon_no}&amp;is_real_user=$is_real_user\">$type_taxon_name</a>. ";  
+            $text .= makeAnchor("$taxonInfoGoal", "taxon_no=$type_taxon->{taxon_no}&amp;is_real_user=$is_real_user", $type_taxon_name) . ". ";  
         }
     }
 
@@ -2897,7 +2801,8 @@ sub displaySynonymyList	{
 				$authorstring .= " and " . $refdata->{author2last};
 			}
 			if ( $refdata->{ref_is_authority} eq "YES" || $refdata->{ref_has_opinion} eq "YES" )	{
-				$authorstring = "<a href=\"?a=displayReference&amp;reference_no=$refdata->{reference_no}&amp;is_real_user=$is_real_user\">" . $authorstring . "</a>";
+				$authorstring = makeAnchor("displayReference", "reference_no=$refdata->{reference_no}&amp;is_real_user=$is_real_user", 
+							   $authorstring);
 			}
 			$synkey .= $authorstring;
 		}
@@ -3177,7 +3082,7 @@ sub displayFirstAppearance	{
 					$paramlist .= "&amp;".$p."=".$q->param($p);
 				}
 			}
-			print "<p>The crown group of $name is <a href=\"?taxon_name=$crown$paramlist\">$crown</a> (click to compute its first appearance)</p>\n";
+			print "<p>The crown group of $name is <a href=\"$$$?taxon_name=$crown$paramlist\">$crown</a> (click to compute its first appearance)</p>\n";
 		} elsif ( ! $crown )	{
 			my $exclude = "";
 			if ( $q->param('exclude') )	{
@@ -3522,7 +3427,9 @@ sub displayFirstAppearance	{
 				push @includes , $o->{'taxon_name'};
 			}
 		}
-		print "<p style=\"padding-left: 1em; text-indent: -1em;\">The collection documenting the first appearance is <a href=\"?a=basicCollectionSearch&amp;collection_no=$firsts[0]->{'collection_no'}\">$firsts[0]->{'collection_name'}</a> ($agerange $firsts[0]->{'formation'} of $firsts[0]->{'country'}: includes ".join(', ',@includes).")</p>\n";
+		print "<p style=\"padding-left: 1em; text-indent: -1em;\">The collection documenting the first appearance is ";
+		print makeAnchor("basicCollectionSearch", "collection_no=$firsts[0]{collection_no}", $firsts[0]{collection_name});
+		print " ($agerange $firsts[0]{formation} of $firsts[0]{country}: includes ".join(', ',@includes).")</p>\n";
 	} else	{
 		@firsts = sort { $a->{'collection_name'} cmp $b->{'collection_name'} } @firsts;
 		print "<p class=\"large\" style=\"margin-bottom: -1em;\">Collections including first appearances</p>\n";
@@ -3544,7 +3451,8 @@ sub displayFirstAppearance	{
 			my $classes = (($#firsts > 1) && ($i/2 > int($i/2))) ? qq|"small darkList"| : qq|"small"|;
 			print "<tr valign=\"top\" class=$classes style=\"padding: 3.5em;\">\n";
 			my $collno = $coll->{'collection_no'};
-			$coll->{'collection_no'} = "&nbsp;&nbsp;<a href=\"?a=basicCollectionSearch&amp;collection_no=$coll->{'collection_no'}\">".$coll->{'collection_no'}."</a>";
+			$coll->{'collection_no'} = "&nbsp;&nbsp;" .
+			    makeAnchor("basicCollectionSearch", "collection_no=$coll->{collection_no}", $coll->{collection_no});
 			if ( $coll->{'state'} && $coll->{'country'} eq "United States" )	{
 				$coll->{'country'} = "US (".$coll->{'state'}.")";
 			}
@@ -3568,7 +3476,9 @@ sub displayFirstAppearance	{
 	}
 	print "</div>\n</div>\n";
 
-	print "<div style=\"padding-left: 6em;\"><a href=\"?a=beginFirstAppearance\">Search again</a> - <a href=\"?a=displayTaxonInfoResults&amp;taxon_no=$nos[0]->{'taxon_no'}\">See more details about $name</a></div>\n";
+	print "<div style=\"padding-left: 6em;\">";
+	print makeAnchor("beginFirstAppearance", "", "Search again") . " - ";
+	print makeAnchor("displayTaxonInfoResults", "taxon_no=$nos[0]{taxon_no}", "See more details about $name") . "</div>\n";
 	print "</div>\n";
 
 	print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -3843,7 +3753,7 @@ sub basicTaxonInfo	{
 	if ( $taxon_no )	{
 		my $author = formatShortAuthor($auth);
 		if ( $auth->{'ref_is_authority'} =~ /y/i )	{
-			$author = "<a href=\"?a=displayReference&amp;reference_no=$auth->{'reference_no'}&amp;is_real_user=$is_real_user\">".$author."</a>";
+			$author = makeAnchor("displayReference?reference_no=$auth->{'reference_no'}&amp;is_real_user=$is_real_user", $author);
 		}
 		$header .= $author;
 		if ( $auth->{'common_name'} )	{
@@ -3866,7 +3776,7 @@ sub basicTaxonInfo	{
 		my @parent_links;
 		for my $r ( 'class','order','family' )	{
 			if ( $cof->{$r} )	{
-				push @parent_links , "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$cof->{$r.'_no'}\">".$cof->{$r}."</a>";
+				push @parent_links , makeAnchor("basicTaxonInfo", "taxon_no=" . $cof->{$r.'_no'}, $cof->{$r});
 			}
 		}
 		if ( @parent_links )	{
@@ -3883,9 +3793,9 @@ sub basicTaxonInfo	{
 
 	if ( $auth->{'discussion'} )	{
 		my $discussion = $auth->{'discussion'};
-		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/<a href="?a=basicTaxonInfo&amp;taxon_no=$4">/g;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/<a href="?a=displayReference&amp;reference_no=$4">/g;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/<a href="?a=basicCollectionSearch&amp;collection_no=$4">/g;
+		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeATag("basicTaxonInfo", "taxon_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag("displayReference", "reference_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeATag("basicCollectionSearch", "collection_no=$4")/ge;
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;
 		$auth->{'email'} =~ s/\@/\' \+ \'\@\' \+ \'/;
@@ -3924,25 +3834,6 @@ sub basicTaxonInfo	{
 				push @distinct_auths , $syn;
 			}
 		}
-		# my @thumbs = Images::getImageList($dbt, \@all_spellings);
-		# for my $thumb ( @thumbs )	{
-		# 	my $aspect = $thumb->{'height'} / $thumb->{'width'};
-		# 	my $divwidth =  int( 500 / ( $#thumbs + 2 * $aspect**2 ) );
-		# 	if ( $divwidth > $thumb->{'width'} )	{
-		# 		$divwidth = $thumb->{'width'};
-		# 	}
-		# 	if ( $divwidth > 200 )	{
-		# 		$divwidth = 200;
-		# 	}
-		# 	my $blowup = 300 / sqrt( $thumb->{'width'} * $thumb->{'height'} );
-		# 	my ($height,$width) = ( int( $blowup*$thumb->{'height'} ) , int( $blowup*$thumb->{'width'} ) );
-		# 	my $thumb_path = $thumb->{path_to_image};
-		# 	$thumb_path =~ s/(.*)?(\d+)(.*)$/$1$2_thumb$3/;
-		# 	print '<div style="float: left; clear: none; margin-right: 10px;">';
-		# 	printf "<a href=\"javascript: imagePopup('?a=displayImage&amp;image_no=$thumb->{image_no}&amp;maxheight=%d&amp;maxwidth=%d&amp;display_header=NO',%d,%d)\">",$height,$width,$width + 80,$height + 150;
-		# 	print "<img src=\"$thumb_path\" border=1 vspace=3 width=$divwidth alt=\"$thumb->{caption}\">";
-		# 	print "</a></div>\n\n";
-		# }
 		print "<div style=\"clear: both;\"></div>\n\n";
 
 		my $noun = "spelling";
@@ -4010,7 +3901,8 @@ sub basicTaxonInfo	{
 		my $parent = ${$dbt->getData($sql)}[0];
 		if ( $parent )	{
 			my $belongs = ( $auth->{'taxon_rank'} =~ /species/ ) ? "Belongs to" : "Parent taxon:";
-			print "<p style=\"clear: left;\">$belongs <a href=\"?a=basicTaxonInfo&amp;taxon_no=$parent->{'taxon_no'}\">".italicize($parent)."</a>";
+			print "<p style=\"clear: left;\">$belongs ";
+			print makeAnchor("basicTaxonInfo", "taxon_no=$parent->{taxon_no}", italicize($parent));
 			$sql = "SELECT r.reference_no,$authorfields2 FROM $TAXA_TREE_CACHE t,opinions o,refs r WHERE r.reference_no=o.reference_no AND t.opinion_no=o.opinion_no AND t.taxon_no=$taxon_no";
 			my $ref = ${$dbt->getData($sql)}[0];
 			print " according to ".PBDB::Reference::formatShortRef($ref,'link_id'=>1);
@@ -4046,11 +3938,12 @@ sub basicTaxonInfo	{
 
 		if ( @sisters )	{
 			if ( $#sisters == 0 )	{
-				print "<p style=\"clear: left;\">Sister taxon: <a href=\"?a=basicTaxonInfo&amp;taxon_no=$sisters[0]->{'taxon_no'}\">".italicize($sisters[0])."</a>";
+				print "<p style=\"clear: left;\">Sister taxon: ";
+				print makeAnchor("basicTaxonInfo", "taxon_no=$sisters[0]{taxon_no}", italicize($sisters[0]));
 			} else	{
 				print "<p style=\"margin-left: 1em;\"><span style=\"margin-left: -1em; text-indent: -0.5em;\">Sister taxa: ";
 				my $list;
-				$list .= "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$_->{'taxon_no'}\">".italicize($_)."</a>, " foreach @sisters;
+				$list .= makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", italicize($_)) foreach @sisters;
 				$list =~ s/, $//;
 				print $list;
 			}
@@ -4072,7 +3965,7 @@ sub basicTaxonInfo	{
 				$sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_no IN (".join(',',@child_nos).") ORDER BY taxon_name";
 				my @child_names = @{$dbt->getData($sql)};
 				my $list;
-				$list .= "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$_->{'taxon_no'}\">".italicize($_)."</a>, " foreach @child_names;
+				$list .= makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", italicize($_)) . " " foreach @child_names;
 				$list =~ s/, $//;
 				print $list;
 				print "</span></p>\n\n";
@@ -4229,7 +4122,8 @@ sub basicTaxonInfo	{
 		print "<p>Distribution:";
 		if ( $#occs == 0 && $occs[0]->{'c'} == 1 )	{
 			my $o = $occs[0];
-			print qq| found only at <a href="?a=basicCollectionSearch&amp;collection_no=$o->{collection_no}">$o->{'collection_name'}</a>|;
+			print qq| found only at |;
+			print makeATag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
 			if ( $typeLocality == 0 )	{
 				my $place = ( $o->{'country'} =~ /United States|Canada/ ) ? $o->{'state'} : $o->{'country'};
 				$place =~ s/United King/the United King/;
@@ -4302,10 +4196,10 @@ sub basicTaxonInfo	{
 						$min_interval_where = "&amp;min_interval_no=$min_interval";
 					}
 					if ( $country !~ /United States|Canada/ || ! @states )	{
-						$list .= "<a href=\"?a=displayCollResults&amp;$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1\">$shortcountry</a> (".$bycountry{$i}{$c};
+						$list .= makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $shortcountry) . " (".$bycountry{$i}{$c};
 					} else	{
 						for my $j ( 0..$#states )	{
-							$states[$j] = "<a href=\"?a=displayCollResults&amp;$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;state=$states[$j]&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1\">$states[$j]</a>";
+							$states[$j] = makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;state=$states[$j]&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $states[$j]);
 						}
 						$list .= "$country ($bycountry{$i}{$c}";
 						$list .= ": ".join(', ',@states);
@@ -4396,13 +4290,13 @@ sub basicTaxonInfo	{
 
 	if ( $is_real_user > 0 && ( @occs || $taxon_no ) )	{
 		if ( $taxon_no && $SQL_DB eq "pbdb" )	{
-			print "<p><a href=\"?a=checkTaxonInfo&amp;taxon_no=$taxon_no&amp;is_real_user=1\">Show more details</a></p>\n\n";
+			print "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 		} elsif ( $SQL_DB eq "pbdb" )	{
-			print "<p><a href=\"?a=checkTaxonInfo&amp;taxon_name=$taxon_name&amp;is_real_user=1\">Show more details</a></p>\n\n";
+			print "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 		}
 		if ( $s->isDBMember() && $taxon_no && $s->get('role') =~ /authorizer|student|technician/ )	{
-			print "<p><a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$taxon_no\">Edit ".italicize($auth)."</a></p>\n\n";
-			print "<p><a href=\"$WRITE_URL?a=displayOpinionChoiceForm&amp;taxon_no=$taxon_no\">Add/edit taxonomic opinions about ".italicize($auth)."</a></p>\n\n";
+			print "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
+			print "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
 		}
 	}
 	print "</div>\n</div>\n\n";
@@ -4554,7 +4448,8 @@ sub listTaxonChoices	{
 			$classes = ($i/2 == int($i/2)) ? qq|"small darkList"| : "small";
 		}
 		# the width term games browsers
-		print qq|<td class=$classes style="width: 1em; padding: 0.25em; padding-left: 1em; padding-right: 1em; white-space: nowrap;">&bull; <a href="?a=basicTaxonInfo&amp;taxon_no=$results[$i]->{taxon_no}" style="color: black;">$authorityLine</a></td>|;
+		print qq|<td class=$classes style="width: 1em; padding: 0.25em; padding-left: 1em; padding-right: 1em; white-space: nowrap;">&bull; <a href="|;
+		print makeURL("basicTaxonInfo", "taxon_no=$results[$i]->{taxon_no}") . qq| style="color: black;">$authorityLine</a></td>|;
 		print "</tr>\n<tr>";
 	}
 	print qq|</tr>

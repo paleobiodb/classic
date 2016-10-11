@@ -17,5 +17,12 @@ use Wing::Web::Admin::Trends;
 use Wing::Web::NotFound;
 
 
+hook before_error_init => sub {
+    my $error = shift;
+    my $code = $error->code;
+    my $message = $error->message;
+    my $exception = $error->exception;
+    print STDERR "ERROR $code: $message ($exception)\n";
+};
 
 1;

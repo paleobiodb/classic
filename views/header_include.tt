@@ -1,14 +1,16 @@
 <!DOCTYPE html>
+<!-- ### header_include.tt BEGIN ### -->
 <html lang="en">
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     [% INCLUDE bootstrap_css_include.tt %]
     [% INCLUDE pnotify_css_include.tt %]
-    
+
     <meta charset="UTF-8">
     [% section_head_tags %]
     [% head_tags %]
-    <title>[% page_title %]</title>
+    <!-- <title>[% page_title %]</title> -->
+    <title>PBDB</title>
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.2/html5shiv.js"></script>
@@ -20,16 +22,14 @@
     <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
       <div class="container">
 
-        <!-- Logo (also a home button) -->
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="/classic"><img src="/images/logo_white.png" height="60" width="60"></a>
-        </div>
-
+  <!-- Brand and toggle get grouped for better mobile display -->
+  <div class="navbar-header">
+    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#tgc-main-nav-collapse">
+      <span class="sr-only">Toggle navigation</span>
+      MENU
+    </button>
+    <a class="navbar-brand" href="/"><img src="/public/images/logo_white.png" alt="PaleobioDB" title="PBDB Home"></a>
+  </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
             <li><a href="/classic">PBDB</a></li>
@@ -98,3 +98,4 @@
         </div><!-- /.navbar-collapse -->
       </div><!-- container -->
     </nav>
+<!-- ### header_include.tt END ### -->

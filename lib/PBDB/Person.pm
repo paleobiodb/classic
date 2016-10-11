@@ -211,7 +211,7 @@ sub makeAuthEntJavascript {
 	} 
 	</SCRIPT>
 	';
-
+    
 	return $javaScript;
 }
 

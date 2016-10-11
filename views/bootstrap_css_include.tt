@@ -1,1 +1,5 @@
-<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+<!-- <link rel="stylesheet" href="/classic_css/common.css"> -->
+
+<link rel="stylesheet" href="/public/source/bootstrap-3.3.6-dist/css/bootstrap.min.css">
+
+<!-- <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"> -->

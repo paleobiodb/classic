@@ -1,0 +1,186 @@
+
+/* CSS definitions for download generator form */
+
+.dlErrmsg {
+    font-size: 0.8em;
+    color: red;
+}
+
+
+.dlErrvalue {
+    color: red;
+}
+
+
+.dlSmall {
+    font-size : 0.9em;
+}
+
+
+.dlSep {
+    margin-left: 1.5em;
+}
+
+
+.dlSepLR {
+    margin-left: 1.5em;
+    margin-right: 1.5em;
+}
+
+
+.dlRTColumn {
+    margin-right: 0.5em;
+    /* min-width: 200;
+    display: inline-block; */
+}
+
+
+.dlBoldURL {
+    font-weight: bold;
+}
+
+
+.dlOutputSection {
+}
+
+
+.dlBlockLabel {
+    min-width: 170px;
+    display: inline-block;
+}
+
+
+.dlCheckBox {
+    display: inline-block;
+}
+
+
+.dlBlockDoc {
+    font-style: italic;
+}
+
+
+.dlIntervalHelp {
+    display: none;
+}
+
+
+.dlLocationHelp {
+    display: none;
+}
+
+
+.dlStratHelp {
+    display: none;
+}
+
+
+.dlMetadataHelp {
+    display: none;
+}
+
+
+.dlHelp {
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+
+p.dlHelp {
+    margin-top: 5px;
+}
+
+
+.dlHelp > a {
+    text-decoration: underline;
+}
+
+
+div.dlHelp {
+    margin-left: 1em;
+}
+
+.dlMainURL {
+    color: blue;
+}
+
+
+.dlTopHeader {
+    display: inline-block;
+    min-width: 272px;
+    margin-bottom: 10px;
+}
+
+
+.dlSectionHeader {
+    display: inline-block;
+    min-width: 250px;
+}
+
+
+.dlSectionH4 {
+    margin-top: 0px;
+    margin-bottom: 5px;
+}
+
+.dlSectionMarker {
+}
+
+
+.dlHelpMarker {
+    position: relative;
+    top: 5px;
+}
+
+
+.dlSectionBody {
+    margin-left: 1em;
+}
+
+
+.dlSectionAdvanced {
+    display: none;
+}
+
+
+.dlSpanAdvanced {
+    display: none;
+}
+
+
+.dlMessageBox {
+    position: fixed;
+    top: 400px;
+    left: 400px;
+    text-align: center;
+    border: 2px solid red;
+    background-color: white;
+    padding-top: 20px;
+}
+
+
+/* .vis_advanced { display: none; } */
+
+/* .vis_mult_cc3 { display: none; } */
+/* .vis_mult_cc2 { display: none; } */
+
+/* .vis_help_h1 { display: none; } */
+/* .vis_help_f1 { display: none; } */
+/* .vis_help_f2 { display: none; } */
+/* .vis_help_f3 { display: none; } */
+/* .vis_help_f4 { display: none; } */
+/* .vis_help_f5 { display: none; } */
+/* .vis_help_f6 { display: none; } */
+/* .vis_help_o1 { display: none; } */
+
+/* .vis_type_taxon_reso { } */
+/* .vis_type_taxon_range { display: none; } */
+
+/* .vis_type_occs { } */
+/* .vis_type_colls { display: none; } */
+/* .vis_type_meas { display: none; } */
+/* .vis_type_strata { display: none; } */
+/* .vis_type_taxa { display: none; } */
+/* .vis_type_ops { display: none; } */
+/* .vis_type_refs { display: none; } */
+

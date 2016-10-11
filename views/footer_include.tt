@@ -1,3 +1,4 @@
+<!-- ### footer_include.tt BEGIN ### -->
 
 [% INCLUDE jquery_js_include.tt %]
 [% INCLUDE bootstrap_js_include.tt %]
@@ -9,3 +10,4 @@
 
 </body>
 </html>
+<!-- ### footer_include.tt END ### -->

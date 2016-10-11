@@ -2,13 +2,13 @@
 [% INCLUDE account/header_include.tt %]
 <div ng-app="AccountApp" ng-controller="AccountCtrl" ng-cloak>
     <p>Welcome [% current_user.display_name FILTER html %]. Not [% current_user.display_name FILTER html %]? <a href="/logout">Click here</a>.</p>
-    
+
     <div class="row">
         <div class="col-sm-6">
             <form class="form-horizontal">
                 <fieldset>
                     <legend>Account Information</legend>
-                    
+
                     <div class="form-group">
                         <label class="col-sm-4 control-label" for="username">Username</label>
                         <div class="col-sm-8">
@@ -32,22 +32,25 @@
                 <fieldset>
                     <legend>Preferences</legend>
                     <div class="form-group">
-                        <label class="col-sm-4 control-label" for="use_as_display_name">Which would you like to be displayed on the site?</label>
+                        <label class="col-sm-4 control-label" for="use_as_display_name">Site display name</label>
                         <div class="col-sm-8">
                             <wing-select object="user" property="use_as_display_name"></wing-select>
                         </div>
                     </div>
-<!--
                     <div class="form-group">
-                        <label class="col-sm-4 control-label">Are you a software developer?</label>
+                        <label class="col-sm-4 control-label">Authorizer</label>
                         <div class="col-sm-8">
-                            <wing-select object="user" property="developer"></wing-select>
-                            <p ng-if="user.properties.developer == 1"><a href="/account/apikeys">Manage API keys.</a></p>
+                            <wing-select object="user" property="authorizer_no"></wing-select>
+                            <!-- <p ng-if="user.properties.developer == 1"><a href="/account/apikeys">Manage API keys.</a></p> -->
                         </div>
                     </div>
--->
-                </fieldset>
 
+                   <!-- <div class="form-group">
+                        <div class="col-sm-8">
+                          <input class="form-control" type="text" name="authorizer" ng-model="user.properties.authorizer_no" autosave="" id="authorizer">
+                        </div>
+                    </div> -->
+                </fieldset>
             </form>
         </div>
 

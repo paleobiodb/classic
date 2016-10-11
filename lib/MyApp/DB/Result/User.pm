@@ -2,6 +2,7 @@ package MyApp::DB::Result::User;
 
 use Moose;
 use Wing::Perl;
+use Data::Dumper;
 # use Dancer ':syntax';
 
 extends 'Wing::DB::Result';
@@ -22,6 +23,12 @@ __PACKAGE__->wing_fields(
       person_no => {
         dbic            => { data_type => 'int', is_nullable => 1 },
         view            => 'public',
+	indexed		=> 1,
+      },
+      authorizer_no => {
+	dbic		=> { data_type => 'int', is_nullable => 1 },
+	view		=> 'private',
+	edit		=> 'postable',
       },
       first_name => {
         dbic            => { data_type => 'varchar(80)', is_nullable => 0 },
@@ -41,7 +48,7 @@ __PACKAGE__->wing_fields(
       },
       country => {
 	dbic		=> { data_type => 'char(2)', is_nullable => 0 },
-	view		=> 'public',
+	view		=> 'private',
 	edit		=> 'postable',
 	indexed		=> 1,
       },
@@ -60,7 +67,7 @@ __PACKAGE__->wing_fields(
 
 __PACKAGE__->wing_children(
     authorizer_enterers => {
-	view		=> 'private',
+	view		=> 'public',
 	edit		=> 'postable',
 	related_class	=> 'MyApp::DB::Result::AuthorizerEnterer',
 	related_id	=> 'authorizer_id',
@@ -69,7 +76,7 @@ __PACKAGE__->wing_children(
 
 __PACKAGE__->wing_children(
     enterer_authorizers => {
-	view		=> 'private',
+	view		=> 'public',
 	related_class	=> 'MyApp::DB::Result::AuthorizerEnterer',
 	related_id	=> 'enterer_id',
     },
@@ -129,22 +136,125 @@ around start_session => sub {
 
 before end_session => sub {
     
-    my ($self, $session) = @_;
-    
+    my ($self) = @_;
+    my $session = $self->current_session;
     PBDB::Session->end_login_session($session->id);
 };
 
 after verify_posted_params => sub {
     
     my ($self, $params) = @_;
-
+    
+    if ( $params->{real_authorizer_no} )
+    {
+	my $person_no = $self->get_column('person_no');
+	
+    }
+    
+    my $a = 1;
+    
     # need to construct real_name from first_name, middle_name, last_name
 };
+
+around describe => sub {
+    my ($orig, $self, %options) = @_;
+    my $dbh = Wing::db->storage->dbh;
+    my $out = $orig->($self, %options);
+    
+    my $role = $self->get_column('role');
+    my $person_no = $self->get_column('person_no');
+    my $authorizer_no = $self->get_column('authorizer_no');
+    
+    $out->{real_authorizer_no} = $authorizer_no;
+    
+    if ( ! $authorizer_no && $role eq 'authorizer' )
+    {
+    	$out->{real_authorizer_no} = $person_no;
+    }
+    
+    # my $quoted = $dbh->quote($out->{id});
+    
+    # my $sql = "
+    # 		SELECT ae.id, ae.authorizer_id, u.real_name, u.person_no
+    # 		FROM authorizer_enterers as ae join users as u on u.id = ae.authorizer_id
+    # 		WHERE ae.enterer_id = $quoted";
+    
+    # my $authorizers = $dbh->selectall_arrayref($sql, { Slice => {} }) || [ ];
+    
+    # $Data::Dumper::Maxlevels = 3;
+    # print STDERR Dumper($self);
+    
+    # foreach my $k ( keys %$self )
+    # {
+    # 	print STDERR "$k = $self->{$k}\n";
+    # }
+    
+    # my $this_record = $self->{_column_data};
+    
+    # if ( $this_record->{role} eq 'authorizer' )
+    # {
+    # 	# print STDERR "IS AUTHORIZER\n";
+    # 	unshift @$authorizers, { real_name => $this_record->{real_name},
+    # 				 person_no => $this_record->{person_no},
+    # 				 authorizer_id => $this_record->{id},
+    # 			         default => 1 };
+    # }
+
+    # else
+    # {
+    # 	print STDERR "ROLE = '$role'\n";
+    # }
+    
+    # $out->{authorizers} = $authorizers;
+    return $out;
+};
+
+
+around field_options => sub {
+    my ($orig, $self, %options) = @_;
+    
+    my $options_hash = $orig->($self, %options);
+    
+    my $dbh = Wing::db->storage->dbh;
+    my $person_no = $self->get_column('person_no');
+    my $quoted = $dbh->quote($person_no);
+    my $role = $self->get_column('role');
+    
+    my $sql = "
+		SELECT ae.id, ae.authorizer_no, u.real_name
+		FROM authents as ae join users as u on u.person_no = ae.authorizer_no
+		WHERE ae.enterer_no = $quoted";
+    
+    my ($authorizers) = $dbh->selectall_arrayref($sql, { Slice => {} }) || [ ];
+    
+    my (@auth_list, %auth_labels);
+    
+    if ( $role && $role eq 'authorizer' )
+    {
+	push @auth_list, $person_no;
+	$auth_labels{$person_no} = 'Myself';
+    }
+    
+    if ( ref $authorizers eq 'ARRAY' && @$authorizers )
+    {
+	foreach my $a ( @$authorizers )
+	{
+	    push @auth_list, $a->{authorizer_no};
+	    $auth_labels{$a->{authorizer_no}} = $a->{real_name};
+	}
+    }
+    
+    $options_hash->{_authorizer_no} = \%auth_labels;
+    $options_hash->{authorizer_no} = \@auth_list;
+    
+    return $options_hash;
+};
+
 
 sub is_authorizer {
 
     my ($self);
-    print STDERR "IS_AUTHORIZER\n";
+    
     return 1 if $self->role =~ /authorizer/;
     return;
 }
@@ -155,27 +265,5 @@ __PACKAGE__->wing_finalize_class( table_name => 'users');
 no Moose;
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);
 
-
-package MyApp::DB::Result::AuthorizerEnterer;
-
-use Moose;
-
-extends 'Wing::DB::Result';
-with 'Wing::Role::Result::Parent';
-
-__PACKAGE__->wing_parents(
-    authorizer => {
-	view		=> 'public',
-	edit		=> 'required',
-	related_class	=> 'MyApp::DB::Result::User',
-    },
-    enterer => {
-	view		=> 'public',
-	edit		=> 'required',
-	related_class	=> 'MyApp::DB::Result::User',
-    },
-);
-
-__PACKAGE__->wing_finalize_class( table_name => 'authorizer_enterers' );
 
 1;

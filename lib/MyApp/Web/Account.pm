@@ -13,12 +13,13 @@ post '/login' => sub {
     
     my $username = params->{login};
     my $password = params->{password};
+    my $schema = Wing->db;
     
-    my $user = Wing->db->resultset('User')->search({username => $username },{rows=>1})->single;
+    my $user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
     
     unless ( defined $user )
     {
-	my @results = Wing->db->resultset('User')->search({email => $username });
+	my @results = $schema->resultset('User')->search({email => $username });
 
 	if ( @results == 1 )
 	{
@@ -53,36 +54,94 @@ post '/login' => sub {
     
     # check for a valid authorizer
     
-    if ( my $auth_name = params->{authorizer} )
+    my $authorizer_no = $user->get_column('authorizer_no');
+    my $person_no = $user->get_column('person_no');
+    my $role = $user->get_column('role');
+    
+    # $$$ add check for proper authent entry
+    
+    if ( $authorizer_no )
     {
-	my $auth = find_user($auth_name);
-	
-	if ( !defined $auth || $auth eq 'NONE' )
+	if ( $authorizer_no ne $person_no )
 	{
-	    return template 'account/login', { error_message => 'Authorizer not found.' };
-	}
-
-	elsif ( $auth eq 'MULTIPLE' )
-	{
-	    return template 'account/login', { error_message => 'Authorizer is ambiguous.' };
-	}
-
-	unless ( authorizer_ok($user, $auth) )
-	{
-	    return template 'account/login', { error_message => 'You do not have permission from that authorizer.' };
+	    my $dbh = $schema->storage->dbh;
+	    
+	    my ($check_no) = $dbh->selectrow_array("SELECT authorizer_no FROM authents WHERE authorizer_no = $authorizer_no
+						and enterer_no = $person_no");
+	    
+	    if ( $check_no )
+	    {
+		$user->login_role('enterer');
+		$user->login_authorizer_no($authorizer_no);
+		return login($user);
+	    }
 	}
 	
-	$user->login_role('enterer');
-	$user->login_authorizer_no($auth->person_no);
+	elsif ( $role eq 'authorizer' )
+	{
+	    $user->login_role('authorizer');
+	    $user->login_authorizer_no($authorizer_no);
+	    return login($user);
+	}
+    }
+
+    elsif ( $role eq 'authorizer' )
+    {
+	$user->set_column('authorizer_no', $person_no);
+	$user->login_role('authorizer');
+	$user->login_authorizer_no($person_no);
 	return login($user);
     }
     
-    elsif ( $user->role =~ /authorizer/ )
+    elsif ( $role eq 'enterer' )
     {
-	$user->login_role('authorizer');
-	$user->login_authorizer_no($user->person_no);
-	return login($user);
+	my $dbh = $schema->storage->dbh;
+	
+	my ($authorizer_no) = $dbh->selectrow_array("SELECT authorizer_no FROM authents WHERE enterer_no = $person_no LIMIT 1");
+	
+	if ( $authorizer_no )
+	{
+	    $user->set_column('authorizer_no', $authorizer_no);
+	    $user->login_role('enterer');
+	    $user->login_authorizer_no($authorizer_no);
+	    return login($user);
+	}
     }
+    
+    $user->login_role('guest');
+    $user->login_authorizer_no(0);
+    return login($user);
+    
+    # if ( my $auth_name = params->{authorizer} )
+    # {
+    # 	my $auth = find_user($auth_name);
+	
+    # 	if ( !defined $auth || $auth eq 'NONE' )
+    # 	{
+    # 	    return template 'account/login', { error_message => 'Authorizer not found.' };
+    # 	}
+
+    # 	elsif ( $auth eq 'MULTIPLE' )
+    # 	{
+    # 	    return template 'account/login', { error_message => 'Authorizer is ambiguous.' };
+    # 	}
+
+    # 	unless ( authorizer_ok($user, $auth) )
+    # 	{
+    # 	    return template 'account/login', { error_message => 'You do not have permission from that authorizer.' };
+    # 	}
+	
+    # 	$user->login_role('enterer');
+    # 	$user->login_authorizer_no($auth->person_no);
+    # 	return login($user);
+    # }
+    
+    # elsif ( $user->role =~ /authorizer/ )
+    # {
+    # 	$user->login_role('authorizer');
+    # 	$user->login_authorizer_no($user->person_no);
+    # 	return login($user);
+    # }
     
     # elsif ( $user->role =~ /admin/ )
     # {
@@ -91,12 +150,6 @@ post '/login' => sub {
     # 	return login($user);
     # }
     
-    else
-    {
-	$user->login_role('guest');
-	$user->login_authorizer_no(0);
-	return login($user);
-    }
 };
 
 
@@ -113,7 +166,7 @@ sub find_user {
 	
 	$first =~ s/[.]*$/%/;
 	
-	my (@results) = Wing->db->resultset('User')->search_like({first_name => $first, last_name => $last });
+	my (@results) = Wing->db->resultset('User')->search({first_name => { -like => $first }, last_name => { -like => $last } });
 	
 	if ( @results == 1 )
 	{
@@ -136,7 +189,7 @@ sub find_user {
 	$first = $1;
 	$last = $2;
 	
-	my (@results) = Wing->db->resultset('User')->search_like({first_name => "$first%", last_name => $last });
+	my (@results) = Wing->db->resultset('User')->search({first_name => { -like => "$first%" }, last_name => { -like => $last } });
 	
 	if ( @results == 1 )
 	{

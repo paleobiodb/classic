@@ -99,19 +99,20 @@ sub classic_request {
     
     my $wing_session = get_session();
     
-    my ($user, $session_id);
+    my ($user, $session_id, $authorizer_no);
     
     if ( $wing_session )
     {
 	$user = $wing_session->user;
 	$session_id = $wing_session->id;
+	$authorizer_no = $user->get_column('authorizer_no');
     }
     
     my $q = PBDB::Request->new(request->method, scalar(params), request->uri);
     
     my $dbt = PBDB::DBTransactionManager->new();
     
-    my $s = PBDB::Session->new($dbt, $session_id);
+    my $s = PBDB::Session->new($dbt, $session_id, $authorizer_no);
     
     my $use_guest = (!$s->isDBMember()) ? 1 : 0;
     
@@ -148,6 +149,7 @@ sub classic_request {
 							# when run from command line.
     
     my $action_output;
+    my $action_sub;
     
     open(SAVE_STDOUT, '>&1');
     
@@ -160,7 +162,7 @@ sub classic_request {
     
     unless ( $action_output )
     {
-	ouch 404, 'Page Not Found', { path => request->path };
+	ouch 500, $@, { path => request->path };
     }
     
     $output .= $action_output;
@@ -1097,16 +1099,15 @@ sub displayCollResults {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-
 	# dataRows might be passed in by basicCollectionSearch
 	my $dataRows = shift;
 	my $ofRows;
-	if ( $dataRows )	{
-		$ofRows = scalar(@$dataRows);
+	if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
+	    $ofRows = scalar(@$dataRows);
 	}
 
-	return if PBDB::PBDBUtil::checkForBot();
-
+	# return if PBDB::PBDBUtil::checkForBot();
+    
 	if ( ! $s->get('enterer') && $q->param('type') eq "reclassify_occurrence" )    {
 		print $hbo->stdIncludes( $PAGE_TOP );
 		print "<center>\n<p class=\"pageTitle\">Sorry!</p>\n\n";
@@ -1114,7 +1115,7 @@ sub displayCollResults {
 		print $hbo->stdIncludes($PAGE_BOTTOM);
 		return;
 	}
-
+    
 	logRequest($s,$q);
 
 	my $limit = $q->param('limit') || 30 ;
@@ -1138,7 +1139,7 @@ sub displayCollResults {
 			$perm_limit = $limit + $rowOffset;
 		}
 	}
-
+    print STDERR "B\n";
 	my $type;
 	if ( $q->param('type') ) {
 		$type = $q->param('type');			# It might have been passed (ReID)
@@ -1208,7 +1209,7 @@ sub displayCollResults {
 
 	# DISPLAY MATCHING COLLECTIONS
 	my @dataRows;
-	if ( $dataRows )	{
+	if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
 		@dataRows = @$dataRows;
 	}
 	my $displayRows = scalar(@dataRows);	# get number of rows to display

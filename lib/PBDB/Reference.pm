@@ -11,7 +11,8 @@ use strict;
 use PBDB::AuthorNames;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE 
+		       $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 use PBDB::Download;
 use PBDB::Person;
 # calls to these two modules need to be removed eventually
@@ -200,7 +201,7 @@ sub formatShortRef  {
 
     if ($options{'link_id'}) {
         if ($refData->{'reference_no'}) {
-            $shortRef = qq|<a href="?a=displayReference&reference_no=$refData->{reference_no}">$shortRef</a>|;
+            $shortRef = makeAnchor("displayReference", "reference_no=$refData->{reference_no}", $shortRef);
         }
     }
     if ($options{'show_comments'}) {
@@ -461,7 +462,9 @@ sub displayRefResults {
             my $formatted_reference = formatLongRef($row);
             print "<td>".$formatted_reference;
             if ( $type eq 'view' && $s->isDBMember() ) {
-                print qq| <small><a href="$WRITE_URL?a=displayRefResults&type=select&reference_no=$row->{reference_no}">select</a> - <a href="$WRITE_URL?a=displayRefResults&type=edit&reference_no=$row->{reference_no}">edit</a></small>|;
+                print " <small>";
+		print makeAnchor("displayRefResults", "type=select&reference_no=$row->{reference_no}", "select") . " - ";
+		print makeAnchor("displayRefResults", "type=edit&reference_no=$row->{reference_no}", "edit") . "</small>";
             }
             my $reference_summary = getReferenceLinkSummary($dbt,$s,$row->{'reference_no'});
             print "<br><small>$reference_summary</small></td>";
@@ -564,7 +567,9 @@ sub displayReference {
 
     my $citation = formatLongRef($ref);
     if ($s->isDBMember())	{
-        $citation .= qq| <small><a href="$WRITE_URL?a=displayRefResults&type=select&reference_no=$ref->{reference_no}">select</a> - <a href="$WRITE_URL?a=displayRefResults&type=edit&reference_no=$ref->{reference_no}">edit</a></small>|;
+        $citation .= " <small>";
+	$citation .= makeAnchor("displayRefResults", "type=select&reference_no=$ref->{reference_no}", "select") . " - ";
+	$citation .= makeAnchor("displayRefResults", "type=edit&reference_no=$ref->{reference_no}", "edit") . "</small>";
     }
     $citation = "<div style=\"text-indent: -0.75em; margin-left: 1em;\">" . $citation . "</div>";
     if ( $alternatives )	{

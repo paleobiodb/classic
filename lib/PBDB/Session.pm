@@ -82,18 +82,37 @@ sub end_login_session {
 
 # Handles validation of the user
 sub new {
-    my ($class,$dbt,$session_id) = @_;
+    my ($class, $dbt, $session_id, $authorizer_no) = @_;
     my $dbh = $dbt->dbh;
     my $self;
-
-	if ($session_id) {
-		# Ensure their session_id corresponds to a valid database entry
-		my $sql = "SELECT * FROM session_data WHERE session_id=".$dbh->quote($session_id)." LIMIT 1";
-		my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
-		# execute returns number of rows affected for NON-select statements
-		# and true/false (success) for select statements.
-		$sth->execute();
+    
+    if ($session_id) {
+	
+	my $quoted_id = $dbh->quote($session_id);
+	# Ensure their session_id corresponds to a valid database entry
+	my $sql = "SELECT * FROM session_data WHERE session_id=$quoted_id LIMIT 1";
+	my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
+	# execute returns number of rows affected for NON-select statements
+	# and true/false (success) for select statements.
+	$sth->execute();
         my $rs = $sth->fetchrow_hashref();
+	
+	if ( $authorizer_no && $rs && $rs->{authorizer_no} && $rs->{authorizer_no} ne $authorizer_no )
+	{
+	    print STDERR "UPDATING SESSION authorizer_no = $authorizer_no\n";
+	    
+	    $rs->{authorizer_no} = $authorizer_no;
+	    
+	    my ($authorizer_name) = $dbh->selectrow_array("SELECT real_name FROM pbdb_wing.users WHERE person_no = $authorizer_no");
+	    
+	    $rs->{authorizer} = $authorizer_name || 'unknown';
+	    
+	    my $quoted_name = $dbh->quote($rs->{authorizer});
+	    
+	    $dbh->do("UPDATE pbdb.session_data SET authorizer_no = $authorizer_no, authorizer = $quoted_name
+			WHERE session_id = $quoted_id");
+	}
+	
         if($rs) {
             # Store some values (for later)
             foreach my $field ( keys %{$rs} ) {
@@ -106,7 +125,7 @@ sub new {
             $enterer_reversed =~ s/^\s*([^\s]+)\s+([^\s]+)\s*$/$2, $1/;
             $self->{'authorizer_reversed'} = $authorizer_reversed;
             $self->{'enterer_reversed'} = $enterer_reversed;    
-
+	    $self->{role} = $rs->{role};
             # Update the person data
             # We don't bother for bristol mirror 
             if ($ENV{'SERVER_ADDR'} eq $IP_MAIN ||
@@ -478,14 +497,9 @@ sub isSuperUser {
 
 # Tells if we are are logged in and a valid database member
 sub isDBMember {
-	my $self = shift;
-
-	my $isDBMember = ($self->{'authorizer'} !~ /^guest$/i &&
-            $self->{'enterer'} !~ /^guest$/i &&
-            $self->{'authorizer_no'} =~ /^\d+$/ && 
-            $self->{'enterer_no'} =~ /^\d+$/) ? 1 : 0;
-
-    return $isDBMember;
+    my $self = shift;
+    return 1 if $self->{role} eq 'authorizer' || $self->{role} eq 'enterer';
+    return;
 }
 
 sub isGuest {

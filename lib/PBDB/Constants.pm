@@ -5,7 +5,9 @@ package PBDB::Constants;
 use base 'Exporter';
 use FindBin;
 
-our @EXPORT_OK = qw($READ_URL $WRITE_URL $INTERVAL_URL $HOST_URL $HTML_DIR $DATA_DIR $SQL_DB $DB_TYPE $DB_USER $DB_SOCKET $DB_PASSWD $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $TAXA_LIST_CACHE $IP_MAIN $IP_BACKUP $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $ALLOW_LOGIN $CGI_DEBUG $ADMIN_EMAIL $APP_DIR $MESSAGE_FILE);  # symbols to export on request
+our @EXPORT_OK = qw($READ_URL $WRITE_URL $INTERVAL_URL $HOST_URL $HTML_DIR $DATA_DIR $SQL_DB $DB_TYPE $DB_USER $DB_SOCKET $DB_PASSWD $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $TAXA_LIST_CACHE $IP_MAIN $IP_BACKUP $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $ALLOW_LOGIN $CGI_DEBUG $ADMIN_EMAIL $APP_DIR $MESSAGE_FILE makeURL makeATag makeAnchor);  # symbols to export on request
+
+our($READ_URL, $WRITE_URL);
 
 # general constants
 $PBDB::Constants::conf = read_conf();
@@ -29,8 +31,8 @@ $PBDB::Constants::IS_FOSSIL_RECORD = $conf->{'IS_FOSSIL_RECORD'};
 
 $PBDB::Constants::TAXA_TREE_CACHE = 'taxa_tree_cache';
 $PBDB::Constants::TAXA_LIST_CACHE = 'taxa_list_cache';
-$PBDB::Constants::READ_URL = 'classic';
-$PBDB::Constants::WRITE_URL = 'classic';
+$PBDB::Constants::READ_URL = '/classic';
+$PBDB::Constants::WRITE_URL = '/classic';
 
 $PBDB::Constants::DB = 'pbdb';
 $PBDB::Constants::SQL_DB = 'pbdb';
@@ -67,5 +69,43 @@ sub read_conf {
     }
     return \%conf;
 }
+
+
+# Convenience routines for generating URLs for internal links
+
+sub makeURL {
+
+    my ($action, $params) = @_;
+    
+    if ( $params )
+    {
+	return "$READ_URL/$action?$params";
+    }
+    
+    else
+    {
+	return "$READ_URL/$action";
+    }
+}
+
+
+sub makeATag {
+
+    my ($action, $params) = @_;
+    
+    my $url = makeURL($action, $params);
+    return qq{<a href="$url">};
+}
+
+
+sub makeAnchor {
+    
+    my ($action, $params, $content) = @_;
+    
+    $content //= "";
+    my $url = makeURL($action, $params);
+    return qq{<a href="$url">$content</a>};
+}
+
 
 1;

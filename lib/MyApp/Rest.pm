@@ -8,6 +8,7 @@ use Wing::Rest::Status;
 use Wing::Rest::Wingman;
 use Wing::Rest::Trends;
 use MyApp::Rest::Classic;
+use MyApp::Rest::AuthorizerEnterer;
 use Wing::Rest::NotFound;
 
 1;

@@ -1,0 +1,894 @@
+/* Common style sheet to be used for all pages. 
+   Created 1/2004 by rjp. 
+    
+   Modified Oct/2013 @JJCzaplewski
+*/
+
+   
+/*	note, this defines the defaults for the document unless 
+	they are overridden by something more specific */
+html, body {
+	height: 100%;
+	margin: 0px;
+	padding: 0px;
+	background-color: WhiteSmoke;
+	font-family: 'Open-Sans', sans-serif;
+	font-size: 1em;
+}
+
+img {
+	border-style: none;
+}
+
+table, tbody, tr, td, th { 
+	font-size: 1em;
+}
+
+th {
+    font-weight: normal;
+}
+
+hr { 
+    color: #AAAAAA;
+    background-color: #AAAAAA;
+    width: 100%;
+    height: 1px;
+    border: 0;
+}
+#title {
+    position: absolute;
+    display: inline;
+    height:5em;
+    left: 0.1em;
+    font-size: 1em;
+    color: white;
+    font-family: 'Raleway', sans-serif;
+}
+#logo {
+    height: 4em;
+    padding-left: 10px;
+    padding-top: 7px;
+}
+#title h2 {
+    display: inline;
+    position: absolute;
+    left: 5em;
+    width: 15em;
+    top:0.8em;
+}
+#classic {
+    display: inline;
+    position: absolute;
+    top:3em;
+    left:31.5em;
+    font-size: 0.8em;
+}
+
+
+/* how should the regular links look? */
+A:link	{ color : Navy; text-decoration:none; }
+A:visited	{ color : Navy; text-decoration:none; }
+A:active	{ color : #00AAFF; text-decoration:none; }
+A:hover	{ color : #C80078; text-decoration:none; }
+
+.mockLink	{
+	color : Navy; text-decoration:none;
+}
+
+/* how should the links look in the menu bar at the top?  */
+A:link.menu { 
+	color: white; font-size : 0.85em; text-decoration: none; 
+	padding: 2px 5px 2px 5px;
+}
+
+A:visited.menu { 
+	color: white; font-size : 0.85em; text-decoration: none; 
+	padding: 2px 5px 2px 5px;
+}
+
+A:active.menu { 
+	color: white; font-size : 0.85em; text-decoration: none; 
+	padding: 2px 5px 2px 5px;
+}
+
+A:hover.menu { 
+	color: white; font-size : 0.85em; 
+	border: 0px solid white;
+	/* top, right, bottom, left*/
+	padding: 2px 5px 2px 5px;
+	text-decoration:none; 
+}
+
+A:link.boring	{
+	color : #7070FF;
+}       
+
+A:hover.boring	{
+	color : #C80078;
+}       
+
+H1, H2, H3, H4, H5, H6 { 
+	padding: 0px 0px 0px 0px;
+	/*margin: 0.1em 1em 0.5em 1em;*/
+}
+
+.verytiny {  font-size : 0.7em; text-decoration:none; }
+.tiny {  font-size : 0.8em; text-decoration:none; }
+.verysmall {  font-size : 0.85em; text-decoration:none; }
+.small {  font-size : 0.9em; text-decoration:none; }
+.medium {  font-size : 1.0em; text-decoration:none; }
+.large {  font-size : 1.1em; text-decoration:none; }
+.verylarge {  font-size : 1.2em; text-decoration:none; }
+.huge {  font-size : 1.3em; text-decoration:none; }
+.veryhuge {  font-size : 1.5em; text-decoration:none; }
+.cell {  font-size : 1.1em; text-decoration:none; }
+.blue {  font-size : .85em; color : #0040FF; text-decoration:none; }
+
+.pageTitle	{
+	font-size: 1.5em;
+        margin-top: 1em;
+	margin-bottom: 1em;
+}
+
+.fieldName	{
+	color: #404040;
+}
+
+.prompt	{
+	color: #404040;
+}
+
+/* the menu at the top and bottom of each page. */
+.menu	{
+	color: white;
+}
+
+.container	{
+    text-align: center;
+}
+
+#mainBody	{
+    position: relative;
+    width: 60em;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+}
+
+.mainBodyGuest {
+    position: relative;
+    width: 84em;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+}
+
+.outerMainPanel	{
+    position: absolute;
+    top: 50px;
+    left: 0px;
+    width: 58em;
+    z-index: 1;
+    padding-bottom: 2em;
+}
+
+.innerMainPanel	{
+    padding-top: 40px;
+    /*text-align: center;*/
+    margin:0 auto;
+    vertical-align: middle;
+    border: 1px solid #777;
+    background-color: #fff;
+}
+
+#homeBanner	{
+    min-width: 50em; /* needed because scrolling across when a window is small
+                          causes the image to be truncated */
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    margin-left: 8em;
+    height: 50px;
+    width: 50em;
+    text-align: left;
+    border-right: 1px solid DarkGray;
+    z-index: 8;
+}
+
+#homeLinks	{
+    min-width: 58em; /* needed because scrolling down when a window is small
+                          causes the image to be truncated */
+    position: absolute;
+    left: 0px;
+    z-index: 8; 
+    height: 5em;
+    width: 58em;
+    border-right: 1px solid DarkGray;
+}
+
+#homeLinksMenu {
+    height: 2em;
+    position: relative;
+    left: 8em;
+    top: 0px;
+    text-align: center;
+    z-index: -1;
+    border-right: 1px solid LightGray;
+}
+
+.bannerColor	{
+    background-color: rgba(71,76,80,.93);
+}
+
+.mobileInfoLink	{
+    float: left;
+    clear: both;
+}
+
+.introTextBox	{
+    display: none;
+    height: 13.5em;
+    margin-top: -1.25em;
+    margin-bottom: 2em;
+    font-size: 0.9em;
+}
+
+#introPanel1	{
+    display: block;
+}
+
+.introNavBall	{
+    font-size: 2em;
+    color: LightGray;
+}
+
+#navBall1	{
+    color: Black;
+}
+
+.enteringNow	{
+    height: 2.5em;
+    width: 12.8em;
+    padding-left: 1em;
+    padding-bottom: 0.25em;
+    margin-bottom: 0.25em;
+}
+
+.homeImage	{
+    float: left;
+    clear: none;
+    padding-left: 3em;
+}
+
+#entryBanner	{
+    float: left;
+    clear: right;
+    height: 1.25em;
+    width: 56em;
+    background-color: rgba(71,76,80,.93);
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+/* Usually used for a single line of text which needs a bit more emphasis to stand out */
+div.emphasized {
+	padding: 0.2em 0.2em 0.2em 0.2em;
+	margin: 0em 1em 0em 1em;
+	
+	background-color: #E6E6E6;
+	
+	border-style: solid;  /*solid, dashed, dotted, grooved */
+    border-color: #DCDCDC;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-top-width: 1px;
+}
+
+/* generic warning message */
+.errorMessage {
+	border-color: #909090;
+	border-width: 2px;
+	border-style: solid;
+	
+	padding: 0.5em 0.5em 0.5em 0.5em;
+
+	color: #D00000;
+	background-color: #FFFF80;
+
+	width:auto;
+	margin: 1em 5em 1em 5em;
+	
+	text-align: center;
+}
+
+.errorTitle {
+	color: #D00000;
+	font-size: 1.2em;
+	text-align: center;
+	margin: 0.5em 0em 1em 1em;
+}
+
+.errorBox {
+	margin-top: 2em;
+	border: 1px #909090 solid;
+	background-color: #FFFF80;
+	width: 600px;
+	text-align: left;
+}
+
+.errorRow {
+    padding-left: 1em;
+    color: red;
+}
+
+.warning {
+	border-color: #404040;
+	border-width: 2px;
+	border-style: solid;
+	
+	padding: 0.5em 0.5em 0.5em 0.5em;
+	
+	background-color: #EDEDFE;
+
+	width:auto;
+	margin: 1em 5em 1em 5em;
+	
+	text-align: center;
+}
+
+
+.warningTitle {
+	font-size: 1.2em;
+	text-align: left;
+	margin: 0.5em 0em 1em 1em;
+}
+
+.warningBox {
+	margin-top: 2em;
+	border: 1px #909090 solid;
+	background-color: #EDEDFE;
+	width: 600px;
+	text-align: left;
+}
+.boxBullet {  
+    font-size : 1.0em; 
+    padding: 0em 1em 0.25em 0em;
+}
+
+
+/* format for required entries in forms */
+.red { color: #D00000; }
+.required {
+	color: #D00000;
+}
+
+
+/* Used on download form */
+.lightGray {
+	background-color:#EEEEEE;
+}
+
+/*	the color for the dark row in a list which has alternating 
+	light and dark rows. */
+.darkList {
+	background-color:#E0E0E0;
+}
+
+/*	color of light row in list, not used everywhere. */
+.lightList {
+	background-color:#FFFFFF;
+}
+
+.taxonomicList a:link	{ color: black; }
+.taxonomicList a:visited	{ color : black; text-decoration:none; }
+.taxonomicList a:active	{ color : #00AAFF; text-decoration:none; }
+.taxonomicList a:hover	{ color : #C80078; text-decoration:none; }
+
+.noAuthors	{
+	display: block;
+}
+.withAuthors	{
+	display: none;
+}
+
+.padLeft {
+    padding-left: .5em;
+}
+.padRight {
+    padding-right: .5em;
+}
+.padTop {
+    padding-top: .5em;
+}
+
+/* relate to report formatting */
+.dataTable {
+    border: 0px; 
+}
+.dataTableCell, .dataTableCellTotal, .dataTableCellLeft {
+    border-left: 0px;
+    border-top: 0px;
+    border-right: 1px #D0D0D0 solid;
+    border-bottom: 1px #D0D0D0 solid;
+}
+.dataTableCellLeft { border-left:  1px #D0D0D0 solid;}
+
+.dataTableColumn, .dataTableColumnTotal, .dataTableColumnLeft {
+    text-align: center;
+    background-color:#EEEEEE;
+    border-top: 0px;
+    border-bottom: 1px #808080 solid;
+    border-left: 0px;
+    border-right: 1px #A0A0A0 solid;
+}
+.dataTableColumnTotal { border-right: 0px; }
+.dataTableColumnLeft { border-left: 1px #A0A0A0 solid;}
+
+.dataTableRow, .dataTableRowTotal {
+    white-space: nowrap;
+    background-color:#EEEEEE;
+    border-left: 0px;
+    border-right: 1px #808080 solid;
+    border-top: 0px;
+    border-bottom: 1px #A0A0A0 solid;
+ /*   padding: 0px 3px 0px 3px;*/
+}
+
+.dataTableULCorner {
+    background-color:#E0E0E0;
+    border-left: 0px;
+    border-top: 0px;
+    border-right: 1px #808080 solid;
+    border-bottom: 1px #808080 solid;
+}
+
+.dataTableTopULCorner{
+    border-left: 0px;
+    border-top: 0px;
+    border-right: 1px #808080 solid;
+    border-bottom: 0px;
+}
+.dataTableTop {
+    background-color:#E0E0E0;
+    border-left: 0px;
+    border-top: 0px;
+    border-right: 1px #A0A0A0 solid;
+    border-bottom: 1px #A0A0A0 solid;
+}
+
+.headerList1 {
+	background-color:#A0A0A0;
+}
+
+/* The navigation box at the left of pages such as the taxon display page */
+
+div.navbox {
+	border-style: solid;
+	border-width: 1px;
+	border-color: #909090;
+	
+	text-align: center;
+	
+	background-color: #5090FF;
+
+	width: 100%;
+	margin: 10px 20px 20px 20px;
+}
+
+table.navbox {
+	border-style: solid;
+	border-width: 1px;
+	border-color: #909090;
+
+	background-color: #5090FF;
+	margin-bottom: 20px;
+}
+
+.loginBox {
+    margin-top: 3em;
+    border: 1px solid LightBlue;
+    padding: 1em 1em 0.5em 1em;
+    background-color: #FBFFFF;
+}
+
+.panelNavbar	{
+    width: 60em;
+    font-size: 0.9em;
+}  
+
+.tabOn, .tabOff, .tabLoadingOn, .tabLoadingOff {
+	color : white; 
+    background-color: #909090;
+    font-weight: bold;
+    border: 1px solid #D9D9D9;
+    top: 10px;
+    width: 140px;
+    text-align: center;
+    z-index: 2;
+    padding: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tabOff, .tabLoadingOff {
+    font-weight: normal;
+    background-color: #C9C9C9;
+	border-color: #E0E0E0;
+}
+
+.tabLoadingOn {
+    color: #909090;
+}
+.tabLoadingOff {
+    color: #C9C9C9;
+}
+
+.tabHotspot	{
+    float: right;
+    clear: none;
+    position: relative;
+    right: -3px;
+    top: -3px;
+    height: 2px;
+    width: 1em;
+    z-index: 9;
+    background-color: #909090;
+}
+
+.panel {
+    margin-top: 1em;
+    margin-left: -1px;
+    width: 54em;
+    z-index: 1;
+    display: none;
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-top: 1em;
+}
+
+.superscript {
+    font-size: 0.75em;
+    vertical-align: text-top;
+}
+
+/* for non-editable fields, such as in forms */
+span.nonEditable {
+	
+	background-color: white;
+	color: #323232;
+	
+	border-color: #404040;
+	border-width: 1px 1px 1px 1px;
+	border-style: solid;
+	
+	padding: 0.1em 0.2em 0.1em 0.2em;
+	
+	text-decoration: none;
+}
+
+
+.displayPanel {
+    border: 1px solid #C8C8C8;
+    padding-top: 0.0em;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    padding-bottom: 0.3em;
+    margin-left: 1em;
+    margin-right: 1em;
+    margin-bottom: 1em;
+}
+
+.displayPanelRight {
+    border: 1px solid #C8C8C8;
+    padding-top: 0.0em;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    padding-bottom: 0.3em;
+    margin-right: 1em;
+    margin-bottom: 1em;
+}
+
+.displayPanelHeader {
+    position: relative;
+    font-size: 1em;
+    top: -0.6em;      
+    padding-left: 0.5em;      
+    padding-right: 0.5em;     
+    background-color: white;
+    white-space: nowrap;    
+}
+
+.displayPanelContent {
+    background-color: white;
+}
+
+.displayPanelText {
+    font-size: 0.9em;
+}
+
+.shownClassBox	{
+	display: block;
+	overflow: auto;
+	clear: left;
+	margin-left: 0.5em;
+	padding: 0.25em;
+	padding-left: 0.8em;
+	padding-right: 0em;
+	border-left: 1px solid Gainsboro;
+}
+.hiddenClassBox	{
+	display: none;
+	overflow: auto;
+	clear: left;
+	margin-left: 0.5em;
+	padding: 0.25em;
+	padding-left: 0.8em;
+	padding-right: 0em;
+	border-left: 1px solid Gainsboro;
+}
+.classTaxon	{
+	position: relative;
+	float: left;
+	clear: left;
+	padding-left: 1px;
+}
+.classHotCorner	{
+	position: relative;
+	float: right;
+	clear: right;
+	width: 8em;
+	text-align: right;
+	color: Gray;
+}
+
+.fixedColumn {
+    overflow: hidden;
+    width: 35px;
+}
+td.fixedColumn {
+    border-right: 1px solid gray; 
+    border-bottom: 1px solid gray; 
+}
+
+.fixedLabel {
+    overflow: hidden;
+    width: 250px;
+}
+td.fixedLabel {
+    border-right: 1px solid gray; 
+    border-bottom: 1px solid gray; 
+}
+.fixedSpan {
+    white-space: nowrap;
+    font-size: .80em;
+}
+
+.fixedInput,.fixedInputDark {
+    border: 0px;
+    overflow: hidden;
+    font-size: 0.85em;
+}
+.fixedInputDark {
+	background-color:#E0E0E0;
+}
+
+#occurrencesTable {
+    background: #FFFFFF;
+}
+
+#dropDown, #dropDown ul {
+    list-style: none;
+}
+
+/* how should the links look in the menu bar at the top?  */
+#dropDown a:link {  color : white; text-decoration:none; }
+#dropDown a:visited { color : white; text-decoration:none;}   
+#dropDown a:active { color : white; text-decoration:none; }   
+#dropDown a:hover { color : white; text-decoration:none; }
+
+#quickSearchDiv	{
+    position: absolute;
+    bottom: 5px;
+    height: 2.1em;
+    font-size: 0.9em;
+}
+
+#dropDown {
+    position: absolute;
+    bottom: 0em;
+    height: 1.9em;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    padding-bottom: 0.2em;
+    text-align: left;
+    text-decoration: none;
+    font-size: 0.9em;
+}
+
+#dropDown ul {
+    text-align: left;
+    background: #B0B0C0;
+    opacity: 0.95;
+    filter: alpha(opacity=95);
+    border: 1px solid white;
+    position: absolute;
+    top: 1.1em;
+    margin-left: -0.6em;
+    padding: 0.15em;
+    z-index: 999;
+    display: none;
+}
+#dropDown ul a:link,#dropDown ul a:visited, #dropDown ul a:hover {
+    color: White;
+}
+#dropDown ul li:hover, #dropDown ul li.sfhover {
+    background: White;
+}
+#dropDown ul a:hover {
+    color: Black;
+}
+
+/* This makes the div a bit bigger so the UL below it 
+   (the drop down menu) is flush with the bottom of the top menu
+  adding some padding JA 19.5.06 */
+#dropDown div#dropDownVertSpacer {
+    height: 1.5em;
+}
+
+#dropDownShadow	{
+    position: relative;
+    float: left;
+    clear: none;
+    margin-left: -0.5em;
+    height: 100%;
+    width: 1px;
+    background-color: slategray;
+}
+
+#dropDown ul li {
+    font-size : 0.95em;
+    white-space: nowrap;
+    text-align: left;
+    float: none;
+    clear: left;
+    width: auto;
+    padding: 0.15em;
+}
+
+#dropDown:hover ul, #dropDown.sfhover ul {
+    display: block;
+}
+
+#entryDropDown ul	{
+    display: none;
+    position: relative;
+    z-index: 9;
+    width: auto;
+    margin-top: -0.05em;
+    text-align: left;
+    background-color: LightGray;
+    opacity: 0.95;
+    filter: alpha(opacity=95);
+    padding-left: 0.75em;
+    padding-right: 0.5em;
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
+    color: White;
+    border: 1px solid White;
+}
+
+#entryDropDown:hover ul, #entryDropDown.sfhover ul	{
+    display: block;
+    z-index: 9;
+}
+
+#entryDropDown ul a:link,#entryDropDown ul a:visited	{
+    color: White;
+    z-index: 9;
+}
+
+#entryDropDown ul a:hover	{
+    color: Black;
+    z-index: 9;
+}
+
+/* row and column headers in data tables */
+.PASTtable,.simpleTable{
+    text-align: center;
+    border: 1px solid gray;
+}
+
+/* cells in data tables */
+td.PASTheader,.simpleTableHeader{
+    padding-left: 4px; padding-right: 4px;
+}
+
+td.PASTcell,.simpleTableCell{
+    text-align: center;
+    border-right: 1px solid white;
+    border-top: 1px solid white;
+    background: #E0E0E0;
+}
+
+#PAST_point { padding: 0; margin: 0; }
+#PAST_point ul { position: absolute; left: -999em; list-style: none; }
+#PAST_point:hover ul { left: auto; margin-left: -30px; margin-top: -5px;}
+#PAST_point li { color: #000000; }
+
+.visiblePASTdata	{
+    visibility: visible;
+    clear: right;
+    height: 1.25em;
+    width: 99em;
+}
+
+.hiddenPASTdata	{
+    visibility: hidden;
+    clear: right;
+    height: 0em;
+    width: 99em;
+}
+
+.measurementBullet	{
+    font-size: 1.5em;
+    padding-bottom: 0.2em;
+}
+#recentCol {
+    position: relative;
+    border-right:1px solid #aaa;
+    padding:1em;
+    float:left;
+    display: tabel-cell;
+    margin:auto;
+}
+#recentCol > a, ul {
+    text-align: left;
+    font-size: 0.9em;
+}
+#recentCol > ul {
+    text-align: left;
+    margin-top:2px;
+    margin-left:55px;
+}
+#recentCol > h4 {
+    margin-bottom: 0.5em;
+}
+#recentCol > a{
+    margin-left:-40px;
+}
+#recentSpecies {
+    float:right;
+    position: relative;
+    padding:1em;
+    margin: auto;
+    display: table-cell;
+    margin-left:3em;
+    max-width: 23em;
+}
+#recentSpecies > a, ul {
+    text-align: left;
+    font-size: 0.9em;
+}
+#recentSpecies > ul {
+    text-align: left;
+    margin-top:2px;
+}
+#recentSpecies > h4 {
+    margin-bottom: 0.5em;
+}
+#stats {
+    padding:1em 2em;
+    border-top: 1px solid #aaa;
+}
+#message {
+    padding: 2em;
+    border-bottom: 1px solid #aaa;
+    text-align: left;
+}
+#recentWrapper {
+    height:10.5em;
+    position: relative;
+    display: table;
+}
+
