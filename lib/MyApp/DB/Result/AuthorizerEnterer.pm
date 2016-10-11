@@ -3,6 +3,7 @@ package MyApp::DB::Result::AuthorizerEnterer;
 use Moose;
 use Wing::Perl;
 
+
 extends 'Wing::DB::Result';
 with 'Wing::Role::Result::Parent';
 
