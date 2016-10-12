@@ -376,17 +376,17 @@ sub displayRefResults {
 		foreach my $key (keys %queue) {
 			$q->param($key => $queue{$key});
 		}
-
+		
 		# if there's an action, go straight back to it without showing the ref
 		if ($action)	{
-			PBDB::execAction($action);
+		    PBDB::execAction($action);
 		} elsif ($q->param('type') eq 'edit') {  
 			$q->param("reference_no"=>$data[0]->{'reference_no'});
 			print $hbo->stdIncludes($PAGE_TOP);
 			PBDB::ReferenceEntry::displayReferenceForm($dbt,$q,$s,$hbo);
 			print $hbo->stdIncludes($PAGE_BOTTOM);
 		} elsif ($q->param('type') eq 'select') {  
-			PBDB::menu();
+			PBDB::menu($q, $s, $dbt, $hbo);
         	} else {
 			# otherwise, display a page showing the ref JA 10.6.02
 			print $hbo->stdIncludes($PAGE_TOP);

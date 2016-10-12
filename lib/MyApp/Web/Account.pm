@@ -2,7 +2,7 @@
 use Dancer;
 
 use Wing;
-
+use Wing::Web;
 
 
 
@@ -275,6 +275,13 @@ sub authorizer_ok {
 
     return;
 }
+
+
+get '/account/enterers' => sub {
+    my $user = get_user_by_session_id();
+    template 'account/enterers', { current_user => $user, };
+};
+
 
 
 1;

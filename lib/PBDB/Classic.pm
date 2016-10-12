@@ -7,6 +7,7 @@ use Wing;
 use Wing::Web;
 use Wing::Dancer;
 use Carp qw(carp);
+use Data::Dumper;
 
 # CPAN modules
 use URI::Escape;
@@ -108,6 +109,8 @@ sub classic_request {
 	$authorizer_no = $user->get_column('authorizer_no');
     }
     
+    # print STDERR "SESSION_ID = $session_id\n";
+    
     my $q = PBDB::Request->new(request->method, scalar(params), request->uri);
     
     my $dbt = PBDB::DBTransactionManager->new();
@@ -123,6 +126,62 @@ sub classic_request {
     if ( param('redirectMain') )
     {
 	return redirect $WRITE_URL;
+    }
+    
+    # Figure out authorizer name and reference number and name.
+    
+    my $authorizer_name = '';
+    my $reference_no = $s->{reference_no};
+    my $reference_name = '';
+    my $dbh = $dbt->{dbh};
+    
+    if ( $authorizer_no && $authorizer_no ne $s->{enterer_no} )
+    {
+	($authorizer_name) = $dbh->selectrow_array("
+		SELECT real_name FROM pbdb_wing.users
+		WHERE person_no = $authorizer_no LIMIT 1");
+    }
+    
+    if ( params->{a} =~ /displayRefResults|displaySearchRefs/ && params->{reference_no} && params->{type} eq 'select' )
+    {
+	$reference_no = params->{reference_no};
+	$s->setReferenceNo($reference_no);
+    }
+    
+    if ( $action eq 'clearRef' )
+    {
+	$s->setReferenceNo(0);
+	$reference_no = 0;
+	$action = 'menu';
+    }
+    
+    elsif ( $reference_no )
+    {
+	# print STDERR "REFERENCE_NO = $reference_no\n";
+	
+	my ($a1l, $a2l, $oa, $pubyr) = $dbh->selectrow_array("
+		SELECT author1last, author2last, otherauthors, pubyr
+		FROM refs WHERE reference_no = $reference_no");
+	
+	if ( $oa )
+	{
+	    $reference_name = "$a1l, etc. $pubyr";
+	}
+	
+	elsif ( $a2l )
+	{
+	    $reference_name = "$a1l and $a2l $pubyr";
+	}
+	
+	elsif ( $a1l )
+	{
+	    $reference_name = "$a1l $pubyr";
+	}
+	
+	else
+	{
+	    $reference_name = 'ERROR';
+	}
     }
     
 #     if ( $q->path_info() =~ m{^/nexus/} ) {
@@ -142,6 +201,12 @@ sub classic_request {
     my $vars = {};
     if ($user) {
         $vars->{current_user} = $user;
+	$vars->{authorizer_no} = $authorizer_no;
+	$vars->{authorizer_name} = $authorizer_name;
+	$vars->{reference_name} = $reference_name;
+	# $vars->{current_user}{display_name} = 'FOO';
+	# $Data::Dumper::Maxdepth = 3;
+	# print STDERR "CURRENT_USER = " . Data::Dumper::Dumper($user) . "\n";
         $vars->{options} = MyApp::DB::Result::Classic->field_options;
     }
     
@@ -243,6 +308,8 @@ sub setPreferences {
 sub menu	{
     
     my ($q, $s, $dbt, $hbo) = @_;
+    
+    my ($package, $filename, $line) = caller;
     
 	my %vars;
 	$vars{'message'} = shift;
@@ -850,7 +917,7 @@ sub selectReference {
     my ($q, $s, $dbt, $hbo) = @_;
     
 	$s->setReferenceNo($q->param("reference_no") );
-	menu( );
+	menu($q, $s, $dbt, $hbo );
 }
 
 # Wrapper to displayRefEdit
@@ -1015,7 +1082,7 @@ sub displaySearchCollsForAdd	{
 	if ( ! $reference_no ) {
 		# Come back here... requeue our option
 		$s->enqueue("a=displaySearchCollsForAdd" );
-		displaySearchRefs( "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
 		return;
 	}
 
@@ -1048,7 +1115,7 @@ sub displaySearchColls {
 	if ( ! $reference_no && $type !~ /^(?:basic|analyze_abundance|view|edit|reclassify_occurrence|count_occurrences|most_common)$/) {
 		# Come back here... requeue our option
 		$s->enqueue("a=displaySearchColls&type=$type" );
-		displaySearchRefs( "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
 		return;
 	}
 
@@ -1450,7 +1517,7 @@ sub displayCollResults {
 			return;
 		} else {
 			my $error = "<center>\n<p style=\"margin-top: -1em;\">Your search produced no matches: please try again</p>";
-			displaySearchColls($error);
+			displaySearchColls($q, $s, $dbt, $hbo, $error);
 			return;
 		}
     }
@@ -2148,7 +2215,7 @@ sub processTaxonSearch {
                 } else {
                     if (!$s->get('reference_no')) {
                         $s->enqueue($q->query_string());
-                        displaySearchRefs("Please choose a reference before adding a new taxon",1);
+                        displaySearchRefs($q, $s, $dbt, $hbo,"Please choose a reference before adding a new taxon",1);
                         return;
                     }
                     $q->param('taxon_no'=> -1);
@@ -2326,7 +2393,7 @@ sub displayAuthorityForm {
     if ( $q->param('taxon_no') == -1) {
         if (!$s->get('reference_no')) {
             $s->enqueue($q->query_string());
-			displaySearchRefs("You must choose a reference before adding a new taxon" );
+			displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding a new taxon" );
 			return;
         }
 	} 
@@ -2355,7 +2422,7 @@ sub displayClassificationTableForm {
 	} 
     if (!$s->get('reference_no')) {
         $s->enqueue('a=displayClassificationTableForm');
-		displaySearchRefs("You must choose a reference before adding new taxa" );
+		displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding new taxa" );
 		return;
 	}
     print $hbo->stdIncludes($PAGE_TOP);
@@ -2373,7 +2440,7 @@ sub displayClassificationUploadForm {
 	} 
     if (!$s->get('reference_no')) {
         $s->enqueue('a=displayClassificationUploadForm');
-		displaySearchRefs("You must choose a reference before adding new taxa" );
+		displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding new taxa" );
 		return;
 	}
     print $hbo->stdIncludes($PAGE_TOP);
@@ -2490,7 +2557,7 @@ sub displayOpinionForm {
             # Set this to prevent endless loop
             $q->param('use_reference'=>'');
             $s->enqueue($q->query_string()); 
-            displaySearchRefs("You must choose a reference before adding a new opinion");
+            displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding a new opinion");
             return;
         }
 	}
@@ -2946,7 +3013,7 @@ sub displaySpecimenSearchForm	{
 	print $hbo->stdIncludes($PAGE_TOP);
 	if (!$s->get('reference_no'))	{
 		$s->enqueue('a=displaySpecimenSearchForm');
-		displaySearchRefs("You must choose a reference before adding measurements" );
+		displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding measurements" );
 		return;
 	}
 	print $hbo->populateHTML('search_specimen_form',[],[]);
@@ -3208,7 +3275,7 @@ sub displayOccurrenceAddEdit {
 	} 
 	if (! $s->get('reference_no')) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs("Please select a reference first"); 
+		displaySearchRefs($q, $s, $dbt, $hbo,"Please select a reference first"); 
 		return;
 	} 
 
@@ -3216,7 +3283,7 @@ sub displayOccurrenceAddEdit {
 	# No collection no is passed in, search for one
 	if ( ! $collection_no ) { 
 		$q->param('type'=>'edit_occurrence');
-		displaySearchColls();
+		displaySearchColls($q, $s, $dbt, $hbo);
 		return;
 	}
 
@@ -3454,7 +3521,7 @@ sub displayOccurrenceTable {
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs( "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
 		return;
 	}	
 
@@ -3745,7 +3812,7 @@ sub displayOccurrenceListForm	{
 	}
 	if (! $s->get('reference_no')) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs("Please select a reference first"); 
+		displaySearchRefs($q, $s, $dbt, $hbo,"Please select a reference first"); 
 		return;
 	}
  
@@ -4735,7 +4802,7 @@ sub displayReIDCollsAndOccsSearchForm {
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs( "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
 		return;
 	}	
 
@@ -4773,7 +4840,7 @@ sub displayOccsForReID {
 	# a coll search right after logging in).
 	unless($current_session_ref){
 		$s->enqueue($q->query_string());
-		displaySearchRefs();	
+		displaySearchRefs($q, $s, $dbt, $hbo);	
 		return;
 	}
 

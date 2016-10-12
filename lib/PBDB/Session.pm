@@ -455,13 +455,30 @@ sub unqueue {
 		$dbh->do( $sql ) || die ( "$sql<HR>$!" );
 
 		# Parse the entry.  Since it is any valid URL, use the CGI routine.
-		my $cgi = CGI->new ( $entry );
+		# print STDERR "$entry\n";
+		# my $cgi = CGI->new ( $entry );
 
-		# Return it as a hash
-		my @names = $cgi->param();
-		foreach my $field ( @names ) {
-			$hash{$field} = $cgi->param($field);
+		# # Return it as a hash
+		# my @names = $cgi->param();
+		# foreach my $field ( @names ) {
+		# 	$hash{$field} = $cgi->param($field);
+		# }
+		
+		my @params = split /&/, $entry;
+		
+		foreach my $p ( @params )
+		{
+		    if ( $p =~ /([^=])+=(.*)/ )
+		    {
+			$hash{$1} = $2;
+		    }
+		    
+		    elsif ( $p )
+		    {
+			$hash{$1} = 1;
+		    }
 		}
+		
 		# Save entire line in case we want it
 		$hash{'queue'} = $queue;
 	} 

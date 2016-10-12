@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- ### header_include.tt BEGIN ### -->
 <html lang="en">
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,35 +66,50 @@
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Basic Actions<b class="caret"></b></a>
               <ul class="dropdown-menu">
+                <li><a href="/classic?a=displaySearchRefs&amp;type=select">Select reference</a></li>
+                <li><a href="/classic?a=clearRef&amp;type=select">Clear reference</a></li>
+                <li><a href="/classic?a=editCurrentRef">Edit reference</a></li>
                 <li><a href="/classic?a=displaySearchRefs&amp;type=add">Add reference</a></li>
-                <li><a href="/classic?a=displaySearchRefs&amp;type=select">Change reference</a></li>
-                <li><a href="/classic?a=editCurrentRef">Edit this reference</a></li>
-                <li><a href="/classic?a=displaySearchCollsForAdd">Add collection</a></li>
                 <li><a href="/classic?a=displaySearchColls&amp;type=edit">Edit collection</a></li>
+                <li><a href="/classic?a=displaySearchCollsForAdd">Add collection</a></li>
                 <li><a href="/classic?a=displayOccurrenceAddEdit">Occurrences</a></li>
                 <li><a href="/classic?a=displayAuthorityTaxonSearchForm">Names</a></li>
                 <li><a href="/classic?a=displayOpinionSearchForm">Opinions</a></li>
                 <li><a href="/classic?a=displaySpecimenSearchForm">Measurements</a></li>
               </ul>
             </li>
-          </ul>
+            [%- IF reference_name %]
+              <li><a href="/classic?a=displayRefResults&amp;use_current=%%reference_no%%">Ref: [% reference_name %]</a></li>
+            [% END -%]
+	      </ul>
 
-          <!-- <li> -->
-          <!--   <a href="?a=displayRefResults&amp;use_current=%%reference_no%%" class="menu">Reference: [% reference_nor %] [% reference %]</a> -->
-          <!-- </li> -->
-
-          <ul class="nav navbar-nav navbar-right">
-            <li><a href="/account">[% IF current_user %][% current_user.display_name %][% ELSE %]Login[% END %]</a></li>
-          </ul>
+          [% IF NOT current_user %]
+            <ul class="nav navbar-nav navbar-right">
+              <li><a href="/account">Login</a></li>
+            </ul>
+          [% ELSE %]
+            <ul class="nav navbar-nav navbar-right">
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                  [% IF current_user %][% current_user.display_name %]
+                  [% IF authorizer_name %] [[% authorizer_name %]][% END %]
+                  [% ELSE %]Login[% END %]
+                  <b class="caret"></b>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="/account">Settings</a></li>
+                  <li><a href="/logout">Log Out</a></li>
+                </ul>
+              </li>
+            </ul>
+          [% END %]
 
           <form class="navbar-form navbar-right navbar-input-group" role="search" id="global-game-search" action="/classic/quickSearch" method="POST">
             <div class="form-group">
               <input type="text" class="form-control search-query" name="quick_search" placeholder="Quick Search" onkeyup="update_global_game_search()">
             </div>
-            <!-- <button class="btn btn-default" type="submit" onclick="update_global_game_search()"><span class="glyphicon glyphicon-search"></span></button> -->
           </form>
 
         </div><!-- /.navbar-collapse -->
       </div><!-- container -->
     </nav>
-<!-- ### header_include.tt END ### -->
