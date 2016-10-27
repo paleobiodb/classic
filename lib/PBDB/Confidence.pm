@@ -13,7 +13,7 @@ use URI::Escape;
 use Memoize;
 use PBDB::Reference;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $HTML_DIR);
+use PBDB::Constants qw($READ_URL $HTML_DIR makeAnchor);
 
 memoize('chiSquaredDensity');
 memoize('factorial');
@@ -137,11 +137,13 @@ sub displaySearchSectionResults{
         $place_str =~ s/^,//;
         my $link = '';
         if ($lastregion && $found_regionalbed) {
-            $link .= "<a href='$READ_URL?action=displayStratTaxaForm&amp;taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=".uri_escape($lastregion)."&amp;input_type=regional'>$lastregion</a>";
+            my $escaped = uri_escape($lastregion);
+            $link .= makeAnchor("displayStratTaxaForm", "taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=$excaped&amp;input_type=regional", "$lastregion");
             if ($lastsection) { $link .= " / "};
         }    
         if ($lastsection && $found_localbed) {
-            $link .= "<a href='$READ_URL?action=displayStratTaxaForm&amp;taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=".uri_escape($lastsection)."&amp;input_type=local'>$lastsection</a>";
+            my $escaped = uri_escape($lastsection);
+            $link .= makeAnchor("displayStratTaxaForm", "taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=$escaped&amp;input_type=local", "$lastsection");
         }    
             
         $link .= "<span class='tiny'> - $time_str - $place_str</span>";
@@ -271,9 +273,9 @@ sub displaySearchSectionResults{
         } else {
             $numLeft = "the next " . $limit;
         }
-        print "<a href='$READ_URL?$getString'><b>Get $numLeft sections</b></a> - ";
+        print makeAnchor($getString, "", "<b>Get $numLeft sections</b>") . " - "; #jpjenk-question
     }
-    print "<a href='$READ_URL?action=displaySearchSectionForm'><b>Do another search</b></a>";
+    print makeAnchor("displaySearchSectionForm", "", "<b>Do another search</b>"); #jpjenk-question
 
     print "</center></p>";
     # End footer links
@@ -961,7 +963,7 @@ sub calculateTaxaInterval {
 
     print "</div>\n\n";
 
-    print "<center><p style=\"margin-bottom: 3em;\"><b><a href=\"$READ_URL?action=displayTaxaIntervalsForm\">Start again</a></b></p></center>\n\n";
+    print "<center><p style=\"margin-bottom: 3em;\">" . makeAnchor("displayTaxaIntervalsForm", "", "<b>Start again</b>") . "</p></center>\n\n"; #jpjenk-question
 
 }
 
@@ -1369,7 +1371,7 @@ sub calculateStratInterval	{
 
     print "</div>\n\n";
 
-    print " <center><b><a href=\"$READ_URL?action=displaySearchSectionForm\">Start again</a><b><p></center></center><br><br><br>\n\n";
+    print " <center>" . makeAnchor("displaySearchSectionForm", "", "<b>Start again</b>") . "<p></center></center><br><br><br>\n\n"; #jpjenk-question
 
     return;
 } 

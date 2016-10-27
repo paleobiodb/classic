@@ -9,7 +9,7 @@ use Class::Date qw(date localdate gmdate now);
 use PBDB::DBTransactionManager;
 use PBDB::TimeLookup;
 use Digest::MD5;
-use PBDB:PBDBUtil;
+use PBDB::PBDBUtil;
 use PBDB::Constants qw($WRITE_URL $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE);
 
 # Flags and constants
@@ -53,10 +53,9 @@ sub new {
     my $class = shift;
     $q = shift;
     $dbt = shift;
-    $s = shift;
-    unless ($q) {
-        $q = new CGI;
-    }
+    # unless ($q) {
+    #     $q = new CGI;
+    # }
 
 	# some functions that call Map do not pass a q or s object
 	my $self = {plate=>[]};

@@ -457,6 +457,7 @@ sub showReview	{
 	# anchors not dealt with yet
 
 	# special handling for properly formatted collection links
+    #jpjenk: how to handle following section?
 	$text =~ s/\[\[collection /<a href="$READ_URL\?a=basicCollectionSearch&amp;collection_no=/g;
 	# special handling for properly formatted taxon links
 	$text =~ s/\[\[taxon /<a href="$READ_URL\?a=basicTaxonInfo&amp;taxon_name=/g;
@@ -494,7 +495,7 @@ sub showReview	{
 	# end the last major section
 	print "\n</div>\</div>\n\n";
 
-	print "<center><b><a href=\"$READ_URL?a=listReviews\">See more PaleoDB review pages</a></b></center>\n\n";
+	print "<center><b>" . makeAnchor("listReviews", "", "See more PaleoDB review pages") . "</b></center>\n\n";
 
 }
 

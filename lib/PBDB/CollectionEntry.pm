@@ -8,16 +8,18 @@ use TableDefs qw($INTERVAL_DATA);
 use PBDB::PBDBUtil;
 use PBDB::Taxon;
 use PBDB::TaxonInfo;
-# use PBDB::Map;
+use PBDB::Map;
 use PBDB::Collection;
 use PBDB::TimeLookup;
 use PBDB::TaxaCache;
 use PBDB::Person;
 use PBDB::Permissions;
+use PBDB::Reference;
+use PBDB::ReferenceEntry;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;    
-use PBDB::Constants qw($WRITE_URL $INTERVAL_URL $HTML_DIR $HOST_URL $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw($WRITE_URL $INTERVAL_URL $HTML_DIR $HOST_URL $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 
 # this is a shell function that will have to be replaced with something new
 #  because PBDB::Collection::getCollections is going with Fossilworks JA 4.6.13
@@ -131,11 +133,11 @@ sub displayCollectionForm {
     $vars{'taphonomy'} = $prefs{'taphonomy'};
     $vars{'use_primary'} = $q->param('use_primary');
 
-    my $ref = Reference::getReference($dbt,$vars{'reference_no'});
-    my $formatted_primary = Reference::formatLongRef($ref);
+    my $ref = PBDB::Reference::getReference($dbt,$vars{'reference_no'});
+    my $formatted_primary = PBDB::Reference::formatLongRef($ref);
 
     $vars{'ref_string'} = '<table cellspacing="0" cellpadding="2" width="100%"><tr>'.
-    "<td valign=\"top\"><a href=\"?a=displayReference&reference_no=$vars{reference_no}\">".$vars{'reference_no'}."</a></b>&nbsp;</td>".
+    "<td valign=\"top\">" . makeAnchor("displayReference", "reference_no=$vars{reference_no}", "$vars{'reference_no'}") . ".</b>&nbsp;</td>".
     "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
     "<td>$formatted_primary</td>".
     "</tr></table>";      
@@ -148,9 +150,7 @@ sub displayCollectionForm {
         $can_modify->{$s->get('authorizer_no')} = 1;
         unless ($can_modify->{$row{'authorizer_no'}} || $s->isSuperUser) {
             my $authorizer = PBDB::Person::getPersonName($dbt,$row{'authorizer_no'});
-            print qq|<p class="warning">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>
-<a href="$WRITE_URL?a=displaySearchColls&type=edit"><br>Edit another collection</b></a>
-|;
+            print "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
             return;
         }
 
@@ -163,13 +163,13 @@ sub displayCollectionForm {
         }
 
         # Secondary refs, followed by current ref
-        my @secondary_refs = ReferenceEntry::getSecondaryRefs($dbt,$collection_no);
+        my @secondary_refs = PBDB::ReferenceEntry::getSecondaryRefs($dbt,$collection_no);
         if (@secondary_refs) {
             my $table = '<table cellspacing="0" cellpadding="2" width="100%">';
             for(my $i=0;$i < @secondary_refs;$i++) {
                 my $sr = $secondary_refs[$i];
-                my $ref = Reference::getReference($dbt,$sr);
-                my $formatted_secondary = Reference::formatLongRef($ref);
+                my $ref = PBDB::Reference::getReference($dbt,$sr);
+                my $formatted_secondary = PBDB::Reference::formatLongRef($ref);
                 my $class = ($i % 2 == 0) ? 'class="darkList"' : '';
                 $table .= "<tr $class>".
                   "<td valign=\"top\"><input type=\"radio\" name=\"secondary_reference_no\" value=\"$sr\">".
@@ -189,8 +189,8 @@ sub displayCollectionForm {
         # as the primary ref, as with the secondary refs below).
         if ($session_ref) {
             unless(isRefPrimaryOrSecondary($dbt,$collection_no,$session_ref)){
-                my $ref = Reference::getReference($dbt,$session_ref);
-                my $sr = Reference::formatLongRef($ref);
+                my $ref = PBDB::Reference::getReference($dbt,$session_ref);
+                my $sr = PBDB::Reference::formatLongRef($ref);
                 my $table = '<table cellspacing="0" cellpadding="2" width="100%">'
                           . "<tr class=\"darkList\"><td valign=top><input type=radio name=secondary_reference_no value=$session_ref></td>";
                 $table .= "<td valign=top><b>$ref->{reference_no}</b></td>";
@@ -218,8 +218,8 @@ sub displayCollectionForm {
 		$vars{'min_interval'} = $interval->{interval_name};
 	}
 
-    $ref = Reference::getReference($dbt,$vars{'reference_no'});
-    $formatted_primary = Reference::formatLongRef($ref);
+    $ref = PBDB::Reference::getReference($dbt,$vars{'reference_no'});
+    $formatted_primary = PBDB::Reference::formatLongRef($ref);
 
 	print PBDB::PBDBUtil::printIntervalsJava($dbt);
 
@@ -352,7 +352,7 @@ sub processCollectionForm {
 
             my $max_interval_no = ($q->param('max_interval_no')) ? $q->param('max_interval_no') : 0;
             my $min_interval_no = ($q->param('min_interval_no')) ? $q->param('min_interval_no') : 0;
-            ($paleolng, $paleolat, $pid) = getPaleoCoords($dbt,$max_interval_no,$min_interval_no,$f_lngdeg,$f_latdeg);
+            ($paleolng, $paleolat, $pid) = getPaleoCoords($dbt,$q,$max_interval_no,$min_interval_no,$f_lngdeg,$f_latdeg);
             dbg("have paleocoords paleolat: $paleolat paleolng $paleolng");
             if ($paleolat ne "" && $paleolng ne "") {
                 $q->param("paleolng"=>$paleolng);
@@ -451,21 +451,21 @@ sub processCollectionForm {
             $can_modify->{$s->get('authorizer_no')} = 1;
             
             if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {
-                $links .= qq|<li><a href="$WRITE_URL?a=displayCollectionForm&collection_no=$collection_no">Edit this collection</a></li>|;
+                $links .= "<li>" . makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit this collection") . "</li>";
             }
-            $links .= qq|<li><a href="$WRITE_URL?a=displayCollectionForm&prefill_collection_no=$collection_no">Add a collection copied from this one</a></li>|;
+            $links .= "<li>" . makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one") . "</li>";
             if ($isNewEntry) {
-                $links .= qq|<li><a href="$WRITE_URL?a=displaySearchCollsForAdd&type=add">Add another collection with the same reference</a></li>|;
+                $links .= "<li>" . makeAnchor("displaySearchCollsForAdd", "type=add", "Add another collection with the same reference") . "</li>";
             } else {
-                $links .= qq|<li><a href="$WRITE_URL?a=displaySearchCollsForAdd&type=add">Add a collection with the same reference</a></li>|;
-                $links .= qq|<li><a href="$WRITE_URL?a=displaySearchColls&type=edit">Edit another collection with the same reference</a></li>|;
-                $links .= qq|<li><a href="$WRITE_URL?a=displaySearchColls&type=edit&use_primary=yes">Edit another collection using its own reference</a></li>|;
+                $links .= "<li>" . makeAnchor("displaySearchCollsForAdd", "type=add", "Add a collection with the same reference") . "</li>";
+                $links .= "<li>" . makeAnchor("displaySearchColls", "type=edit", "Edit another collection with the same reference") . "</li>";
+                $links .= "<li>" . makeAnchor("displaySearchColls", "type=edit&use_primary=yes", "Edit another collection using its own reference") . "</li>";
             }
-            $links .= qq|<li><a href="$WRITE_URL?a=displayOccurrenceAddEdit&collection_no=$collection_no">Edit taxonomic list</a></li>|;
-            $links .= qq|<li><a href="$WRITE_URL?a=displayOccurrenceListForm&collection_no=$collection_no">Paste in taxonomic list</a></li>|;
-            $links .= qq|<li><a href="$WRITE_URL?a=displayCollResults&type=occurrence_table&reference_no=$coll->{reference_no}">Edit occurrence table for collections from the same reference</a></li>|;
+            $links .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no", "Edit taxonomic list") . "</li>";
+            $links .= "<li>" . makeAnchor("displayOccurrenceListForm", "collection_no=$collection_no", "Paste in taxonomic list") . "</li>";
+            $links .= "<li>" . makeAnchor("displayCollResults", "type=occurrence_table&reference_no=$coll->{reference_no}", "Edit occurrence table for collections from the same reference") . "</li>";
             if ( $s->get('role') =~ /authorizer|student|technician/ )	{
-                $links .= qq|<li><a href="$WRITE_URL?a=displayOccsForReID&collection_no=$collection_no">Reidentify taxa</a></li>|;
+                $links .= "<li>" . makeAnchor("displayOccsForReID", "collection_no=$collection_no", "Reidentify taxa") . "</li>";
             }
             $links .= "</td></tr></table></div></p>";
 
@@ -661,9 +661,9 @@ sub displayCollectionDetails {
         $can_modify->{$s->get('authorizer_no')} = 1;
 
         if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {  
-            $links .= qq|<a href="$WRITE_URL?a=displayCollectionForm&collection_no=$collection_no">Edit collection</a> - |;
+            $links .= makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit collection");
         }
-        $links .=  qq|<a href="$WRITE_URL?a=displayCollectionForm&prefill_collection_no=$collection_no">Add a collection copied from this one</a>|;  
+        $links .=  makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one");
         $links .= "</div></p>";
     }
     $links .= "</div>\n";
@@ -768,26 +768,26 @@ sub displayCollectionDetailsPage {
     # Get the reference
     if ($row->{'reference_no'}) {
         $row->{'reference_string'} = '';
-        my $ref = Reference::getReference($dbt,$row->{'reference_no'});
-        my $formatted_primary = Reference::formatLongRef($ref);
+        my $ref = PBDB::Reference::getReference($dbt,$row->{'reference_no'});
+        my $formatted_primary = PBDB::Reference::formatLongRef($ref);
         $row->{'reference_string'} = '<table cellspacing="0" cellpadding="2" width="100%"><tr>'.
-            "<td valign=\"top\"><a href=\"?a=displayReference&reference_no=$row->{reference_no}\">".$row->{'reference_no'}."</a></td>".
+            "<td valign=\"top\">" . makeAnchor("displayReference", "reference_no=$row->{reference_no}", "$row->{'reference_no'}") . ".</a></td>".
             "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
             "<td>$formatted_primary</td>".
             "</tr></table>";
         
         $row->{'secondary_reference_string'} = '';
-        my @secondary_refs = ReferenceEntry::getSecondaryRefs($dbt,$collection_no);
+        my @secondary_refs = PBDB::ReferenceEntry::getSecondaryRefs($dbt,$collection_no);
         if (@secondary_refs) {
             my $table = "";
             $table .= '<table cellspacing="0" cellpadding="2" width="100%">';
             for(my $i=0;$i < @secondary_refs;$i++) {
                 my $sr = $secondary_refs[$i];
-                my $ref = Reference::getReference($dbt,$sr);
-                my $formatted_secondary = Reference::formatLongRef($ref);
+                my $ref = PBDB::Reference::getReference($dbt,$sr);
+                my $formatted_secondary = PBDB::Reference::formatLongRef($ref);
                 my $class = ($i % 2 == 0) ? 'class="darkList"' : '';
                 $table .= "<tr $class>".
-                    "<td valign=\"top\"><a href=\"?a=displayReference&reference_no=$sr\">$sr</a></td>".
+                    "<td valign=\"top\">" . makeAnchor("displayReference", "reference_no=$sr", "$sr") . "</a></td>".
                     "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
                     "<td>$formatted_secondary</td>".
                     "</tr>";
@@ -808,7 +808,7 @@ sub displayCollectionDetailsPage {
     $sth->finish();
     my @links = ();
     foreach my $ref (@subrowrefs)	{
-      push @links, "<a href=\"?a=displayCollectionDetails&collection_no=$ref->[0]\">$ref->[0]</a>";
+      push @links, makeAnchor("displayCollectionDetails", "collection_no=$ref->[0]", "$ref->[0]");
     }
     my $subString = join(", ",@links);
     $row->{'subset_string'} = $subString;
@@ -842,7 +842,7 @@ sub displayCollectionDetailsPage {
 	if ( $row->{'max_interval_no'} ) {
 		$sql = "SELECT eml_interval,interval_name FROM intervals WHERE interval_no=" . $row->{'max_interval_no'};
         my $max_row = ${$dbt->getData($sql)}[0];
-        $row->{'interval'} .= qq|<a href="$INTERVAL_URL?a=displayInterval&interval_no=$row->{max_interval_no}">|;
+        $row->{'interval'} .= qq|<a href="$INTERVAL_URL?a=displayInterval&interval_no=$row->{max_interval_no}">|; #old FossilWorks stuff
         $row->{'interval'} .= $max_row->{'eml_interval'}." " if ($max_row->{'eml_interval'});
         $row->{'interval'} .= $max_row->{'interval_name'};
         $row->{'interval'} .= '</a>';
@@ -852,7 +852,7 @@ sub displayCollectionDetailsPage {
 		$sql = "SELECT eml_interval,interval_name FROM intervals WHERE interval_no=" . $row->{'min_interval_no'};
         my $min_row = ${$dbt->getData($sql)}[0];
         $row->{'interval'} .= " - ";
-        $row->{'interval'} .= qq|<a href="$INTERVAL_URL?a=displayInterval&interval_no=$row->{min_interval_no}">|;
+        $row->{'interval'} .= qq|<a href="$INTERVAL_URL?a=displayInterval&interval_no=$row->{min_interval_no}">|; #old FossilWorks stuff
         $row->{'interval'} .= $min_row->{'eml_interval'}." " if ($min_row->{'eml_interval'});
         $row->{'interval'} .= $min_row->{'interval_name'};
         $row->{'interval'} .= '</a>';
@@ -1025,24 +1025,35 @@ sub displayCollectionDetailsPage {
 
 
     if ($row->{'collection_subset'}) {
-        $row->{'collection_subset'} =  "<a href=\"?a=displayCollectionDetails&collection_no=$row->{collection_subset}\">$row->{collection_subset}</a>";
+        $row->{'collection_subset'} =  makeAnchor("displayCollectionDetails", "collection_no=$row->{collection_subset}", "$row->{collection_subset}");
     }
 
     if ($row->{'regionalsection'}) {
-        $row->{'regionalsection'} = "<a href=\"?a=displayStratTaxaForm&taxon_resolution=species&skip_taxon_list=YES&input_type=regional&input=".uri_escape($row->{'regionalsection'})."\">$row->{regionalsection}</a>";
+    	my $escaped = uri_escape($row->{regionalsection});
+        $row->{'regionalsection'} = makeAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=regional&input=$escaped", $row->{regionalsection});
     }
 
     if ($row->{'localsection'}) {
-        $row->{'localsection'} = "<a href=\"?a=displayStratTaxaForm&taxon_resolution=species&skip_taxon_list=YES&input_type=local&input=".uri_escape($row->{'localsection'})."\">$row->{localsection}</a>";
+    	my $escaped = uri_escape($row->{localsection});
+        $row->{'localsection'} = makeAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=local&input=$escaped", "$row->{localsection}");
     }
+
     if ($row->{'member'}) {
-        $row->{'member'} = "<a href=\"?a=displayStrata&group_hint=".uri_escape($row->{'geological_group'})."&formation_hint=".uri_escape($row->{'formation'})."&group_formation_member=".uri_escape($row->{'member'})."\">$row->{member}</a>";
+    	my $escaped = uri_escape($row->{geological_group});
+    	my $escaped2 = uri_escape($row->{formation});
+    	my $escaped3 = uri_escape($row->{member});
+        $row->{'member'} = makeAnchor("displayStrata", "group_hint=$escaped&formation_hint=$escaped2&group_formation_member=$escaped3", "$row->{member}");
     }
+
     if ($row->{'formation'}) {
-        $row->{'formation'} = "<a href=\"?a=displayStrata&group_hint=".uri_escape($row->{'geological_group'})."&group_formation_member=".uri_escape($row->{'formation'})."\">$row->{formation}</a>";
+    	my $escaped = uri_escape($row->{geological_group});
+    	my $escaped2 = uri_escape($row->{formation});
+        $row->{'formation'} = makeAnchor("displayStrata", "group_hint=$escaped&group_formation_member=$escaped2", "$row->{formation}");
     }
+
     if ($row->{'geological_group'}) {
-        $row->{'geological_group'} = "<a href=\"?a=displayStrata&group_formation_member=".uri_escape($row->{'geological_group'})."\">$row->{geological_group}</a>";
+    	my $escaped = uri_escape($row->{geological_group});
+        $row->{'geological_group'} = makeAnchor("displayStrata", "group_formation_member=$escaped", "$row->{geological_group}");
     }
 
     $row->{'modified'} = date($row->{'modified'});
@@ -1131,7 +1142,7 @@ sub buildTaxonomicList {
 				my $specimens_measured = ${$dbt->getData($sql_s)}[0]->{'c'};
 				if ($specimens_measured) {
     					my $s = ($specimens_measured > 1) ? 's' : '';
-    					$rowref->{comments} .= " (<a href=\"?a=displaySpecimenList&occurrence_no=$rowref->{occurrence_no}\">$specimens_measured measurement$s</a>)";
+    					$rowref->{comments} .= " (" . makeAnchor("displaySpecimenList", "occurrence_no=$rowref->{occurrence_no}", "$specimens_measured measurement$s") . ")";
 				}
 			}
 			
@@ -1175,7 +1186,7 @@ sub buildTaxonomicList {
 
 					my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxon->{'taxon_no'});
 					my $is_recomb = ($orig_no == $taxon->{'taxon_no'}) ? 0 : 1;
-					$rowref->{'authority'} = Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'},'is_recombination'=>$is_recomb);
+					$rowref->{'authority'} = PBDB::Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'},'is_recombination'=>$is_recomb);
 				}
 			}
 
@@ -1184,7 +1195,7 @@ sub buildTaxonomicList {
 			# if the occurrence's reference differs from the collection's, print it
 			my $newrefno = $rowref->{'reference_no'};
 			if ($newrefno != $options{'hide_reference_no'})	{
-				$rowref->{reference_no} = Reference::formatShortRef($dbt,$newrefno,'no_inits'=>1,'link_id'=>1);
+				$rowref->{reference_no} = PBDB::Reference::formatShortRef($dbt,$newrefno,'no_inits'=>1,'link_id'=>1);
 			} else {
 				$rowref->{reference_no} = '';
 			}
@@ -1481,7 +1492,7 @@ window.onload = hideName;
 
 function addLink(link_id,link_action,taxon_name)	{
 	if ( ! /href/.test( document.getElementById(link_id).innerHTML ) )	{
-		document.getElementById(link_id).innerHTML = '<a href="?a=basicTaxonInfo' + link_action + '&amp;is_real_user=1">' + taxon_name + '</a>';
+		document.getElementById(link_id).innerHTML = makeAnchor("basicTaxonInfo", ' + '"link_action' + '&amp;is_real_user=1", ' + '"taxon_name"); //jpjenk: is this right?
 	}
 }
 
@@ -1540,9 +1551,9 @@ function showName()	{
 	#  4.6.13 JA
 
 		if ($s->isDBMember()) {
-			$return .= qq|<a href="$WRITE_URL?a=displayOccurrenceAddEdit&collection_no=$options{'collection_no'}">Edit taxonomic list</a>|;
+			$return .= makeAnchor("displayOccurrenceAddEdit", "collection_no=$options{'collection_no'}", "Edit taxonomic list");
 			if ( $s->get('role') =~ /authorizer|student|technician/ )	{
-				$return .= qq| - <a href="$WRITE_URL?a=displayOccsForReID&collection_no=$options{'collection_no'}">Reidentify taxa</a>|;
+				$return .= " - " . makeAnchor("displayOccsForReID", "collection_no=$options{'collection_no'}", "Reidentify taxa");
 			}
 		}
 	} elsif ($s->isDBMember()) {
@@ -1755,7 +1766,7 @@ sub getReidHTMLTableByOccNum {
 		$row->{'taxon_name'} = "&nbsp;&nbsp;&nbsp;&nbsp;= ".formatOccurrenceTaxonName($row);
         
 		# format the reference (PM)
-		$row->{'reference_no'} = Reference::formatShortRef($dbt,$row->{'reference_no'},'no_inits'=>1,'link_id'=>1);
+		$row->{'reference_no'} = PBDB::Reference::formatShortRef($dbt,$row->{'reference_no'},'no_inits'=>1,'link_id'=>1);
        
 		# get the taxonomic authority JA 19.4.04
 		my $taxon;
@@ -1763,7 +1774,7 @@ sub getReidHTMLTableByOccNum {
 			$taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_no','taxon_name','common_name','taxon_rank','author1last','author2last','otherauthors','pubyr','reference_no','ref_is_authority']);
 
 			if ($taxon->{'taxon_rank'} =~ /species/ || $row->{'species_name'} =~ /^indet\.|^sp\./) {
-				$row->{'authority'} = Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'});
+				$row->{'authority'} = PBDB::Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'});
 			}
 		}
 
@@ -1831,7 +1842,7 @@ sub getReidHTMLTableByOccNum {
 ##
 sub getPaleoCoords {
     
-    my ($dbt, $max_interval_no, $min_interval_no, $f_lngdeg, $f_latdeg) = @_;
+    my ($dbt, $q, $max_interval_no, $min_interval_no, $f_lngdeg, $f_latdeg) = @_;
     
     my $dbh = $dbt->dbh;
     
@@ -1873,7 +1884,7 @@ sub getPaleoCoords {
 	    
             # Get Map rotation information - needs maptime to be set (to collage)
             # rotx, roty, rotdeg get set by the function, needed by projectPoints below
-            my $map_o = new PBDB::Map;
+            my $map_o = PBDB::Map->new($q, $dbt);
             $map_o->{maptime} = $collage;
             $map_o->readPlateIDs();
             $map_o->mapGetRotations();
@@ -1980,7 +1991,7 @@ sub setSecondaryRef{
     my $return = $dbh_r->do($sql);
 	dbg("ref $reference_no added as secondary for collection $collection_no");
 	
-	DBTransactionManager::logEvent({ stmt => 'INSERT',
+	PBDB::DBTransactionManager::logEvent({ stmt => 'INSERT',
 					 table => 'secondary_refs',
 					 key => 'collection_no, reference_no',
 					 keyval => "$collection_no, $reference_no",
@@ -2054,7 +2065,7 @@ sub deleteRefAssociation {
 	
 	my $undo_sql = "INSERT INTO secondary_refs (collection_no, reference_no) VALUES ($collection_no, $reference_no)";
 	
-	DBTransactionManager::logEvent({ stmt => 'DELETE',
+	PBDB::DBTransactionManager::logEvent({ stmt => 'DELETE',
 					 table => 'secondary_refs',
 					 key => 'collection_no, reference_no',
 					 keyval => "$collection_no, $reference_no",

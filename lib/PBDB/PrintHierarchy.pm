@@ -2,7 +2,7 @@
 package PBDB::PrintHierarchy;
 
 use PBDB::TaxonInfo;
-use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM $TAXA_TREE_CACHE);
+use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM $TAXA_TREE_CACHE makeAnchor);
 use strict;
 
 sub classificationForm	{
@@ -239,7 +239,7 @@ sub classify	{
 		my $extant = ( $t->{'extant'} !~ /y/i ) ? "no" : "yes";
 		print OUT "$t->{'taxon_rank'},\"$t->{'taxon_name'}\",\"".PBDB::TaxonInfo::formatShortAuthor($t)."\",\"$t->{'common_name'}\",\"$t->{'status'}\",$extant\n";
 		$extant = ( $t->{'extant'} !~ /y/i ) ? "&dagger;" : "";
-		my $name = $shortranks{$t->{'taxon_rank'}}." "."$extant<a href=\"$READ_URL?action=basicTaxonInfo&amp;taxon_no=$t->{taxon_no}\">".PBDB::TaxonInfo::italicize($t)."</a>";
+		my $name = $shortranks{$t->{'taxon_rank'}}." "."$extant" . makeAnchor("basicTaxonInfo", "taxon_no=$t->{taxon_no}", "PBDB::TaxonInfo::italicize($t)") . "</a>";
 		if ( $t->{'author1last'} )	{
 			$name .= " ".PBDB::TaxonInfo::formatShortAuthor($t);
 		}
@@ -300,7 +300,7 @@ sub classify	{
 		print '<center><p class="tiny" style="padding-bottom: 3em;">';
 		print '<a href="/public/classification/classification.csv">Download</a></b> this list of taxonomic names';
 		print ' - <a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download</a> authority and opinion data for these taxa';
-		print " - <a href=\"$READ_URL?action=classify\">See another classification</a></p></center>";
+		print " - " . makeAnchor("classify", "", "See another classification") . "</p></center>";
 		print $hbo->stdIncludes($PAGE_BOTTOM);
 		close OUT;
 	}

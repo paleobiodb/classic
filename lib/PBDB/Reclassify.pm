@@ -4,9 +4,9 @@ use strict;
 use PBDB::Permissions;
 use PBDB::PBDBUtil;
 use URI::Escape;
-# use CGI qw(escapeHTML);
+use HTML::Entities;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw($READ_URL $WRITE_URL $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 
 # in memory of our dearly departed Ryan Poling
 
@@ -36,7 +36,7 @@ sub startReclassifyOccurrences	{
         # Spit out the HTML
         print $hbo->stdIncludes( "std_page_top" );
         print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-        print Person::makeAuthEntJavascript($dbt);
+        print PBDB::Person::makeAuthEntJavascript($dbt);
         print $hbo->populateHTML('search_occurrences_form',\%vars);
         print $hbo->stdIncludes("std_page_bottom");  
     }
@@ -58,7 +58,7 @@ sub displayOccurrenceReclassify	{
     my @occrefs;
     if (@collections) {
 	    print "<center><p class=\"pageTitle\">Classification of \"".$q->param('taxon_name')."\" occurrences</p>";
-        my ($genus,$subgenus,$species,$subspecies) = Taxon::splitTaxon($q->param('taxon_name'));
+        my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
         my @names = ($dbh->quote($genus));
         if ($subgenus) {
             push @names, $dbh->quote($subgenus);
@@ -139,7 +139,7 @@ sub displayOccurrenceReclassify	{
 	for my $o ( @occrefs )	{
 #        my $editable = ($s->get("superuser") || $is_modifier_for{$o->{'authorizer_no'}} || $o->{'authorizer_no'} == $s->get('authorizer_no')) ? 1 : 0;
 my $editable = 1;
-        my $authorizer = ($editable) ? '' : '(Authorizer: '.Person::getPersonName($dbt,$o->{'authorizer_no'}).')';
+        my $authorizer = ($editable) ? '' : '(Authorizer: '.PBDB::Person::getPersonName($dbt,$o->{'authorizer_no'}).')';
         $nonEditableCount++ if (!$editable);
 
 		# if the name is informal, add it to the list of
@@ -154,7 +154,7 @@ my $editable = 1;
 			if ( $o->{species_reso} !~ /informal/ && $o->{species_name} !~ /^sp\./ && $o->{species_name} !~ /^indet\./)	{
 				$taxon_name .= " " . $o->{species_name};
 			}
-            my @all_matches = Taxon::getBestClassification($dbt,$o);
+            my @all_matches = PBDB::Taxon::getBestClassification($dbt,$o);
 
 			# now print the name and the pulldown of authorities
 			if ( @all_matches )	{
@@ -191,7 +191,7 @@ my $editable = 1;
                     $collection_string .= "</span>";
                     $collection_string .= " <span class=\"tiny\" style=\"white-space: nowrap;\">$authorizer</span>";
 
-                    print "<td style=\"padding-right: 1.5em; padding-left: 1.5em;\"><a href=\"$READ_URL?action=displayCollectionDetails&collection_no=$o->{collection_no}\">$o->{collection_no}</a></td><td>$collection_string</td>";
+                    print "<td style=\"padding-right: 1.5em; padding-left: 1.5em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$o->{collection_no}", "$o->{collection_no}") . "</td><td>$collection_string</td>";
                 }
 				print "<td><span style=\"white-space:nowrap;\">&nbsp;&nbsp;\n";
 
@@ -422,15 +422,15 @@ sub processReclassifyForm	{
         print uri_unescape($q->param("show_links"));
     } else { 
         if ($q->param('collection_no')) {
-            print "<a href=\"$WRITE_URL?action=startStartReclassifyOccurrences&occurrences_authorizer_no=".$q->param('occurrences_authorizer_no')."&collection_no=";
-            print $q->param('collection_no');
-            print "\">Reclassify this collection</a> - ";
+	    my $occurrences_authorizer_no = $q->param('occurrences_authorizer_no');
+	    my $collection_no = $q->param('collection_no');
+            print makeAnchor("startStartReclassifyOccurrences", "occurrences_authorizer_no=$occurrences_authorizer_no&collection_no=$collection_no", "Reclassify this collection") . " - ";
         } else {
-            print "<a href=\"$WRITE_URL?action=displayCollResults&type=reclassify_occurrence&occurrences_authorizer_no=".$q->param('occurrences_authorizer_no')."&taxon_name=";
-            print $q->param('taxon_name');
-            print "\">Reclassify ".$q->param('taxon_name')."</a> - ";
+	    my $occurrences_authorizer_no = $q->param('occurrences_authorizer_no');
+	    my $taxon_name = $q->param('taxon_name');
+            print makeAnchor("displayCollResults", "type=reclassify_occurrence&occurrences_authorizer_no=$occurrences_authorizer_no&taxon_name=$taxon_name", "Reclassify $taxon_name") . " - ";
         }
-    	print "<a href=\"$WRITE_URL?action=startStartReclassifyOccurrences\">Reclassify another collection or taxon</a></p>\n\n";
+    	print makeAnchor("startStartReclassifyOccurrences", "", "Reclassify another collection or taxon") . "</a></p>\n\n"; #jpjenk-blank params?
     }
 
 	print "</center>\n\n";
@@ -458,11 +458,11 @@ sub classificationSelect {
                  
     # populate the select list of authorities
     foreach my $m (@$matches) {
-        my $t = TaxonInfo::getTaxa($dbt,{'taxon_no'=>$m->{'taxon_no'}},['taxon_no','taxon_name','taxon_rank','author1last','author2last','otherauthors','pubyr']);
+        my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$m->{'taxon_no'}},['taxon_no','taxon_name','taxon_rank','author1last','author2last','otherauthors','pubyr']);
         # have to format the authority data
-        my $authority = Taxon::formatTaxon($dbt,$t);
+        my $authority = PBDB::Taxon::formatTaxon($dbt,$t);
 
-        $html .= "<option value=\"" . $t->{taxon_no} . "+" . escapeHTML($authority) . "\"";
+        $html .= "<option value=\"" . $t->{taxon_no} . "+" . encode_entities($authority) . "\"";
         if ($t->{taxon_no} eq $taxon_no) {
             $html .= " selected";
         }

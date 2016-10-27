@@ -26,7 +26,7 @@ use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;
 use PBDB::Debug;
-use PBDB::Constants qw($WRITE_URL $HTML_DIR $HOST_URL $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw($WRITE_URL $HTML_DIR $HOST_URL $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 
 # This function has been generalized to use by a number of different modules
 # as a generic way of getting back collection results, including maps, collection search, confidence, and taxon_info
@@ -725,13 +725,13 @@ IS NULL))";
 		} elsif ( $options{"calling_script"} eq "Review" )	{
 			return;
 		} elsif ( $options{"calling_script"} eq "Map" )	{
-			$message .= "<a href=\"?a=mapForm\"><b>Try again</b></a>";
+			$message .= makeAnchor("mapForm", "<b>Try again</b>");
 		} elsif ( $options{"calling_script"} eq "Confidence" )	{
-			$message .= "<a href=\"?a=displaySearchSectionForm\"><b>Try again</b></a>";
+			$message .= makeAnchor("displaySearchSectionForm", "<b>Try again</b>");
 		} elsif ( $options{"type"} eq "add" )	{
-			$message .= "<a href=\"$WRITE_URL?a=displaySearchCollsForAdd&type=add\"><b>Try again</b></a>";
+			$message .= makeAnchor("displaySearchCollsForAdd", "type=add", "<b>Try again</b>");
 		} else	{
-			$message .= "<a href=\"?a=displaySearchColls&type=$options{type}\"><b>Try again</b></a>";
+			$message .= makeAnchor("displaySearchColls", "type=$options{type}", "<b>Try again</b>");
 		}
 		$message .= "</div><br>";
 		PBDB::displayCollectionForm($message);
@@ -1037,7 +1037,7 @@ sub basicCollectionSearch	{
 
 	my ($dbt,$q,$s,$hbo,$taxa_skipped) = @_;
 	my $dbh = $dbt->dbh;
-
+	
 	my $sql;
 	my $fields = "collection_no,collection_name,collection_aka,authorizer,authorizer_no,reference_no,country,state,max_interval_no,min_interval_no,collectors,collection_dates";
 	my ($NAME_FIELD,$AKA_FIELD,$TIME) = ('collection_name','collection_aka','collection_dates');
@@ -1048,7 +1048,7 @@ sub basicCollectionSearch	{
 		$NO = $NAME;
 		$NAME = "";
 	}
-
+	print STDERR "COLLECTION_NO = $NO\n";
 	if ( ! $q->param($NO) && ! $q->param($NAME_FIELD) && $q->param('quick_search') )	{
 		if ( $q->param('quick_search') =~ /^[0-9]+$/ )	{
 			$NO = $q->param('quick_search');
@@ -1542,9 +1542,9 @@ function showAuthors()	{
 
 	$sql = "SELECT * FROM refs WHERE reference_no=".$c->{'reference_no'};
 	my $ref = ${$dbt->getData($sql)}[0];
-	print "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1)." <a class=\"verysmall\" href=\"?a=displayReference&reference_no=$c->{reference_no}\">more details</a>";
+	print "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeAnchor("displayReference", "reference_no=$c->{reference_no}", "more details");
 	if ( $s->isDBMember() ) {
-		print " - <a class=\"verysmall\" href=\"$WRITE_URL?a=displayRefResults&amp;type=edit&amp;reference_no=$c->{reference_no}\">edit</a>";
+		print " - " . makeAnchor("displayRefResults", "type=edit&reference_no=$c->{reference_no}", "edit");
 	}
 	print "</p>\n\n";
 
@@ -1610,7 +1610,7 @@ function showAuthors()	{
 				if ( $s->{'taxon_rank'} =~ /genus|species/ )	{
 					$s->{'good'} = "<i>".$s->{'good'}."</i>";
 				}
-				$s->{'good'} = "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$s->{'synonym_no'}\">".$s->{'good'}."</a>";
+				$s->{'good'} = makeAnchor("basicTaxonInfo", "taxon_no=$s->{'synonym_no'}" . $s->{'good'});
 				$lookup{$s->{'synonym_no'}} = $s->{'good'};
 				push @need_authors , $s->{'synonym_no'};
 			}
@@ -1686,13 +1686,13 @@ function showAuthors()	{
 		$o->{'formatted'} =~ s/^ //g;
 		$o->{'formatted'} = $ital.$o->{'formatted'}.$ital2;
 		if ( ! $lookup{$o->{'synonym_no'}} && $o->{'taxon_no'} )	{
-			$o->{'formatted'} = "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$o->{'taxon_no'}\">".$o->{'formatted'}."</a>";
+			$o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_no=$o->{'taxon_no'}", $o->{'formatted'});
 		} elsif ( ! $o->{'taxon_no'} )	{
 			my $name = $o->{'genus_name'};
 			if ( $o->{'species_name'} !~ /(sp|spp|indet)\./ )	{
 				$name .= " ".$o->{'species_name'};
 			}
-			$o->{'formatted'} = "<a href=\"?a=basicTaxonInfo&amp;taxon_name=$name\">".$o->{'formatted'}."</a>";
+			$o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_name=$name", $o->{'formatted'});
 		}
 		if ( $postfix )	{
 			$o->{'formatted'} .= " ".$postfix;
@@ -1773,14 +1773,14 @@ $o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}
 		my $can_modify = $p->getModifierList();
 		$can_modify->{$s->get('authorizer_no')} = 1;
 		if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
-			 print qq|<a href="$WRITE_URL?a=displayCollectionForm&collection_no=$c->{'collection_no'}">Edit collection</a> - |;
+			 print makeAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";
 		}
-		print qq|<a href="$WRITE_URL?a=displayCollectionForm&prefill_collection_no=$c->{'collection_no'}">Add a collection copied from this one</a> - |;
+		print makeAnchor("displayCollectionForm", "prefill_collection_no=$c->{'collection_no'}", "Add a collection copied from this one") . " - ";
 		if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
-			print qq|<a href="$WRITE_URL?a=displayOccurrenceAddEdit&collection_no=$c->{'collection_no'}">Edit taxonomic list</a>|;
+			print makeAnchor("displayOccurrenceAddEdit", "collection_no=$c->{'collection_no'}", "Edit taxonomic list");
 		}
 		if ( $s->get('role') =~ /authorizer|student|technician/ )	{
-			print qq| - <a href="$WRITE_URL?a=displayOccsForReID&collection_no=$c->{'collection_no'}">Reidentify taxa</a>|;
+			print " - " . makeAnchor("displayOccsForReID", "collection_no=$c->{'collection_no'}", "Reidentify taxa");
 		}
 		print "\n</div>\n\n";
 	}
@@ -1935,8 +1935,8 @@ sub rarefyAbundances	{
 		if ( $ntaxa == 1 )	{
 			$reason = "only one taxon has abundance data";
 		}	
-		print "<center><p>Diversity statistics not available</p>\n<p class=\"medium\">Statistics for $collection_name (PBDB collection <a href=\"?a=basicCollectionSearch&collection_no=$collection_no\">$collection_no</a>) cannot<br>be computed because $reason</p></center>\n\n";
-    		print "<p><div align=\"center\"><b><a href=\"?a=displaySearchColls&type=analyze_abundance\">Search again</a></b></div></p>";
+		print "<center><p>Diversity statistics not available</p>\n<p class=\"medium\">Statistics for $collection_name (PBDB collection " . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_no) . "cannot<br>be computed because $reason</p></center>\n\n";
+    		print "<p><div align=\"center\"><b>" . makeAnchor("displaySearchColls", "type=analyze_abundance", "Search again") . "</a></b></div></p>";
 		return;
 	}
 
@@ -2002,7 +2002,7 @@ sub rarefyAbundances	{
 
 	print "<center>\n";
 	print "<div class=\"displayPanel\" style=\"width: 38em; margin-top: 2em;\">\n";
-	print "<span class=\"displayPanelHeader\"><span class=\"large\">Diversity statistics for <a href=\"?a=basicCollectionSearch&collection_no=$collection_no\">$collection_name</a></span></span>\n\n";
+	print "<span class=\"displayPanelHeader\"><span class=\"large\">Diversity statistics for" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_name) . "</a></span></span>\n\n";
 	print "<div class=\"displayPanelContent\" style=\"width: 38em; padding-top: 1em;\">\n";
 	print "<table><tr><td align=\"left\">\n";
 	print "<div>Total richness: $ntaxa taxa<br>\n";
@@ -2058,7 +2058,7 @@ sub rarefyAbundances	{
 	}
 
 	print "<div class=\"displayPanel\" style=\"width: 38em; margin-top: 2em;\">\n";
-	print "<span class=\"displayPanelHeader\"><span class=\"large\" >Rarefaction curve for <a href=\"?a=basicCollectionSearch&collection_no=$collection_no\">$collection_name</a></span></span>\n\n";
+	print "<span class=\"displayPanelHeader\"><span class=\"large\" >Rarefaction curve for" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_name) . "</a></span></span>\n\n";
 	print "<div class=\"displayPanelContent\">\n";
 
     PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/rarefaction");
@@ -2078,7 +2078,7 @@ sub rarefyAbundances	{
 	print "<p><i>Results are based on 200 random sampling trials.<br>\n";
 	print "The data can be downloaded from a <a href=\"$HOST_URL/public/rarefaction/rarefaction.csv\">tab-delimited text file</a>.</i></p></center>\n\n";
 
-    print "<p><div align=\"center\"><b><a href=\"?a=displaySearchColls&type=analyze_abundance\">Search again</a></b></div></p>";
+    print "<p><div align=\"center\"><b>" . makeAnchor("displaySearchColls", "type=analyze_abundance", "Search again") ."</b></div></p>";
 }
 
 # JA 6.1.08
@@ -2213,7 +2213,8 @@ sub displayCollectionEcology	{
 
 	if (!%$ecology) {
 		print "<center><p>Sorry, there are no ecological data for any of the taxa</p></center>\n\n";
-		print "<center><p><b><a href=\"?a=basicCollectionSearch&collection_no=" . $q->param('collection_no') . "\">Return to the collection record</a></b></p></center>\n\n";
+        my $collection_no = $q->param('collection_no');
+		print "<center><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b></p></center>\n\n";
 		print $hbo->stdIncludes($PAGE_BOTTOM);
 		return;
 	} 
@@ -2378,8 +2379,9 @@ sub displayCollectionEcology	{
 	print "</table>\n";
     print "</div>";
 
-	print "<div align=\"center\"><p><b><a href=\"?a=basicCollectionSearch&collection_no=".$q->param('collection_no')."\">Return to the collection record</a></b> - ";
-	print "<b><a href=\"?a=displaySearchColls&type=view\">Search for other collections</a></b></p></div>\n\n";
+    my $collection_no = $q->param('collection_no');
+	print "<div align=\"center\"><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b> - ";
+	print "<b>" . makeAnchor("displaySearchColls", "type=view", "Search for other collections") . "</b></p></div>\n\n";
 	print $hbo->stdIncludes($PAGE_BOTTOM);
 
 }

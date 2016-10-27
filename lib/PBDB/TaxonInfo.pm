@@ -332,6 +332,7 @@ sub displayTaxonInfoResults {
 
 	# classification
 	if($modules{1}) {
+        print '<center>';
         print '<div id="panel1" class="panel">';
         my $width = "52em;";
         if ( $htmlBasicInfo =~ /No taxon/ )	{
@@ -413,10 +414,12 @@ sub displayTaxonInfoResults {
         print "</div>\n";
         print "</p>";
         print "</div>\n</div>\n</div>\n\n";
+        print '</center>';
 	}
 
 	# synonymy
 	if($modules{2}) {
+        print '<center>';
         print qq|<div id="panel2" class="panel";">
 <div align="center" class="small"">
 |;
@@ -435,9 +438,11 @@ sub displayTaxonInfoResults {
             print "<p>Please <a href=\"$READ_URL?page=join_us\">join the Paleobiology Database</a> and enter some data</p>\n";
         }
         print "</div>\n</div>\n</div>\n";
+        print '</center>';
 	}
 
 	if ($modules{3}) {
+        print '<center>';
         print '<div id="panel3" class="panel">';
         print '<div align="center">';
         print $htmlClassification;
@@ -460,9 +465,11 @@ sub displayTaxonInfoResults {
         }
         print "</div>\n";
         print "</div>\n";
+        print '</center>';
     }
     
     if ($modules{5}) {
+        print '<center>';
         print '<div id="panel5" class="panel">';
         print '<div align="center" class="small" "style="margin-top: -2em;">';
         print displayDiagnoses($dbt,$taxon_no);
@@ -470,10 +477,11 @@ sub displayTaxonInfoResults {
             print displayMeasurements($dbt,$taxon_no,$taxon_name,$in_list);
         }
         print "</div>\n";
-        
         print "</div>\n";
+        print '</center>';
     }
     if ($modules{6}) {
+        print '<center>';
         print '<div id="panel6" class="panel">';
         print '<div align="center" clas="small">';
         unless ($quick) {
@@ -481,6 +489,7 @@ sub displayTaxonInfoResults {
         }
         print "</div>\n";
         print "</div>\n";
+        print '</center>';
     }
    
     my $collectionsSet;
@@ -489,6 +498,7 @@ sub displayTaxonInfoResults {
     }
 
     if ($modules{7}) {
+        print '<center>';
         print '<div id="panel7" class="panel">';
         print '<div align="center" style="margin-top: -1em;">';
 
@@ -511,9 +521,11 @@ sub displayTaxonInfoResults {
         # }
         print "</div>\n";
         print "</div>\n";
+        print '</center>';
     }
 	# collections
     if ($modules{8}) {
+        print '<center>';
         print '<div id="panel8" class="panel">';
         if ($is_real_user) {
 		    print doCollections($dbt, $s, $collectionsSet, $display_name, $taxon_no, $in_list, '', $is_real_user, $type_locality);
@@ -529,6 +541,7 @@ sub displayTaxonInfoResults {
             print "</div>\n";
         }
         print "</div>\n";
+        print '</center>';
     }
 
     if ( ! $q->param('show_panel') )	{

@@ -378,7 +378,7 @@ sub getFileInfo {
 	    {
 		my $f = $nf{$r->{nexusfile_no}};
 		push @{$f->{refs}}, $r if $f;
-		bless $r, 'Reference';
+		bless $r, 'PBDB::Reference';
 	    }
 	}
     }

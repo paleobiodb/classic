@@ -166,16 +166,20 @@ sub insertRecord {
             if (exists ($fields->{$field})) {
                 # Multi-valued keys (i.e. checkboxes with the same name) passed from the CGI ($q) object have their values
                 # separated by \0.  See CPAN CGI documentation about this
+		# UPDATE 2016-10-26 mjm: Now that we are running under Dancer, multi-valued keys
+		# get passed in as an array.
                 my $value;
                 if ($type eq 'SET') {
-                    my @vals = split(/\0/,$fields->{$field});
-                    $value = $dbh->quote(join(",",@vals));
+                    # my @vals = split(/\0/,$fields->{$field});
+                    # $value = $dbh->quote(join(",",@vals));
+		    $value = ref $fields->{$field} eq 'ARRAY' ? join(',', @{$fields->{$field}}) : $fields->{$field};
                 } else {
                     if ($type =~ /TEXT|BLOB/i) {
                         $value = $fields->{$field};
                     } else {
-                        my @vals = split(/\0/,$fields->{$field});
-                        $value = $vals[0];
+                        # my @vals = split(/\0/,$fields->{$field});
+                        # $value = $vals[0];
+			$value = ref $fields->{$field} eq 'ARRAY' ? $fields->{$field}[0] : $fields->{$field};
                     }
                     if ($value =~ /^\s*$/ && $is_nullable) {
                         $value = 'NULL';
@@ -339,7 +343,10 @@ sub updateRecord {
                 if (($updateEmptyOnly && $fieldIsEmpty) || !$updateEmptyOnly) {
                     # Multi-valued keys (i.e. checkboxes with the same name) passed from the CGI ($q) object have their values
                     # separated by \0.  See CPAN CGI documentation about this
-                    my @vals = split(/\0/,$data->{$field});
+		    # UPDATE 2016-10-26 mjm: Now that we are running under Dancer, multi-valued
+		    # parameters are passed in as arrays
+                    # my @vals = split(/\0/,$data->{$field});
+		    my @vals = (ref $data->{$field} eq 'ARRAY' ? @{$data->{$field}} : $data->{$field});
                     my $value;
                     my $raw_value;
                     if ($type eq 'SET') {
@@ -762,7 +769,8 @@ sub checkDuplicates {
         next if ($field =~ /^(taxon_no|upload|most_recent|created|modified|release_date)$/i);
         next if ($field =~ /^(authorizer|enterer|modifier|authorizer_no|enterer_no|modifier_no)$/i);
         next if ($field =~ /comments/i);
-        my @vals = split(/\0/,$vars{$field});
+        # my @vals = split(/\0/,$vars{$field});
+	my @vals = (ref $vars{$field} eq 'ARRAY' ? @{$vars{$field}} : $vars{$field});
         my $v;
         if ($type eq 'SET') {
             $v = join(",",@vals);
@@ -940,7 +948,7 @@ sub checkNearMatch {
             print "<input type=submit name=\"what_to_do\" value=\"Continue\"></center>";
             print "</form>";
             if($table_name eq "refs"){
-                print qq|<p><a href="brigde.pl?action=displaySearchRefs&type=add"><b>Add another reference</b></a></p></center><br>\n|;
+                print qq|<p><a href="brigde.pl?action=displaySearchRefs&type=add"><b>Add another reference</b></a></p></center><br>\n|; #jpjenk: what to do with bridge.pl
             }
             # we don't want control to return to insertRecord() (which called this
             # method and will insert the record after control returns to it after

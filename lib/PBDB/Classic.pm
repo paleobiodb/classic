@@ -12,6 +12,7 @@ use Data::Dumper;
 # CPAN modules
 use URI::Escape;
 use Text::CSV_XS;
+use HTML::Entities;
 use Class::Date qw(date localdate gmdate now);
 use POSIX qw(ceil floor);
 use DBI;
@@ -52,8 +53,8 @@ use PBDB::Strata;
 use PBDB::Taxon;  # slated for removal
 use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
-use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL $HOST_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $ALLOW_LOGIN);
+use PBDB::Debug qw(dbg save_request);
+use PBDB::Constants qw($WRITE_URL $HOST_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
 
 
 get '/classic' => sub {
@@ -78,13 +79,50 @@ get '/classic/:path_action' => sub {
 };
 
 
+get '/cgi-bin/bridge.pl' => sub {
+    
+    my $action = param('page') ? 'page' : (param('a') || param('action'));
+    
+    if ( $action eq 'login' )
+    {
+	redirect '/login', 301;
+    }
+    
+    elsif ( $action )
+    {
+	redirect "/classic/$action", 301;
+    }
+    
+    else
+    {
+	redirect "/classic", 301;
+    }
+};
+
+
+post '/cgi-bin/bridge.pl' => sub {
+    
+    my $action = param('a') || param('action');
+    
+    if ( $action )
+    {
+	redirect "/classic/$action", 301;
+    }
+    
+    else
+    {
+	ouch(404, "Not found");
+    }
+};
+
+
 post '/classic' => sub {
     
-    my $action = param('action') || 'bad_action';
+    my $action = param('action') || param('a') || 'bad_action';
     
     return classic_request($action);
 };
-	
+
 
 post '/classic/:path_action' => sub {
 
@@ -100,22 +138,36 @@ sub classic_request {
     
     my $wing_session = get_session();
     
-    my ($user, $session_id, $authorizer_no);
+    my ($user, $session_id, $enterer_no, $authorizer_no);
     
     if ( $wing_session )
     {
 	$user = $wing_session->user;
 	$session_id = $wing_session->id;
 	$authorizer_no = $user->get_column('authorizer_no');
+	$enterer_no = $user->get_column('person_no');
     }
     
-    # print STDERR "SESSION_ID = $session_id\n";
+    my $q = PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
     
-    my $q = PBDB::Request->new(request->method, scalar(params), request->uri);
+    my $apphandler = config->{apphandler} || '';
+    
+    if ( $CGI_DEBUG && $apphandler && $apphandler ne 'Debug' )
+    {
+	if ( ! $DEBUG_USER || $DEBUG_USERID{$enterer_no} )
+	{
+	    save_request($q);
+	}
+    }
     
     my $dbt = PBDB::DBTransactionManager->new();
     
     my $s = PBDB::Session->new($dbt, $session_id, $authorizer_no);
+    
+    # if ( $action eq 'basicCollectionSearch' ) { $action = 'displayCollResults'; $q->param('type'
+    # => 'view'); $q->param('basic' => 'yes'); }
+    print STDERR "SESSION_ID = $session_id\n";
+    print STDERR $q->list_params;
     
     my $use_guest = (!$s->isDBMember()) ? 1 : 0;
     
@@ -216,19 +268,32 @@ sub classic_request {
     my $action_output;
     my $action_sub;
     
-    open(SAVE_STDOUT, '>&1');
+    #open(SAVE_STDOUT, '>&1');
     
-    close(STDOUT);
-    open(STDOUT, '>', \$action_output);
+    unless ( $DB::OUT )
+    {
+	close(STDOUT);
+	open(STDOUT, '>', \$action_output);
+    }
     
     eval {
 	&$action($q, $s, $dbt, $hbo);
     };
-    
-    unless ( $action_output )
+
+    if ( $@ )
     {
 	ouch 500, $@, { path => request->path };
     }
+
+    elsif ( ! $action_output && ! $DB::OUT )
+    {
+	ouch 500, "No output was generated.", { path => request->path };
+    }
+    
+    # unless ( $action_output )
+    # {
+    # 	ouch 500, $@, { path => request->path };
+    # }
     
     $output .= $action_output;
     
@@ -245,6 +310,23 @@ sub classic_request {
     
     return $output;
 };
+
+
+sub execAction {
+
+    my ($q, $s, $dbt, $hbo, $action) = @_;
+    
+    my $action_sub = \&{"PBDB::$action"};
+    
+    eval {
+	&$action_sub($q, $s, $dbt, $hbo);
+    };
+    
+    if ( $@ )
+    {
+	ouch 500, $@, { path => request->path };
+    }
+}
 
 
 # get '/classics/:id/edit' => sub {
@@ -307,12 +389,12 @@ sub setPreferences {
 # displays the main menu page for the data enterers
 sub menu	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $message) = @_;
     
     my ($package, $filename, $line) = caller;
     
 	my %vars;
-	$vars{'message'} = shift;
+	$vars{'message'} = $message;
     
 	# Clear Queue?  This is highest priority
 	if ( $q->param("clear") ) {
@@ -330,7 +412,7 @@ sub menu	{
 			}
 
 	 		# Run the command
-			execAction($queue{'action'});
+			return execAction($q, $s, $dbt, $hbo, $queue{'action'});
 		}
 	}
 
@@ -359,9 +441,9 @@ sub menu	{
 # well, displays the home page
 sub home	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $error) = @_;
     
-	my $error = shift;
+    # my $error = shift;
 	# Clear Queue?  This is highest priority
 	if ( $q->param("clear") ) {
 		$s->clearQueue(); 
@@ -377,7 +459,7 @@ sub home	{
 			}
 	
 	 		# Run the command
-			execAction($queue{'action'}); # Hack so use strict doesn't back
+			return execAction($q, $s, $dbt, $hbo, $queue{'action'}); # Hack so use strict doesn't back
 		}
 	}
 
@@ -432,7 +514,7 @@ sub home	{
 	my %interval_name;
 	$interval_name{$_->{interval_no}} = $_->{interval_name} foreach @{$dbt->getData($sql)};
 	my $first_interval = ( $coll->{min_interval_no} > 0 ) ? $interval_name{$coll->{max_interval_no}}." to ".$interval_name{$coll->{min_interval_no}} : $interval_name{$coll->{max_interval_no}};
-	$row->{latest_collection} = "<a href=\"?a=basicCollectionSearch&amp;collection_no=$coll->{collection_no}\">".$coll->{collection_name}."</a>";
+	$row->{latest_collection} = makeAnchor("basicCollectionSearch", "collection_no=$coll->{collection_no}", "$coll->{collection_name}") . ".";
 	$row->{last_timeplace} = $first_interval." of ".$coll->{country};
 
 	$row->{last_coll_entry} = lastEntry($coll);
@@ -443,7 +525,7 @@ sub home	{
 	# MOST RECENTLY ENTERED SPECIES (must have reasonable data)
 	$sql = "SELECT to_days(now()) day_now,to_days(a.created) day_created,hour(now()) hour_now,hour(a.created) hour_created,minute(now()) minute_now,minute(a.created) minute_created,a.reference_no,a.enterer_no,taxon_name,a.taxon_no,type_locality,type_specimen,type_body_part,r.author1last,r.author2last,r.otherauthors,r.pubyr FROM authorities a,refs r,$TAXA_TREE_CACHE t WHERE a.reference_no=r.reference_no AND ref_is_authority='YES' AND a.taxon_no=t.taxon_no AND t.taxon_no=synonym_no AND taxon_rank='species' AND type_body_part IS NOT NULL ORDER BY a.taxon_no DESC LIMIT 1";
 	my $sp = @{$dbt->getData($sql)}[0];
-	$row->{latest_species} = "<i><a href=\"?a=basicTaxonInfo&amp;taxon_no=$sp->{taxon_no}\">$sp->{taxon_name}</a></i>";
+	$row->{latest_species} = "<i>" . makeAnchor("basicTaxonInfo", "taxon_no=$sp->{taxon_no}", "$sp->{taxon_name}") . "</i>";
 	$row->{latest_species} .= " <a href=\"?a=displayReference&reference_no=$sp->{reference_no}\">".PBDB::Reference::formatShortRef($sp)."</a>";
 	my $class_hash = PBDB::TaxaCache::getParents($dbt,[$sp->{taxon_no}],'array_full');
 	my @class_array = @{$class_hash->{$sp->{taxon_no}}};
@@ -694,10 +776,10 @@ sub emailDownloadFiles	{
 # JA 28.7.08
 sub displayDownloadMeasurementsForm	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $message) = @_;
     
 	my %vars = $q->Vars();
-	$vars{'error_message'} = shift;
+	$vars{'error_message'} = $message;
 	print $hbo->stdIncludes($PAGE_TOP);
 	print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
 	print $hbo->populateHTML('download_measurements_form',\%vars);
@@ -785,9 +867,9 @@ sub displayReportResults {
 
 sub displayMostCommonTaxa	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $dataRowsRef) = @_;
     
-	my $dataRowsRef = shift;
+    # my $dataRowsRef = shift;
 	require Report;
 
 	logRequest($s,$q);
@@ -881,9 +963,9 @@ sub countNames	{
 # Show a generic page
 sub page {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $page) = @_;
     
-	my $page = shift;
+	# my $page = shift;
 	if ( ! $page ) { 
 		# Try the parameters
 		$page = $q->param("page"); 
@@ -904,9 +986,9 @@ sub page {
 
 sub displaySearchRefs {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $error) = @_;
     
-    my $error = shift;
+    # my $error = shift;
     print $hbo->stdIncludes( $PAGE_TOP );
     PBDB::Reference::displaySearchRefs($dbt,$q,$s,$hbo,$error);
     print $hbo->stdIncludes( $PAGE_BOTTOM );
@@ -928,10 +1010,10 @@ sub editCurrentRef {
 	my $reference_no = $s->get("reference_no");
 	if ( $reference_no ) {
 		$q->param("reference_no"=>$reference_no);
-		displayReferenceForm();
+		displayReferenceForm($q, $s, $dbt, $hbo);
 	} else {
 		$q->param("type"=>"edit");
-		PBDB::Reference::displaySearchRefs($dbt,$q,$s,$hbo,"Please choose a reference first" );
+		PBDB::Reference::displaySearchRefs($dbt,$q,$s,$hbo,"<center>Please choose a reference first</center>" );
 	}
 }
 
@@ -1082,7 +1164,7 @@ sub displaySearchCollsForAdd	{
 	if ( ! $reference_no ) {
 		# Come back here... requeue our option
 		$s->enqueue("a=displaySearchCollsForAdd" );
-		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>");
 		return;
 	}
 
@@ -1099,15 +1181,15 @@ sub displaySearchCollsForAdd	{
 
 sub displaySearchColls {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $error) = @_;
     
-	my $error = shift;
+    # my $error = shift;
 	# Get the type, passed or on queue
 	my $type = $q->param("type");
 	if ( ! $type ) {
 		# QUEUE
 		my %queue = $s->unqueue();
-		$type = $queue{type};
+		$type = $queue{type} || 'view';
 	}
 
 	# Have to have a reference #, unless we are just searching
@@ -1115,7 +1197,7 @@ sub displaySearchColls {
 	if ( ! $reference_no && $type !~ /^(?:basic|analyze_abundance|view|edit|reclassify_occurrence|count_occurrences|most_common)$/) {
 		# Come back here... requeue our option
 		$s->enqueue("a=displaySearchColls&type=$type" );
-		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 		return;
 	}
 
@@ -1132,8 +1214,8 @@ sub displaySearchColls {
 
 	if ( $type eq "view" || ! $type )	{
 		$vars{'links'} = qq|
-<p><span class="mockLink" onClick="javascript: checkForm(); document.collForm.basic.value = 'yes'; document.collForm.submit();"><b>Search for basic info</b></span> -
-<span class="mockLink" onClick="javascript: document.collForm.basic.value = ''; document.collForm.submit();"><b>Search for full details</b></span></p>
+<p><span class="mockLink" onClick="checkForm(); document.collForm.basic.value = 'yes'; document.collForm.submit();"><b>Search for basic info</b></span> -
+<span class="mockLink" onClick="document.collForm.basic.value = ''; document.collForm.submit();"><b>Search for full details</b></span></p>
 |;
 	} elsif ($type eq 'occurrence_table') {
 		$vars{'reference_no'} = $reference_no;
@@ -1143,7 +1225,7 @@ sub displaySearchColls {
 	# Spit out the HTML
 	print $hbo->stdIncludes($PAGE_TOP);
 	print PBDB::Person::makeAuthEntJavascript($dbt);
-	$vars{'page_title'} = "Collection XXX search form";
+	$vars{'page_title'} = "Collection search form";
 	# print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
 	print $hbo->populateHTML('search_collections_form', \%vars);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -1164,10 +1246,10 @@ sub basicCollectionSearch	{
 # Called during collections search, and by displayReIDForm() routine.
 sub displayCollResults {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $dataRows) = @_;
     
 	# dataRows might be passed in by basicCollectionSearch
-	my $dataRows = shift;
+    # my $dataRows = shift;
 	my $ofRows;
 	if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
 	    $ofRows = scalar(@$dataRows);
@@ -1206,7 +1288,7 @@ sub displayCollResults {
 			$perm_limit = $limit + $rowOffset;
 		}
 	}
-    print STDERR "B\n";
+    
 	my $type;
 	if ( $q->param('type') ) {
 		$type = $q->param('type');			# It might have been passed (ReID)
@@ -1242,7 +1324,7 @@ sub displayCollResults {
 
 	if ( $q->param('type') eq "add" )	{
 		# you won't have an in list if you are adding
-		($dataRows,$ofRows) = processCollectionsSearchForAdd();
+		($dataRows,$ofRows) = processCollectionsSearchForAdd($q, $s, $dbt, $hbo);
 	} elsif ( ! $dataRows )	{
 		my %options = $q->Vars();
 		my $fields = ["authorizer","country", "state", "max_interval_no", "min_interval_no","collection_aka","collectors","collection_dates"];
@@ -1283,7 +1365,7 @@ sub displayCollResults {
 
 	if ( $type eq 'occurrence_table' && @dataRows) {
 		my @colls = map {$_->{$COLLECTION_NO}} @dataRows;
-		displayOccurrenceTable(\@colls);
+		displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
 		return;
 	} elsif ( $type eq 'count_occurrences' && @dataRows) {
 		PBDB::Collection::countOccurrences($dbt,$hbo,\@dataRows,$occRows);
@@ -1509,11 +1591,11 @@ sub displayCollResults {
 			return;
 		}
 		# Do the action directly if there is only one row
-		execAction($action);
+		return execAction($q, $s, $dbt, $hbo, $action);
     } else {
 		# If this is an add,  Otherwise give an error
 		if ( $type eq "add" ) {
-			displayCollectionForm();
+			displayCollectionForm($q, $s, $dbt, $hbo);
 			return;
 		} else {
 			my $error = "<center>\n<p style=\"margin-top: -1em;\">Your search produced no matches: please try again</p>";
@@ -1530,7 +1612,8 @@ sub displayCollResults {
     # this q2  var is necessary because the processCollectionSearch
     # method alters the CGI object's internals above, and deletes some fields 
     # so, we create a new CGI object with everything intact
-    my $q2 = new CGI; 
+    my $q2 = PBDB::Request->new(request->method, scalar(params), request->uri);
+    
     my @params = $q2->param;
     my $getString = "rowOffset=".($rowOffset+$limit);
     foreach my $param_key (@params) {
@@ -2013,7 +2096,7 @@ sub submitOpinionSearch {
     print $hbo->stdIncludes($PAGE_TOP);
     if ($q->param('taxon_name')) {
         $q->param('goal'=>'opinion');
-        processTaxonSearch($dbt,$hbo,$q,$s);
+        processTaxonSearch($q,$s,$dbt,$hbo);
     } else {
         $q->param('goal'=>'opinion');
         PBDB::Opinion::displayOpinionChoiceForm($dbt,$s,$q);
@@ -2034,7 +2117,7 @@ sub submitTaxonSearch {
     my ($q, $s, $dbt, $hbo) = @_;
     
     print $hbo->stdIncludes($PAGE_TOP);
-    processTaxonSearch($dbt, $hbo, $q, $s);
+    processTaxonSearch($q, $s, $dbt, $hbo);
     print $hbo->stdIncludes($PAGE_BOTTOM);
 }
 
@@ -2045,7 +2128,7 @@ sub processTaxonSearch {
     # my ($dbt, $hbo, $q, $s) = @_;
     my $dbh = $dbt->dbh;
 	# check for proper spacing of the taxon..
-	my $errors = Errors->new();
+	my $errors = PBDB::Errors->new();
 	$errors->setDisplayEndingMessage(0); 
 
     if ($q->param('taxon_name')) {
@@ -2079,7 +2162,7 @@ sub processTaxonSearch {
         $options{'pubyr'} = $q->param('pubyr');
         $options{'reference_no'} = $q->param('reference_no');
     }
-    if (scalar(%options) == 0) {
+    if (keys %options == 0) {
         $errors->add("You must fill in at least one field");
     }
 
@@ -2578,9 +2661,9 @@ sub submitOpinionForm {
 
 sub entangledNamesForm	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $error) = @_;
     
-	my $error = shift;
+    # my $error = shift;
 	print $hbo->stdIncludes($PAGE_TOP);
 	PBDB::Taxon::entangledNamesForm($dbt,$hbo,$s,$q);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -2728,6 +2811,15 @@ sub startProcessReclassifyForm	{
 ##############
 ## Taxon Info Stuff
 
+
+sub downloadOSA {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    print $hbo->stdIncludes( $PAGE_TOP );
+    PBDB::OSA();
+    print $hbo->stdIncludes($PAGE_BOTTOM);
+}
 sub beginTaxonInfo{
     
     my ($q, $s, $dbt, $hbo) = @_;
@@ -3101,7 +3193,6 @@ sub displaySearchStrataResults{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    require Strata;
     print $hbo->stdIncludes($PAGE_TOP);
     PBDB::Strata::displaySearchStrataResults($q,$s,$dbt,$hbo);
     print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -3125,8 +3216,8 @@ sub processNexusUpload {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-
-    PBDB::NexusfileWeb::processUpload($dbt, $hbo, $q, $s);
+    ouch(400, "This function is temporarily disabled");
+    # PBDB::NexusfileWeb::processUpload($dbt, $hbo, $q, $s);
 }
 
 
@@ -3213,9 +3304,9 @@ sub classify	{
 ## SanityCheck stuff
 sub displaySanityForm	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $error_message) = @_;
     
-	my $error_message = shift;
+    # my $error_message = shift;
 	print $hbo->stdIncludes($PAGE_TOP);
 	print $hbo->populateHTML('sanity_check_form',$error_message);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -3275,7 +3366,7 @@ sub displayOccurrenceAddEdit {
 	} 
 	if (! $s->get('reference_no')) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs($q, $s, $dbt, $hbo,"Please select a reference first"); 
+		displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
 		return;
 	} 
 
@@ -3373,8 +3464,8 @@ sub displayOccurrenceAddEdit {
 		# its row in the form, and ALL rows (reids or not) will be processed
 		# properly by processEditOccurrences(), below.
         $occ_row->{'reid_no'} = '0';
-        $occ_row = formatTaxonNameInput($occ_row);
-   
+        formatTaxonNameInput($occ_row);
+	
         # Copy over optional fields;
         $occ_row->{$_} = $pref{$_} for (@optional);
 
@@ -3389,7 +3480,7 @@ sub displayOccurrenceAddEdit {
         my $sql = "SELECT * FROM reidentifications WHERE occurrence_no=" .  $occ_row->{'occurrence_no'};
         @reid_rows = @{$dbt->getData($sql)};
         foreach my $re_row (@reid_rows) {
-            $re_row = formatTaxonNameInput($re_row);
+            formatTaxonNameInput($re_row);
             # Copy over optional fields;
             $re_row->{$_} = $pref{$_} for (@optional);
 
@@ -3451,9 +3542,9 @@ sub displayOccurrenceAddEdit {
 # JA 5.7.07
 sub formatTaxonNameInput	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($occ_row) = @_;
     
-    my $occ_row = shift;
+    # my $occ_row = shift;
 
     if ( $occ_row->{'genus_reso'} )	{
         if ( $occ_row->{'genus_reso'} =~ /"/ )	{
@@ -3509,9 +3600,10 @@ sub formatTaxonNameInput	{
 #
 sub displayOccurrenceTable {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $colls_ref) = @_;
     
-    my @all_collections = @{$_[0]};
+    my @all_collections; @all_collections = @$colls_ref if ref $colls_ref eq 'ARRAY';
+    # my @all_collections = @{$_[0]};
 	# Have to be logged in
 	if (!$s->isDBMember()) {
 		login( "Please log in first.",'displayOccurrenceTable' );
@@ -3521,7 +3613,7 @@ sub displayOccurrenceTable {
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 		return;
 	}	
 
@@ -3653,7 +3745,7 @@ EOF
           '<input type="submit" name="submit" value="Submit table" /><br /><br />'.
           '</div></td>';
     foreach my $collection_no (@collections) {
-        my $collection_name = escapeHTML(generateCollectionLabel($collection_no));
+        my $collection_name = encode_entities(generateCollectionLabel($dbt, $collection_no));
         print '<td class="addBorders"><div class="fixedColumn">'.
             qq|<a target="_blank" href="?a=basicCollectionSearch&amp;collection_no=$collection_no"><img border="0" src="/public/collection_labels/$collection_no.png" alt="$collection_name"/></a>|.
             "</div></td>";
@@ -3684,7 +3776,7 @@ EOF
         print '<tr '.$class.'><td class="fixedLabel"><div class="fixedLabel">'.
             $show_name.
             qq|<input type="hidden" name="row_num" value="$i" />|.
-            qq|<input type="hidden" name="taxon_key_$i" value="|.escapeHTML($taxon_key).qq|" />|;
+            qq|<input type="hidden" name="taxon_key_$i" value="|.encode_entities($taxon_key).qq|" />|;
         foreach my $taxon_no (@taxon_nos) {
            print qq|<input type="hidden" name="taxon_no_$i" value="$taxon_no" />|; 
         }
@@ -3727,7 +3819,7 @@ EOF
                 $style = 'style="color: red;"';
                 $editCellJS = "";
             }
-            my $esc_show_name = escapeHTML($show_name);
+            my $esc_show_name = encode_entities($show_name);
             # The span is necessary to act as a container and prevent wrapping
             # The &nbsp; fixes a Safari bug where the onClick doesn't trigger unless the TD has somethiing in it
 
@@ -3812,7 +3904,7 @@ sub displayOccurrenceListForm	{
 	}
 	if (! $s->get('reference_no')) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs($q, $s, $dbt, $hbo,"Please select a reference first"); 
+		displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
 		return;
 	}
  
@@ -4036,7 +4128,7 @@ sub processOccurrenceTable {
                 }
                 $classification_select .= qq|<input type="hidden" name="occurrence_list" value="|.join(",",@occurrences).qq|">|;
                 $classification_select .= qq|<input type="hidden" name="old_taxon_no" value="0">|;
-                $classification_select .= qq|<input type="hidden" name="occurrence_description" value="|.escapeHTML($taxon_name).qq|">|;
+                $classification_select .= qq|<input type="hidden" name="occurrence_description" value="|.encode_entities($taxon_name).qq|">|;
                 $classification_select .= $hbo->htmlSelect('taxon_no',\@descriptions,\@taxon_nos);
             }
         }
@@ -4093,9 +4185,9 @@ sub processOccurrenceTable {
 
 sub generateCollectionLabel {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($dbt, $collection_no) = @_;
     
-    my $collection_no = int(shift); 
+    $collection_no = int($collection_no); 
     return unless $collection_no;
 
     require GD;
@@ -4173,7 +4265,19 @@ sub processEditOccurrences {
 
 	# parse freeform all-in-one-textarea lists passed in by
 	#  displayOccurrenceListForm JA 19-20.5.09
-	my $collection_no;
+	my $collection_no = $q->param('collection_no');
+    my $reference_no = $q->param('reference_no');
+    
+    if ( ref $collection_no eq 'ARRAY' )
+    {
+	$collection_no = $collection_no->[0];
+    }
+    
+    if ( ref $reference_no eq 'ARRAY' )
+    {
+	$reference_no = $reference_no->[0];
+    }
+    
 	if ( $q->param('row_token') )	{
 		@rowTokens = $q->param('row_token');
 	} elsif ( $q->param('taxon_list') )	{
@@ -4199,8 +4303,8 @@ sub processEditOccurrences {
 				}
 			}
 		}
-		push @colls , $q->param($COLLECTION_NO) foreach @names;
-		push @refs , $q->param('reference_no') foreach @names;
+		push @colls , $collection_no foreach @names;
+		push @refs , $reference_no foreach @names;
 		push @rowTokens , "row_token" foreach @names;
 		push @occs , -1 foreach @names;
 		push @reids , -1 foreach @names;
@@ -4369,7 +4473,7 @@ sub processEditOccurrences {
             $fields{'latin_name'} = $latin_names[$#latin_names];
         }
 
-
+	
         if ( $fields{$COLLECTION_NO} > 0 )	{
             $collection_no = $fields{$COLLECTION_NO}
         }
@@ -4628,7 +4732,7 @@ sub processEditOccurrences {
                     }
                 }
             }
-            setMostRecentReID($dbt,$fields{$OCCURRENCE_NO});
+            setMostRecentReID($q, $s, $dbt, $hbo, $fields{$OCCURRENCE_NO});
             push @occurrences, $fields{$OCCURRENCE_NO};
         }
 		# CASE 2: NEW REID
@@ -4650,7 +4754,7 @@ sub processEditOccurrences {
                PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{$COLLECTION_NO}, $fields{'reference_no'});
             }
 #            }
-            setMostRecentReID($dbt,$fields{$OCCURRENCE_NO});
+            setMostRecentReID($q, $s, $dbt, $hbo, $fields{$OCCURRENCE_NO});
             push @occurrences, $fields{$OCCURRENCE_NO};
         }
 		
@@ -4802,7 +4906,7 @@ sub displayReIDCollsAndOccsSearchForm {
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
 		$s->enqueue($q->query_string());
-		displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference first" );
+		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 		return;
 	}	
 
@@ -4824,7 +4928,7 @@ sub displayReIDCollsAndOccsSearchForm {
 
 sub displayOccsForReID {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $collNos) = @_;
     
 
     my $dbh = $dbt->dbh;
@@ -4844,7 +4948,7 @@ sub displayOccsForReID {
 		return;
 	}
 
-	my $collNos = shift;
+    # my $collNos = shift;
 	my @colls;
 	if($collNos){
 		@colls = @{$collNos};
@@ -5046,11 +5150,11 @@ sub displayOccsForReID {
 # PS 8/15/2005
 sub setMostRecentReID {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $occurrence_no) = @_;
     
     # my $dbt = shift;
     my $dbh = $dbt->dbh;
-    my $occurrence_no = shift;
+    # my $occurrence_no = shift;
 
     if ($occurrence_no =~ /^\d+$/) {
         my $sql = "SELECT re.* FROM reidentifications re, refs r WHERE r.reference_no=re.reference_no AND re.occurrence_no=".$occurrence_no." ORDER BY r.pubyr DESC, re.reid_no DESC";
@@ -5377,7 +5481,7 @@ sub displayTaxonomicNamesAndOpinions {
     if ($ref) {
         $q->param('goal'=>'authority');
         if ( $q->param('display') ne "opinions" )	{
-            processTaxonSearch($dbt, $hbo, $q, $s);
+            processTaxonSearch($q, $s, $dbt, $hbo);
         }
         if ( $q->param('display') ne "authorities" )	{
             PBDB::Opinion::displayOpinionChoiceForm($dbt,$s,$q);
@@ -5500,14 +5604,17 @@ sub listTaxa {
 
 package PBDB::Request;
 
+use URI::Escape;
+
 sub new {
 
-    my ($class, $request_method, $params_ref, $uri) = @_;
+    my ($class, $request_method, $params_ref, $uri, $cookies) = @_;
     
     my ($path, $query_string) = split qr{\?}, $uri;
     
     my $request = { params => $params_ref,
 		    path => $path,
+		    cookies => $cookies,
 		    request_method => $request_method,
 		    query_string => $query_string };
     
@@ -5517,17 +5624,46 @@ sub new {
 
 sub param {
     
-    my ($request, $name, $value) = @_;
+    my ($request, $name, @values) = @_;
     
-    if ( defined $value )
+    if ( @values )
     {
-	$request->{params}{$name} = $value;
-	return $value;
+	if ( @values > 1 )
+	{
+	    $request->{params}{$name} = \@values;
+	    return @values;
+	}
+	else
+	{
+	    $request->{params}{$name} = $values[0];
+	    return $values[0];
+	}
+    }
+    
+    elsif ( defined $name )
+    {
+	if ( ref $request->{params}{$name} eq 'ARRAY' )
+	{
+	    if ( wantarray )
+	    {
+		return @{$request->{params}{$name}};
+	    }
+
+	    else
+	    {
+		return $request->{params}{$name}[0];
+	    }
+	}
+	
+	else
+	{
+	    return $request->{params}{$name};
+	}
     }
     
     else
     {
-	return $request->{params}{$name};
+	return keys %{$request->{params}};
     }
 }
 
@@ -5556,6 +5692,32 @@ sub path_info {
 }
 
 
+sub charset {
+
+    my ($request) = @_;
+    
+    return Dancer::request->content_type;
+}
+
+
+sub cookie {
+    
+    my ($request, $key) = @_;
+    
+    my $cookie = $request->{cookies}{$key};
+    
+    if ( $cookie )
+    {
+	return $cookie->value;
+    }
+    
+    else
+    {
+	return;
+    }
+}
+
+
 sub request_method {
 
     my ($request) = @_;
@@ -5563,5 +5725,51 @@ sub request_method {
     return $request->{request_method};
 }
 
+
+sub list_params {
+
+    my ($request) = @_;
+    
+    return unless ref $request->{params} eq 'HASH';
+    
+    my $output = '';
+    
+    foreach my $k ( sort keys %{$request->{params}} )
+    {
+	my $v = $request->{params}{$k} || '';
+	
+	my @values = ref $v eq 'ARRAY' ? @$v : $v;
+	
+	foreach my $value ( @values )
+	{
+	    $output .= "$k=$value\n";
+	}
+	
+	# $output .= "$k=$request->{params}{$k}\n";
+    }
+    
+    return $output;
+}
+
+
+sub save {
+    
+    my ($request, $save_fh) = @_;
+    
+    foreach my $k ( sort keys %{$request->{params}} )
+    {
+	my $v = $request->{params}{$k} || '';
+	
+	my @values = ref $v eq 'ARRAY' ? @$v : $v;
+	
+	foreach my $value ( @values )
+	{
+	    my $encoded = uri_escape($value);
+	    print $save_fh "$k=$encoded\n";
+	}
+    }
+    
+    print $save_fh "=\n";
+}
 
 1;

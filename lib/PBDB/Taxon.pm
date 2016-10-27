@@ -23,7 +23,7 @@ use PBDB::TaxaCache;
 use PBDB::Classification;
 use PBDB::TaxonInfo;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $TAXA_TREE_CACHE);
+use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $TAXA_TREE_CACHE makeAnchor);
 
 use PBDB::Reference;
 use Carp qw(carp);
@@ -49,8 +49,8 @@ our %rankToNum = (  'subspecies' => 1, 'species' => 2, 'subgenus' => 3,
 # $var = $o->authors() - formatted string of authors
 # $var = $o->taxonNameHTML() - html formatted name
 
-# Called by $o = Taxon->new($dbt,$taxon_no)
-#  or $o = Taxon->new($dbt,$taxon_name).  If $taxon_name is ambiguous (a homonym), or it can't
+# Called by $o = PBDB::Taxon->new($dbt,$taxon_no)
+#  or $o = PBDB::Taxon->new($dbt,$taxon_name).  If $taxon_name is ambiguous (a homonym), or it can't
 # find it in the DB, returns undef.
 sub new {
 	my $class = shift;
@@ -176,7 +176,7 @@ sub displayAuthorityForm {
 	# if the taxon is already in the authorities table, grab it
     my $t;
     if (!$isNewEntry) {
-        $t = Taxon->new($dbt,$q->param('taxon_no'));
+        $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
         if (!$t) {
             carp "Could not create taxon object in displayAuthorityForm for taxon_no ".$q->param('taxon_no');
             return;
@@ -269,13 +269,13 @@ sub displayAuthorityForm {
 	# fill out the authorizer/enterer/modifier info at the bottom of the page
 	if (!$isNewEntry) {
 		if ($fields{'authorizer_no'}) { 
-            $fields{'authorizer_name'} = " <span class=\"fieldName\">Authorizer:</span> " . Person::getPersonName($dbt,$fields{'authorizer_no'}); 
+            $fields{'authorizer_name'} = " <span class=\"fieldName\">Authorizer:</span> " . PBDB::Person::getPersonName($dbt,$fields{'authorizer_no'}); 
         }
 		if ($fields{'enterer_no'}) { 
-            $fields{'enterer_name'} = " <span class=\"fieldName\">Enterer:</span> " . Person::getPersonName($dbt,$fields{'enterer_no'}); 
+            $fields{'enterer_name'} = " <span class=\"fieldName\">Enterer:</span> " . PBDB::Person::getPersonName($dbt,$fields{'enterer_no'}); 
         }
 		if ($fields{'modifier_no'}) { 
-            $fields{'modifier_name'} = " <span class=\"fieldName\">Modifier:</span> ".Person::getPersonName($dbt,$fields{'modifier_no'}); 
+            $fields{'modifier_name'} = " <span class=\"fieldName\">Modifier:</span> ".PBDB::Person::getPersonName($dbt,$fields{'modifier_no'}); 
         }
         $fields{'modified'} = "<span class=\"fieldName\">Modified: </span>".$fields{'modified'};
         $fields{'created'} = "<span class=\"fieldName\">Created: </span>".$fields{'created'};
@@ -286,7 +286,7 @@ sub displayAuthorityForm {
 	if ( $ref )
 	{
 	    $fields{formatted_primary_reference} = $ref->formatAsHTML();
-	    $fields{primary_reference_link} = qq{<a href="$WRITE_URL?a=displayReference&type=view&reference_no=$fields{reference_no}">view</a>};
+	    $fields{primary_reference_link} = makeAnchor("displayReference", "type=view&reference_no=$fields{reference_no}", "view"); #jpjenk-question: is this the correct handling of qq{}
 	}
     }
     
@@ -297,7 +297,7 @@ sub displayAuthorityForm {
 	if ( $ref )
 	{
 	    $fields{formatted_current_reference} = $ref->formatAsHTML();
-	    $fields{current_reference_link} = qq{<a href="$WRITE_URL?a=displayReference&type=view&reference_no=$current_ref">view</a>};
+	    $fields{current_reference_link} = makeAnchor("displayReference", "type=view&reference_no=$current_ref", "view"); #jpjenk-question: is this the correct handling of qq{}
         }
         $fields{'current_reference'} = 1;
     } 
@@ -433,7 +433,7 @@ sub displayAuthorityForm {
         my @nos =   map {$_->[0]} @taxa;
         if (scalar(@names) > 1) {
             my $original_no_select = HTMLBuilder::htmlSelect('original_no',\@names,\@nos,$orig_no);
-            $original_no_select .= "\n<br><span class=\"verysmall\">If this is more than one taxon, you may <a href=\"$WRITE_URL?action=entangledNamesForm&amp;taxon_no=$orig_no\">disentangle them</a></span>";
+            $original_no_select .= "\n<br><span class=\"verysmall\">If this is more than one taxon, you may " . makeAnchor("entangledNamesForm", "taxon_no=$orig_no", "disentangle them") . "</span>";
             $fields{'original_no_select'} = $original_no_select;
         }
     }
@@ -462,7 +462,8 @@ sub displayAuthorityForm {
     }
 
     if ( $q->param('called_by') eq "processTaxonSearch" )	{
-        $fields{'not_this_one'} = '<span style="padding-left: 2em;"><i>If this version of '.$fields{'taxon_name'}.' is a homonym, <a href="'.$WRITE_URL.'?action=displayAuthorityForm&amp;goal=authority&amp;taxon_name='.$q->param('taxon_name').'&amp;taxon_no=-1">create a new authority record</a> for your version</i></span><br><br>';
+        my $taxon_name = $q->param('taxon_name');
+        $fields{'not_this_one'} = "<span style=\"padding-left: 2em;\"><i>If this version of " . $fields{'taxon_name'} . " is a homonym, " . makeAnchor("displayAuthorityForm", "goal=authority&amp;taxon_name=$taxon_name&amp;taxon_no=-1", "create a new authority record") . "for your version</i></span><br><br>";
     }
 
 	# show credit for the discussion (if it was entered previously)
@@ -518,7 +519,7 @@ sub submitAuthorityForm {
     my $dbh = $dbt->dbh;
 
 	if ((!$dbt) || (!$hbo) || (!$s) || (!$q)) {
-		carp("Taxon::submitAuthorityForm had invalid arguments passed to it.");
+		carp("PBDB::Taxon::submitAuthorityForm had invalid arguments passed to it.");
 		return;	
 	}
 	
@@ -537,7 +538,7 @@ sub submitAuthorityForm {
     # if the taxon is already in the authorities table, grab it
     my $t;
     if (!$isNewEntry) {
-        $t = Taxon->new($dbt,$q->param('taxon_no'));
+        $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
         if (!$t) {
             carp "Could not create taxon object in submitAuthorityForm for taxon_no ".$q->param('taxon_no');
             return;
@@ -575,16 +576,16 @@ sub submitAuthorityForm {
 #		}
 		
         # make sure the format of the author names is proper
-        if  ($q->param('author1init') && ! Validation::properInitial($q->param('author1init'))) {
+        if  ($q->param('author1init') && ! PBDB::Validation::properInitial($q->param('author1init'))) {
             $errors->add("The first author's initials are improperly formatted");
         }
-        if  ($q->param('author2init') && ! Validation::properInitial($q->param('author2init'))) {
+        if  ($q->param('author2init') && ! PBDB::Validation::properInitial($q->param('author2init'))) {
             $errors->add("The second author's initials are improperly formatted");
         }
-        if  ( $q->param('author1last') && !Validation::properLastName($q->param('author1last')) ) {
+        if  ( $q->param('author1last') && !PBDB::Validation::properLastName($q->param('author1last')) ) {
             $errors->add("The first author's last name is improperly formatted");
         }
-        if  ( $q->param('author2last') && !Validation::properLastName($q->param('author2last')) ) {
+        if  ( $q->param('author2last') && !PBDB::Validation::properLastName($q->param('author2last')) ) {
             $errors->add("The second author's last name is improperly formatted");
         }
         if ($q->param('otherauthors') && !$q->param('author2last') ) {
@@ -629,6 +630,7 @@ sub submitAuthorityForm {
         if ($q->param('ref_is_authority') eq 'CURRENT') {
             $lookup_reference = $s->get('reference_no');
         } else {
+	    $fields{'reference_no'} ||= $q->param('reference_no');
             $lookup_reference = $fields{'reference_no'};
         }
         my $pubyr;
@@ -647,7 +649,7 @@ sub submitAuthorityForm {
             $errors->add("The publication year can't be determined");
         }
 
-        if (! Validation::properYear( $pubyr ) ) {
+        if (! PBDB::Validation::properYear( $pubyr ) ) {
             $errors->add("The year is improperly formatted");
         }
 
@@ -1024,23 +1026,14 @@ sub submitAuthorityForm {
 
         my $origResultTaxonNumber = PBDB::TaxonInfo::getOriginalCombination($dbt,$resultTaxonNumber);
         
-        $end_message .= qq|
-    <div align="center" class="displayPanel">
-    <table cellpadding="10" class="small"><tr><td valign="top">
-      <p class="large" style="margin-left: 2em;">Name functions</p>
-      <ul>
-      <li><a href="$WRITE_URL?action=displayAuthorityTaxonSearchForm">Add/edit another taxon</a></li>
-      <br><li><a href="$WRITE_URL?action=displayAuthorityForm&taxon_no=$resultTaxonNumber">Edit $fields{taxon_name}</a></li>
-      <br><li><a href="$WRITE_URL?action=displayTaxonomicNamesAndOpinions&reference_no=$resultReferenceNumber">Edit a name from the same reference</a></li>
-      <br><li><a href="$WRITE_URL?action=displayAuthorityTaxonSearchForm&use_reference=new">Add/edit another taxon from another reference</a></li>
-      <br><li><a href="$READ_URL?action=checkTaxonInfo&taxon_no=$resultTaxonNumber">Get general information about $fields{taxon_name}</a></li>   
-      </ul>
-    </td>
-    <td valign=top>
-      <p class="large" style="margin-left: 2em;">Opinion functions</p>
-        <ul>
-          <li><a href="$WRITE_URL?action=displayOpinionSearchForm">Add/edit opinion about another taxon</a></li>
-|;
+        $end_message .= qq| <div align="center" class="displayPanel"><table cellpadding="10" class="small"><tr><td valign="top"><p class="large" style="margin-left: 2em;">Name functions</p><ul>|;
+        $end_message .= "<li>" . makeAnchor("displayAuthorityTaxonSearchForm", "Add/edit another taxon") . "</li><br>";
+        $end_message .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_no=$resultTaxonNumber", "Edit $fields{taxon_name}") . "</li><br>";
+        $end_message .= "<li>" . makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$resultReferenceNumber", "Edit a name from the same reference") . "</li><br>";
+        $end_message .= "<li>" . makeAnchor("displayAuthorityTaxonSearchForm", "use_reference=new", "Add/edit another taxon from another reference") . "</li><br>";
+        $end_message .= "<li>" . makeAnchor("checkTaxonInfo", "taxon_no=$resultTaxonNumber", "Get general information about $fields{taxon_name}") . "</a></li>";
+        $end_message .= qq|</ul></td><td valign=top><p class="large" style="margin-left: 2em;">Opinion functions</p><ul>|;
+        $end_message .= "<li>" . makeAnchor("displayOpinionSearchForm", "Add/edit opinion about another taxon") . "</li>";
         # user may want to immediately enter or edit either:
         # (1) the opinion of the taxon's author, if not ref is authority
         #  and assuming that the actual reference is nowhere in the
@@ -1057,14 +1050,19 @@ sub submitAuthorityForm {
             my $sql = "SELECT opinion_no FROM opinions WHERE author1last='$cleanauth1' AND author2last='$cleanauth2' AND pubyr='" . $q->param('pubyr') . "' AND child_spelling_no=$resultTaxonNumber AND child_no=$origResultTaxonNumber ORDER BY opinion_no DESC";
             my $opinion_no = ${$dbt->getData($sql)}[0]->{opinion_no};
             if ( $opinion_no > 0 )	{
-                $end_message .= qq|<li$style><a href="$WRITE_URL?action=displayOpinionForm&child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=$opinion_no">Edit this author's opinion about $fields{taxon_name}</a></li>
-|;
+                $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=$opinion_no", "Edit this author's opinion about $fields{taxon_name}") . "</li>";
             } elsif ( $q->param('author1last') )	{
             # if that didn't work, either this is not a species, or
             #   something is wrong because an implicit opinion of the
             #   author should have been created; regardless, create a link
-                  $end_message .= qq|<li$style><a href="$WRITE_URL?action=displayOpinionForm&child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&author1init=|.$q->param('author1init').qq|&author1last=|.$q->param('author1last').qq|&author2init=|.$q->param('author2init').qq|&author2last=|.$q->param('author2last').qq|&otherauthors=|.$q->param('otherauthors').qq|&pubyr=|.$q->param('pubyr').qq|&reference_no=$resultReferenceNumber&opinion_no=-1">Add this author's opinion about $fields{taxon_name}</a></li>
-|;
+                  my $author1init = $q->param('author1init');
+                  my $author1last = $q->param('author1last');
+                  my $author2init = $q->param('author2init');
+                  my $author2last = $q->param('author2last');
+                  my $otherauthors = $q->param('otherauthors');
+                  my $pubyr = $q->param('pubyr');
+ 
+                  $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&author1init=$author1init&author1last=$author1last&author2init=$author2init&author2last=$author2last&otherauthors=$otherauthors&pubyr=$pubyr&reference_no=$resultReferenceNumber&opinion_no=-1", "Add this author's opinion about $fields{taxon_name}") . "</li>";
             }
         }
         # one way or another, the current reference may have an opinion,
@@ -1072,23 +1070,16 @@ sub submitAuthorityForm {
         my $sql = "SELECT opinion_no FROM opinions WHERE ref_has_opinion='YES' AND reference_no=$resultReferenceNumber AND child_spelling_no=$resultTaxonNumber AND child_no=$origResultTaxonNumber ORDER BY opinion_no DESC";
         my $opinion_no = ${$dbt->getData($sql)}[0]->{opinion_no};
         if ( $opinion_no > 0 )	{
-            $end_message .= qq|<li$style><a href="$WRITE_URL?action=displayOpinionForm&child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=$opinion_no">Edit this reference's opinion about $fields{taxon_name}</a></li>
-|;
+            $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=$opinion_no", "Edit this reference's opinion about $fields{taxon_name}") . "</a></li>";
         } else	{
-            $end_message .= qq|<li$style><a href="$WRITE_URL?action=displayOpinionForm&child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=-1">Add this reference's opinion about $fields{taxon_name}</a></li>
-|;
+            $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=-1", "Add this reference's opinion about $fields{taxon_name}") . "</li>";
         }
-        $end_message .= qq|<li$style><a href="$WRITE_URL?action=displayOpinionForm&opinion_no=-1&child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber">Add an opinion about $fields{taxon_name}</a></li>
-|;
-        $end_message .= qq|<li$style><a href="$WRITE_URL?action=displayOpinionChoiceForm&taxon_no=$resultTaxonNumber">Edit an opinion about $fields{taxon_name}</a></li>
-|;
-        $end_message .= qq|
-          <li$style><a href="$WRITE_URL?action=displayTaxonomicNamesAndOpinions&reference_no=$resultReferenceNumber&amp;display=opinions">Edit an opinion from the same reference</a></li>
-          <li$style><a href="$WRITE_URL?action=displayOpinionSearchForm&use_reference=new">Add/edit opinion about another taxon from another reference</a></li>
-          <li$style><a href="$WRITE_URL?action=classify&reference_no=$resultReferenceNumber">Print this reference's classification</a></li>
-          </ul>
-        </td></tr></table>
-        </div>|;
+        $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "opinion_no=-1&child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber", "Add an opinion about $fields{taxon_name}") . "</li>";
+        $end_message .= "<li$style>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$resultTaxonNumber", "Edit an opinion about $fields{taxon_name}") . "</li>";
+        $end_message .= "<li$style>" . makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$resultReferenceNumber&amp;display=opinions", "Edit an opinion from the same reference") . "</li>";
+        $end_message .= "<li$style>" . makeAnchor("displayOpinionSearchForm", "use_reference=new", "Add/edit opinion about another taxon from another reference") . "</li>";
+        $end_message .= "<li$style>" . makeAnchor("classify", "reference_no=$resultReferenceNumber", "Print this reference's classification") . "</li>";
+        $end_message .= "</ul></td></tr></table></div>";
 
         processSpecimenMeasurement($dbt,$s,$resultTaxonNumber,$resultReferenceNumber,\%fields);
 
@@ -1534,7 +1525,7 @@ sub addSpellingAuthority {
     if (!$return_code) {
         die("Unable to create new authority record for $record{taxon_name}. Please contact support");
     }
-    my @set_warnings = Taxon::setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),$new_taxon_no);
+    my @set_warnings = PBDB::Taxon::setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),$new_taxon_no);
     return ($new_taxon_no,\@set_warnings);
 }
 
@@ -1648,7 +1639,7 @@ END_OF_MESSAGE
 #        $sql2 = "UPDATE reidentifications SET modified=modified,taxon_no=0 WHERE taxon_no IN (".join(",",@taxon_nos).")";
 #        $dbt->getData($sql1);
 #        $dbt->getData($sql2);
-        push @warnings, "Since $taxon_name is a homonym, occurrences of it may be incorrectly classified.  Please \"<a target=\"_BLANK\" href=\"$WRITE_URL?action=displayCollResults&type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=".$authorizer_no."\">reclassify your occurrences</a>\" of this taxon.";
+        push @warnings, "Since $taxon_name is a homonym, occurrences of it may be incorrectly classified.  Please " . makeAnchorWithAttrs("displayCollResults", "type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$authorizer_no", "reclassify your occurrences", "target=\"_BLANK\"") . "of this taxon.";
     } elsif (scalar(@taxon_nos) == 1) {
         my @matchedOccs = ();
         my @matchedReids = ();
@@ -1810,7 +1801,7 @@ sub displayTypeTaxonSelectForm {
             if ($parent->{'type_taxon_no'} == $type_taxon_no) {
                 my $return = $dbt->updateRecord($s,'authorities','taxon_no',$parent->{'taxon_no'},{'type_taxon_no'=>'0'});
                 if ($return == -1) {
-                    push @warnings,"Can't unset this as the type taxon for authority $parent->{taxon_name}, its owned by a difference authorizer: ".Person::getPersonName($dbt,$parent->{'authorizer_no'});
+                    push @warnings,"Can't unset this as the type taxon for authority $parent->{taxon_name}, its owned by a difference authorizer: ".PBDB::Person::getPersonName($dbt,$parent->{'authorizer_no'});
                 }
             }
         }
@@ -1861,7 +1852,7 @@ sub submitTypeTaxonSelect {
             }
         }
         if ($return == -1) {
-            push @warnings,"Can't change the type taxon for authority $parent->{taxon_name}, its owned by a difference authorizer: ".Person::getPersonName($dbt,$parent->{'authorizer_no'});
+            push @warnings,"Can't change the type taxon for authority $parent->{taxon_name}, its owned by a difference authorizer: ".PBDB::Person::getPersonName($dbt,$parent->{'authorizer_no'});
         }
     }
 
@@ -2199,7 +2190,7 @@ sub getBestClassification{
         foreach my $row (@results,@more_results) {
             my ($taxon_genus,$taxon_subgenus,$taxon_species,$taxon_subspecies) = splitTaxon($row->{'taxon_name'});
             if (!$taxon_subspecies) {
-                my $match_level = Taxon::computeMatchLevel($genus_name,$subgenus_name,$species_name,$taxon_genus,$taxon_subgenus,$taxon_species);
+                my $match_level = PBDB::Taxon::computeMatchLevel($genus_name,$subgenus_name,$species_name,$taxon_genus,$taxon_subgenus,$taxon_species);
                 if ($match_level > 0) {
                     $row->{'match_level'} = $match_level;
                     push @matches, $row;

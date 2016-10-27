@@ -255,7 +255,7 @@ sub viewFile {
 	    my $ref_no = $ref->{reference_no};
 	    $vars->{references} .= "<li>" . 
 		qq%(<a href="?a=displayRefResults&reference_no=$ref_no">$ref_no</a>)&nbsp;% .
-		    Reference::formatAsHTML($ref) . "</li>\n";
+		    PBDB::Reference::formatAsHTML($ref) . "</li>\n";
 	}
 	
 	$vars->{references} .= "</ul>\n";
@@ -437,7 +437,7 @@ sub editFile {
 	    my $ref_no = $ref->{reference_no};
 	    $vars->{references} .= "<li>" . 
 		qq%(<a href="?a=displayRefResults&reference_no=$ref_no">$ref_no</a>)&nbsp;% .
-		    Reference::formatAsHTML($ref) . 
+		    PBDB::Reference::formatAsHTML($ref) . 
 			    qq%&nbsp; [<a href="#" onclick="delRef($ref_no)">delete</a>]% .
 				qq%&nbsp; [<a href="#" onclick="moveRef($ref_no)">top</a>]% .
 				    "</li>\n";

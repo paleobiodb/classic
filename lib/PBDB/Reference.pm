@@ -12,14 +12,18 @@ use PBDB::AuthorNames;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE 
-		       $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+		       $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor 
+		       makeAnchorWithAttrs makeATag);
 use PBDB::Download;
 use PBDB::Person;
 # calls to these two modules need to be removed eventually
 use PBDB::Nexusfile;
 use PBDB::PBDBUtil;
+use PBDB::Opinion;
 use PBDB::ReferenceEntry;
 use PBDB::Permissions;
+
+use Carp qw(carp);
 
 # Paths from the Apache environment variables (in the httpd.conf file).
 
@@ -47,7 +51,7 @@ sub new {
 	my $class = shift;
     my $dbt = shift;
     my $reference_no = shift;
-	my Reference $self = fields::new($class);
+	my PBDB::Reference $self = fields::new($class);
 
     my $error_msg = "";
 
@@ -84,14 +88,14 @@ sub new {
 
 # return the referenceNumber
 sub get {
-	my Reference $self = shift;
+	my PBDB::Reference $self = shift;
 	my $field = shift;
 
 	return ($self->{$field});	
 }
 
 sub pages {
-	my Reference $self = shift;
+	my PBDB::Reference $self = shift;
 	
 	my $p = $self->{'firstpage'};
 	if ($self->{'lastpage'}) {
@@ -103,13 +107,13 @@ sub pages {
 
 # get all authors and year for reference
 sub authors {
-	my Reference $self = shift;
+	my PBDB::Reference $self = shift;
     return formatShortRef($self);
 }
 
 # returns a nicely formatted HTML reference line.
 sub formatAsHTML {
-	my Reference $self = shift;
+	my PBDB::Reference $self = shift;
 	
 	if ($self->{reference_no} == 0) {
 		# this is an error, we should never have a zero reference.
@@ -431,7 +435,7 @@ sub displayRefResults {
         print "<div style=\"margin: 1.5em; margin-bottom: 1em; padding: 1em; border: 1px solid #E0E0E0;\">\n";
 		print "<table border=0 cellpadding=5 cellspacing=0>\n";
 
-        my $exec_url = ($type =~ /view/) ? "" : $WRITE_URL;
+        # my $exec_url = ($type =~ /view/) ? "" : $WRITE_URL;
 
 		# Only print the last 30 rows that were found JA 26.7.02
          my $dark;
@@ -447,16 +451,16 @@ sub displayRefResults {
             print "<td valign=\"top\">";
             if ($s->isDBMember()) {
                 if ($type eq 'add') {
-                    print "<a href=\"$exec_url?a=displayReferenceForm&reference_no=$row->{reference_no}\">$row->{reference_no}</a>";
+                    print makeAnchor("displayReferenceForm", "reference_no=$row->{reference_no}", $row->{reference_no});
                 } elsif ($type eq 'edit') {
-                    print "<a href=\"$exec_url?a=displayRefResults&reference_no=$row->{reference_no}&type=edit\">$row->{reference_no}</a>";
+                    print makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=edit", $row->{reference_no});
                 } elsif ($type eq 'view') {
-                    print "<a href=\"$exec_url?a=displayReference&reference_no=$row->{reference_no}\">$row->{reference_no}</a><br>";
+                    print makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "</br>";
                 } else {
-                    print "<a href=\"$exec_url?a=displayRefResults&reference_no=$row->{reference_no}&type=select\">$row->{reference_no}</a><br>";
+                    print makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=select", $row->{reference_no}) . "<br>";
                 }
             } else {
-                print "<a href=\"?a=displayReference&reference_no=$row->{reference_no}\">$row->{reference_no}</a>";
+                print makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no});
             }
             print "</td>";
             my $formatted_reference = formatLongRef($row);
@@ -490,14 +494,15 @@ sub displayRefResults {
                 $old_query .= "&$k=$vars{$k}" if $vars{$k};
             }
             $old_query =~ s/^&//;
-            print qq|<a href="$exec_url?$old_query">Get the next 30 references</a> - |;
+	    print qq{FIX THIS};
+            # print qq|<a href="$exec_url?$old_query">Get the next 30 references</a> - |;
         } 
 
         my $authname = $s->get('authorizer');
         $authname =~ s/\. //;
         printRefsCSV(\@data,$authname);
         print qq|<a href="/public/references/${authname}_refs.csv">Download all the references</a> -\n|;
-	    print qq|<a href="$exec_url?a=displaySearchRefs&type=$type">Do another search</a>\n|;
+	    print makeAnchor("displaySearchRefs", "type=$type", "Do another search");
 	    print "</p></center><br>\n";
         
         if ($type eq 'add') {
@@ -626,13 +631,12 @@ sub displayReference {
         my $html = "";
         if ($authority_count < 100) {
             my $sql = "SELECT taxon_no,taxon_name FROM authorities WHERE reference_no=$reference_no ORDER BY taxon_name";
-            my $link = 'a=basicTaxonInfo&taxon_no=';
             my @results = 
-                map { qq'<a href="?$link$_->{taxon_no}">$_->{taxon_name}</a>' }
+                map { makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", $_->{taxon_name}) }
                 @{$dbt->getData($sql)};
             $html = join(", ",@results);
         } else {
-            $html .= qq|<a href="?a=displayTaxonomicNamesAndOpinions&reference_no=$reference_no&display=authorities">|;
+            $html .= makeATag("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=authorities");
             my $plural = ($authority_count == 1) ? "" : "s";
             $html .= "view taxonomic name$plural";
             $html .= qq|</a> |;
@@ -652,7 +656,7 @@ sub displayReference {
                 map {$_->[1] }
                 sort { $a->[0] cmp $b->[0] }
                 map { 
-                    my $o = Opinion->new($dbt,$_->{'opinion_no'}); 
+                    my $o = PBDB::Opinion->new($dbt,$_->{'opinion_no'}); 
                     my $html = $o->formatAsHTML; 
                     my $name = $html;
                     $name =~ s/^'(<i>)?//; 
@@ -661,7 +665,7 @@ sub displayReference {
                 @{$dbt->getData($sql)};
             $html = join("<br>",@results);
         } else {
-            $html .= qq|<a href="?a=displayTaxonomicNamesAndOpinions&reference_no=$reference_no&display=opinions">|;
+            $html .= makeATag("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=opinions");
             if ($opinion_count) {
                 my $plural = ($opinion_count == 1) ? "" : "s";
                 $html .= "view taxonomic opinion$plural";
@@ -670,7 +674,7 @@ sub displayReference {
         }
 
 	my $class_link; 
-	$class_link = qq| - <small><a href="?a=classify&amp;reference_no=$reference_no">view classification</a></small>|;
+	$class_link = " - <small>" . makeAnchor("classify", "reference_no=$reference_no", "view classification") . "</small>";
 	print $box->(qq'Taxonomic opinions ($opinion_count) $class_link',$html);
     }
 
@@ -678,7 +682,7 @@ sub displayReference {
 	my @taxon_refs = getMeasuredTaxa($dbt,$reference_no);
 	if ( @taxon_refs )	{
 		my @taxa;
-		push @taxa , "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$_->{'taxon_no'}\">$_->{'taxon_name'}</a>" foreach @taxon_refs;
+		push @taxa , makeAnchor("basicTaxonInfo", "taxon_no=$_->{'taxon_no'}", $_->{'taxon_name'}) foreach @taxon_refs;
 		print $box->("Measurements",join('<br>',@taxa));
 	}
     
@@ -700,8 +704,8 @@ sub displayReference {
 	    
 	    next unless $nexusfile_no and $filename;
 	    
-	    my $line = qq%<a href="?a=${verb}NexusFile&nexusfile_no=$nexusfile_no">$filename</a>%;
-	    $line .= qq% (<a href="?a=basicTaxonInfo&taxon_no=$taxon_no">$taxon_name</a>)% if $taxon_name;
+	    my $line = makeAnchor("${verb}NexusFile", "nexusfile_no=$nexusfile_no", $filename);
+	    $line .= " (" . makeAnchor("basicTaxonInfo", "taxon_no=$taxon_no", $taxon_name) . ")"if $taxon_name;
 	    push @nexus_lines, $line;
 	}
     }
@@ -762,7 +766,7 @@ sub displayReference {
                 if (! $row->{'is_primary'}) {
                     $style = " class=\"boring\"";
                 }
-                my $coll_link = qq|<a href="?a=basicCollectionSearch&collection_no=$row->{collection_no}" $style>$row->{collection_no}</a>|;
+                my $coll_link = makeAnchorWithAttrs("basicCollectionSearch", "collection_no=$row->{collection_no}", $style, $row->{collection_no});
                 $html .= $coll_link . ", ";
             }
             $html =~ s/, $//;
@@ -773,10 +777,10 @@ sub displayReference {
 		}
         } else {
             my $plural = ($collection_count == 1) ? "" : "s";
-            $html .= qq|<a href="?a=displayCollResults&type=view&wild=N&reference_no=$reference_no">view collection$plural</a>|;
+            $html .= makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "view collection$plural");
         }
         if ($html) {
-            print $box->(qq'Collections (<a href="?a=displayCollResults&type=view&wild=N&reference_no=$reference_no">$collection_count</a>)',$html);
+            print $box->("Collections (" . makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count") . ")", $html);
         }
     }
 
@@ -799,7 +803,7 @@ sub getMeasuredTaxa	{
 # $Message tells them why they are here
 sub displaySearchRefs {
 	my ($dbt,$q,$s,$hbo,$message) = @_;
-
+	
 	my $type = $q->param("type");
 
 	my $html = "";
@@ -849,9 +853,9 @@ sub getReferenceLinkSummary	{
 
 	if ($authority_count) {
 		my $plural = ($authority_count == 1) ? "" : "s";
-		push @chunks , qq|<a href="?a=displayTaxonomicNamesAndOpinions&reference_no=$reference_no">$authority_count taxonomic name$plural</a>|;
+		push @chunks , makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no", "$authority_count taxonomic name$plural");
 	}
-
+	
 	# Handle Opinions
 	my (@opinion_counts,$opinion_total,$has_opinion);
 	$sql = "SELECT ref_has_opinion,count(*) c FROM opinions WHERE reference_no=$reference_no GROUP BY ref_has_opinion ORDER BY ref_has_opinion";
@@ -865,9 +869,9 @@ sub getReferenceLinkSummary	{
 
 	if ( $opinion_total ) {
 		my $plural = ($opinion_total == 1) ? "" : "s";
-		push @chunks , qq|<a href="?a=displayTaxonomicNamesAndOpinions&reference_no=$reference_no">$opinion_total taxonomic opinion$plural</a>|;
+		push @chunks , makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no", "$opinion_total taxonomic opinion$plural");
 		if ( $has_opinion > 0 )	{
- 			$chunks[$#chunks] .= qq| (<a href="?a=classify&amp;reference_no=$reference_no">show classification</a>)|;
+ 			$chunks[$#chunks] .= ' (' . makeAnchor("classify", "reference_no=$reference_no", "show classification") . ')';
 		}
 	}      
 
@@ -875,7 +879,7 @@ sub getReferenceLinkSummary	{
 	my @taxon_refs = getMeasuredTaxa($dbt,$reference_no);
 	if ( @taxon_refs )	{
 		my @taxa;
-		push @taxa , "<a href=\"?a=basicTaxonInfo&amp;taxon_no=$_->{'taxon_no'}\">$_->{'taxon_name'}</a>" foreach @taxon_refs;
+		push @taxa , makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", $_->{'taxon_name'}) foreach @taxon_refs;
 		push @chunks , "measurements of ".join(', ',@taxa);
 	}
 
@@ -924,10 +928,10 @@ sub getReferenceLinkSummary	{
 			if (! $row->{'is_primary'}) {
 				$style = " class=\"boring\"";
 			}
-			push @coll_links , qq|<a href="?a=$action&$COLLECTION_NO=$row->{$COLLECTION_NO}" $style>$row->{$COLLECTION_NO}</a>|;
+			push @coll_links , makeAnchorWithAttrs($action, "$COLLECTION_NO=$row->{$COLLECTION_NO}", $style, $row->{$COLLECTION_NO});
 		}
 		$thing1 = ( $protected_count > 0 ) ? "released ".$thing1 : $thing1;
-		push @chunks , qq|<a href="?a=displayCollResults&type=view&wild=N&reference_no=$reference_no">$collection_count $thing1</a>  (|.join(' ',@coll_links).")";
+		push @chunks , makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count $thing1") . '  ('.join(' ',@coll_links).")";
 	}
 	if ($protected_count > 0)	{
 		$thing2 = ($protected_count == 1) ? "collection" : "collections";
@@ -1100,11 +1104,12 @@ sub getReferences {
 		my @links;
 		for my $l ( @likes )	{
 			if ( $l->{'c'} == 1 )	{
-				push @links , "<a href=\"?a=displayReference&amp;reference_no=$l->{'reference_no'}\">$l->{'name'}</a>";
+				push @links , makeAnchor("displayReference", "reference_no=$l->{'reference_no'}", $l->{'name'});
 			} else	{
-				push @links , "<a href=\"?a=displayRefResults&amp;name=$l->{'name'}";
-				$links[$#links] .= ( $options{'year'} ) ? "&amp;year=$options{'year'}&amp;year_relation=$options{'year_relation'}" : "";
-				$links[$#links] .= "&amp;variants=no\">$l->{'name'}</a>";
+			    my $params = "name=$l->{'name'}";
+			    $params .= "&year=$options{'year'}&year_relation=$options{'year_relation'}" if $options{year};
+			    $params .= "&variants=no";
+			    push @links, makeAnchor("displayRefResults", $params, $l->{'name'});
 			}
 		}
 		if ( @likes )	{

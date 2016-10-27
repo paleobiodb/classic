@@ -208,7 +208,8 @@ sub populateHTML {
 
     # CGI.pm separates multiple values by byte 0 (NULL value)
     while (my ($k,$v) = each %$vars) {
-        $vars->{$k} = join(",",split(/\0/,$v));
+        # $vars->{$k} = join(",",split(/\0/,$v));
+	$vars->{$k} = ref $v eq 'ARRAY' ? join(',', @$v) : $v;
     }
 
     # Add in some other basic vars from session
@@ -262,7 +263,8 @@ sub populateSimple {
     
     # CGI.pm separates multiple values by byte 0 (NULL value)
     while (my ($k,$v) = each %$vars) {
-        $vars->{$k} = join(",",split(/\0/,$v));
+        # $vars->{$k} = join(",",split(/\0/,$v));
+	$vars->{$k} = ref $v eq 'ARRAY' ? @$v : $v;
     }
     
     # Add in some other basic vars from session

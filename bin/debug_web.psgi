@@ -11,8 +11,9 @@ use MyApp::Web;
     # my $request = Dancer::Request->new();
     
 $DB::single = 1;
+$DB::deep = 500;
     
-if ( $ARGV[0] =~ /^get$|^post$/i )
+if ( $ARGV[0] =~ /^get$|^post$|^debug$/i )
 {
     set apphandler => 'Debug';
     set logger => 'console';
@@ -22,6 +23,13 @@ if ( $ARGV[0] =~ /^get$|^post$/i )
     # {
     # 	param session_id => $1;
     # }
+    
+    if ( lc $ARGV[0] eq 'debug' )
+    {
+	my ($method, $path, $query) = PBDB::Debug::load_request($ARGV[1]);
+	
+	@ARGV = ($method, $path, $query);
+    }
 }
 
 # else

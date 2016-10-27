@@ -7,7 +7,7 @@ use strict;
 package PBDB::Debug;
 use base 'Exporter';
 
-our @EXPORT_OK = qw(dbg);  # symbols to export on request
+our @EXPORT_OK = qw(dbg save_request load_request);  # symbols to export on request
 
 use PBDB::Constants qw($APP_DIR $CGI_DEBUG);
 
@@ -119,35 +119,47 @@ sub dbg {
 # 
 # Save the CGI state for later use in debugging.
 
-sub save_cgi {
+sub save_request {
     
     my ($q) = @_;
     
-    my $script_path = $ENV{PWD} . '/' . $0;
-    my $savedir_path = $script_path;
-    $savedir_path =~ s{/cgi-bin/.*}{/saves};
+    my $savedir_path = &get_savedir_path;
     
-    my ($save_fh);
+    my ($save_fh, $save_path);
     
-    # Rename each of the save files q<n>.txt for n=1,2...$CGI_DEBUG-1 to
-    # q<n+1>.txt.
+    # If the 'debug_name' field has a value, use that name.
     
-    for ( my $index = $CGI_DEBUG-1; $index > 0; $index-- )
+    if ( my $name = $q->param('debug_name') )
     {
-	my $next = $index + 1;
-	rename("$savedir_path/q$index.txt", "$savedir_path/q$next.txt");
+	$save_path = ">$savedir_path/$name.txt";
     }
     
-    # Now save the CGI state, including the session cookie and path info, to
-    # /saves/q1.txt
+    # Otherwise, rename each of the save files q<n>.txt for n=1,2...$CGI_DEBUG-1 to
+    # q<n+1>.txt.
     
-    my $save_path = ">$savedir_path/q1.txt";
+    else
+    {
+	for ( my $index = $CGI_DEBUG-1; $index > 0; $index-- )
+	{
+	    my $next = $index + 1;
+	    rename("$savedir_path/q$index.txt", "$savedir_path/q$next.txt");
+	}
+	
+	# Now save the CGI state, including the session cookie and path info, to
+	# /saves/q1.txt
+	
+	$save_path = ">$savedir_path/q1.txt";
+    }
+    
+    # Prepare to write the save file.
+    
     open($save_fh, $save_path) || die "can't open $save_path: $!";
     
     $q->save($save_fh);
     
     print $save_fh "session: " . $q->cookie('session_id') . "\n";
-    print $save_fh "path_info: " . $q->path_info() . "\n";
+    print $save_fh "method: " . $q->request_method . "\n";
+    print $save_fh "path_info: " . $q->path_info . "\n";
     
     close $save_fh || die "can't close $save_path: $!";
 }
@@ -264,5 +276,110 @@ sub load_cgi {
     }
 }
 
+
+# load_request ( num )
+# 
+# Load the CGI state from a saved file (numbered 1-5; these hold the state for
+# the last 5 invocations of bridge.pl.)  Return a list of two objects: a CGI
+# object, and a Session object.
+
+sub load_request {
+    
+    my ($arg) = @_;
+    
+    my $savedir_path = &get_savedir_path();
+    
+    my ($q, $save_fh, $line, $print_args);
+    
+    if ( $arg =~ /^p([0-9]+)$/ )
+    {
+	$arg = "q$1";
+	$print_args = 1;
+    }
+    
+    elsif ( $arg =~ /^[0-9]+$/ )
+    {
+	$arg = "q$arg";
+    }
+    
+    my $save_path = "$savedir_path/$arg.txt";
+    
+    die "Bad debug argument: $arg\n" unless -e $save_path;
+    
+    open ($save_fh, $save_path) || die "can't open $save_path: $!\n";
+    
+    my $state = 'ARGS';
+    my $method = '';
+    my $path = '';
+    my $query = '';
+    
+ LINE:
+    while ( defined($line = <$save_fh>) )
+    {
+	chomp $line;
+	
+	if ( $print_args )
+	{
+	    print "$line\n";
+	}
+	
+	if ( $state eq 'ARGS' )
+	{
+	    if ( $line eq '=' )
+	    {
+		$state = 'VARS';
+	    }
+	    
+	    elsif ( $line )
+	    {
+		$query .= '&' if $query ne '';
+		$query .= $line;
+		
+	    }
+	    
+	    next LINE;
+	}
+	
+	if ( $line =~ /^session: (.*)/ )
+	{
+	    $query .= '&' if $query ne '';
+	    $query .= "session_id=$1";
+	}
+	
+	elsif ( $line =~ /^path_info: (.*)/ )
+	{
+	    $path = $1;
+	}
+	
+	elsif ( $line =~ /method: (.*)/ )
+	{
+	    $method = $1;
+	}
+    }
+    
+    if ( $print_args )
+    {
+	exit;
+    }
+    
+    else
+    {
+	return ($method, $path, $query);
+    }
+}
+
+
+# get_savedir_path ( )
+# 
+# Return a path to the save directory for this server
+
+sub get_savedir_path {
+
+    my $script_path = $ENV{PWD} . '/' . $0;
+    my $savedir_path = $script_path;
+    $savedir_path =~ s{/cgi-bin/.*|/bin/.*}{/saves};
+    
+    return $savedir_path;
+}
 
 1;

@@ -6,7 +6,7 @@ use strict;
 use PBDB::AuthorNames;  # not used
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw($WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 use PBDB::Nexusfile;  # not used
 # three calls to Reference functions will eventually need to be replaced
 use PBDB::Reference;
@@ -37,8 +37,8 @@ sub new {
 	my $class = shift;
     my $dbt = shift;
     my $reference_no = shift;
-	my ReferenceEntry $self = fields::new($class);
-
+	my $self = fields::new($class);
+	bless $self;
     my $error_msg = "";
 
     if (!$reference_no) { 
@@ -74,14 +74,14 @@ sub new {
 
 # return the referenceNumber
 sub get {
-	my ReferenceEntry $self = shift;
+	my $self = shift;
 	my $field = shift;
 
 	return ($self->{$field});	
 }
 
 sub pages {
-	my ReferenceEntry $self = shift;
+	my $self = shift;
 	
 	my $p = $self->{'firstpage'};
 	if ($self->{'lastpage'}) {
@@ -93,7 +93,7 @@ sub pages {
 
 # get all authors and year for reference
 sub authors {
-	my ReferenceEntry $self = shift;
+	my $self = shift;
     return PBDB::Reference::formatShortRef($self);
 }
 
@@ -519,16 +519,8 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
         # print a list of all the things the user should now do, with links to
         #  popup windows JA 28.7.06
         my $box_header = ($dupe || !$isNewEntry) ? "Full reference" : "New reference";
-        print qq|
-        <div class="displayPanel" align="left" style="margin: 1em;">
-        <span class="displayPanelHeader">$box_header</span>
-        <table><tr><td valign=top>$formatted_ref <small><a href="$WRITE_URL?a=displayRefResults&type=edit&reference_no=$reference_no">edit</a></small></td></tr></table>
-        </span>
-        </div>|;
+        print "<div class=\"displayPanel\" align=\"left\" style=\"margin: 1em;\"><span class=\"displayPanelHeader\">$box_header</span><table><tr><td valign=top>$formatted_ref <small>" . makeAnchor("displayRefResults", "type=edit&reference_no=$reference_no", "edit") . "</small></td></tr></table></span></div>";
         
-
-       
-       
 	print qq|</center>
         <div class="displayPanel" align="left" style="margin: 1em;">
         <span class="displayPanelHeader">Please enter all the data</span>
@@ -545,7 +537,7 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
             <li>Add all new <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayReIDCollsAndOccsSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">reidentifications</a> of existing occurrences
             <li>Add <a href="#" onClick="popup = window.open('$WRITE_URL?a=startStartEcologyTaphonomySearch', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">ecological/taphonomic data</a>, <a href="#" onClick="popup = window.open('$WRITE_URL?a=displaySpecimenSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">specimen measurements</a>, and <a href="#" onClick="popup = window.open('$WRITE_URL?a=startImage', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">images</a>
         <ul>
-|;
+|; #jpjenk-question: onClick handling
 	print "</div>\n";
 	
 	print qq|

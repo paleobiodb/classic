@@ -11,8 +11,9 @@ use Plack::Builder;
     # my $request = Dancer::Request->new();
     
 $DB::single = 1;
+$DB::deep = 500;
     
-if ( $ARGV[0] =~ /^get$|^post$|^put$/i )
+if ( $ARGV[0] =~ /^get$|^post$|^put$|^delete$/i )
 {
     set apphandler => 'Debug';
     set logger => 'console';

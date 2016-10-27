@@ -1,7 +1,7 @@
 
 package PBDB::Person;
 
-use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 use strict;
 use PBDB::Reference;
 
@@ -349,7 +349,7 @@ sub showAuthorizers {
     }
 
     $html .= '<div align="center"><div class="pageTitle">Contributing researchers</div></div>';
-    $html .= qq|<div align="center" style="text-align: left; padding-left: 1em; padding-right: 1em;"><p class="small">The following Database members have entered data and/or supervised data entry by their students. See also our list of <a href="$READ_URL?action=showInstitutions">contributing institutions</a>.</p></div>|;
+    $html .= qq|<div align="center" style="text-align: left; padding-left: 1em; padding-right: 1em;"><p class="small">The following Database members have entered data and/or supervised data entry by their students. See also our list of | . makeAnchor("showInstitutions", "", "contributing institutions") . ".</p></div>";
     $html .= "\n<table><tr><td valign=\"top\" width=\"50%\">\n\n";
     $html .= formatAuthorizerTable(\@firsthalf);
     $html .= "\n</td><td valign=\"top\" width=\"50%\">\n";
@@ -424,7 +424,7 @@ sub showFeaturedAuthorizers	{
     }
 
     $html .= '<div align="center"><div class="pageTitle">Featured contributors</div></div>';
-    $html .= qq|<div align="center" style="text-align: left; padding-left: 2.1em; padding-right: 2em; padding-bottom: 0em;"><p class="small">Here are some Database members who have entered data and/or supervised data entry recently. See also our full list of <a href="$READ_URL?action=showAuthorizers">contributors</a> and our list of <a href="$READ_URL?action=showInstitutions">contributing institutions</a>.</p></div>|;
+    $html .= qq|<div align="center" style="text-align: left; padding-left: 2.1em; padding-right: 2em; padding-bottom: 0em;"><p class="small">Here are some Database members who have entered data and/or supervised data entry recently. See also our full list of | . makeAnchor("showAuthorizers", "", "contributors") . " and our list of " . makeAnchor("showInstitutions", "", "contributing institutions") . ".</p></div>";
     $html .= "<div class=\"small\" style=\"padding-left: 1em;\">\n";
     $html .= "<table><tr><td width=\"50%\" valign=\"top\">\n";
     for(my $i=0;$i<@results;$i++) {
@@ -442,7 +442,7 @@ sub showFeaturedAuthorizers	{
         my $longref = PBDB::Reference::formatLongRef($refdata{$row->{'max_ref'}});
         # authorizer/enterer not needed
         $longref =~ s/ \[.*//;
-        $html .= "<div class=\"verysmall\" style=\"padding-top: 0.3em;\"><i><a href=\"$READ_URL?action=displayReference&reference_no=$row->{'max_ref'}\">Latest reference:</a></i> " . $longref. "</div>";
+        $html .= "<div class=\"verysmall\" style=\"padding-top: 0.3em;\"><i>" . makeAnchor("displayReference", "reference_no=$row->{'max_ref'}", "Latest reference:</i> ") . $longref. "</div>";
         $html .= "<div style=\"clear: both;\"></div></div>\n";
         if ( $i == int( $#results / 2 ) )	{
             $html .= "</td><td width=\"50%\" valign=\"top\">\n";
@@ -465,7 +465,7 @@ sub showInstitutions {
     my @rows = @{$dbt->getData($sql)};
 
     $html .= '<div align="center"><div class="pageTitle">Contributing institutions</div></div>';
-    $html .= qq|<div align="center" style="text-align: left; padding-left: 2em; padding-right: 1em;"><p class="small"><a href="$READ_URL?action=showAuthorizers">Database members</a> who have contributed data or supervised data entry by students are affiliated with the following institutions.</p></div>|;
+    $html .= qq|<div align="center" style="text-align: left; padding-left: 2em; padding-right: 1em;"><p class="small">| . makeAnchor("showAuthorizers", "", "Database members") . " who have contributed data or supervised data entry by students are affiliated with the following institutions.</p></div>";
 
     $html .= "\n<table style=\"margin-left: 0em;\"><tr><td valign=\"top\" width=\"50%\">\n\n";
     my ($lastCountry,$lastInstitution,@names);
@@ -528,7 +528,7 @@ sub publications	{
 	my @other_pubs = @{$dbt->getData("SELECT * FROM other_pubs ORDER BY last_names,initials,year")};
 	my %vars;
 	if ( $s->get('enterer') )	{
-		$vars{'add_link'} = qq|<div class="verysmall" style="float: right; clear: both; margin-right: 3em;"><a href="?a=publicationForm&amp;new_entry=Y">add an entry</a></div>\n|;
+		$vars{'add_link'} = qq|<div class="verysmall" style="float: right; clear: both; margin-right: 3em;">| . makeAnchor("publicationForm", "new_entry=Y", "add an entry") . "</div>\n";
 	}
 	$vars{'publications'} = formatPublications($s,\@pubs);
 	$vars{'other_publications'} = formatPublications($s,\@other_pubs);
@@ -585,9 +585,9 @@ sub formatPublications	{
 		}
 		$pages .= ".";
 		if ( $s->get('enterer') && $p->{'pub_no'} )	{
-			$pages .= qq| <a href="?a=publicationForm&amp;pub_no=$p->{'pub_no'}">(edit)</a>|;
+			$pages .= makeAnchor("publicationForm", "pub_no=$p->{'pub_no'}", "(edit)");
 		} elsif ( $s->get('enterer') && $p->{'other_pub_no'} )	{
-			$pages .= qq| <a href="?a=publicationForm&amp;other_pub_no=$p->{'other_pub_no'}">(edit)</a>|;
+			$pages .= makeAnchor("publicationForm", "other_pub_no=$p->{'other_pub_no'}", "(edit)");
 		}
 		$p->{'doi'} = ( $p->{'doi'} ) ? " DOI: http://dx.doi.org/".$p->{'doi'} : "";
 		my $extras = ( $p->{'extras'} ) ? " ".$p->{'extras'} : "";

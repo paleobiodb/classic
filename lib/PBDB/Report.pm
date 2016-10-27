@@ -10,7 +10,7 @@ use PBDB::PBDBUtil;
 use PBDB::TimeLookup;
 use Data::Dumper;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $IS_FOSSIL_RECORD $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $IS_FOSSIL_RECORD $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeAnchor);
 
 use strict;
 
@@ -1119,7 +1119,7 @@ sub findMostCommonTaxa	{
 			if ( $atrank =~ /genus|species/ )	{
 				$displayname = "<i>" . $t . "</i>";
 			}
-			print qq|<td style=\"padding-left: 1em; padding-right: 1em;\"><a href="$READ_URL?action=checkTaxonInfo&amp;taxon_name=$linkname&amp;is_real_user=1">$displayname</a></td>|;
+			print qq|<td style=\"padding-left: 1em; padding-right: 1em;\">| . makeAnchor("checkTaxonInfo", "taxon_name=$linkname&amp;is_real_user=1", "$displayname") . "</a></td>";
 			print "\n<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">&nbsp;&nbsp;$count{$t}</td>\n";
 			printf "<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">%.1f</td>\n",$count{$t}/$sum*100;
 			print "</tr>\n";
@@ -1353,7 +1353,7 @@ sub fastTaxonCount	{
 		print "</p>\n\n";
 		print "<div align=\"center\" style=\"padding-bottom: 1em;\">&bull; $errors</div>\n\n";
 		print "</div>\n\n";
-		print "<div align=\"center\"><a href=\"$READ_URL?action=fastTaxonCount\">Count more taxa</a></div>\n\n";
+		print "<div align=\"center\">" . makeAnchor("fastTaxonCount", "", "Count more taxa") . "</div>\n\n";
 		return;
 	}
 	print " The counts are:</p>\n\n";
@@ -1412,7 +1412,7 @@ sub fastTaxonCount	{
 	}
 
 	print "</div>\n\n";
-	print "<div align=\"center\"><a href=\"$READ_URL?action=displayCountForm&page=taxon_count_form\"><b>Count more taxa</b></a></div>\n\n";
+	print "<div align=\"center\">" . makeAnchor("displayCountForm", "page=taxon_count_form", "Count more taxa</b>") . "</div>\n\n";
 }
 
 

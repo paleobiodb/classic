@@ -4,7 +4,7 @@ package PBDB::MeasurementEntry;
 
 use PBDB::TaxaCache;
 use PBDB::Reference;
-use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE);
+use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
 
 
 # written by PS 6/22/2005 - 6/24/2005
@@ -169,14 +169,14 @@ sub submitSpecimenSearch {
             if ($last_collection_no != $row->{'collection_no'}) {
                 $class = ($class eq '') ? $class='class="darkList"' : '';
             }
-            print "<tr $class><td><a href=\"$READ_URL?action=displaySpecimenList&occurrence_no=$row->{occurrence_no}\"><nobr><span class=\"small\">$taxon_name</a>$comments</nobr></a></td>";
+            print "<tr $class><td><span class=\"small\"><nobr>" . makeAnchor("displaySpecimenList", "occurrence_no=$row->{occurrence_no}", "$taxon_name") . " $comments</nobr></span></td>";
             if ($last_collection_no != $row->{'collection_no'}) {
                 $last_collection_no = $row->{'collection_no'};
                 my $interval = $row->{max};
                 if ( $row->{min} )	{
                     $interval .= " - ".$row->{min};
                 }
-                print "<td><span class=\"small\" style=\"margin-right: 1em;\"><a href=\"$READ_URL?action=displayCollectionDetails&collection_no=$row->{collection_no}\">$row->{collection_name}</a></span><br><span class=\"verysmall\">$row->{collection_no}: $interval, $row->{place}</span></td>";
+                print "<td><span class=\"small\" style=\"margin-right: 1em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$row->{collection_no}", "$row->{collection_name}") . "</span><br><span class=\"verysmall\">$row->{collection_no}: $interval, $row->{place}</span></td>";
             } else {
                 print "<td></td>";
             }
@@ -193,7 +193,7 @@ sub submitSpecimenSearch {
             } else {
                 $taxon_name = $row->{'taxon_name'}." indet.";
             }
-            print "<tr $class><td><a href=\"$READ_URL?action=displaySpecimenList&taxon_no=$row->{taxon_no}\">$taxon_name</a></td><td>$knownUnknown</td><td align=\"center\">$specimens</td></tr>";
+            print "<tr $class><td>" . makeAnchor("displaySpecimenList", "taxon_no=$row->{taxon_no}", "$taxon_name") . "</td><td>$knownUnknown</td><td align=\"center\">$specimens</td></tr>";
 
         }
         print qq|</table>
@@ -358,9 +358,11 @@ END_SCRIPT
 
     # always give them an option to create a new measurement as well
     if ( $q->param('occurrence_no') )	{
-            print qq|<tr><td align="center"><a href="$WRITE_URL?action=populateMeasurementForm&occurrence_no=| . $q->param('occurrence_no') . qq|&specimen_no=-1"><span class="measurementBullet">&#149;</span></td>|;
+            my $occurrence_no = $q->param('occurrence_no');
+            print "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=-1", "&#149;") . "</span></td>";
         } else	{
-            print qq|<tr><td align="center"><a href="$WRITE_URL?action=populateMeasurementForm&taxon_no=| . $q->param('taxon_no') . qq|&specimen_no=-1"><span class="measurementBullet">&#149;</span></td>|;
+            my $taxon_no = $q->param('taxon_no');
+            print "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=-1", "&#149;") . "</span></td>";
         }
     print "<td colspan=\"6\">&nbsp;Add one new record (full form)</i></td></tr>\n";
     print qq|<tr><td align="center" valign="top"><a href="javascript:submitForm('')"><div class="measurementBullet" style="position: relative; margin-top: -0.1em;">&#149;</div></td>|;
@@ -503,12 +505,12 @@ print qq|<center>
 	    my $occurrence_no = $q->param('occurrence_no') || 0;
             print qq|<td align="center">|;
 	    print qq|<a onClick="deleteMeasurement('$id', $specimen_no)">delete</a>&nbsp;|;
-	    print qq|<a href="$WRITE_URL?action=populateMeasurementForm&occurrence_no=$occurrence_no&specimen_no=$specimen_no">edit</a></td>|;
+	    print makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=$specimen_no", "edit") . "</td>";
         } else	{
 	    my $taxon_no = $q->param('taxon_no') || 0;
             print qq|<td align="center">|;
 	    print qq|<a onClick="deleteMeasurement('$id', $specimen_no)">delete</a>&nbsp;|;
-	    print qq|<a href="$WRITE_URL?action=populateMeasurementForm&taxon_no=$taxon_no&specimen_no=$specimen_no">edit</a></td>|;
+	    print makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=$specimen_no", "edit") . "</td>";
         }
         if ( $specimen_ids > 0 || $sexes > 0 )	{
             print qq|<td>$row->{specimen_id}</td>|;
@@ -1129,12 +1131,12 @@ sub processMeasurementForm	{
         }
     }
 
-	my $more_links = qq|<div class="verysmall" style="margin-bottom: 0.5em;">add/edit a measurement of <a href="$WRITE_URL?action=displaySpecimenSearchForm">another taxon</a>|;
+	my $more_links = "<div class=\"verysmall\" style=\"margin-bottom: 0.5em;\">add/edit a measurement of " . makeAnchor("displaySpecimenSearchForm", "", "another taxon");
 	if ( $collection_no > 0 )	{
-		$more_links .= qq| or <a href="$WRITE_URL?action=submitSpecimenSearch&collection_no=$collection_no">another occurrence in this collection</a><br>|;
+		$more_links .= " or " . makeAnchor("submitSpecimenSearch", "collection_no=$collection_no", "another occurrence in this collection") . "<br>";
 	}
-	$more_links .= qq| or another <a href="$WRITE_URL?action=submitSpecimenSearch&taxon_name=$taxon_name">occurrence</a> of $taxon_name, or</div>
-|;
+	$more_links .= " or another " . makeAnchor("submitSpecimenSearch", "taxon_name=$taxon_name", "occurrence") . " of $taxon_name, or</div>
+";
 	displaySpecimenList($dbt,$hbo,$q,$s,'processMeasurementForm',$more_links);
 	if ($q->param('occurrence_no')) {
 		my ($temp,$collection_no) = split / /,$collection;

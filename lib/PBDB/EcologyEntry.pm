@@ -3,7 +3,7 @@
 package PBDB::EcologyEntry;
 
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL);
+use PBDB::Constants qw($WRITE_URL makeAnchor);
 use PBDB::Reference;
 
 # written by JA 27-31.7,1.8.03
@@ -157,8 +157,9 @@ sub processEcologyForm	{
 	}
 
     my $action = ($q->param('goal') eq 'ecovert') ? 'startStartEcologyVertebrateSearch' : 'startStartEcologyTaphonomySearch';
-	print "<center><p><a href=\"$WRITE_URL?action=startPopulateEcologyForm&taxon_no=$taxon_no&goal=".$q->param('goal')."\">Edit data for this taxon</a> - \n";
-	print "<a href=\"$WRITE_URL?action=$action\">Enter data for another taxon</a></p></center>\n";
+    my $goal = $q->param('goal');
+	print "<center><p>" . makeAnchor("startPopulateEcologyForm", "taxon_no=$taxon_no&goal=$goal", "Edit data for this taxon") . " - \n";
+	print "<a href=\"$WRITE_URL?action=$action\">Enter data for another taxon</a></p></center>\n"; #jpjenk: what to do here?
 	return;
 }
 

@@ -3,7 +3,7 @@ package PBDB::Session;
 use strict;
 use Digest::MD5;
 # use CGI::Cookie;
-use PBDB::Constants qw($WRITE_URL $IP_MAIN $IP_BACKUP);
+use PBDB::Constants qw($WRITE_URL $IP_MAIN $IP_BACKUP makeAnchor);
 use Dancer ();
 
 
@@ -54,7 +54,9 @@ sub start_login_session {
 		join person as pe on pe.person_no = enterer_no
 	SET s.authorizer = pa.name,
 	    s.enterer = pe.name,
-	    s.roles = s.role";
+	    s.superuser = pe.superuser,
+	    s.roles = s.role
+	WHERE session_id = $quoted_id";
     
     $result = $dbh->do($sql);
     
@@ -715,10 +717,10 @@ sub setPreferences	{
      	my $sql = "UPDATE person SET preferences=".$dbh_r->quote($pref_sql)." WHERE person_no=$enterer_no";
         my $result = $dbh_r->do($sql);
 
-	    print "<p>\n<center><a href=\"$WRITE_URL?action=displayPreferencesPage\">Edit these preferences</a></center>\n";
+	    print "<p>\n<center>" . makeAnchor("displayPreferencesPage", "", "Edit these preferences") . "</center>\n";
     	my %continue = $s->unqueue();
 	    if($continue{action}){
-		    print "<center><p>\n<a href=\"$WRITE_URL?action=$continue{action}\"><b>Continue</b></a><p></center>\n";
+		    print "<center><p>\n" . makeAnchor("$continue{action}", "", "<b>Continue</b>") . "<p></center>\n";
 	    }
     }
 }

@@ -99,6 +99,14 @@ __PACKAGE__->wing_cousins(
     },
 );
 
+__PACKAGE__->wing_finalize_class( table_name => 'users');
+
+__PACKAGE__->has_many(enterers => 'MyApp::DB::Result::AuthEnt', {'foreign.authorizer_no' => 'self.person_no'});
+
+__PACKAGE__->has_many(authorizers => 'MyApp::DB::Result::AuthEnt', {'foreign.enterer_no' => 'self.person_no'});
+
+
+
 after delete => sub {
     my $self = shift;
     $self->log_trend('users_deleted', 1, $self->username.' / '.$self->id);
@@ -258,8 +266,6 @@ sub is_authorizer {
     return 1 if $self->role =~ /authorizer/;
     return;
 }
-
-__PACKAGE__->wing_finalize_class( table_name => 'users');
 
 
 no Moose;

@@ -6,7 +6,7 @@ use PBDB::CollectionEntry;
 use PBDB::Person;
 use PBDB::PBDBUtil;
 use PBDB::Permissions;
-use PBDB::Constants qw($READ_URL $WRITE_URL);
+use PBDB::Constants qw($READ_URL $WRITE_URL makeAnchor makeAnchorWithAttrs);
 use strict;
 
 $TypoChecker::edit_distance = 3;
@@ -43,7 +43,7 @@ sub searchOccurrenceMisspellingForm {
 sub getNameData {
     my ($dbt,$name,$period_lookup,$period_order,$can_modify) = @_;
     my $dbh = $dbt->dbh;
-    my ($g,$sg,$sp,$ssp) = Taxon::splitTaxon($name);
+    my ($g,$sg,$sp,$ssp) = PBDB::Taxon::splitTaxon($name);
     my $where = 'o.genus_name='.$dbh->quote($g); 
     if ($sg || $sp) {
         if ($sg) {
@@ -105,14 +105,14 @@ sub getNameData {
     $name{'reid_list'} = join(",",@reids);
     my @collections;
     foreach (sort{$a <=> $b} keys %collections) {
-        my $link = "<a target=\"_COLWINDOW\" href=\"$READ_URL?action=displayCollectionDetails&collection_no=$_\">$_</a>";
+        my $link = makeAnchorWithAttrs("displayCollectionDetails", "collection_no=$_", "$_", "target=\"_COLWINDOW\"");
         push @collections, $link;
     }
     $name{'collections'} = join(", ",@collections);
 
     @collections = ();
     foreach (sort{$a <=> $b} keys %collections_no_edit) {
-        my $link = "<a target=\"_COLWINDOW\" href=\"$READ_URL?action=displayCollectionDetails&collection_no=$_\">$_</a>";
+        my $link = makeAnchorWithAttrs("displayCollectionDetails", "collection_no=$_", "$_", "target=\"_COLWINDOW\"");
         push @collections, $link;
     }
     $name{'collections_no_edit'} = join(", ",@collections);
@@ -179,7 +179,7 @@ sub occurrenceMisspellingForm {
     dbg("FOUND ".scalar(@names).' unique names');
 
     # Some static lookup tables are generated first
-    my $t = new TimeLookup($dbt);
+    my $t = new PBDB::TimeLookup($dbt);
     my @period_order = $t->getScaleOrder('69','names');
     my $period_lookup= $t->getScaleMapping('69','names');
     my $p = PBDB::Permissions->new($s,$dbt);
@@ -216,10 +216,10 @@ sub occurrenceMisspellingForm {
         my $displayed_results = 0;
         for (my $i = $offset; $i < ($offset+$limit+$skip_other+$skip_unclassified+$skip_genus_classified) && $i < $name_count; $i++) {
             my $name = $names[$i];
-            my ($g,$sg,$sp) = Taxon::splitTaxon($name);
+            my ($g,$sg,$sp) = PBDB::Taxon::splitTaxon($name);
            
             # Useful below
-            my @taxa = TaxonInfo::getTaxa($dbt,{'taxon_name'=>$g},['taxon_no']);
+            my @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$g},['taxon_no']);
             my $genus_is_classified = (@taxa) ? 1 : 0;
 
             my $suggest_hash = taxonTypoCheck($dbt,$name,$genus_is_classified);
@@ -263,7 +263,7 @@ sub occurrenceMisspellingForm {
             
             if ($genus_is_classified) {
                 if ($sp) {
-                    $row .= "<a target=\"ADDWINDOW\" href=\"$WRITE_URL?action=displayAuthorityForm&taxon_no=-1&taxon_name=$name\">Add an authority record</a>";
+                    $row .= makeAnchorWithAttrs("displayAuthorityForm", "taxon_no=-1&taxon_name=$name", "Add an authority record", "target=\"ADDWINDOW\"");
                 } else {
                     # Skipping because its a genus_name only, and the genus exists in teh authorities table
                         if (!@suggestions) {
@@ -275,7 +275,7 @@ sub occurrenceMisspellingForm {
                     }
                 }
             } else {
-                $row .= "<a target=\"ADDWINDOW\" href=\"$WRITE_URL?action=displayAuthorityForm&taxon_no=-1&taxon_name=$g\">Add an authority record</a>";
+                $row .= makeAnchorWithAttrs("displayAuthorityForm", "taxon_no=-1&taxon_name=$g", "Add an authority record", "target=\"ADDWINDOW\"");
             }
             $row .= "</small></td></tr>";
             $row .= "<tr $class><td>Suggestions: ";
@@ -287,7 +287,7 @@ sub occurrenceMisspellingForm {
                     foreach (@suggestions) {
                         my $radio = "<span style=\"white-space: nowrap\">"
                                   . "<input type=\"radio\" name=\"new_taxon_name_$i\" value=\"$_\">";
-                        $radio .= "<a target=\"_TAXONPOPUP\" href=\"$READ_URL?action=checkTaxonInfo&taxon_name=$_\">$_</a>";
+                        $radio .= makeAnchorWithAttrs("checkTaxonInfo", "taxon_name=$_", "$_", "target=\"_TAXONPOPUP\"");
                         $radio .= "</span>&nbsp; ";
                         if ($suggest_hash->{$_}{'match_quality'} == 3) {
                             $radio = "$radio";
@@ -306,7 +306,7 @@ sub occurrenceMisspellingForm {
                     my @links; 
                     foreach (@suggestions) {
                         push @links , "<span style=\"white-space: nowrap\">"
-                                 . "<a target=\"_TAXONPOPUP\" href=\"$READ_URL?action=checkTaxonInfo&taxon_name=$_\">$_</a>"
+                                 . makeAnchorWithAttrs("checkTaxonInfo", "taxon_name=$_", "$_", "target=\"_TAXONPOPUP\"")
                                  . "</span>&nbsp;";
                     }
                     $row .= join(" ",@links);
@@ -429,8 +429,8 @@ sub submitOccurrenceMisspelling {
             next if ($reid_list !~ /^[, \d]*$/);
             if ($old_name && $new_name && $old_name ne $new_name) {
                 $count++;
-                my ($g1,$sg1,$sp1,$ssp1) = Taxon::splitTaxon($old_name);
-                my ($g2,$sg2,$sp2,$ssp2) = Taxon::splitTaxon($new_name);
+                my ($g1,$sg1,$sp1,$ssp1) = PBDB::Taxon::splitTaxon($old_name);
+                my ($g2,$sg2,$sp2,$ssp2) = PBDB::Taxon::splitTaxon($new_name);
                 my ($g1_q,$sg1_q,$sp1_q) = ($dbh->quote($g1),$dbh->quote($sg1),$dbh->quote($sp1));
                 my ($g2_q,$sg2_q,$sp2_q) = ($dbh->quote($g2),$dbh->quote($sg2),$dbh->quote($sp2));
 
@@ -453,7 +453,7 @@ sub submitOccurrenceMisspelling {
                     push @set_fields, "species_name=IF(species_name IS NULL,$sp2_q,REPLACE(species_name,$sp1_q,$sp2_q))";
                     $new_actual_name .= " $sp2";
                 }
-                my $best_taxon_no = Taxon::getBestClassification($dbt,'',$g2,'',$sg2,'',$sp2);
+                my $best_taxon_no = PBDB::Taxon::getBestClassification($dbt,'',$g2,'',$sg2,'',$sp2);
                 push @set_fields,"modifier_no=$enterer_no","modifier=".$dbh->quote($s->get("enterer")),"taxon_no=$best_taxon_no";
                 my $mod_count = 0;
                 if ($occ_list) {
@@ -509,7 +509,7 @@ sub submitOccurrenceMisspelling {
             print "<p class=\"pageTitle\">No changes were made</p>";
         }
         print "</div>";
-        print "<div align=\"center\"><a href=\"$WRITE_URL?action=searchOccurrenceMisspellingForm\">Search for more misspellings</a></div>";
+        print "<div align=\"center\">" . makeAnchor("searchOccurrenceMisspellingForm", "Search for more misspellings") . "</div>";
     }
 }
 
@@ -520,7 +520,7 @@ sub taxonTypoCheck {
     return () if (!$name);
     $name =~ s/^\s*//;
 
-    my ($g,$sg,$sp,$ssp) = Taxon::splitTaxon($name);
+    my ($g,$sg,$sp,$ssp) = PBDB::Taxon::splitTaxon($name);
 
     my %names = ();
     unless ($authority_only) {
@@ -570,7 +570,7 @@ sub taxonTypoCheck {
                 $names{$_->{'taxon_name'}}{'match_quality'} = 3;
             }
         } else {
-            my ($tg,$tsg,$tsp) = Taxon::splitTaxon($_->{'taxon_name'});
+            my ($tg,$tsg,$tsp) = PBDB::Taxon::splitTaxon($_->{'taxon_name'});
             if ($names{$tg}) {
                 $names{$_->{'taxon_name'}} = {'match_quality'=>2};
             } else {

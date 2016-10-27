@@ -6,10 +6,10 @@ function checkForm ( ) {
 
     var frm = document.forms[1];
 
-    var returnVal = checkIntervalNames();
-    if (!returnVal) {
-        return false;
-    }
+    // var returnVal = checkIntervalNames();
+    // if (!returnVal) {
+    //     return false;
+    // }
 
     var fields = new Array('collection_names','section_name','reference_no','person_reversed','research_group','taxon_name','country','state','county','max_interval','min_interval','group_formation_member','environment','lithification','lithologies','field_includes');
 
@@ -30,12 +30,12 @@ function checkForm ( ) {
 
 <div align="center">
   <p class="pageTitle">%%page_title%%</p>
-  <!-- <p>%%error%%</p> -->
+  <p>%%error%%</p>
 </div>
 
 <div align=center>
 <form name="collForm" method=post action="%%read_url%%">
-<input type=hidden name="action" value="basicCollectionSearch">
+<input type=hidden name="action" value="">
 <input type=hidden name="type">
 <input type=hidden name="use_primary">
 <input type=hidden name="basic" value="yes">
