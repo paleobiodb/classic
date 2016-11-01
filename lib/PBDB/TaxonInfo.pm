@@ -3956,7 +3956,7 @@ sub basicTaxonInfo	{
 			} else	{
 				print "<p style=\"margin-left: 1em;\"><span style=\"margin-left: -1em; text-indent: -0.5em;\">Sister taxa: ";
 				my $list;
-				$list .= makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", italicize($_)) foreach @sisters;
+				$list .= makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", italicize($_)) . ", " foreach @sisters;
 				$list =~ s/, $//;
 				print $list;
 			}

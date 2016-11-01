@@ -1,15 +1,30 @@
+<!-- This web form implements an application for downloading data from the Paleobiology Database, -->
+<!-- using the database's API.  Users can fill in the various form fields to specify parameter -->
+<!-- values, and the application code will generate an API URL using those values.  The application -->
+<!-- code resides in download_generator.js. -->
+<!-- Author: Michael McClennen -->
+
 <link rel="stylesheet" type="text/css" href="/public/classic_css/download_generator.css">
 <script src="/public/classic_js/tabs.js" language="JavaScript" type="text/javascript"></script>
 <script src="/public/source/js/jquery-2.0.3.min.js" language="JavaScript" type="text/javascript"></script>
 <script src="/public/classic_js/download_generator.js" language="JavaScript" type="text/javascript"></script>
 <script language="JavaScript" type="text/javascript">
-<!-- Begin
 
-var base_data_url = '%%data_url%%';
-var is_contributor = '%%is_contributor%%';
+<!--
+// This file is processed by the code in HTMLBuilder.pm when before it is sent to the client
+// web browser, and the %%...%% literals are replaced by values known to the Classic environment.
+// %%data_url%% is read from the Classic environment configuration file, and %%is_contributor%%
+// is set to 1 if this page is being displayed for a logged-in user.  A standard header is also prepended, which
+// defines some other javascript global variables and also provides the header bar for the
+// resulting web page.
+
+var dgapp = new DownloadGeneratorApp('%%data_url%%', '%%is_contributor%%');
+document.addEventListener("DOMContentLoaded", dgapp.initApp, false);
 
 //  End -->
 </script>
+
+<!-- Section I of the application pane, with heading and explanatory note. -->
 
 <div name="intro" style="margin-left: 1em; margin-right: 1em;">
 
@@ -29,6 +44,10 @@ var is_contributor = '%%is_contributor%%';
   
 </div>
 
+<!-- Section II of the application pane.  Here, users can choose what kind of data they want to -->
+<!-- download, what format they want it in, and other options.  With few exceptions, users can -->
+<!-- download any type of data, based on any combination of selection parameters. -->
+
 <div name="selector" style="margin-left: 1em; margin-right: 1em;">
 
 <form id="download_form">
@@ -36,44 +55,45 @@ var is_contributor = '%%is_contributor%%';
 <hr/>
 
 <span class="dlTopHeader dlHelp">What do you want to download?</span>
-<img id="qh1" class="dlHelpMarker" onClick="helpClick('h1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qh1" class="dlHelpMarker" onClick="dgapp.helpClick('h1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
 
 <table width="100%">
   
   <tr><td style="margin-left: 1em;">
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="occs" checked="1" onClick="setRecordType('occs')"/>Occurrences</span><br/>
+    <input type="radio" name="record_type" value="occs" id="rt.occs" checked="1" onClick="dgapp.setRecordType('occs')"/>Occurrences</span><br/>
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="specs" onClick="setRecordType('specs')"/>Specimens</span> /
-    <input type="radio" name="record_type" value="meas" onClick="setRecordType('meas')"/>Measurements<br/>
+    <input type="radio" name="record_type" value="specs" id="rt.specs" onClick="dgapp.setRecordType('specs')"/>Specimens</span> /
+    <input type="radio" name="record_type" value="meas" id="rt.meas" onClick="dgapp.setRecordType('meas')"/>Measurements<br/>
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="strata" onClick="setRecordType('strata')"/>Geological strata</span><br/>
+    <input type="radio" name="record_type" value="strata" id="rt.strata" onClick="dgapp.setRecordType('strata')"/>Geological strata</span><br/>
     <span class="dlRTColumn">
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="colls" onClick="setRecordType('colls')"/>Collections</span><br/>
-    <input type="radio" name="record_type" value="diversity" onClick="setRecordType('diversity')"/>Diversity over time</span><br/>
+    <input type="radio" name="record_type" value="colls" onClick="dgapp.setRecordType('colls')"/>Collections</span><br/>
+    <input type="radio" name="record_type" value="diversity" onClick="dgapp.setRecordType('diversity')"/>Diversity over time</span><br/>
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="taxa" onClick="setRecordType('taxa')"/>Taxa</span><br/>
+    <input type="radio" name="record_type" value="taxa" onClick="dgapp.setRecordType('taxa')"/>Taxa</span><br/>
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="ops" onClick="setRecordType('ops')"/>Opinions</span><br/>
+    <input type="radio" name="record_type" value="ops" onClick="dgapp.setRecordType('ops')"/>Opinions</span><br/>
     <span class="dlRTColumn">
-    <input type="radio" name="record_type" value="refs" onClick="setRecordType('refs')"/>Bibliographic references</span> /
-    <input type="radio" name="record_type" value="byref" onClick="setRecordType('byref')"/>Taxa by ref<br/>
+    <input type="radio" name="record_type" value="refs" onClick="dgapp.setRecordType('refs')"/>Bibliographic references</span> /
+    <input type="radio" name="record_type" value="byref" onClick="dgapp.setRecordType('byref')"/>Taxa by ref<br/>
   </td><td>
-    <input type="radio" name="output_format" value="csv" id="rb.csv" checked="1" onClick="setFormat('csv')"/>Comma-separated values (csv)<br/>
-    <input type="radio" name="output_format" value="tsv" id="rb.tsv" onClick="setFormat('tsv')"/>Tab-separated values (tsv)<br/>
-    <input type="radio" name="output_format" value="json" id="rb.json" onClick="setFormat('json')"/>JSON<br/>
-    <input type="radio" name="output_format" value="ris" id="rb.ris" disabled="1" onClick="setFormat('ris')"/>RIS<br/>
+    <input type="radio" name="output_format" value="csv" id="rb.csv" checked="1" onClick="dgapp.setFormat('csv')"/>Comma-separated values (csv)<br/>
+    <input type="radio" name="output_format" value="tsv" id="rb.tsv" onClick="dgapp.setFormat('tsv')"/>Tab-separated values (tsv)<br/>
+    <input type="radio" name="output_format" value="json" id="rb.json" onClick="dgapp.setFormat('json')"/>JSON<br/>
+    <input type="radio" name="output_format" value="ris" id="rb.ris" disabled="1" onClick="dgapp.setFormat('ris')"/>RIS<br/>
 
-    <p id="pd_private" style="display: none;">
-    <input type="radio" name="private" value="1" id="rb.private.yes" onClick="setPrivate(1)" checked="1"/>Include non-public data<br/>
-    <input type="radio" name="private" value="0" id="rb.private.no" onClick="setPrivate(0)"/>Public data only<br/>
+    <p id="pd_private" class="vis_private">
+    <input type="radio" name="private_url" value="1" id="rb.private.yes" onClick="dgapp.setPrivate(1)" checked="1"/>Include non-public data<br/>
+    <input type="radio" name="private_url" value="0" id="rb.private.no" onClick="dgapp.setPrivate(0)"/>Public data only<br/>
     </p>
   </td><td>
-    <input type="radio" name="form_mode" value="simple" checked="1" onClick="setAdvanced(false)"><b>Simple options</b><br/>
-    <input type="radio" name="form_mode" value="advanced" onClick="setAdvanced(true)"><b>Advanced options</b><br/>
+    <input type="radio" name="form_mode" value="simple" checked="1" onClick="dgapp.setFormMode('simple')"><b>Simple form</b><br/>
+    <input type="radio" name="form_mode" value="advanced"
+    onClick="dgapp.setFormMode('advanced')"><b>Show all available parameters</b><br/>
     <hr style="margin-top: 20px; margin-bottom: 20px;"/>
-    <input type="button" value="Clear form" onClick="resetForm()"/>
+    <input type="button" value="Clear form" onClick="dgapp.resetForm()"/>
   </td></tr>
   
   <tr class="vis_help_h1"><td colspan="3">
@@ -106,14 +126,22 @@ var is_contributor = '%%is_contributor%%';
     
 </table>
 
+<!-- Section III of the application pane.  This section displays the URL generated from the -->
+<!-- parameters filled in below, and allows users to test the URL by displaying the first 100 -->
+<!-- results or download the entire result set. -->
+
 <hr/>
 
 <div align="center">
   <p id="mainURL" class="dlMainURL">URL</p>
-    <button type="button" value="test" onClick="testMainURL()">Test</button> &nbsp; &nbsp; 
-    <button type="button" value="download" onClick="downloadMainURL()">Download</button>
+    <button type="button" value="test" onClick="dgapp.testMainURL()">Test</button> &nbsp; &nbsp; 
+    <button type="button" value="download" onClick="dgapp.downloadMainURL()">Download</button>
     <br/>&nbsp;
 </div>
+
+<!-- Section IV of the application pane.  This section is divided into subsections dedicated -->
+<!-- to different types of parameters: taxonomy, time, location, etc.  Each section can be -->
+<!-- collapsed or expanded independently, and only expanded sections are used to generate the URL. -->
 
 <hr/>
 
@@ -121,11 +149,12 @@ var is_contributor = '%%is_contributor%%';
 a set of records and choose output options.  If you close a section, you remove those parameters
 from the download URL until the section is opened again.</p>
 
-<!-- Type-specific filters -->
+<!-- Type-specific filters are defined here, and are made visible when the user selects the -->
+<!-- corresponding data type in section II above. -->
 
 <table class="vis_type_ops" width="100%" cellpadding="3">
   <tr><td width="30%">Opinion type:</td>
-    <td><select id="pm_op_select" onChange="updateFormState()">
+    <td><select id="pm_op_select" onChange="dgapp.updateFormState()">
 	  <option value="all">all opinions</option>
 	  <option value="class">classification opinions only</option>
 	  <option value="valid">opinions declaring valid names</option>
@@ -134,7 +163,7 @@ from the download URL until the section is opened again.</p>
 	  <option value="invalid">opinions declaring invalid names</option>
 	</select>
       <span class="dlSep">
-	<img id="qh2a" class="dlHelpMarker" onClick="helpClick('h2a', event)" src="/JavaScripts/img/hidden_help.png">
+	<img id="qh2a" class="dlHelpMarker" onClick="dgapp.helpClick('h2a', event)" src="/JavaScripts/img/hidden_help.png">
       </span>
     </td></tr>
   <tr class="vis_help_h2a"><td colspan="2">
@@ -150,7 +179,7 @@ from the download URL until the section is opened again.</p>
 <table class="vis_type_refs" width="100%" cellpadding="3">
   <tr><td width="20%">Reference types:</td>
   <td><div id="pd_reftypes"></div></td>
-  <td><img id="qh2b" class="dlHelpMarker" onClick="helpClick('h2b', event)" src="/JavaScripts/img/hidden_help.png">
+  <td><img id="qh2b" class="dlHelpMarker" onClick="dgapp.helpClick('h2b', event)" src="/JavaScripts/img/hidden_help.png">
   </td></tr>
   <tr class="vis_help_h2b"><td colspan="3">
     <p class="dlHelp">By selecting from this list of checkboxes, you can choose among the various
@@ -161,12 +190,14 @@ from the download URL until the section is opened again.</p>
   </td></tr>
 </table>
 
-<!-- Select by taxon -->
+<!-- Taxonomy filters are defined here, in subsection f1.  By default, the basic set of taxonomy -->
+<!-- filters is visible when the application starts. -->
 
-<h3 id="hf1" onClick="showHideSection('f1')">
+<h3 id="hf1" onClick="dgapp.showHideSection('f1')">
 <img id="mf1" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Select by taxonomy</span>
-<img id="qf1" class="dlHelpMarker" onClick="helpClick('f1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qf1" class="dlHelpMarker" onClick="dgapp.helpClick('f1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vf1">
 
 <div id="f1" class="dlSectionBody" style="display: none;">
 
@@ -174,7 +205,7 @@ from the download URL until the section is opened again.</p>
 
     <tr><td width="30%" valign="top">Taxon or taxa to include:</td>
       <td colspan="2">
-	<textarea id="pm_base_name" name="base_name" rows="2" cols="60" align="top" onChange="checkTaxon()"></textarea>
+	<textarea id="pm_base_name" name="base_name" rows="2" cols="60" align="top" onChange="dgapp.checkTaxon()"></textarea>
         <ul id="pe_base_name" class="dlErrmsg"></ul></td>
     </tr>
 
@@ -196,7 +227,7 @@ from the download URL until the section is opened again.</p>
       <span class="vis_type_diversity">Taxonomic resolution:</span>
       <span class="vis_taxon_range">Taxonomic rank(s):</span></td>
       <td><div class="vis_taxon_reso">
-	  <select id="pm_taxon_reso" onChange="updateFormState()">
+	  <select id="pm_taxon_reso" onChange="dgapp.updateFormState()">
 	    <option value="">all</option>
 	    <option value="species">species</option>
 	    <option value="genus">genus</option>
@@ -206,7 +237,7 @@ from the download URL until the section is opened again.</p>
 	    <option value="lump_gensub">lump by genus/subgenus</option>
 	  </select></div>
 	<div class="vis_taxon_range">
-	  <select id="pm_taxon_rank" onChange="updateFormState()">
+	  <select id="pm_taxon_rank" onChange="dgapp.updateFormState()">
 	    <option value="">all</option>
 	    <option value="" disabled="1">--</option>
 	    <option value="species">species</option>
@@ -228,7 +259,7 @@ from the download URL until the section is opened again.</p>
 	    <option value="min_order">orders and above</option>
 	  </select></div>
 	<div class="vis_type_diversity">
-	  <select id="pm_div_count" onChange="updateFormState()">
+	  <select id="pm_div_count" onChange="dgapp.updateFormState()">
             <option value="species">species</option>
 	    <option value="genera" selected="1">genera</option>
 	    <option value="genera_plus">genera + subgenera</option>
@@ -237,7 +268,7 @@ from the download URL until the section is opened again.</p>
 	  </select></div>
       </td>
       <td><div class="vis_acc_only">
-	<input type="checkbox" id="pm_acc_only" onChange="checkTaxonStatus('box')"> Show accepted names only
+	<input type="checkbox" id="pm_acc_only" onChange="dgapp.checkTaxonStatus('accepted')"> Show accepted names only
 	</div>
     </td></tr>
     
@@ -283,7 +314,7 @@ from the download URL until the section is opened again.</p>
 
     <tr class="vis_taxon_range"><td>
       Taxonomic status:</td><td>
-	<select id="pm_taxon_status" onChange="checkTaxonStatus('selector')">
+	<select id="pm_taxon_status" onChange="dgapp.checkTaxonStatus('selector')">
 	  <option value="">all names</option>
 	  <option value="valid">all valid names</option>
 	  <option value="accepted">accepted names</option>
@@ -291,7 +322,7 @@ from the download URL until the section is opened again.</p>
 	  <option value="invalid">invalid names</option>
 	</select></td>
       <td><span class="vis_advanced vis_taxon_range">
-	<input type="checkbox" id="pm_taxon_variants" onChange="checkTaxonStatus('variants')">
+	<input type="checkbox" id="pm_taxon_variants" onChange="dgapp.checkTaxonStatus('variants')">
 	Show obsolete name variants</span>
       </td></tr>
       
@@ -304,62 +335,100 @@ from the download URL until the section is opened again.</p>
       the current variant will be marked with the flag "V".</span></p>
     </td></tr>
     
-    <tr class="vis_advanced vis_taxon_reso">
-      <td>Identification:</td><td colspan="2">
-	<select id="pm_ident" onChange="checkTaxon()">
-	  <option select="1" value="latest">latest</option>
-	  <option value="orig">original</option>
-	  <option value="all">all</option>
-	</select>
-      </td>
-
-    <tr class="vis_help_f1 vis_advanced vis_taxon_reso"><td colspan="3">
-      <p class="dlHelp">The identification parameter affects only occurrences that have more than one identification
-      recorded in the database.  If you choose "all", then occurrences that have been reidentified will generate
-      a separate record for each identification that matches the other filters you have specified
-      (i.e. are subtaxa of the specified base name).  If you choose "orig" then only the original
-      identification of each occurrence is reported and reidentifications will be ignored.</p>
-    </td></tr>
-    
     <tr class="vis_advanced">
-	<td>Preservation:</td><td colspan="2">
-	<select id="pm_pres" onChange="checkTaxon()">
+	<td>Preservation:</td><td>
+	<select id="pm_pres" onChange="dgapp.checkTaxon()">
 	  <option select="1" value="all">all taxa</option>
 	  <option value="regular">regular taxa only</option>
 	  <option value="form">form taxa only</option>
 	  <option value="ichno">ichnotaxa only</option>
 	  <option value="form,ichno">form and ichnotaxa</option>
 	</select>
-      </td></tr>
+      </td>
+      <td class="vis_taxon_reso">Identification:&nbsp;
+	<select id="pm_ident" onChange="dgapp.checkTaxon()">
+	  <option select="1" value="latest">latest</option>
+	  <option value="orig">original</option>
+	  <option value="reid">reidentifications</option>
+	  <option value="all">all</option>
+	</select>
+	</td></tr>
 
     <tr class="vis_help_f1 vis_advanced"><td colspan="3">
       <p class="dlHelp">The preservation parameter lets you choose whether to return
       information about ichnotaxa, form taxa and/or regular taxa.</p>
     </td></tr>
     
+    <tr class="vis_help_f1 vis_advanced vis_taxon_reso"><td colspan="3">
+      <p class="dlHelp">The identification parameter affects only occurrences that have more than one identification
+      recorded in the database.  If you choose "all", then occurrences that have been reidentified will generate
+      a separate record for each identification that matches the other filters you have specified
+      (i.e. are subtaxa of the specified base name).  If you choose "orig" then only the original
+      identification of each occurrence is reported and reidentifications will be ignored. If you
+      choose "reidentifications" then all identifications of occurrences that have been
+      reidentified will be returned, each as a separate record.  Occurrences that have not been
+      reidentified will be ignored.</p>
+    </td></tr>
+
+    <tr class="vis_advanced">
+      <td>Modifiers:</td><td colspan="2">
+	<select id="pm_idqual" onChange="dgapp.checkTaxonMods()">
+	  <option select="1" value="any">no filter</option>
+	  <option value="certain">exclude uncertain gen. and sp.</option>
+	  <option value="genus_certain">exclude uncertain gen.</option>
+	  <option value="uncertain">select uncertain gen. and sp.</option>
+	  <option value="new">select new gen. and sp.</options>
+	  <option value="custom">select/exclude specific modifiers</option>
+	</select>
+      </td></tr>
+
+    <tr class="vis_advanced vis_taxon_mods">
+      <td>&nbsp;</td><td>Genus:&nbsp;
+	<select id="pm_genmod_ex" onChange="dgapp.checkTaxonMods()">
+	  <option select="1" value="exclude">exclude</option>
+	  <option value="include">include</option>
+	</select>&nbsp;</td><td>
+	<div id="pd_idgenmod"></div>
+      </td></tr>
+
+    <tr class="vis_advanced vis_taxon_mods">
+      <td>&nbsp;</td><td>Species:&nbsp;
+	<select id="pm_spcmod_ex" onChange="dgapp.checkTaxonMods()">
+	  <option select="1" value="exclude">exclude</option>
+	  <option value="include">include</option>
+	</select>&nbsp;</td><td>
+	<div id="pd_idspcmod"></div>
+      </td></tr>
+    
+    <tr class="vis_help_f1 vis_advanced"><td colspan="3">
+      <p class="dlHelp">You can choose to exclude uncertain identifications, specifically the
+      following: <em>aff. / cf. / ? / "" / informal / sensu lato.</em>  You can also exclude these
+      modifiers only when applied to genera, or alternatively select identifications that have them.  You
+      can also choose to show only newly identified taxa.  Finally, you can create a custom filter
+      by selecting any subset of these.
+    </td></tr>
+
   </table>
 
 </div>
 
-<!-- &nbsp;<small class="dlTaxonHelp">
-    <i><a href="%%data_url%%taxonomic_names_doc.html">instructions on specifying taxonomic names</a></i></small></td>
--->
-  
-<!-- Select by time -->
+<!-- Time filters are defined here, in subsection f2.  These are hidden unless specifically made -->
+<!-- visible by the user. -->
 
-<h3 id="hf2" onClick="showHideSection('f2')">
+<h3 id="hf2" onClick="dgapp.showHideSection('f2')">
 <img id="mf2" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Select by time</span>
-<img id="qf2" class="dlHelpMarker" onClick="helpClick('f2', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qf2" class="dlHelpMarker" onClick="dgapp.helpClick('f2', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vf2">
 
 <div id="f2" class="dlSectionBody" style="display: none;">
 
   <table width="100%" cellpadding="3">
     
     <tr><td width="30%" valign="top">Interval or Ma range:</td>
-      <td><input id="pm_interval" size="30" onChange="checkInterval(1)">
+      <td><input id="pm_interval" size="30" onChange="dgapp.checkInterval(1)">
 	<span class="dlSmall dlSep">through</span>
-	<input id="pm_interval_2" size="30" onChange="checkInterval(2)">
+	<input id="pm_interval_2" size="30" onChange="dgapp.checkInterval(2)">
         <ul id="pe_interval" class="dlErrmsg"></ul>
     </td></tr>
     
@@ -370,20 +439,15 @@ from the download URL until the section is opened again.</p>
       you can specify a maximun and/or minimum age in units of Ma.</p>
     </td></tr>
     
-    <!-- <tr class="vis_advanced"><td>Ma range:</td> -->
-    <!--   <td>max <input id="pm_ma_max" size="10" onChange="checkInterval()"> -->
-    <!-- 	<span class="dlSep">min <input id="pm_ma_min" size="10" onChange="checkInterval()"></span> -->
-    <!--   </td></tr> -->
-    
     <tr class="vis_advanced"><td>Time rule:</td>
-      <td><select id="pm_timerule" onChange="checkInterval()">
+      <td><select id="pm_timerule" onChange="dgapp.checkInterval()">
 	    <option value="contain">contain</option>
 	    <option selected="1" value="major">major (default)</option>
 	    <option value="buffer">buffer</option>
 	    <option value="overlap">overlap</option>
 	    </select>
-	  <span id="pd_timebuffer" class="dlSmall dlSep" style="display: none;">
-	    Time buffer in Ma: <input id="pm_timebuffer" size="10" onChange="checkInterval()"></span></td>
+	  <span id="pd_timebuffer" class="dlSmall dlSep vis_buffer_rule" style="display: none;">
+	    Time buffer in Ma: <input id="pm_timebuffer" size="10" onChange="dgapp.checkInterval()"></span></td>
    
     <tr class="vis_advanced vis_help_f2"><td colspan="2">
       <p class="dlHelp inv_type_diversity">The <b>contain</b> time rule is the strictest.  It
@@ -413,13 +477,13 @@ from the download URL until the section is opened again.</p>
     
     <tr class="vis_type_diversity">
       <td>Temporal resolution:</td>
-      <td><select id="pm_div_time" onChange="updateFormState()">
+      <td><select id="pm_div_time" onChange="dgapp.updateFormState()">
           <option value="stage">stage</option>
 	  <option value="epoch">epoch</option>
 	  <option value="period">period</option>
 	  <option value="era">era</option>
 	</select>
-	<span class="dlSep"><input type="checkbox" id="pm_div_recent" onChange="updateFormState()">
+	<span class="dlSep"><input type="checkbox" id="pm_div_recent" onChange="dgapp.updateFormState()">
 	Assume extant taxa range through to present
 	</span>
       </td></tr>
@@ -433,12 +497,14 @@ from the download URL until the section is opened again.</p>
    
 </div>
 
-<!-- Select by location -->
+<!-- Location filters are defined here, in subsection f3.  These are hidden unless specifically -->
+<!-- made visible by the user. -->
 
-<h3 id="hf3" onClick="showHideSection('f3')">
+<h3 id="hf3" onClick="dgapp.showHideSection('f3')">
 <img id="mf3" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Select by location</span>
-<img id="qf3" class="dlHelpMarker" onClick="helpClick('f3', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qf3" class="dlHelpMarker" onClick="dgapp.helpClick('f3', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vf3">
 
 <div id="f3" class="dlSectionBody" style="display: none;">
 
@@ -450,22 +516,22 @@ from the download URL until the section is opened again.</p>
     </td></tr>
     
     <tr><td>
-      <select id="pm_ccex" onChange="checkCC()">
+      <select id="pm_ccex" onChange="dgapp.checkCC()">
 	<option value="include">select</option>
 	<option value="exclude">exclude</option>
       </select></span> &nbsp;
-      Continent: <select id="pm_continent" name="continent" onChange="checkCC()"></select> &nbsp;
-     <select id="pm_ccmod" onChange="checkCC()">
+      Continent: <select id="pm_continent" name="continent" onChange="dgapp.checkCC()"></select> &nbsp;
+     <select id="pm_ccmod" onChange="dgapp.checkCC()">
 	<option value="add">plus</option>
 	<option value="sub">minus</option>
       </select> &nbsp;
-      Country: <select id="pm_country" onChange="checkCC()"></select>
+      Country: <select id="pm_country" onChange="dgapp.checkCC()"></select>
     </td></tr>
 
     <tr class="vis_mult_cc3"><td><div id="pd_continents"></div></td></tr>
     
     <tr class="vis_mult_cc2"><td><div id="pd_countries">
-      Countries: <input id="pm_countries" size="60" onchange="checkCC()"></div>
+      Countries: <input id="pm_countries" size="60" onchange="dgapp.checkCC()"></div>
       <ul id="pe_cc" class="dlErrmsg"></ul>
     </td></tr>
     
@@ -474,12 +540,34 @@ from the download URL until the section is opened again.</p>
       be selected or excluded.  To specify multiple countries, you must type a list of the 2-letter codes.</p>
     </td></tr>
  
+    <tr class="vis_advanced"><td>
+      <div style="margin-top: 10px">
+	Plate: &nbsp;
+	<select id="pm_plate_ex" onChange="dgapp.checkCC()">
+	  <option value="include">select</option>
+	  <option value="exclude">exclude</option>
+        </select></span> &nbsp;
+	<input id="pm_plate" size="40" onChange="dgapp.checkCC()">
+	<select id="pm_pgmodel" onChange="dgapp.checkCC()">
+	  <option selected="1" value="G">GPlates</option>
+	  <option value="S">Scotese</option></select>
+      </div>
+      <ul id="pe_plate" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_advanced vis_help_f3"><td>
+      <p class="dlHelp">You can specify one or more plate numbers, from either the GPlates or the Scotese model.  To find out these
+      numbers, you can search for either occurrences or geological strata using whatever criteria
+      are appropriate and include one of the following output blocks: <b>gplate</b>,
+      <b>splate</b>, or <b>paleoloc</b>.</p>
+    </td></tr>
+    
     <tr><td>
       <div style="margin-top: 10px">
-      Longitude: min <input id="pm_lngmin" size="15" onChange="checkCoords()"> 
-	max <input id="pm_lngmax" size="15" onChange="checkCoords()">
-	&nbsp;&nbsp; Latitude: min <input id="pm_latmin" size="15" onChange="checkCoords()">
-	max <input id="pm_latmax" size="15" onChange="checkCoords()">
+      Longitude: min <input id="pm_lngmin" size="15" onChange="dgapp.checkCoords()"> 
+	max <input id="pm_lngmax" size="15" onChange="dgapp.checkCoords()">
+	&nbsp;&nbsp; Latitude: min <input id="pm_latmin" size="15" onChange="dgapp.checkCoords()">
+	max <input id="pm_latmax" size="15" onChange="dgapp.checkCoords()">
 	<ul id="pe_coords" class="dlErrmsg"></ul>
       </div>
     </td></tr>
@@ -489,39 +577,25 @@ from the download URL until the section is opened again.</p>
 	  W/S, or you can append N or S to the latitude and E or W to the longitude values.</p>
     </td></tr>
 
-    <tr class="vis_advanced"><td>
-      <div style="margin-top: 10px">
-	Plate: <input id="pm_plate" size="40" onChange="checkCC()">
-	<select id="pm_pgmodel" onChange="checkCC()">
-	  <option selected="1" value="G">GPlates</option>
-	  <option value="S">Scotese</option></select>
-      </div>
-    </td></tr>
-
-    <tr class="vis_advanced vis_help_f3"><td>
-      <p class="dlHelp">You can specify one or more plate numbers, from either the GPlates or the Scotese model.  To find out these
-      numbers, you can search for either occurrences or geological strata using whatever criteria
-      are appropriate and include one of the following output blocks: <b>gplate</b>,
-      <b>splate</b>, or <b>paleoloc</b>.</p>
-    </td></tr>
-    
     </table>
 
 </div>
 
-<!-- Select by geological context -->
+<!-- Geological context filters are defined here, in subsection f4.  These are hidden unless -->
+<!-- specifically made visible by the user. -->
 
-<h3 id="hf4" onClick="showHideSection('f4')">
+<h3 id="hf4" onClick="dgapp.showHideSection('f4')">
 <img id="mf4" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Select by geological context</span>
-<img id="qf4" class="dlHelpMarker" onClick="helpClick('f4', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qf4" class="dlHelpMarker" onClick="dgapp.helpClick('f4', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vf4">
 
 <div id="f4" class="dlSectionBody" style="display: none;">
   
   <table width="100%" cellpadding="3">
 
     <tr><td width="40%" valign="top">Name(s) of geological strata:</td>
-      <td><textarea id="pm_strat" rows="2" cols="60" align="top" onChange="checkStrat()"></textarea>
+      <td><textarea id="pm_strat" rows="2" cols="60" align="top" onChange="dgapp.checkStrat()"></textarea>
         <ul id="pe_strat" class="dlErrmsg"></ul></td>
     </tr>
     
@@ -535,17 +609,28 @@ from the download URL until the section is opened again.</p>
     </td></tr>
     
   </table>
-  
+
   <table width="100%" cellpadding="3">
     <tr class="vis_advanced">
+      <td valign="top">Lithology:</td>
+      <td valign="top"><select id="pm_lithex" onChange="dgapp.checkLith()">
+	  <option select="1" value="include">select</option>
+	  <option value="exclude">exclude</option>
+	</select></td><td><div id="pd_lithtype"></div>
+      </td></tr>
+    <tr class="vis_advanced vis_help_f4"><td colspan="3">
+      <p class="dlHelp">You can choose one or more of these lithology types, and either select
+      or exclude fossils that were extracted from them. This is evaluated on a per-collection
+      basis.</p>
+    <tr class="vis_advanced">
       <td valign="top">Environment:</td>
-      <td><select id="pm_envex" onChange="checkEnv()">
+      <td valign="top"><select id="pm_envex" onChange="dgapp.checkEnv()">
 	  <option selected="1" value="include">select</option>
 	  <option value="exclude">exclude</option>
 	</select></td><td><div id="pd_envtype"></div>
       </td></tr>
     <tr class="vis_advanced"><td>&nbsp;</td>
-      <td><select id="pm_envmod" onChange="checkEnv()">
+      <td><select id="pm_envmod" onChange="dgapp.checkEnv()">
 	<option selected="1", value="add">plus</option>
 	<option value="sub">minus</option>
       </select></td>
@@ -553,21 +638,62 @@ from the download URL until the section is opened again.</p>
     </td></tr>
     
     <tr class="vis_advanced vis_help_f4"><td colspan="3">
-      <p class="dlHelp">You can select any combination of the main environments from the top row, then modify
-	  this selection using the bottom rows.  This set of major and minor environment types is
-	  the same as was used with the old download form.</p>
-    </td></tr>
+      <p class="dlHelp">You can select any
+          combination of the major environments from the top row, then modify this selection using
+          the bottom rows.  This set of major and minor environment types is the same as was used
+          with the old download form.  <b>Note:</b> The lithology and environment information are entered
+          separately, and for any particular collection it is possible that either, both, or none
+          of this information has been entered.
+      </p></td></tr>
     
   </table>
 
 </div>
 
-<!-- Select by metadata -->
+<!-- Specimen filters are defined here, in section f6.  These are hidden unless psecifically made -->
+<!-- visible by the user. -->
 
-<h3 id="hf5" onClick="showHideSection('f5')">
+<h3 id="hf6" onClick="dgapp.showHideSection('f6')">
+<img id="mf6" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Select by specimen</span>
+<img id="qf6" class="dlHelpMarker" onClick="dgapp.helpClick('f6', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vf6">
+
+<div id="f6" class="dlSectionBody" style="display: none;">
+
+  <table width="100%" cellpadding="3">
+
+    <tr>
+      <td>Abundance:</td><td colspan="2">
+	<select id="pm_abund_type" onChange="dgapp.checkAbund()">
+	  <option select="1" value="none">no filter</option>
+	  <option value="count">count</option>
+	  <option value="coverage">coverage</option>
+	  <option value="any">any abundance info</option>
+	</select><span class="dlSep">Minimum:&nbsp;</span>
+	<input id="pm_abund_min" size="10" onChange="dgapp.checkAbund()">
+        <ul id="pe_abund_min" class="dlErrmsg"></ul></td>
+      </td></tr>
+
+    <tr class="vis_help_f6"><td colspan="3">
+      <p class="dlHelp">You can select only occurrences for which an abundance is reported
+        given in terms of number of specimens or individuals in the collection, or for which
+	an abundance is reported in terms of percent coverage, or for which
+        any kind of abundance information is given.  You can also specify a minimum abundance
+        value.</p></td></tr>
+
+  </table>
+  
+</div>
+
+<!-- Metadata filters are defined here, in section f5.  These are hidden unless specifically made -->
+<!-- visible by the user. -->
+
+<h3 id="hf5" onClick="dgapp.showHideSection('f5')">
 <img id="mf5" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Select by metadata</span>
-<img id="qf5" class="dlHelpMarker" onClick="helpClick('f5', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qf5" class="dlHelpMarker" onClick="dgapp.helpClick('f5', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vf5">
 
 <div id="f5" class="dlSectionBody" style="display: none;">
 
@@ -575,17 +701,17 @@ from the download URL until the section is opened again.</p>
 
     <tr id="pd_meta_coll_re"><td valign="top">
       Collection name/description (regex):
-      <input id="pm_coll_re" size="60" onChange="checkMetaText('coll_re')">
+      <input id="pm_coll_re" size="60" onChange="dgapp.checkMetaText('coll_re')">
     </td></tr>
 
     <tr id="pd_meta_id"><td valign="top">
-      <select id="pm_meta_id_select" onChange="checkMetaId('type')">
+      <select id="pm_meta_id_select" onChange="dgapp.checkMetaId('type')">
 	<option value="col">Collection</option>
 	<option value="clu">Cluster</option>
 	<option value="occ">Occurrence</option>
 	<option value="spm">Specimen</option>
       </select> &nbsp; identifier(s):
-          <input id="pm_meta_id_list" size="60" onChange="checkMetaId('list')">
+          <input id="pm_meta_id_list" size="60" onChange="dgapp.checkMetaId('list')">
           <ul id="pe_meta_id" class="dlErrmsg"></ul>
     </td></tr>
     
@@ -597,57 +723,65 @@ from the download URL until the section is opened again.</p>
       regular expression syntax, including the backslash character and vertical bar.</p>
     </td></tr>
     
-    <!--<tr><td valign="top">Bibliographic reference by &nbsp;
-      <select id="pm_ref_select" onChange="checkRef()">
-	<option value="ref_id">reference id</option>
-	<option value="ref_title">reference title</option>
-	<option value="pub_title">publication title</option>
-	<option value="ref_primary">primary author</option>
-	<option value="ref_author">any author</option>
-      </select> &nbsp;
-      <input id="pm_ref_id" size="60" onChange="checkRef()"/>
-      <input id="pm_ref_title" size="60" style="display: none" onChange="checkRef()"/>
-      <input id="pm_pub_title" size="60" style="display: none" onChange="checkRef()"/>
-      <input id="pm_ref_author" size="60" style="display: none" onChange="checkRef()"/>
-    </td></tr>-->
+    <!-- <tr><td valign="top">Bibliographic reference by &nbsp; -->
+    <!--   <select id="pm_ref_select" onChange="dgapp.checkRef()"> -->
+    <!-- 	<option value="ref_id">reference id</option> -->
+    <!-- 	<option value="ref_title">reference title</option> -->
+    <!-- 	<option value="pub_title">publication title</option> -->
+    <!-- 	<option value="ref_primary">primary author</option> -->
+    <!-- 	<option value="ref_author">any author</option> -->
+    <!--   </select> &nbsp; -->
+    <!--   <input id="pm_ref_id" size="60" onChange="dgapp.checkRef()"/> -->
+    <!--   <input id="pm_ref_title" size="60" style="display: none" onChange="dgapp.checkRef()"/> -->
+    <!--   <input id="pm_pub_title" size="60" style="display: none" onChange="dgapp.checkRef()"/> -->
+    <!--   <input id="pm_ref_author" size="60" style="display: none" onChange="dgapp.checkRef()"/> -->
+    <!-- </td></tr> -->
     
-    <tr id="pd_meta_occs" style="display: none;"><td valign="top">Occurrences
-      <select id="pm_occs_crmod" onChange="checkMeta('occs')"></select>
-      <input id="pm_occs_cmdate" size="20" onChange="checkMeta('occs')"/>
-      <select id="pm_occs_authent" onChange="checkMeta('occs')"></select>
-      <input id="pm_occs_aename" size="40" onChange="checkMeta('occs')"/>
+    <tr class="vis_meta_specs"><td valign="top">Specimens
+      <select id="pm_specs_crmod" onChange="dgapp.checkMeta('specs')"></select>
+      <input id="pm_specs_cmdate" size="20" onChange="dgapp.checkMeta('specs')"/>
+      <select id="pm_specs_authent" onChange="dgapp.checkMeta('specs')"></select>
+      <input id="pm_specs_aename" size="20" onChange="dgapp.checkMeta('specs')"/>
+      <ul id="pe_meta_specs" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_meta_occs"><td valign="top">Occurrences
+      <select id="pm_occs_crmod" onChange="dgapp.checkMeta('occs')"></select>
+      <input id="pm_occs_cmdate" size="20" onChange="dgapp.checkMeta('occs')"/>
+      <select id="pm_occs_authent" onChange="dgapp.checkMeta('occs')"></select>
+      <input id="pm_occs_aename" size="30" onChange="dgapp.checkMeta('occs')"/>
       <ul id="pe_meta_occs" class="dlErrmsg"></ul>
     </td></tr>
     
-    <tr id="pd_meta_colls" style="display: none;"><td valign="top">Collections
-      <select id="pm_colls_crmod" onChange="checkMeta('colls')"></select>
-      <input id="pm_colls_cmdate" size="20" onChange="checkMeta('colls')"/>
-      <select id="pm_colls_authent" onChange="checkMeta('colls')"></select>
-      <input id="pm_colls_aename" size="40"  onChange="checkMeta('colls')"/>
+    <tr class="vis_meta_colls"><td valign="top">Collections
+      <select id="pm_colls_crmod" onChange="dgapp.checkMeta('colls')"></select>
+      <input id="pm_colls_cmdate" size="20" onChange="dgapp.checkMeta('colls')"/>
+      <select id="pm_colls_authent" onChange="dgapp.checkMeta('colls')"></select>
+      <input id="pm_colls_aename" size="30"  onChange="dgapp.checkMeta('colls')"/>
       <ul id="pe_meta_colls" class="dlErrmsg"></ul>
     </td></tr>
     
-    <tr id="pd_meta_taxa" style="display: none;"><td valign="top">Taxa
-      <select id="pm_taxa_crmod" onChange="checkMeta('taxa')"></select>
-      <input id="pm_taxa_cmdate" size="20" onChange="checkMeta('taxa')"/>
-      <select id="pm_taxa_authent" onChange="checkMeta('taxa')"></select>
-      <input id="pm_taxa_aename" size="40" onChange="checkMeta('taxa')"/>
+    <tr class="vis_meta_taxa"><td valign="top">Taxa
+      <select id="pm_taxa_crmod" onChange="dgapp.checkMeta('taxa')"></select>
+      <input id="pm_taxa_cmdate" size="20" onChange="dgapp.checkMeta('taxa')"/>
+      <select id="pm_taxa_authent" onChange="dgapp.checkMeta('taxa')"></select>
+      <input id="pm_taxa_aename" size="30" onChange="dgapp.checkMeta('taxa')"/>
       <ul id="pe_meta_taxa" class="dlErrmsg"></ul>
     </td></tr>
     
-    <tr id="pd_meta_ops" style="display: none;"><td valign="top">Opinions
-      <select id="pm_ops_crmod" onChange="checkMeta('ops')"></select>
-      <input id="pm_ops_cmdate" size="20" onChange="checkMeta('ops')"/>
-      <select id="pm_ops_authent" onChange="checkMeta('ops')"></select>
-      <input id="pm_ops_aename" size="40" onChange="checkMeta('ops')"/>
+    <tr class="vis_meta_ops"><td valign="top">Opinions
+      <select id="pm_ops_crmod" onChange="dgapp.checkMeta('ops')"></select>
+      <input id="pm_ops_cmdate" size="20" onChange="dgapp.checkMeta('ops')"/>
+      <select id="pm_ops_authent" onChange="dgapp.checkMeta('ops')"></select>
+      <input id="pm_ops_aename" size="30" onChange="dgapp.checkMeta('ops')"/>
       <ul id="pe_meta_ops" class="dlErrmsg"></ul>
     </td></tr>
     
-    <tr id="pd_meta_refs" style="display: none;"><td valign="top">References
-      <select id="pm_refs_crmod" onChange="checkMeta('refs')"></select>
-      <input id="pm_refs_cmdate" size="20" onChange="checkMeta('refs')"/>
-      <select id="pm_refs_authent" onChange="checkMeta('refs')"></select>
-      <input id="pm_refs_aename" size="40" onChange="checkMeta('refs')"/>
+    <tr class="vis_meta_refs"><td valign="top">References
+      <select id="pm_refs_crmod" onChange="dgapp.checkMeta('refs')"></select>
+      <input id="pm_refs_cmdate" size="20" onChange="dgapp.checkMeta('refs')"/>
+      <select id="pm_refs_authent" onChange="dgapp.checkMeta('refs')"></select>
+      <input id="pm_refs_aename" size="30" onChange="dgapp.checkMeta('refs')"/>
       <ul id="pe_meta_refs" class="dlErrmsg"></ul>
     </td></tr>
     
@@ -658,7 +792,7 @@ from the download URL until the section is opened again.</p>
     </td></tr>
 
     <tr><td>
-      <input type="checkbox" id="pm_all_records" onChange="updateFormState()">
+      <input type="checkbox" id="pm_all_records" onChange="dgapp.updateFormState()">
       Select all <span id="label_all_records">records of this type</span> in the database
     </td></tr>
 
@@ -673,32 +807,34 @@ from the download URL until the section is opened again.</p>
 </div>
 
 
-<!-- Output options -->
+<!-- Output options are defined here, in subsection o1.  These are hidden unless specifically made -->
+<!-- visible by the user. -->
 
-<h3 id="ho1" onClick="showHideSection('o1')">
+<h3 id="ho1" onClick="dgapp.showHideSection('o1')">
 <img id="mo1" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Choose output options</span>
-<img id="qo1" class="dlHelpMarker" onClick="helpClick('o1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<img id="qo1" class="dlHelpMarker" onClick="dgapp.helpClick('o1', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vo1">
 
 <div id="o1" style="margin-left: 1em; display: none;">
     
   <div style="margin-bottom: 10px">
     Output order: 
-    <select id="pm_occs_order" class="dlOutputOrder" onChange="checkOrder('occs')"></select>
-    <select id="pm_colls_order" class="dlOutputOrder" onChange="checkOrder('colls')"></select>
-    <select id="pm_taxa_order" class="dlOutputOrder" onChange="checkOrder('taxa')"></select>
-    <select id="pm_ops_order" class="dlOutputOrder" onChange="checkOrder('ops')"></select>
-    <select id="pm_strata_order" class="dlOutputOrder" onChange="checkOrder('strata')"></select>
-    <select id="pm_refs_order" class="dlOutputOrder" onChange="checkOrder('refs')"></select>
+    <select id="pm_occs_order" class="dlOutputOrder" onChange="dgapp.checkOrder('occs')"></select>
+    <select id="pm_colls_order" class="dlOutputOrder" onChange="dgapp.checkOrder('colls')"></select>
+    <select id="pm_taxa_order" class="dlOutputOrder" onChange="dgapp.checkOrder('taxa')"></select>
+    <select id="pm_ops_order" class="dlOutputOrder" onChange="dgapp.checkOrder('ops')"></select>
+    <select id="pm_strata_order" class="dlOutputOrder" onChange="dgapp.checkOrder('strata')"></select>
+    <select id="pm_refs_order" class="dlOutputOrder" onChange="dgapp.checkOrder('refs')"></select>
       
-    <select id="pm_order_dir" onChange="checkOrder('dir')">
+    <select id="pm_order_dir" onChange="dgapp.checkOrder('dir')">
       <option value="--">default</option>
       <option value="asc">ascending</option>
       <option value="desc">descending</option>
     </select>
     
     <span class="dlSep">Limit number of records
-      <input id="pm_limit" size="20" onChange="checkLimit()">
+      <input id="pm_limit" size="20" onChange="dgapp.checkLimit()">
     </span>
     <ul id="pe_limit" class="dlErrmsg"></ul>
 
@@ -707,6 +843,15 @@ from the download URL until the section is opened again.</p>
     either a positive number or zero.  You can also specify a record offset and limit together,
     i.e. "21, 10" will return 10 records starting with the 21st selected record.</p>
     
+  </div>
+
+  <div style="margin-bottom: 10px; margin-left: 3px">
+    <span class="dlBlockLabel">
+      <input type="checkbox" id="pm_fulloutput" value="full" onClick="dgapp.checkFullOutput()">
+      <b>Include all output blocks whose names are boldfaced below</b></span>
+    <p class="dlHelp vis_help_o1">If you select this option, then the generated URl will always
+    work the same way in the future.  If we add new output blocks, they will be returned
+    as well.</p>
   </div>
   
   Additional output blocks: <br/>
@@ -721,7 +866,7 @@ from the download URL until the section is opened again.</p>
 
   <table width="100%">
     
-    <tr><td><input type="checkbox" id="pm_output_metadata" checked="1" onChange="checkOutputOpts()">
+    <tr><td><input type="checkbox" id="pm_output_metadata" checked="1" onChange="dgapp.checkOutputOpts()">
       Include metadata at the beginning of the output
     </td></tr>
 
@@ -741,6 +886,10 @@ from the download URL until the section is opened again.</p>
 </form>
   
 </div>
+
+<!-- This box is visible when the application is first opened, and disappears once the -->
+<!-- initialization steps are complete.  If it remains visible, something has gone wrong with the -->
+<!-- initialization. -->
 
 <div id="db_initmsg" class="dlMessageBox" style="width: 300px; height: 100px;">
 <span id="initmsg" class="large">Initializing form, please wait...</span>

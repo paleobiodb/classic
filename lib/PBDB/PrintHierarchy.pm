@@ -239,7 +239,8 @@ sub classify	{
 		my $extant = ( $t->{'extant'} !~ /y/i ) ? "no" : "yes";
 		print OUT "$t->{'taxon_rank'},\"$t->{'taxon_name'}\",\"".PBDB::TaxonInfo::formatShortAuthor($t)."\",\"$t->{'common_name'}\",\"$t->{'status'}\",$extant\n";
 		$extant = ( $t->{'extant'} !~ /y/i ) ? "&dagger;" : "";
-		my $name = $shortranks{$t->{'taxon_rank'}}." "."$extant" . makeAnchor("basicTaxonInfo", "taxon_no=$t->{taxon_no}", "PBDB::TaxonInfo::italicize($t)") . "</a>";
+        my $taxoninfo = PBDB::TaxonInfo::italicize($t);
+		my $name = $shortranks{$t->{'taxon_rank'}}." "."$extant" . makeAnchor("basicTaxonInfo", "taxon_no=$t->{taxon_no}", "$taxoninfo");
 		if ( $t->{'author1last'} )	{
 			$name .= " ".PBDB::TaxonInfo::formatShortAuthor($t);
 		}

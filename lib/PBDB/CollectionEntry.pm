@@ -451,21 +451,21 @@ sub processCollectionForm {
             $can_modify->{$s->get('authorizer_no')} = 1;
             
             if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {
-                $links .= "<li>" . makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit this collection") . "</li>";
+                $links .= "<li>" . makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit this collection") . "- </li>";
             }
-            $links .= "<li>" . makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one") . "</li>";
+            $links .= "<li>" . makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one") . "- </li>";
             if ($isNewEntry) {
-                $links .= "<li>" . makeAnchor("displaySearchCollsForAdd", "type=add", "Add another collection with the same reference") . "</li>";
+                $links .= "<li>" . makeAnchor("displaySearchCollsForAdd", "type=add", "Add another collection with the same reference") . "- </li>";
             } else {
-                $links .= "<li>" . makeAnchor("displaySearchCollsForAdd", "type=add", "Add a collection with the same reference") . "</li>";
-                $links .= "<li>" . makeAnchor("displaySearchColls", "type=edit", "Edit another collection with the same reference") . "</li>";
-                $links .= "<li>" . makeAnchor("displaySearchColls", "type=edit&use_primary=yes", "Edit another collection using its own reference") . "</li>";
+                $links .= "<li>" . makeAnchor("displaySearchCollsForAdd", "type=add", "Add a collection with the same reference") . "- </li>";
+                $links .= "<li>" . makeAnchor("displaySearchColls", "type=edit", "Edit another collection with the same reference") . "- </li>";
+                $links .= "<li>" . makeAnchor("displaySearchColls", "type=edit&use_primary=yes", "Edit another collection using its own reference") . "- </li>";
             }
-            $links .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no", "Edit taxonomic list") . "</li>";
-            $links .= "<li>" . makeAnchor("displayOccurrenceListForm", "collection_no=$collection_no", "Paste in taxonomic list") . "</li>";
-            $links .= "<li>" . makeAnchor("displayCollResults", "type=occurrence_table&reference_no=$coll->{reference_no}", "Edit occurrence table for collections from the same reference") . "</li>";
+            $links .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no", "Edit taxonomic list") . "- </li>";
+            $links .= "<li>" . makeAnchor("displayOccurrenceListForm", "collection_no=$collection_no", "Paste in taxonomic list") . "- </li>";
+            $links .= "<li>" . makeAnchor("displayCollResults", "type=occurrence_table&reference_no=$coll->{reference_no}", "Edit occurrence table for collections from the same reference") . "- </li>";
             if ( $s->get('role') =~ /authorizer|student|technician/ )	{
-                $links .= "<li>" . makeAnchor("displayOccsForReID", "collection_no=$collection_no", "Reidentify taxa") . "</li>";
+                $links .= "<li>" . makeAnchor("displayOccsForReID", "collection_no=$collection_no", "Reidentify taxa") . "- </li>";
             }
             $links .= "</td></tr></table></div></p>";
 
@@ -661,7 +661,7 @@ sub displayCollectionDetails {
         $can_modify->{$s->get('authorizer_no')} = 1;
 
         if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {  
-            $links .= makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit collection");
+            $links .= makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit collection") . " - ";
         }
         $links .=  makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one");
         $links .= "</div></p>";

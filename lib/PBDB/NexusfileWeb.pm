@@ -89,11 +89,11 @@ sub processUpload {
 	return uploadError($hbo, $q, "Please choose a file to upload", $values);
     }
     
-    if( $q->cgi_error )
-    {
-	print $q->header(-status=>$q->cgi_error);
-	exit;
-    }
+    # if( $q->cgi_error )
+    # {
+    # 	print $q->header(-status=>$q->cgi_error);
+    # 	exit;
+    # }
     
     # Read the data into memory, to a maximum of 100KB.
     
@@ -602,9 +602,9 @@ sub processEdit {
     
     if ( $q->param('addReference') )
     {
-        print $q->header(-type => "text/html", 
-                     -Cache_Control=>'no-cache',
-                     -expires =>"now" );
+        # print $q->header(-type => "text/html", 
+        #              -Cache_Control=>'no-cache',
+        #              -expires =>"now" );
 	$s->enqueue("action=editNexusFile&nexusfile_no=$nexusfile_no&add_ref=1");
 	PBDB::displaySearchRefs("Select a reference to associate with the nexus file:");
 	exit;
