@@ -432,7 +432,7 @@ sub displayAuthorityForm {
         my @names = map {$_->[1]} @taxa;
         my @nos =   map {$_->[0]} @taxa;
         if (scalar(@names) > 1) {
-            my $original_no_select = HTMLBuilder::htmlSelect('original_no',\@names,\@nos,$orig_no);
+            my $original_no_select = PBDB::HTMLBuilder::htmlSelect('original_no',\@names,\@nos,$orig_no);
             $original_no_select .= "\n<br><span class=\"verysmall\">If this is more than one taxon, you may " . makeAnchor("entangledNamesForm", "taxon_no=$orig_no", "disentangle them") . "</span>";
             $fields{'original_no_select'} = $original_no_select;
         }

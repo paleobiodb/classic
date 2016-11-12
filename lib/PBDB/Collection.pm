@@ -1037,19 +1037,20 @@ sub basicCollectionSearch	{
 
 	my ($dbt,$q,$s,$hbo,$taxa_skipped) = @_;
 	my $dbh = $dbt->dbh;
-	
+	print STDERR "PROC ID = $$\n";
 	my $sql;
 	my $fields = "collection_no,collection_name,collection_aka,authorizer,authorizer_no,reference_no,country,state,max_interval_no,min_interval_no,collectors,collection_dates";
 	my ($NAME_FIELD,$AKA_FIELD,$TIME) = ('collection_name','collection_aka','collection_dates');
 	my $NO = $q->param($COLLECTION_NO);
 	my $NAME = $q->param($NAME_FIELD);
-
+	my $qs = $q->param('quick_search');
+	
 	if ( $NAME =~ /^[0-9]+$/ )	{
 		$NO = $NAME;
 		$NAME = "";
 	}
-	print STDERR "COLLECTION_NO = $NO\n";
-	if ( ! $q->param($NO) && ! $q->param($NAME_FIELD) && $q->param('quick_search') )	{
+	
+	if ( ! $q->param($COLLECTION_NO) && ! $q->param($NAME_FIELD) && $q->param('quick_search') )	{
 		if ( $q->param('quick_search') =~ /^[0-9]+$/ )	{
 			$NO = $q->param('quick_search');
 		} else	{
@@ -1063,7 +1064,7 @@ sub basicCollectionSearch	{
 			my @colls = @{$dbt->getData($sql)};
 			$q->param('type' => 'view');
 			$q->param('basic' => 'yes');
-			PBDB::displayCollResults(\@colls);
+			PBDB::displayCollResults($q, $s, $dbt, $hbo, \@colls);
 			return;
 		} else	{
 			$q->param('collection_no' => $q->param('collection_list') );
@@ -1076,22 +1077,32 @@ sub basicCollectionSearch	{
 	if ( ( ! $NO || ( $NO && $NO == 0 ) ) && ! $NAME )	{
 		$q->param('type' => 'view');
 		$q->param('basic' => 'yes');
-		PBDB::displaySearchColls('<center><p style="margin-top: -1em;">Your search produced no matches: please try again</p></center>');
+		PBDB::displaySearchColls($q, $s, $dbt, $hbo, '<center><p style="margin-top: -1em;">Your search produced no matches: please try again</p></center>');
 		return;
 	}
 
-	if ( $NO )	{
-		$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO=".$NO;
-		my $coll = ${$dbt->getData($sql)}[0];
-		if ( $coll )	{
-			$q->param($COLLECTION_NO => $NO);
-			basicCollectionInfo($dbt,$q,$s,$hbo);
-			return 1;
-		} else	{
-			$q->param('type' => 'basic');
-			PBDB::displaySearchColls('<center><p style="margin-top: -1em;">Your search produced no matches: please try again</p></center>');
-			return;
-		}
+	if ( $NO ) {
+	    $sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO=".$NO;
+	    my $coll = ${$dbt->getData($sql)}[0];
+	    
+	    if ( $coll )
+	    {
+		$q->param($COLLECTION_NO => $NO);
+		basicCollectionInfo($dbt,$q,$s,$hbo);
+		return 1;
+	    }
+	    
+	    elsif ( $qs )
+	    {
+		return;
+	    } 
+	    
+	    else
+	    {
+		$q->param('type' => 'basic');
+		PBDB::displaySearchColls($q, $s, $dbt, $hbo, '<center><p style="margin-top: -1em;">Your search produced no matches: please try again</p></center>');
+		return;
+	    }
 	}
 
 	# search is by name of something that could be any of several fields,
@@ -1118,10 +1129,13 @@ sub basicCollectionSearch	{
 		my $integer = $dbh->quote('.*[^0-9]'.$NAME.'(([^0-9]+)|($))');
 		$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO=".$NAME." OR $NAME_FIELD REGEXP $integer OR $AKA_FIELD REGEXP $integer OR $TIME REGEXP $integer";
 	}
-
+	
+	print STDERR "NAME = $NAME\n";
+	print STDERR "SQL = $sql\n";
+	
 	my @colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
-		route();
+		display_colls($q, $s, $dbt, $hbo, \@colls);
 		return 1;
 	}
 
@@ -1150,8 +1164,8 @@ sub basicCollectionSearch	{
 			$sql = "SELECT c.$cfields FROM $COLLECTIONS c,$OCCURRENCES o WHERE c.$COLLECTION_NO=o.$COLLECTION_NO AND taxon_no IN (".join(',',@names).")";
 			@colls = @{$dbt->getData($sql)};
 			if ( @colls )	{
-				route();
-				return 1;
+			    display_colls($q, $s, $dbt, $hbo, \@colls);
+			    return 1;
 			}
 		}
 	}
@@ -1160,7 +1174,7 @@ sub basicCollectionSearch	{
 	$sql = "SELECT $fields FROM $COLLECTIONS WHERE $NAME_FIELD LIKE '%".$NAME."%'";
 	@colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
-		route();
+		display_colls($q, $s, $dbt, $hbo, \@colls);
 		return 1;
 	}
 
@@ -1168,7 +1182,7 @@ sub basicCollectionSearch	{
 	$sql = "SELECT $fields FROM $COLLECTIONS WHERE $AKA_FIELD LIKE '%".$NAME."%'";
 	@colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
-		route();
+		display_colls($q, $s, $dbt, $hbo, \@colls);
 		return 1;
 	}
 
@@ -1176,25 +1190,9 @@ sub basicCollectionSearch	{
 	$sql = "SELECT $fields FROM $COLLECTIONS WHERE (geological_group LIKE '%".$NAME."%' OR formation LIKE '%".$NAME."%' OR member LIKE '%".$NAME."%')";
 	@colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
-		route();
+		display_colls($q, $s, $dbt, $hbo, \@colls);
 		return 1;
 	}
-
-	sub route()	{
-		if ( scalar(@colls) == 0 )	{
-			return;
-		} elsif ( $#colls == 0 )	{
-			$q->param($COLLECTION_NO => $colls[0]->{$COLLECTION_NO} );
-			basicCollectionInfo($dbt,$q,$s,$hbo);
-			return;
-		} else	{
-			$q->param('type' => 'view');
-			$q->param('basic' => 'yes');
-			PBDB::displayCollResults(\@colls);
-			return;
-		}
-	}
-
 
 	if ( ! @colls )	{
 		# function was called by quickSearch, which will try
@@ -1205,13 +1203,42 @@ sub basicCollectionSearch	{
 			$q->param('collection_no' => $q->param('last_collection') );
 			$q->param('type' => 'view');
 			$q->param('basic' => 'yes');
-			PBDB::displaySearchColls('Your search produced no matches: please try again');
+			PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
 			return;
 		}
 	}
 	return 0;
 
 }
+
+
+sub display_colls {
+    
+    my ($q, $s, $dbt, $hbo, $colls_ref) = @_;
+    
+    my $count = scalar(@$colls_ref);
+    
+    if ( $count == 0 )
+    {
+	return;
+    }
+    
+    elsif ( $count == 1 )
+    {
+	$q->param($COLLECTION_NO => $colls_ref->[0]{$COLLECTION_NO} );
+	basicCollectionInfo($dbt,$q,$s,$hbo);
+	return;
+    }
+    
+    else
+    {
+	$q->param('type' => 'view');
+	$q->param('basic' => 'yes');
+	PBDB::displayCollResults($q, $s, $dbt, $hbo, $colls_ref);
+	return;
+    }
+}
+
 
 # JA 6-9.11.09
 sub basicCollectionInfo	{
@@ -1785,16 +1812,15 @@ $o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}
 		print "\n</div>\n\n";
 	}
 
-        print qq|
-<form method="GET" action="">
-<input type="hidden" name="a" value="basicCollectionSearch">
-<input type="hidden" name="last_collection" value="$c->{'collection_no'}">
-<span class="small">
-<input type="text" name="collection_name" value="Search again" size="24" onFocus="textClear(collection_name);" onBlur="textRestore(collection_name);" style="font-size: 1.0em;">
-</span>
-</form>
-
-|;
+# print qq|
+# <form method="GET" action="">
+# <input type="hidden" name="a" value="basicCollectionSearch">
+# <input type="hidden" name="last_collection" value="$c->{'collection_no'}">
+# <span class="small">
+# <input type="text" name="collection_name" value="Search again" size="24" onFocus="textClear(collection_name);" onBlur="textRestore(collection_name);" style="font-size: 1.0em;">
+# </span>
+# </form>
+# |;
 
 	print "<br>\n\n";
 	print "</div>\n\n";

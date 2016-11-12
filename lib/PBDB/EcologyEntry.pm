@@ -38,7 +38,7 @@ sub populateEcologyForm	{
         if (!$s->get('reference_no')) {
             # Make them choose a reference first
             $s->enqueue($q->query_string());
-            PBDB::displaySearchRefs("Please choose a reference before adding ecological/taphonomic data",1);
+            PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference before adding ecological/taphonomic data",1);
             return;
         } else {
             push @values, '' for @fields;

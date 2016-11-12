@@ -316,10 +316,11 @@ from the download URL until the section is opened again.</p>
       Taxonomic status:</td><td>
 	<select id="pm_taxon_status" onChange="dgapp.checkTaxonStatus('selector')">
 	  <option value="">all names</option>
-	  <option value="valid">all valid names</option>
 	  <option value="accepted">accepted names</option>
+	  <option value="valid">accepted names and junior synonyms</option>
 	  <option value="junior">junior synonyms</option>
-	  <option value="invalid">invalid names</option>
+	  <option value="other">other invalid names</option>
+	  <option value="invalid">all invalid names</option>
 	</select></td>
       <td><span class="vis_advanced vis_taxon_range">
 	<input type="checkbox" id="pm_taxon_variants" onChange="dgapp.checkTaxonStatus('variants')">

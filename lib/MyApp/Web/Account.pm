@@ -52,22 +52,26 @@ post '/login' => sub {
 	return template 'account/login', { error_message => 'Password incorrect.'};
     }
     
-    # check for a valid authorizer
+    # check for a valid authorizer and make sure that the account is not disabled.
     
     my $authorizer_no = $user->get_column('authorizer_no');
     my $person_no = $user->get_column('person_no');
-    my $role = $user->get_column('role');
+    my $role = $user->get_column('contributor_status');
+
+    if ( $role ne 'active' )
+    {
+	ouch(403, "This account is disabled.");
+    }
     
-    # $$$ add check for proper authent entry
-    
-    if ( $authorizer_no )
+    if ( $authorizer_no && $person_no )
     {
 	if ( $authorizer_no ne $person_no )
 	{
 	    my $dbh = $schema->storage->dbh;
 	    
-	    my ($check_no) = $dbh->selectrow_array("SELECT authorizer_no FROM authents WHERE authorizer_no = $authorizer_no
-						and enterer_no = $person_no");
+	    my ($check_no) = $dbh->selectrow_array("
+		SELECT authorizer_no FROM authents WHERE authorizer_no = $authorizer_no
+			and enterer_no = $person_no");
 	    
 	    if ( $check_no )
 	    {
@@ -93,7 +97,7 @@ post '/login' => sub {
 	return login($user);
     }
     
-    elsif ( $role eq 'enterer' )
+    elsif ( ($role eq 'enterer' || $role eq 'student') && $person_no )
     {
 	my $dbh = $schema->storage->dbh;
 	
@@ -102,7 +106,7 @@ post '/login' => sub {
 	if ( $authorizer_no )
 	{
 	    $user->set_column('authorizer_no', $authorizer_no);
-	    $user->login_role('enterer');
+	    $user->login_role($role);
 	    $user->login_authorizer_no($authorizer_no);
 	    return login($user);
 	}
@@ -282,6 +286,58 @@ get '/account/enterers' => sub {
     template 'account/enterers', { current_user => $user, };
 };
 
+our (@CAPTCHA_IMAGE);
 
+BEGIN {
+    opendir my $imgdir, "/data/MyApp/captcha/images"; 
+    my @allimgfiles = readdir $imgdir;
+    
+    foreach my $imgfile (@allimgfiles)
+    {
+	next unless $imgfile =~ /\.gif$/;
+	push @CAPTCHA_IMAGE, $imgfile;
+    }
+}
+
+get '/account/captcha.gif' => sub {
+    
+    my $random_choice = int rand ( scalar(@CAPTCHA_IMAGE) );
+    my $image_name = $CAPTCHA_IMAGE[$random_choice];
+    my $remote_addr = request->remote_address;
+    my $image_data;
+    
+    content_type 'image/gif';
+    
+    open(TMPFILE, ">", "/data/MyApp/captcha/temp/$remote_addr") || die "could not open file '$remote_addr': $!";
+    print TMPFILE $image_name;
+    close TMPFILE;
+    chmod 07777, "/data/MyApp/captcha/temp/$remote_addr";
+    
+    open(IMGFILE, "<", "/data/MyApp/captcha/images/$image_name") || die "could not open file '$image_name': $!";
+    sysread(IMGFILE, $image_data, 100000);
+    
+    return $image_data;
+};
+
+
+sub verify_captcha {
+    
+    my ($verify_text) = @_;
+    
+    my $remote_addr = request->remote_address;
+    
+    open(TMPFILE, "<", "/data/MyApp/captcha/temp/$remote_addr") || die "could not open file '$remote_addr': $!";
+    my ($image_name) = <TMPFILE>;    
+    close TMPFILE;
+    
+    if ( $image_name =~ / ^ $verify_text\.gif $/xsi )
+    {
+	print STDERR "VERIFIED $verify_text MATCHES $image_name\n";
+	return 1;
+    }
+    
+    print STDERR "REJECTED $verify_text DOES NOT MATCH $image_name\n";
+    return 0;
+};
 
 1;

@@ -27,19 +27,19 @@
       <span class="sr-only">Toggle navigation</span>
       MENU
     </button>
-    <a class="navbar-brand" href="/"><img src="/public/images/logo_white.png" alt="PaleobioDB" title="PBDB"></a>
+    <a class="navbar-brand" href="/"><img src="/public/images/logo_white.png" alt="PaleobioDB" title="PBDB Home"></a>
   </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li><a href="/classic">PBDB</a></li>
+            <li><a href="/classic">Main Menu</a></li>
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">About<b class="caret"></b></a>
               <ul class="dropdown-menu">
-                <li><a href="/classic/#/faq">Frequently asked questions</a></li>
-                <li><a href="/classic?page=OSA">Online systematics archives</a></li>
-                <li><a href="/classic/#/publications">Official publications</a></li>
-                <li><a href="/classic/#/people/members">Contributors</a></li>
-                <li><a href="/classic/#/people">Executive Committee</a></li>
+                <li><a href="/#/faq">Frequently asked questions</a></li>
+                <li><a href="?page=OSA">Online systematics archives</a></li>
+                <li><a href="/#/publications">Official publications</a></li>
+                <li><a href="/#/people/members">Contributors</a></li>
+                <li><a href="/#/people">Executive Committee</a></li>
               </ul>
             </li>
             <!-- <li class="dropdown"> -->
@@ -64,6 +64,7 @@
                 <li><a href="/classic/?page=OSA">Data archives</a></li>
               </ul>
             </li>
+            [%- IF current_user %]
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Actions<b class="caret"></b></a>
               <ul class="dropdown-menu">
@@ -73,12 +74,13 @@
                 <li><a href="/classic?a=displaySearchRefs&amp;type=add">Add reference</a></li>
                 <li><a href="/classic?a=displaySearchColls&amp;type=edit">Edit collection</a></li>
                 <li><a href="/classic?a=displaySearchCollsForAdd">Add collection</a></li>
-                <li><a href="/classic?a=displayOccurrenceAddEdit">Occurrences</a></li>
-                <li><a href="/classic?a=displayAuthorityTaxonSearchForm">Names</a></li>
-                <li><a href="/classic?a=displayOpinionSearchForm">Opinions</a></li>
-                <li><a href="/classic?a=displaySpecimenSearchForm">Measurements</a></li>
+                <li><a href="/classic?a=displayOccurrenceAddEdit">Add/Edit Occurrences</a></li>
+                <li><a href="/classic?a=displayAuthorityTaxonSearchForm">Add/Edit Names</a></li>
+                <li><a href="/classic?a=displayOpinionSearchForm">Add/Edit Opinions</a></li>
+                <li><a href="/classic?a=displaySpecimenSearchForm">Add/Edit Measurements</a></li>
               </ul>
             </li>
+            [% END -%]
             [%- IF reference_name %]
               <li><a href="/classic?a=displayRefResults&amp;use_current=%%reference_no%%">Ref: [% reference_name %]</a></li>
             [% END -%]
@@ -96,15 +98,26 @@
                   <b class="caret"></b>
                 </a>
                 <ul class="dropdown-menu">
-                  <!--<li><a href=""><b>Authorizer: [% authorizer_name %]</b></li></a>-->
-                  <li><a href=""><em>[% IF authorizer_name %] Authorizer: [% authorizer_name %] [% ELSE %] Authorizer: self [% END %]</em></a></li>
+                  <li><a href=""><em>
+		        [% IF current_user.authorizer_no && current_user.authorizer_no == current_user.person_no %] Authorizer: Myself
+			[% ELSIF current_user.authorizer_name %] Authorizer: [% current_user.authorizer_name %]
+			[% ELSE %] Guest User [% END %]</em></a></li>
 		  <hr>
 		  <li><a href="/account">General settings</a></li>
-                  <li><a href="/classic?a=displayPreferencesPage">Data entry preferences</a></li>
-                  <li><a href="/logout">Log Out</a></li>
-                </ul>
-              </li>
-            </ul>
+		  [% IF current_user.admin %]
+		  <li><a href="/admin/users">Manage users</a></li>
+		  [% END %]
+		  [% IF current_user.role == "authorizer" %]
+		  <li><a href="/account/enterers">Manage my enterers</a></li>
+		  [% END %]
+          [% IF current_user.role == "null" %]
+          <li><a href="/classic?a=displayPreferencesPage">Data entry preferences</a></li>
+          <li><a href="/classic/?a=displayPermissionListForm">Editing permission list</a></li>
+          [% END %]
+          <li><a href="/logout">Log Out</a></li>
+          </ul>
+          </li>
+          </ul>
           [% END %]
 
           <form class="navbar-form navbar-right navbar-input-group" role="search" id="global-game-search" action="/classic/quickSearch" method="POST">

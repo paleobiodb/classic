@@ -3,6 +3,7 @@ package MyApp::DB::Result::User;
 use Moose;
 use Wing::Perl;
 use Data::Dumper;
+use Ouch;
 # use Dancer ':syntax';
 
 extends 'Wing::DB::Result';
@@ -33,7 +34,7 @@ __PACKAGE__->wing_fields(
       first_name => {
         dbic            => { data_type => 'varchar(80)', is_nullable => 0 },
         view            => 'public',
-        edit            => 'postable',
+        edit            => 'required',
       },
       middle_name => {
 	dbic		=> { data_type => 'varchar(80)', is_nullable => 0 },
@@ -43,7 +44,7 @@ __PACKAGE__->wing_fields(
       last_name => {
 	dbic		=> { data_type => 'varchar(80)', is_nullable => 0 },
 	view		=> 'public',
-	edit		=> 'postable',
+	edit		=> 'required',
 	indexed		=> 1,
       },
       country => {
@@ -55,13 +56,27 @@ __PACKAGE__->wing_fields(
       institution => {
 	dbic		=> { data_type => 'varchar(80)', is_nullable => 0 },
 	view		=> 'public',
+	edit		=> 'required',
+      },
+      orcid => {
+	dbic		=> { data_type => 'varchar(19)', is_nullable => 0 },
+	view		=> 'public',
 	edit		=> 'postable',
       },
       role => {
-	dbic		=> { data_type => 'varchar(80)', is_nullable => 0 },
-	options		=> ['guest', 'student', 'enterer', 'authorizer', 'technician'],
+	dbic		=> { data_type => 'enum("guest", "authorizer", "enterer", "student")', is_nullable => 0 },
+	options		=> ['guest', 'authorizer', 'enterer', 'student'],
 	view		=> 'public',
+	edit		=> 'admin',
+	default_value	=> 'guest',
 	indxeded	=> 1,
+      },
+      contributor_status => {
+	dbic		=> { data_type => 'enum("active", "disabled", "deceased")', is_nullable => 0 },
+	options		=> ['active', 'disabled', 'deceased'],
+	view		=> 'private',
+	edit		=> 'admin',
+	default_value	=> 'active',
       },
 );
 
@@ -149,20 +164,96 @@ before end_session => sub {
     PBDB::Session->end_login_session($session->id);
 };
 
-after verify_posted_params => sub {
+before verify_creation_params => sub {
     
-    my ($self, $params) = @_;
+    my ($self, $params, $current_user) = @_;
     
-    if ( $params->{real_authorizer_no} )
+    # check orcid
+    
+    my $orcid = $params->{orcid};
+    
+    ouch(400, "Invalid ORCID") if defined $orcid && $orcid ne '' &&
+	$orcid !~ qr{ ^ \d\d\d\d - \d\d\d\d - \d\d\d\d - \d\d\d\d $ }xsi;
+
+    # need to construct real_name from first_name, middle_name, last_name
+
+    my $real_name = $params->{first_name};
+    
+    ouch(400, "First name must include at least one letter") unless $real_name =~ /[a-z]/i;
+    
+    my $middle_name = $params->{middle_name} || '';
+    
+    if ( $middle_name )
     {
-	my $person_no = $self->get_column('person_no');
-	
+	$real_name .= " $middle_name";
+	$real_name .= "." if $middle_name =~ qr{ ^ [a-z] $ }xsi;
+
+	ouch(400, "Middle name must include at least one letter") unless $middle_name =~ /[a-z]/i;
     }
     
-    my $a = 1;
+    $real_name .= " " . $params->{last_name};
     
-    # need to construct real_name from first_name, middle_name, last_name
+    ouch(400, "Last name must include at least one letter") unless $params->{last_name} =~ /[a-z]/i;
+    
+    $params->{real_name} = $real_name;
+    
+    # need to construct username from first_name, last_name
+    
+    my $username = make_username($params->{first_name}, '', $params->{last_name});
+    
+    my $mi = substr($params->{middle_name}, 0, 1);
+    my $basename = $username;
+    my $suffix = '1';
+    
+    # push @usernames, make_username($params->{first_name}, $mi, $params->{last_name}) if $mi;
+    
+    my $schema = Wing->db;
+    my $found_user;
+    
+    $found_user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
+    
+    while ( $found_user )
+    {
+	$username = $basename . $suffix++;
+	
+	$found_user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
+	
+	ouch(400, "Try a different name.") if $found_user && $suffix > 9;
+    }
+    
+    $params->{username} = $username;
+    
+    # set default for use_as_display_name
+
+    $params->{use_as_display_name} = 'real_name';
+
+    # set default for role
+
+    $params->{role} = 'guest';
+    
+    # check CAPTCHA
+    
+    unless ( MyApp::Web::verify_captcha($params->{verify_text}) )
+    {
+	ouch(400, "Invalid code. Please try again.");
+    }
 };
+
+
+sub make_username {
+    
+    my ($first, $middle, $last) = @_;
+
+    my $username = $first;
+    $username .= $middle if $middle;
+    $username .= $last;
+
+    $username = lc $username;
+    $username =~ s/[^\w]//g;
+
+    return $username;
+}
+
 
 around describe => sub {
     my ($orig, $self, %options) = @_;
@@ -178,6 +269,15 @@ around describe => sub {
     if ( ! $authorizer_no && $role eq 'authorizer' )
     {
     	$out->{real_authorizer_no} = $person_no;
+    }
+    
+    if ( $authorizer_no )
+    {
+	my ($authorizer_name) = $dbh->selectrow_array("
+		SELECT real_name FROM pbdb_wing.users
+		WHERE person_no = $authorizer_no LIMIT 1");
+	
+	$out->{authorizer_name} = $authorizer_name;
     }
     
     # my $quoted = $dbh->quote($out->{id});
@@ -267,6 +367,79 @@ sub is_authorizer {
     return;
 }
 
+
+sub make_person_no {
+    
+    my ($self) = @_;
+    
+    if ( my $person_no = $self->person_no )
+    {
+	return $person_no;
+    }
+    
+    my $dbh = Wing::db->storage->dbh;
+    
+    my $first_init = substr($self->first_name, 0, 1);
+    my $last_name = $self->last_name;
+    my $name_quoted = $dbh->quote("$first_init. $last_name");
+    my $reversed_quoted = $dbh->quote("$last_name, $first_init.");
+    my $first_quoted = $dbh->quote($self->first_name);
+    my $middle_quoted = $dbh->quote($self->middle_name);
+    my $last_quoted = $dbh->quote($self->last_name);
+    my $inst_quoted = $dbh->quote($self->institution);
+    my $email_quoted = $dbh->quote($self->email);
+    my $is_authorizer = $self->role eq 'authorizer' ? '1' : '0';
+    my $role_quoted = $dbh->quote($self->role);
+    my $id_quoted = $dbh->quote($self->id || 'xxx');
+    
+    my $sql = " INSERT INTO pbdb.person (name, reversed_name, first_name, middle,
+			last_name, institution, email, is_authorizer, role)
+		VALUES ($name_quoted, $reversed_quoted, $first_quoted, $middle_quoted, $last_quoted,
+			$inst_quoted, $email_quoted, $is_authorizer, $role_quoted)";
+
+    unless ( $dbh->do($sql) )
+    {
+	ouch(500, "Error: could not create person record");
+    }
+    
+    my $person_no = $dbh->{mysql_insertid};
+    
+    $sql = "	UPDATE users SET person_no = $person_no
+		WHERE id = $id_quoted";
+
+    unless ( $dbh->do($sql) )
+    {
+	ouch(500, "Error: could not set person_no");
+    }
+    
+    return $person_no;
+}
+
+
+sub set_role {
+    
+    my ($self, $new_role) = @_;
+
+    return if $self->role eq 'authorizer';
+    
+    return unless $new_role eq 'enterer' || $new_role eq 'student';
+
+    my $dbh = Wing::db->storage->dbh;
+    my $quoted_role = $dbh->quote($new_role);
+    my $quoted_id = $dbh->quote($self->id || 'xxx');
+    
+    my $sql = "	UPDATE users SET role = $quoted_role WHERE id = $quoted_id";
+
+    $dbh->do($sql);
+
+    $sql = "	UPDATE pbdb.person JOIN users using (person_no)
+		SET pbdb.person.role = $quoted_role
+		WHERE users.id = $quoted_id";
+    
+    $dbh->do($sql);
+
+    print STDERR "$sql\n";
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);

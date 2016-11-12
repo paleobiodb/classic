@@ -8,6 +8,8 @@ use PBDB::TaxaCache;
 use PBDB::TaxonInfo;
 use PBDB::Person;
 use PBDB::Opinion;  # not used?
+use PBDB::Reference;
+use PBDB::ReferenceEntry;
 use Carp qw(carp);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
@@ -527,7 +529,7 @@ sub displayITISDownload {
             push @line, ($pubtitle || "");
             push @line, ($row->{'pubyr'} || ""); # Listed pub date
             push @line, '','','','',''; #Actual pub date, publisher, pub place, isbn, issn
-	    #my $pages = Reference::coalescePages($pages{$row->{reference_no}});
+	    #my $pages = PBDB::Reference::coalescePages($pages{$row->{reference_no}});
             push @line, ($row->{'pages'} || ""); #pages
             push @line, ($row->{'comments'} || "");
             push @line, $row->{'modified_short'};
@@ -865,8 +867,8 @@ sub displayPBDBDownload {
             my $csv_string = $csv->string();
             $csv_string =~ s/\r|\n//g;
             print FH_REF $csv_string."\n";
-	    $row->{refpages} = Reference::coalescePages($pages{$row->{reference_no}});
-	    my $outref = ReferenceEntry::formatRISRef($dbt, $row);
+	    $row->{refpages} = PBDB::Reference::coalescePages($pages{$row->{reference_no}});
+	    my $outref = PBDB::ReferenceEntry::formatRISRef($dbt, $row);
 	    if ( $outref =~ /PARSE ERROR/ )
 	    {
 		push @ris_bad_list, $row->{reference_no};

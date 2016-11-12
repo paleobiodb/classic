@@ -1844,30 +1844,36 @@ sub removeDuplicateOpinions {
 
 # JA 29.6 to 4.7.11 (intermittently)
 sub badNames	{
-	my ($dbt,$hbo,$s,$q) = @_;
+	my ($q, $s, $dbt, $hbo) = @_;
 
 	my $group = $q->param('taxon_name');
 	if ( $group =~ /[^A-Za-z ]/ )	{
-		PBDB::badNameForm("The taxon name '$group' is misformatted");
+		PBDB::badNameForm($q, $s, $dbt, $hbo, "The taxon name '$group' is misformatted");
 		return;
 	}
 	if ( $group =~ /.+ .* .+/ )	{
-		PBDB::badNameForm("The taxon name '$group' includes too many spaces");
+		PBDB::badNameForm($q, $s, $dbt, $hbo, "The taxon name '$group' includes too many spaces");
 		return;
 	}
 	my $exclude = $q->param('exclude_taxon_name');
 	if ( $exclude && $exclude =~ /[^A-Za-z ]/ )	{
-		PBDB::badNameForm("The taxon name '$exclude' is misformatted");
+		PBDB::badNameForm($q, $s, $dbt, $hbo, "The taxon name '$exclude' is misformatted");
 		return;
 	}
 	if ( $exclude =~ /.+ .* .+/ )	{
-		PBDB::badNameForm("The taxon name '$exclude' includes too many spaces");
+		PBDB::badNameForm($q, $s, $dbt, $hbo, "The taxon name '$exclude' includes too many spaces");
 		return;
 	}
 	my $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name='".$group."' ORDER BY rgt-lft DESC";
         my $t = ${$dbt->getData($sql)}[0];
 	my ($lft,$rgt) = ($t->{'lft'},$t->{'rgt'});
-
+	
+	unless ( $lft && $rgt )
+	{
+	    PBDB::badNameForm($q, $s, $dbt, $hbo, "The taxon name '$group' was not found in the taxonomic hierarchy");
+	    return;
+	}
+	
 	my $exclude_clause;
 	if ( $exclude )	{
 		$sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name='".$exclude."' ORDER BY rgt-lft DESC";
@@ -1875,7 +1881,7 @@ sub badNames	{
 		if ( $ex->{'lft'} > 0 )	{
 			$exclude_clause = " AND (t.lft<$ex->{'lft'} OR t.rgt>$ex->{'rgt'})";
 		} else	{
-			PBDB::badNameForm("'$exclude' isn't in the database");
+			PBDB::badNameForm($q, $s, $dbt, $hbo, "'$exclude' isn't in the database");
 			return;
 		}
 	}
@@ -1921,7 +1927,7 @@ sub badNames	{
 	$parent_parent{$_->{'taxon_no'}} = $_->{'parent'} foreach @orphans;
 
 	if ( ! @bad_nos )	{
-		PBDB::badNameForm("There are no bad names within $group");
+		PBDB::badNameForm($q, $s, $dbt, $hbo, "There are no bad names within $group");
 		return;
 	}
 

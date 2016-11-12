@@ -172,10 +172,13 @@ sub insertRecord {
                 if ($type eq 'SET') {
                     # my @vals = split(/\0/,$fields->{$field});
                     # $value = $dbh->quote(join(",",@vals));
-		    $value = ref $fields->{$field} eq 'ARRAY' ? join(',', @{$fields->{$field}}) : $fields->{$field};
+		    my $raw_value = ref $fields->{$field} eq 'ARRAY' ? $fields->{$field}[0] : $fields->{$field};
+		    $value ||= '';
+		    $value = $dbh->quote($value);
+		    # $value = ref $fields->{$field} eq 'ARRAY' ? join(',', @{$fields->{$field}}) : $fields->{$field};
                 } else {
                     if ($type =~ /TEXT|BLOB/i) {
-                        $value = $fields->{$field};
+                        $value = $dbh->quote($fields->{$field});
                     } else {
                         # my @vals = split(/\0/,$fields->{$field});
                         # $value = $vals[0];

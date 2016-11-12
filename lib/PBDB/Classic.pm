@@ -166,8 +166,8 @@ sub classic_request {
     
     # if ( $action eq 'basicCollectionSearch' ) { $action = 'displayCollResults'; $q->param('type'
     # => 'view'); $q->param('basic' => 'yes'); }
-    print STDERR "SESSION_ID = $session_id\n";
-    print STDERR $q->list_params;
+    # print STDERR "SESSION_ID = $session_id\n";
+    # print STDERR $q->list_params;
     
     my $use_guest = (!$s->isDBMember()) ? 1 : 0;
     
@@ -254,6 +254,7 @@ sub classic_request {
     if ($user) {
         $vars->{current_user} = $user;
 	$vars->{authorizer_no} = $authorizer_no;
+	$vars->{enterer_no} = $s->{enterer_no};
 	$vars->{authorizer_name} = $authorizer_name;
 	$vars->{reference_name} = $reference_name;
 	# $vars->{current_user}{display_name} = 'FOO';
@@ -427,11 +428,14 @@ sub menu	{
 		print $hbo->populateHTML('menu',\%vars);
 		print $hbo->stdIncludes($PAGE_BOTTOM);
 	} else	{
-        	if ($q->param('user') eq 'Contributor') {
-			login( "Please log in first.","menu" );
-		} else	{
-			home($q, $s, $dbt, $hbo);
-		}
+        	# if ($q->param('user') eq 'Contributor') {
+		# 	login( "Please log in first.","menu" );
+		# } else	{
+		# 	menu($q, $s, $dbt, $hbo);
+		# }
+	    print $hbo->stdIncludes($PAGE_TOP);
+	    print $hbo->populateHTML('menu', \%vars);
+	    print $hbo->stdIncludes($PAGE_BOTTOM);
 	}
 }
 
@@ -1013,7 +1017,9 @@ sub editCurrentRef {
 		displayReferenceForm($q, $s, $dbt, $hbo);
 	} else {
 		$q->param("type"=>"edit");
+        print $hbo->stdIncludes( $PAGE_TOP );
 		PBDB::Reference::displaySearchRefs($dbt,$q,$s,$hbo,"<center>Please choose a reference first</center>" );
+        print $hbo->stdIncludes( $PAGE_BOTTOM );
 	}
 }
 
@@ -1100,7 +1106,7 @@ sub quickSearch	{
 			$q->param('name' => $words[0]);
 			$q->param('year_relation' => 'in');
 			$q->param('year' => $words[$#words]);
-			displayRefResults();
+			displayRefResults($q, $s, $dbt, $hbo);
 			return;
 		}
 	# case 2: otherwise or if that fails, try collections
@@ -1137,8 +1143,9 @@ sub quickSearch	{
 	# this point should only ever be reached if nothing works whatsoever
 	#  and no error message is returned by anything else, which is only
 	#  ever likely to happen if basicTaxonInfo isn't called
+    
 	print $hbo->stdIncludes( $PAGE_TOP );
-	home('<div class="large" style="margin-bottom: 2em;"><i>Sorry - your search failed to recover any data records.</i></div>');
+	menu($q, $s, $dbt, $hbo, 'Your search failed to recover any data records');
 	print $hbo->stdIncludes( $PAGE_BOTTOM );
 
 	return;
@@ -2191,7 +2198,7 @@ sub processTaxonSearch {
         : ($goal eq 'ecotaph')    ? 'startPopulateEcologyForm'
         : ($goal eq 'ecovert')    ? 'startPopulateEcologyForm'
         : croak("Unknown goal given in submit taxon search");
-
+    
     if ( $goal eq 'authority' || $goal eq 'opinion' )	{
         $options{'ignore_common_name'} = "YES";
     }
@@ -2200,7 +2207,6 @@ sub processTaxonSearch {
     }
     
     my @results = PBDB::TaxonInfo::getTaxa($dbt,\%options,['*']);
-        
     # If there were no matches, present the new taxon entry form immediately
     # We're adding a new taxon
     if (scalar(@results) == 0) {
@@ -2233,6 +2239,7 @@ sub processTaxonSearch {
                             $oldsp++;
                         }
                     }
+
                     if ( $oldg == 0 || ( $sg && $oldsg == 0 ) || $oldsp == 0 )	{
                         $sql = "SELECT count(*) c FROM occurrences WHERE genus_name LIKE ".$dbh->quote($g)." AND taxon_no>0";
                         if ($sg) {
@@ -2295,7 +2302,8 @@ sub processTaxonSearch {
                     print "</div></p>";
                     print "</div>";
                     print "</div>";
-                } else {
+                }
+	    	else {
                     if (!$s->get('reference_no')) {
                         $s->enqueue($q->query_string());
                         displaySearchRefs($q, $s, $dbt, $hbo,"Please choose a reference before adding a new taxon",1);
@@ -2379,7 +2387,7 @@ sub processTaxonSearch {
     			print "<p class=\"pageTitle\">Taxonomic names from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
         	}
         }
-
+		
         # now create a table of choices
 		print "<div class=\"displayPanel medium\" style=\"width: 40em; padding: 1em; padding-right: 2em; margin-top: -1em;\">";
         print "<div align=\"left\"><ul>\n";
@@ -2689,12 +2697,12 @@ sub submitTypeTaxonSelect {
 
 sub badNameForm	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $error) = @_;
     
 	my %vars;
-	$vars{'error'} = $_[0];
-	if ( $vars{'error'} )	{
-		$vars{'error'} = '<p class="small" style="margin-left: 1em; margin-bottom: 1.5em; margin-top: 1em; text-indent: -1em;">' . $vars{'error'} . ". Please try again.</p>\n\n";
+	# $vars{'error'} = $_[0];
+	if ( $error )	{
+		$vars{'error'} = '<p class="small" style="margin-left: 1em; margin-bottom: 1.5em; margin-top: 1em; text-indent: -1em;">' . $error . ". Please try again.</p>\n\n";
 	}
 	print $hbo->stdIncludes($PAGE_TOP);
 	print $hbo->populateHTML('bad_name_form', \%vars);
@@ -2706,7 +2714,7 @@ sub badNames	{
     my ($q, $s, $dbt, $hbo) = @_;
     
 	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Opinion::badNames($dbt,$hbo,$s,$q);
+	PBDB::Opinion::badNames($q, $s, $dbt, $hbo);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
 }
 

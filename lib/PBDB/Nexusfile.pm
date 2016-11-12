@@ -233,7 +233,7 @@ sub getFileInfo {
     elsif ( defined $options->{base_name} )
     {
 	my $done;
-	my $t = TaxonInfo::getTaxa($dbt, { taxon_name => $options->{base_name} });
+	my $t = PBDB::TaxonInfo::getTaxa($dbt, { taxon_name => $options->{base_name} });
 	
 	if ( defined $t and $t->{taxon_no} > 0 )
 	{

@@ -37,7 +37,7 @@ sub submitSpecimenSearch {
             my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name='".$q->param('taxon_name')."'";
             @taxa = @{$dbt->getData($sql)};
         } else	{
-            @taxa = TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('taxon_name'),'match_subgenera'=>1});
+            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('taxon_name'),'match_subgenera'=>1});
         }
     } 
     if (@taxa) {
@@ -49,9 +49,9 @@ sub submitSpecimenSearch {
                     @all_taxa{@taxon_nos} = ();
                 } else {
                     if ( $q->param('match_type') !~ /combinations only/ )	{
-                        @taxon_nos = TaxonInfo::getAllSynonyms($dbt,$_->{'taxon_no'});
+                        @taxon_nos = PBDB::TaxonInfo::getAllSynonyms($dbt,$_->{'taxon_no'});
                     } else	{
-                        @taxon_nos = TaxonInfo::getAllSpellings($dbt,$_->{'taxon_no'});
+                        @taxon_nos = PBDB::TaxonInfo::getAllSpellings($dbt,$_->{'taxon_no'});
                     }
                     @all_taxa{@taxon_nos} = ();
                     @all_taxa{$_->{'taxon_no'}} = 1; 
@@ -250,7 +250,7 @@ sub displaySpecimenList {
         }
         @results = @{$dbt->getData($sql)};
 
-        my $taxon = TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))},[taxon_rank,taxon_name,extant]);
+        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))},[taxon_rank,taxon_name,extant]);
         if ($taxon->{'taxon_rank'} =~ /species/) {
             $taxon_name = $taxon->{'taxon_name'};
         } elsif ($taxon->{'taxon_rank'} =~ /genus/) {
@@ -570,7 +570,7 @@ sub populateMeasurementForm {
     } else {
         $old_field = "taxon_no";
         $old_no = int($q->param('taxon_no'));
-        my $taxon = TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))},['taxon_rank','taxon_name','extant']);
+        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))},['taxon_rank','taxon_name','extant']);
         if ($taxon->{'taxon_rank'} =~ /species/) {
             $taxon_name = $taxon->{'taxon_name'};
         } elsif ($taxon->{'taxon_rank'} =~ /genus/) {
@@ -856,7 +856,7 @@ sub processMeasurementForm	{
             return;
         }
     } else {
-        my $taxon = TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))});
+        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))});
         if ($taxon->{'taxon_rank'} =~ /species/) {
             $taxon_name = $taxon->{'taxon_name'};
         } elsif ($taxon->{'taxon_rank'} =~ /genus/) {

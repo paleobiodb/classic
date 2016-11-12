@@ -51,15 +51,23 @@ sub can_edit {
 };
 
 
-sub verify_posted_params {
+sub verify_creation_params {
+    
     my ($self, $params, $current_user) = @_;
+    
+    unless ( $current_user )
+    {
+	ouch(450, "You must be logged in.");
+    }
     
     my $authorizer_no = $params->{authorizer_no};
     my $enterer_no = $params->{enterer_no};
+    my $enterer_id = $params->{enterer_id};
+    my $role = $params->{role};
     
     my $users = Wing->db->resultset('User');
     
-    unless ( $authorizer_no =~ /^\d+$/ )
+    unless ( $authorizer_no && $authorizer_no =~ /^\d+$/ )
     {
 	ouch(400, "Invalid authorizer_no.");
     }
@@ -68,21 +76,73 @@ sub verify_posted_params {
     
     unless ( $authorizer && $authorizer->role eq 'authorizer' )
     {
-	ouch(400, "Invalid authorizer_no.");
+	ouch(400, "Not an authorizer.");
     }
     
-    unless ( $enterer_no =~ /^\d+$/ && $enterer_no ne $authorizer_no && 
-	     $users->search( { person_no => $enterer_no } )->single )
+    my $enterer;
+
+    if ( defined $enterer_no && $enterer_no ne '' )
     {
-	ouch(400, "Invalid enterer_no.");
+	unless ( $enterer_no =~ /^\d+$/ && $enterer_no ne $authorizer_no )
+	{
+	    ouch(400, "Invalid enterer_no.");
+	}
+	
+	$enterer = $users->search( { person_no => $enterer_no } )->single;
+	
+	unless ( $enterer )
+	{
+	    ouch(400, "Enterer not found.");
+	}
+    }
+
+    elsif ( defined $enterer_id && $enterer_id ne '' )
+    {
+	$enterer = $users->search( { id => $enterer_id } )->single;
+	
+	unless ( $enterer && $enterer_id ne $authorizer->id )
+	{
+	    ouch(400, "Enterer not found.");
+	}
+    }
+
+    else
+    {
+	ouch(400, "Enterer id or number required.");
+    }
+
+    if ( $role )
+    {
+	ouch(400, "Role must be 'enterer' or 'student'.") unless $role eq 'enterer' || $role eq 'student';
+    }
+
+    # print STDERR "ENTERER ID = " . $enterer->id . "\n";
+    
+    my $enterer_role = $enterer->role;
+    my $enterer_person_no = $enterer->person_no;
+    
+    # If the "enterer" is already an authorizer, leave their role alone.
+    # Otherwise, set it to the specified value.
+    
+    if ( $enterer_role eq 'disabled' )
+    {
+	ouch(400, "That user is disabled.");
     }
     
-    unless ( $current_user )
+    elsif ( $enterer_role ne 'authorizer' )
     {
-	ouch(450, "You must be logged in.");
+	$enterer->set_role($role || 'enterer');
+    }
+    
+    unless ( $enterer_person_no )
+    {
+	$enterer_person_no = $enterer->make_person_no;
+
+	ouch(400, "Could not create a person_no value") unless $enterer_person_no;
     }
     
     $self->authorizer_no($authorizer_no);
+    $self->enterer_no($enterer_person_no);
     
     $self->can_edit($current_user);
 };

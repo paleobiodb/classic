@@ -4322,13 +4322,12 @@ sub basicTaxonInfo	{
 		print qq|<input type="hidden" name="last_taxon" value="$taxon_no">
 |;
 	}
-	print qq|
-<span class="small">
-<input type="text" name="search_again" value="Search again" size="24" onFocus="textClear(search_again);" onBlur="textRestore(search_again);" style="font-size: 1.0em;">
-</span>
-</form>
-
-|;
+# print qq|
+# <span class="small">
+# <input type="text" name="search_again" value="Search again" size="24" onFocus="textClear(search_again);" onBlur="textRestore(search_again);" style="font-size: 1.0em;">
+# </span>
+# </form>
+# |;
 
 	print "<br>\n\n";
 	print "</div>\n\n";

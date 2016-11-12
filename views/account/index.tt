@@ -1,7 +1,7 @@
 [% page_title = "${current_user.display_name}'s Account" %]
 [% INCLUDE account/header_include.tt %]
 <div ng-app="AccountApp" ng-controller="AccountCtrl" ng-cloak>
-    <p>Welcome [% current_user.display_name FILTER html %]. Not [% current_user.display_name FILTER html %]? <a href="/logout">Click here</a>.</p>
+    <p>Not [% current_user.display_name FILTER html %]? <a href="/logout">Click here</a>.</p>
 
     <div class="row">
         <div class="col-sm-6">
@@ -27,6 +27,24 @@
                         <input class="form-control" type="text" name="email" ng-model="user.properties.email" autosave="user" id="email">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="institution">Institution</label>
+                        <div class="col-sm-8">
+                        <input class="form-control" type="text" name="institution" ng-model="user.properties.institution" autosave="user" id="institution">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="orcid">ORCID</label>
+                        <div class="col-sm-8">
+                        <input class="form-control" type="text" name="orcid" ng-model="user.properties.orcid" autosave="user" id="orcid">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="role">Database Role</label>
+                        <div class="col-sm-8">
+                        <input class="form-control" type="text" name="role" id="role" value=[% current_user.role %] readonly>
+                        </div>
+                    </div>
                 </fieldset>
 
                 <fieldset>
@@ -38,18 +56,12 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-4 control-label">Authorizer</label>
+                        <label class="col-sm-4 control-label">Current Authorizer</label>
                         <div class="col-sm-8">
                             <wing-select object="user" property="authorizer_no"></wing-select>
                             <!-- <p ng-if="user.properties.developer == 1"><a href="/account/apikeys">Manage API keys.</a></p> -->
                         </div>
                     </div>
-
-                   <!-- <div class="form-group">
-                        <div class="col-sm-8">
-                          <input class="form-control" type="text" name="authorizer" ng-model="user.properties.authorizer_no" autosave="" id="authorizer">
-                        </div>
-                    </div> -->
                 </fieldset>
             </form>
         </div>
@@ -75,10 +87,23 @@
                             <input class="btn btn-primary" type="submit" value="Update Password">
                         </div>
                     </div>
+                    <br><br><br><br><br>
                 </fieldset>
             </form>
         </div>
-
+        <div class="col-sm-6">
+            <form action="/account" method="POST" enctype="multipart/form-data" class="form-horizontal">
+                <fieldset>
+                    <legend>Account Upgrade</legend>
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="role">Request Role</label>
+                        <div class="col-sm-8">
+                        <a class="btn btn-primary" href="mailto:sec@paleobiodb.org?subject=PBDB%20Authorizer%20Request&body=Please%20complete%20the%20following%20to%20request%20an%20upgrade%20of%20your%20account%20to%20Authorizer%20role.%0A%0A%0AFull name:%20%20[% current_user.real_name %]%0A%0AReason for interest in becoming a PBDB contributer:%0A%0A%0A%0A%0AAttach a CV to this email:%0A%0A%0A">Authorizer</a>
+                        </div>
+                    </div>
+            </fieldset>
+            </form>
+        </div>
     </div><!-- row -->
 </div>
 [% foot_tags = BLOCK %]
