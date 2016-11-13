@@ -264,12 +264,12 @@ around describe => sub {
     my $person_no = $self->get_column('person_no');
     my $authorizer_no = $self->get_column('authorizer_no');
     
-    $out->{real_authorizer_no} = $authorizer_no;
+    # $out->{real_authorizer_no} = $authorizer_no;
     
-    if ( ! $authorizer_no && $role eq 'authorizer' )
-    {
-    	$out->{real_authorizer_no} = $person_no;
-    }
+    # if ( ! $authorizer_no && $role eq 'authorizer' )
+    # {
+    # 	$out->{real_authorizer_no} = $person_no;
+    # }
     
     if ( $authorizer_no )
     {

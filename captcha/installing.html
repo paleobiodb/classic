@@ -1,0 +1,69 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
+<meta name="GENERATOR" content="Microsoft FrontPage Express 2.0">
+<title>Installing CAPTCHA for PERL</title>
+</head>
+
+<body bgcolor="#FFFFFF">
+<div align="center"><center>
+
+<table border="0" cellpadding="3" cellspacing="3" width="750">
+    <tr>
+        <td><p align="center"><font face="Arial"><strong>How to
+        Install CAPTCHA for PERL</strong></font></p>
+        <p align="left"><font face="Arial">To install the demo
+        program download the zip file and unzip it.</font></p>
+        <p align="left"><font face="Arial">Create a directory on
+        your website named &quot;captcha&quot;. The directory
+        must be able to execute perl scripts, if you are limited
+        on your server then your base directory would be your cgi-bin.</font></p>
+        <p align="left"><font face="Arial">Make 2 directories
+        inside that directory named &quot;temp&quot; and &quot;images&quot;.
+        You will need to chmod 0777 so they are web writeable.</font></p>
+        <p align="left"><font face="Arial"># you need to make
+        sure the path to perl is correct for your server the
+        default is:<br>
+        #!/usr/bin/perl</font></p>
+        <p align="left"><font face="Arial">You only need to
+        modify 2 lines in the captcha.cgi. Change the &quot;pathtoyourwww&quot;
+        to the actual path to the directory the script will
+        reside in.</font></p>
+        <p align="left"><font face="Arial">$tempdir = &quot;/pathtoyourwww/captcha/temp&quot;;<br>
+        $imagedir = &quot;/pathtoyourwww/captcha/images&quot;;</font></p>
+        <p align="left"><font face="Arial">Then modify the check-captcha.cgi
+        with the correct path to the temp directory.</font></p>
+        <p align="left"><font face="Arial">$tempdir = &quot;/pathtoyourwww/captcha/temp&quot;;</font></p>
+        <p align="left"><font face="Arial">Upload captcha.cgi,
+        check-captcha.cgi, form.cgi to the captcha directory.</font></p>
+        <p align="left"><font face="Arial">chmod 0755 each script.</font></p>
+        <p align="left"><font face="Arial">Upload the images (in
+        binary mode) to the image directoty.</font></p>
+        <p align="left"><font face="Arial">Now just access the
+        form.cgi to see how it works.</font></p>
+        <p align="left"><font face="Arial">Notes: You will not
+        want your temp or images directories to be web accessible.
+        They should be placed in a directory that is not web
+        readable. For the purpose of demonstration, we have put
+        everything in web accessible directories so you can
+        analyze how it works.</font></p>
+        <p align="left"><font face="Arial">We do not expect
+        anyone to use the demo program as is, because it does not
+        do anything other than demonstarte the use of the form
+        validation. For that reason, we have made it as easy as
+        possible to understand and not necessarily in the best
+        secure configuration.</font></p>
+        <p align="left"><font face="Arial">For additional help
+        and image sets go to </font><a
+        href="http://bumblebeeware.com"><font face="Arial">http://bumblebeeware.com</font></a><font
+        face="Arial"> </font></p>
+        </td>
+    </tr>
+</table>
+</center></div>
+
+<p>&nbsp;</p>
+</body>
+</html>
