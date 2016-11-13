@@ -5,7 +5,6 @@ use Wing::Perl;
 use Ouch;
 
 
-
 extends 'Wing::DB::Result';
 with 'Wing::Role::Result::Field';
 

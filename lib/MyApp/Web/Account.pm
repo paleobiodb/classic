@@ -56,9 +56,10 @@ post '/login' => sub {
     
     my $authorizer_no = $user->get_column('authorizer_no');
     my $person_no = $user->get_column('person_no');
-    my $role = $user->get_column('contributor_status');
-
-    if ( $role ne 'active' )
+    my $role = $user->get_column('role');
+    my $status = $user->get_column('contributor_status');
+    
+    if ( $status ne 'active' )
     {
 	ouch(403, "This account is disabled.");
     }
@@ -332,11 +333,11 @@ sub verify_captcha {
     
     if ( $image_name =~ / ^ $verify_text\.gif $/xsi )
     {
-	print STDERR "VERIFIED $verify_text MATCHES $image_name\n";
+	# print STDERR "VERIFIED $verify_text MATCHES $image_name\n";
 	return 1;
     }
     
-    print STDERR "REJECTED $verify_text DOES NOT MATCH $image_name\n";
+    # print STDERR "REJECTED $verify_text DOES NOT MATCH $image_name\n";
     return 0;
 };
 

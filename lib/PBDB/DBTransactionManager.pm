@@ -172,23 +172,25 @@ sub insertRecord {
                 if ($type eq 'SET') {
                     # my @vals = split(/\0/,$fields->{$field});
                     # $value = $dbh->quote(join(",",@vals));
-		    my $raw_value = ref $fields->{$field} eq 'ARRAY' ? $fields->{$field}[0] : $fields->{$field};
+		    # my $raw_value = ref $fields->{$field} eq 'ARRAY' ? $fields->{$field}[0] : $fields->{$field};
+		    $value = ref $fields->{$field} eq 'ARRAY' ? join(',', @{$fields->{$field}}) : $fields->{$field};
 		    $value ||= '';
 		    $value = $dbh->quote($value);
 		    # $value = ref $fields->{$field} eq 'ARRAY' ? join(',', @{$fields->{$field}}) : $fields->{$field};
                 } else {
                     if ($type =~ /TEXT|BLOB/i) {
-                        $value = $dbh->quote($fields->{$field});
+                        $value = $fields->{$field};
                     } else {
                         # my @vals = split(/\0/,$fields->{$field});
                         # $value = $vals[0];
 			$value = ref $fields->{$field} eq 'ARRAY' ? $fields->{$field}[0] : $fields->{$field};
                     }
-                    if ($value =~ /^\s*$/ && $is_nullable) {
-                        $value = 'NULL';
-                    } else {
-                        if (! defined $value) { $value = ''; }
-                        $value = $dbh->quote($value);
+		    
+		    if ( ( ! defined $value || $value =~ /^\s*$/ ) && $is_nullable ) {
+			$value = 'NULL';
+		    } else {
+			if (! defined $value) { $value = ''; }
+			$value = $dbh->quote($value);
                     }
                 }
                 push @insertFields, $field;

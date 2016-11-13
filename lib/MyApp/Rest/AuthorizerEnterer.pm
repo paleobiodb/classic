@@ -55,7 +55,7 @@ get '/api/authorizerenterer' => sub {
 	
 	my $result = $dbh->selectall_arrayref($sql, { Slice => {} });
 
-	print STDERR "$sql\n\n";
+	# print STDERR "$sql\n\n";
 
 	return $result;
     }
