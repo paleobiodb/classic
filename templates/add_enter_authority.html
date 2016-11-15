@@ -128,7 +128,7 @@ function checkForm()	{
 <center>
 <div align="center" style="width: 50em;"><p class="pageTitle">Authority data for <span id="taxon_name"></span></p></div>
 
-<div style="width: 60em; margin-top: -2em; margin-bottom: 1em; margin-left: auto; margin-right: auto; font-size: 0.6em;">
+<div style="width: 60em; margin-top: -2em; margin-bottom: 1em; margin-left: auto; margin-right: auto;">
 <span style="padding-right: 1em;"><span id="authorizer_name"></span></span>
 <span style="padding-right: 1em;"><span id="enterer_name"></span></span>
 <span style="padding-right: 1em;"><span id="modifier_name"><span></span>
@@ -158,14 +158,14 @@ function checkForm()	{
 <div align="left" style="width: 30em;">
 <div style="float: left; clear: none;">
   <input id="ref_is_authority" name="ref_is_authority" type="radio" value="PRIMARY">
-  <input type="text" id="taxon_name" name="taxon_name" size="20"> was first named in the data record's primary reference:
+  <input type="text" id="taxon_name" name="taxon_name"> was first named in the data record's primary reference:
   <div align="left" class="small" style="width: 48em; margin-bottom: 0.5em; margin-left: 3em; text-indent: -1em;"><span id="formatted_primary_reference"></span>&nbsp;<span id="primary_reference_link"></span></div>
 </div>
 </div>
 
-<div style="float: left; clear: right; margin-left: 2em; margin-bottom: 1.5em;">
-<input type="submit" value="Submit">
-</div>
+<!-- <div style="float: left; clear: right; margin-left: 2em; margin-bottom: 1.5em;"> -->
+<!-- <input type="submit" value="Submit"> -->
+<!-- </div> -->
 
 <div show="current_reference">
 <div align="left" style="float: left; clear: none;">
@@ -179,22 +179,22 @@ function checkForm()	{
   <input id="ref_is_authority" name="ref_is_authority" type="radio" value="NO">
   ... <i>or</i> it was named in an earlier publication:
 
-<table><tr><td align="right" class="verysmall"><span class="prompt">First author:</span></td>
-<td><input id="author1init" name="author1init" class="verysmall" size=4></td>
-<td><input id="author1last" name="author1last" class="verysmall" size=10></td>
-<td align="left" class="verysmall" style="padding-left: 0.5em";><span class="prompt">Second author:</span></td>
-<td align="left"><input id="author2init" name="author2init" class="verysmall" size=4></td>
-<td align="left"><input id="author2last" name="author2last" class="verysmall" size=10></td>
+<table><tr><td align="right" class="small"><span class="prompt">First author:</span></td>
+<td><input id="author1init" name="author1init" class="small"></td>
+<td><input id="author1last" name="author1last" class="small"></td>
+<td align="left" class="small" style="padding-left: 0.5em";><span class="prompt">Second author:</span></td>
+<td align="left"><input id="author2init" name="author2init" class="small"></td>
+<td align="left"><input id="author2last" name="author2last" class="small"></td>
 </tr>
-<tr><td valign="top" align="right" class="verysmall" style="padding-left: 2em;"><span class="prompt">Other authors:</span></td>
-<td colspan="3"><textarea id="otherauthors" name="otherauthors" class="verysmall" rows=1 cols="30"></textarea></td>
-<td align="right" class="verysmall"><span class="prompt">Year:</span></td>
-<td colspan="1" class="verysmall"><input id="pubyr" name="pubyr" class="verysmall" size=5></td>
+<tr><td valign="top" align="right" class="small" style="padding-left: 2em;"><span class="prompt">Other authors:</span></td>
+<td colspan="3"><textarea id="otherauthors" name="otherauthors" class="small" rows=1 cols="30"></textarea></td>
+<td align="right" class="small"><span class="prompt">Year:</span></td>
+<td colspan="1" class="small"><input id="pubyr" name="pubyr" class="small"></td>
 </tr>
 
 <tr>
-<td colspan="4" class="verysmall" align="left" style="padding-top: 0.5em;"><span class="prompt">Pages:</span> <input id="pages" name="pages" class="verysmall" size=12>
-<span class="prompt">Figures:</span> <input id="figures" name="figures" class="verysmall" size=12></td></tr>
+<td colspan="4" class="small" align="left" style="padding-top: 0.5em;"><span class="prompt">Pages:</span> <input id="pages" name="pages" class="small">
+<span class="prompt">Figures:</span> <input id="figures" name="figures" class="small"></td></tr>
 </table>
 
 </div>  
@@ -224,7 +224,7 @@ function checkForm()	{
 <div style="clear: right;">
 <div style="padding-top: 1em;">
 <span class="prompt">Type specimen:</span>
-<input id="type_specimen" name="type_specimen" size="20">
+<input id="type_specimen" name="type_specimen">
 </div>
 </div>
 </div>
@@ -241,7 +241,7 @@ function checkForm()	{
 <div show="show_type_specimen">
 <div style="clear: right;">
 <span class="prompt">Specific body part:</span>
-<input id="part_details" name="part_details" size="23">
+<input id="part_details" name="part_details">
 </div>
 </div>
 
@@ -253,9 +253,9 @@ function checkForm()	{
 <input type="hidden" name="specimen_no">
 <div class="small" style="clear: right; white-space: nowrap;">
 <span class="prompt">Length:</span>
-<input class="small" name="length" size="4"> mm
+<input class="small" name="length"> mm
 &nbsp;<span class="prompt">Width:</span>
-<input class="small" name="width" size="4"> mm
+<input class="small" name="width"> mm
 </div>
 </div>
 </div>
@@ -264,7 +264,7 @@ function checkForm()	{
 <div show="show_type_specimen">
 <div style="padding-top: 1em;">
 <span class="prompt">Type locality (PaleoDB number):</span>
-<input id="type_locality" name="type_locality" size="8">
+<input id="type_locality" name="type_locality">
 </div>
 </div>
 
@@ -307,8 +307,8 @@ function checkForm()	{
 <div style="clear: right; padding-top: 1em;">
 <span class="prompt">Common name:
 </span>
-<input type="text" id="common_name" name="common_name" size="20"><br>
-<span class="verysmall">Enter the most common name uncapitalized and in singular form.</span>
+<input type="text" id="common_name" name="common_name"><br>
+<span class="small">Enter the most common name uncapitalized and in singular form.</span>
 </div>
 
 </div>
@@ -332,7 +332,7 @@ function checkForm()	{
 <textarea id="discussion" name="comments" rows="8" cols="70">
 </textarea>
 </div>
-<div class="verysmall" style="float: left; width: 52em; margin-left: 2em;">
+<div class="small" style="float: left; width: 52em; margin-left: 2em;">
 %%current_discussant%%
 %%credit_me%%
 Valid markup includes the HTML &lt;b&gt;, &lt;i&gt;, and &lt;u&gt; tags (but not &lt;p&gt; or &lt;br&gt;) and the wiki tags [[ ]], which autogenerate a link to a taxon, collection, or reference page.
@@ -343,7 +343,10 @@ Valid markup includes the HTML &lt;b&gt;, &lt;i&gt;, and &lt;u&gt; tags (but not
 Please read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html#AuthorityForm')">FAQ</a>.
 If the name is misspelled, <a href="%%write_url%%?action=displayAuthorityTaxonSearchForm">try another search</a>.
 </div>
-
+<!-- <div style="float: left; clear: right; margin-left: 2em; margin-bottom: 1.5em;"> -->
+<div>
+<center><input type="submit" value="Submit" style="float: left; clear: left; margin-top: 1em; margin-left: 22em;"></center>
+</div>
 </div>
 
 </div>

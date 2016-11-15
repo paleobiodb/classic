@@ -35,7 +35,7 @@
  <div class="form-group">
     <label class="col-sm-4 control-label" for="last_name">Last Name</label>
     <div class="col-sm-8">
-      <input class="form-control" type="text" name="last_name" value="[% params.last_name FILTER html %]" id="last_name">
+      <input class="form-control" type="text" name="last_name" value="[% params.last_name FILTER html %]" id="last_name" onChange="add_captcha()">
     </div>
  </div>
 
@@ -71,7 +71,8 @@
  <br>
  <div class="form-group">
      <div class="col-sm-offset-4 col-sm-8">
-         <p><img src="/account/captcha.gif" hspace="47" alt="Turing test image" width="90" height="50"></p>
+       <p><img id="captcha_img" hspace="47" width="90" height="50"></p>
+         <!-- <p><img src="/account/captcha.gif" hspace="47" alt="Turing test image" width="90" height="50"></p> -->
          <center>
            <input type="text" size="20" name="verify_text" placeholder="Enter above letters">
            <input class="btn btn-primary" type="submit" name="check_text" value="Create Guest Account">
@@ -88,3 +89,26 @@
 -->
 </fieldset>
 </form>
+
+<script type="text/javascript">
+    
+var img_elt = document.getElementById("captcha_img");
+var name_elt = document.getElementById("last_name");
+
+if ( name_elt && img_elt && name_elt.value != "" && img_elt.src == "" )
+{
+    img_elt.src = "/account/captcha.gif";
+    img_elt.alt="CAPTCHA image";
+}
+
+
+function add_captcha ( ) {
+    
+    if ( img_elt && img_elt.src == "" )
+    {
+	img_elt.src = "/account/captcha.gif";
+	img_elt.alt="CAPTCHA image";
+    }
+}
+
+</script>

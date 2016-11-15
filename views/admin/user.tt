@@ -6,7 +6,7 @@
 <fieldset>
 <legend>Account Information</legend>
 <div class="form-group">
-    <label class="col-sm-4 control-label" for="username">Username</label>
+    <label class="col-sm-4 control-label" for="username">System Username</label>
     <div class="col-sm-8">
     <input class="form-control autosave" type="text" name="username" value="[% params.username || user.username FILTER html %]" id="username">
     </div>
@@ -60,12 +60,11 @@
 
 <div class="col-sm-6">
   <form class="form-horizontal">
-    <fieldset>
+<!--
       <legend>Settings</legend>
       <div class="form-group">
 	<label class="col-sm-4 control-label" for="use_as_display_name">Site Display Name</label>
 	<div class="col-sm-8">
-	  <!-- <wing-select object="user" property="use_as_display_name"></wing-select> -->
 	  <select class="form-control autosave" name="use_as_display_name" id="use_as_display_name">
             <option value="username"[% IF user.use_as_display_name == 'username' %] selected="1"[% END %]>Username</option>
             <option value="email"[% IF user.use_as_display_name == 'email' %] selected="1"[% END %]>Email Address</option>
@@ -73,19 +72,18 @@
 	  </select>
 	</div>
       </div>
-      <br>
-    </fieldset>
+-->
 <fieldset>
-<legend>Special Account Settings</legend>
+<legend>Settings</legend>
 <div class="form-group">
   <label class="col-sm-4 control-label">Database Role</label>
   <div class="col-sm-8">
     <!-- <wing-select object="user" property="role"></wing-select> -->
     <select class="form-control autosave" name="role" id="role">
-      <option value="guest"[% IF user.role == 'guest'  || ! user.role %] selected="1"[% END %]>Guest</option>
       <option value="authorizer"[% IF user.role == 'authorizer' %] selected="1"[% END %]>Authorizer</option>
       <option value="enterer"[% IF user.role == 'enterer' %] selected="1" [% END %]>Enterer</option>
       <option value="student"[% IF user.role == 'student' %] selected="1" [% END %]>Student</option>
+      <option value="guest"[% IF user.role == 'guest'  || ! user.role %] selected="1"[% END %]>Guest</option>
     </select>
     <!-- <label class="radio-inline" for="role_aut"><input class="autosave" type="radio" name="role" value="authorizer" id="role_aut"[% IF user.role == "authorizer" %] checked=1[% END %]>Authorizer</label> -->
     <!-- <br> -->
@@ -100,8 +98,8 @@
   <label class="col-sm-4 control-label">Contributor Status</label>
   <div class="col-sm-8">
     <select class="form-control autosave" name="contributor_status" id="contributor_status">
-      <option value="active"[% IF user.contributor_status == 'active' %] selected="1"[% END %]>Active</option>
-      <option value="disabled"[% IF user.contributor_status == 'disabled' %] selected="1"[% END %]>Disabled</option>
+      <option value="active"[% IF user.contributor_status == 'active' %] selected="1"[% END %]>Active Account</option>
+      <option value="disabled"[% IF user.contributor_status == 'disabled' %] selected="1"[% END %]>Disabled Account</option>
       <option value="deceased"[% IF user.contributor_status == 'deceased' %] selected="1"[% END %]>Deceased</option>
     </select>
   </div>
@@ -136,7 +134,7 @@
 </fieldset>
 </div>
 
-</div><!-- row -->
+</div> <!-- row -->
 
 [% foot_tags = BLOCK %]
 <script type="text/javascript">

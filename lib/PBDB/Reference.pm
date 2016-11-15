@@ -533,7 +533,7 @@ sub displayRefResults {
 				}
 				$error .= "please try again</p>\n\n";
 			} else	{
-				$error .= "Please enter at least one search term</p>\n";
+				$error .= "<center>Please enter at least one search term</center></p>\n";
 			}
 			displaySearchRefs($dbt,$q,$s,$hbo,$error);
 		}
@@ -551,7 +551,7 @@ sub displayReference {
     } 
 
     if (!$ref) {
-        $hbo->htmlErr("Valid reference not supplied"); 
+        $hbo->htmlError("Valid reference not supplied"); 
         return;
     }
     my $reference_no = $ref->{'reference_no'};
@@ -830,7 +830,7 @@ sub displaySearchRefs {
 				$vars->{'add'} .= "<input type='hidden' name='$f' value='".$q->param($f)."'>\n";
 			}
 		} 
-		$vars->{'add'} .= "<input type='submit' name='add' value='Add'>\n";
+		# $vars->{'add'} .= "<input type='submit' name='add' value='Add'>\n";
 	}
 
 	print PBDB::Person::makeAuthEntJavascript($dbt);

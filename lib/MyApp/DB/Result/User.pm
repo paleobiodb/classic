@@ -176,41 +176,52 @@ before verify_creation_params => sub {
 	$orcid !~ qr{ ^ \d\d\d\d - \d\d\d\d - \d\d\d\d - \d\d\d\d $ }xsi;
 
     # need to construct real_name from first_name, middle_name, last_name
-
-    my $real_name = $params->{first_name};
     
-    ouch(400, "First name must include at least one letter") unless $real_name =~ /[a-z]/i;
+    my $first_name = $params->{first_name};
+    
+    ouch(400, "First name is required") unless $first_name;
+    ouch(400, "First name must include at least one letter") unless $first_name =~ /\w/;
+    
+    if ( $first_name =~ /([@"()#%^*{}\[\]<>?;])/ )
+    {
+	ouch(400, "Invalid character '$1' in first name");
+    }
+    
+    my $last_name = $params->{last_name};
+   
+    ouch(400, "Last name is required") unless $last_name;
+    ouch(400, "Last name must include at least one letter") unless $last_name =~ /\w/i;
     
     my $middle_name = $params->{middle_name} || '';
     
     if ( $middle_name )
     {
-	$real_name .= " $middle_name";
-	$real_name .= "." if $middle_name =~ qr{ ^ [a-z] $ }xsi;
-
-	ouch(400, "Middle name must include at least one letter") unless $middle_name =~ /[a-z]/i;
+	$middle_name .= "." if $middle_name =~ qr{ ^ \w $ }xsi;
+	
+	ouch(400, "Middle name must include at least one letter") unless $middle_name =~ /\w/i;
     }
     
-    $real_name .= " " . $params->{last_name};
-    
-    ouch(400, "Last name must include at least one letter") unless $params->{last_name} =~ /[a-z]/i;
+    my $real_name = $first_name;
+    $real_name .= " $middle_name" if $middle_name;
+    $real_name .= " $last_name";
     
     $params->{real_name} = $real_name;
     
-    # need to construct username from first_name, last_name
+    # No need to repeat name checks in 'verify_posted_params' since these have already been done here.
+    
+    $params->{name_checked} = 1;
+    
+    # Construct a username from first_name, last_name.  Add a numeric suffix if necessary for
+    # uniqueness.
     
     my $username = make_username($params->{first_name}, '', $params->{last_name});
     
-    my $mi = substr($params->{middle_name}, 0, 1);
     my $basename = $username;
     my $suffix = '1';
     
-    # push @usernames, make_username($params->{first_name}, $mi, $params->{last_name}) if $mi;
-    
     my $schema = Wing->db;
-    my $found_user;
     
-    $found_user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
+    my $found_user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
     
     while ( $found_user )
     {
@@ -218,25 +229,55 @@ before verify_creation_params => sub {
 	
 	$found_user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
 	
-	ouch(400, "Try a different name.") if $found_user && $suffix > 9;
+	ouch(400, "Try a different name.") if $found_user && $suffix >= 50;
     }
     
     $params->{username} = $username;
     
-    # set default for use_as_display_name
-
+    # Set default for use_as_display_name
+    
     $params->{use_as_display_name} = 'real_name';
-
-    # set default for role
-
+    
+    # Set default for role
+    
     $params->{role} = 'guest';
     
-    # check CAPTCHA
+    # Make sure that e-mail, institution, and password are set.
+    
+    ouch(400, "Institution is required.") unless $params->{institution};
+    ouch(400, "Email is required.") unless $params->{email};
+    ouch(400, "Password is required.") unless $params->{password1};
+    ouch(400, "Repeat your password to make sure you know what you typed.") unless $params->{password2};
+    
+    # Verify e-mail uniqueness.
+    
+    $found_user = $schema->resultset('User')->search( { email => $params->{email} }, { rows => 1 } )->single;
+    
+    if ( $found_user )
+    {
+	ouch(400, "That e-mail is already in use. Try a different one.");
+    }
+    
+    # Check CAPTCHA code.  This should be the very last thing, so that any other errors get
+    # reported first. $$$ no, set flag for 'verify_posted_params'.
+    
+    unless ( $params->{verify_text} )
+    {
+	ouch(400, "Please enter the code letters.");
+    }
     
     unless ( MyApp::Web::verify_captcha($params->{verify_text}) )
     {
 	ouch(400, "Invalid code. Please try again.");
     }
+};
+
+
+before verify_posted_params {
+    
+    my ($self, $params, $current_user) = @_;
+    
+    # $$$ Name checks should go here, along with CAPTCHA check.
 };
 
 

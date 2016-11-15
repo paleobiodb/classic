@@ -103,15 +103,15 @@
 			[% ELSIF current_user.authorizer_name %] Authorizer: [% current_user.authorizer_name %]
 			[% ELSE %] Guest User [% END %]</em></a></li>
 		  <hr>
-		  <li><a href="/account">General settings</a></li>
+		  <li><a href="/account">Account settings</a></li>
 		  [% IF current_user.admin %]
 		  <li><a href="/admin/users">Manage users</a></li>
 		  [% END %]
 		  [% IF current_user.role == "authorizer" %]
 		  <li><a href="/account/enterers">Manage my enterers</a></li>
 		  [% END %]
-          [% IF current_user.role == "null" %]
-          <li><a href="/classic?a=displayPreferencesPage">Data entry preferences</a></li>
+          [% IF current_user.role != "guest" %]
+          <li><a href="/classic?a=displayPreferencesPage">Data entry settings</a></li>
           <li><a href="/classic/?a=displayPermissionListForm">Editing permission list</a></li>
           [% END %]
           <li><a href="/logout">Log Out</a></li>

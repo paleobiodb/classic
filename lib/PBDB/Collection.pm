@@ -11,6 +11,7 @@
 
 package PBDB::Collection;
 use strict;
+use utf8;
 
 use PBDB::HTMLBuilder;
 use PBDB::PBDBUtil;
@@ -25,6 +26,7 @@ use PBDB::Permissions;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;
+use Encode;
 use PBDB::Debug;
 use PBDB::Constants qw($WRITE_URL $HTML_DIR $HOST_URL $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 
@@ -47,7 +49,7 @@ sub getCollections {
 	my $dbh = $dbt->dbh;
 	my %options = %{$_[2]};
 	my @fields = @{$_[3]};
-
+	
 	# Set up initial values
 	my (@where,@occ_where,@reid_where,@tables,@from,@left_joins,@groupby,@having,@errors,@warnings);
 	@tables = ("collections c");
@@ -262,7 +264,7 @@ sub getCollections {
         }
         push @where, " c.$COLLECTION_NO IN (".join(", ",keys(%collections)).")";
     }
-
+    
     # Handle time terms
 	if ( $options{'max_interval'} || $options{'min_interval'} || $options{'max_interval_no'} || $options{'min_interval_no'}) {
 
@@ -388,11 +390,18 @@ IS NULL))";
 		my $epochName = $dbh->quote($options{'epoch'});
 		push @where, "(epoch_min LIKE " . $epochName . " OR epoch_max LIKE " . $epochName . ")";
 	}
-
+	
     # Handle authorizer/enterer/modifier - mostly legacy except for person
     if ($options{'person_reversed'}) {
-        my $sql = "SELECT person_no FROM person WHERE name like ".$dbh->quote(PBDB::Person::reverseName($options{'person_reversed'}));
+	my $name = $dbh->quote(PBDB::Person::reverseName($options{person_reversed}));
+	# Encode::_utf8_off($name);
+	# print STDERR "ENCODE = " . Encode::is_utf8($name) . "\n";
+	# print STDERR &printchars($name);
+	# my $arg = $name;
+        my $sql = "SELECT person_no FROM person WHERE name like $name"; #.$dbh->quote(PBDB::Person::reverseName($arg));
+	# print STDERR "$sql\n\n";
         my $person_no = ${$dbt->getData($sql)}[0]->{'person_no'};
+	# print STDERR "PERSON_NO = $person_no\n";
         if (!$person_no) {
             push @errors, "$options{person_reversed} is not a valid database member. Format like 'Sepkoski, J.'";
         } else {
@@ -668,7 +677,7 @@ IS NULL))";
 
     # get the column info from the table
     my $sth = $dbh->column_info(undef,'pbdb',$COLLECTIONS,'%');
-
+	
 	# Compose the WHERE clause
 	# loop through all of the possible fields checking if each one has a value in it
     my %all_fields = ();
@@ -1037,7 +1046,7 @@ sub basicCollectionSearch	{
 
 	my ($dbt,$q,$s,$hbo,$taxa_skipped) = @_;
 	my $dbh = $dbt->dbh;
-	print STDERR "PROC ID = $$\n";
+	
 	my $sql;
 	my $fields = "collection_no,collection_name,collection_aka,authorizer,authorizer_no,reference_no,country,state,max_interval_no,min_interval_no,collectors,collection_dates";
 	my ($NAME_FIELD,$AKA_FIELD,$TIME) = ('collection_name','collection_aka','collection_dates');
@@ -1129,9 +1138,6 @@ sub basicCollectionSearch	{
 		my $integer = $dbh->quote('.*[^0-9]'.$NAME.'(([^0-9]+)|($))');
 		$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO=".$NAME." OR $NAME_FIELD REGEXP $integer OR $AKA_FIELD REGEXP $integer OR $TIME REGEXP $integer";
 	}
-	
-	print STDERR "NAME = $NAME\n";
-	print STDERR "SQL = $sql\n";
 	
 	my @colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
@@ -2578,6 +2584,19 @@ sub explainAEOestimate	{
 		$ages{'note'} = "<p class=\"small\">" . $ages{'note'} . ".</p>";
 	}
 	print $hbo->populateHTML('aeo_info', \%ages);
+}
+
+
+sub printchars {
+    my $name = shift;
+    my $out = '';
+    foreach my $a (0..length($name)-1)
+    {
+	my $c = substr($name, $a, 1);
+	$out .= "$c " . ord($c) . "\n";
+    }
+    
+    return $out;
 }
 
 1;

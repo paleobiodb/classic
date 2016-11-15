@@ -9,16 +9,38 @@
                 <fieldset>
                     <legend>Account Information</legend>
 
+                    <!--
                     <div class="form-group">
                         <label class="col-sm-4 control-label" for="username">Username</label>
                         <div class="col-sm-8">
                           <input class="form-control" type="text" name="username" ng-model="user.properties.username" autosave="user" id="username">
                         </div>
                     </div>
+                    -->
+                    <!--
                     <div class="form-group">
                         <label class="col-sm-4 control-label" for="real_name">Real Name</label>
                         <div class="col-sm-8">
                         <input class="form-control" type="text" name="real_name" ng-model="user.properties.real_name" autosave="user" id="real_name">
+                        </div>
+                    </div>
+                    -->
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="email">First Name</label>
+                        <div class="col-sm-8">
+                        <input class="form-control" type="text" name="first_name" ng-model="user.properties.first_name" autosave="user" id="first_name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="email">Middle Initial</label>
+                        <div class="col-sm-8">
+                        <input class="form-control" type="text" name="middle_name" ng-model="user.properties.middle_name" autosave="user" id="middle_name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-sm-4 control-label" for="email">Last Name</label>
+                        <div class="col-sm-8">
+                        <input class="form-control" type="text" name="last_name" ng-model="user.properties.last_name" autosave="user" id="last_name">
                         </div>
                     </div>
                     <div class="form-group">
@@ -48,18 +70,19 @@
                 </fieldset>
 
                 <fieldset>
-                    <legend>Preferences</legend>
+                    <legend>Settings</legend>
+                    <!--
                     <div class="form-group">
                         <label class="col-sm-4 control-label" for="use_as_display_name">Site display name</label>
                         <div class="col-sm-8">
                             <wing-select object="user" property="use_as_display_name"></wing-select>
                         </div>
                     </div>
+                    -->
                     <div class="form-group">
                         <label class="col-sm-4 control-label">Current Authorizer</label>
                         <div class="col-sm-8">
                             <wing-select object="user" property="authorizer_no"></wing-select>
-                            <!-- <p ng-if="user.properties.developer == 1"><a href="/account/apikeys">Manage API keys.</a></p> -->
                         </div>
                     </div>
                 </fieldset>
@@ -87,8 +110,8 @@
                             <input class="btn btn-primary" type="submit" value="Update Password">
                         </div>
                     </div>
-                    <br><br><br><br><br>
                 </fieldset>
+                <br><br><br>
             </form>
         </div>
         <div class="col-sm-6">

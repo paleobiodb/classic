@@ -8,9 +8,9 @@
 <fieldset>
 <legend>Login</legend>
   <div class="form-group">
-    <label class="col-sm-4 control-label" for="login">Username or Email Address</label>
+    <label class="col-sm-4 control-label" for="login">Name or Email Address</label>
     <div class="col-sm-8"> 
-      <input class="form-control" type="text" name="login" value="[% params.login %]" id="login">
+      <input class="form-control" type="text" name="login" value="[% params.login %]" id="login" placeholder="First Last">
     </div>
   </div>
   <div class="form-group">
@@ -38,12 +38,12 @@
 </fieldset>
 </form>
 <hr>
-<!--
 <div class="col-sm-16">
-  <label>Leave "Authorizer" field empty if you are, yourself, an authorizer.</label>
-  <label>If you are not an authorizer and you leave the field blank, you will be logged in as a guest.</label>
+  <br><br><br><br>
+  <ul class="list-bullet">
+  <li>If you do not have an account already, creating a guest account is the first step in becoming a contributer to PBDB.</li>
+  <li>Once created, select Account Upgrade in your Account Settings to requst the role of Authorizer.</li>
+  <li>If you are working under an Authorizer, they will be able to promote you to the role or Student or Enterer.</li>
+  <li>You are free to use the guest account without upgrade but will only be able to search and download, not edit or enter data.</li>
+  </ul> 
 </div>
--->
-<!--
-<p><a href="/account/facebook?sso_id=[% sso_id || params.sso_id %]&redirect_after=[% redirect_after || params.redirect_after %]" class="btn btn-default">Connect Using Facebook</a></p>
--->

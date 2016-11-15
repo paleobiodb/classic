@@ -101,7 +101,7 @@ sub new {
 	
 	if ( $authorizer_no && $rs && $rs->{authorizer_no} && $rs->{authorizer_no} ne $authorizer_no )
 	{
-	    print STDERR "UPDATING SESSION authorizer_no = $authorizer_no\n";
+	    # print STDERR "UPDATING SESSION authorizer_no = $authorizer_no\n";
 	    
 	    $rs->{authorizer_no} = $authorizer_no;
 	    
