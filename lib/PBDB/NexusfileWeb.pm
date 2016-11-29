@@ -14,7 +14,7 @@ use PBDB::NexusfileWrite;  # not used
 use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM);
 
 use Encode;
-# use Data::Dumper;
+use Data::Dumper qw(Dumper);
 use Class::Date qw(now date);
 
 my $UPLOAD_LIMIT = 1024000;

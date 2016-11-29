@@ -3,7 +3,7 @@ use strict;
 
 use PBDB::TypoChecker; # not used
 use Carp qw(carp);
-# use Data::Dumper;
+use Data::Dumper qw(Dumper);
 use PBDB::TaxaCache;
 use PBDB::Validation;
 use PBDB::Debug qw(dbg);

@@ -7,7 +7,7 @@ use PBDB::DBConnection;
 use Class::Date qw(date localdate gmdate now);
 use PBDB::Constants qw($APP_DIR);
 use PBDB::Permissions;
-# use Data::Dumper;
+use Data::Dumper qw(Dumper);
 use Carp qw(carp croak);
 use PBDB::Debug qw(dbg);
 

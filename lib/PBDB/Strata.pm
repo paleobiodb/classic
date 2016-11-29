@@ -4,7 +4,7 @@ use strict;
 use PBDB::TaxonInfo;
 use URI::Escape;
 use HTML::Entities;
-# use Data::Dumper;
+use Data::Dumper qw(Dumper);
 use PBDB::Debug qw(dbg);
 use PBDB::Person;
 use PBDB::PBDBUtil;

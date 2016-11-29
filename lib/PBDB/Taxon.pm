@@ -16,7 +16,7 @@ package PBDB::Taxon;
 use strict;
 
 use PBDB::Errors;
-# use Data::Dumper;
+use Data::Dumper qw(Dumper);
 use URI::Escape;
 use Mail::Mailer;
 use PBDB::TaxaCache;
