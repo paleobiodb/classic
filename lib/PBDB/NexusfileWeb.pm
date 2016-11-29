@@ -14,7 +14,7 @@ use PBDB::NexusfileWrite;  # not used
 use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM);
 
 use Encode;
-use Data::Dumper;
+# use Data::Dumper;
 use Class::Date qw(now date);
 
 my $UPLOAD_LIMIT = 1024000;
@@ -35,7 +35,7 @@ sub displayUploadPage {
     unless ($s->isDBMember())
     {
 	login( "Please log in first.");
-	exit;
+	return;
     }
     
     # Then produce the upload page.
@@ -62,7 +62,7 @@ sub processUpload {
     unless ($s->isDBMember())
     {
 	login( "Please log in first.");
-	exit;
+	return;
     }
     
     # Then extract the upload values and file contents.
@@ -385,7 +385,7 @@ sub editFile {
     {
 	$q->param('noperm', 1);
 	viewFile($dbt, $hbo, $q, $s);
-	exit;
+	return;
     }
     
     # If we are returning from selecting a reference to add, then add it.
@@ -593,7 +593,7 @@ sub processEdit {
 	     PBDB::Nexusfile::checkWritePermission($dbt, $nexusfile_no, $s->get('authorizer_no')) )
     {
 	print $q->redirect( -uri => "?a=viewNexusFile&nexusfile_no=$nexusfile_no&noperm=1");
-	exit;
+	return;
     }
     
     # Are we adding a new reference?  If so, display the reference-selection
@@ -605,9 +605,9 @@ sub processEdit {
         # print $q->header(-type => "text/html", 
         #              -Cache_Control=>'no-cache',
         #              -expires =>"now" );
-	$s->enqueue("action=editNexusFile&nexusfile_no=$nexusfile_no&add_ref=1");
-	PBDB::displaySearchRefs("Select a reference to associate with the nexus file:");
-	exit;
+	$s->enqueue_action("editNexusFile", "nexusfile_no=$nexusfile_no&add_ref=1");
+	PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "Select a reference to associate with the nexus file:");
+	return;
     }
     
     # Are we deleting an existing reference?  If so, do it and redisplay the
@@ -617,7 +617,7 @@ sub processEdit {
     {
 	PBDB::Nexusfile::deleteReference($dbt, $nexusfile_no, $reference_no);
 	print $q->redirect( -uri => "?a=editNexusFile&nexusfile_no=$nexusfile_no");
-	exit;
+	return;
     }
     
     # Are we moving an existing reference?  If so, do it and redisplay the
@@ -627,7 +627,7 @@ sub processEdit {
     {
 	PBDB::Nexusfile::moveReference($dbt, $nexusfile_no, $reference_no);
 	print $q->redirect( -uri => "?a=editNexusFile&nexusfile_no=$nexusfile_no");
-	exit;
+	return;
     }
     
     # Are we rescanning the file contents for taxonomic names?
@@ -637,7 +637,7 @@ sub processEdit {
 	my $data = PBDB::Nexusfile::getFileData($dbt, $nexusfile_no);
 	PBDB::Nexusfile::generateTaxa($dbt, $nexusfile_no, $data) if $data;
 	print $q->redirect( -uri => "$READ_URL?a=editNexusFile&nexusfile_no=$nexusfile_no");
-	exit;
+	return;
     }
     
     # Are we deleting the entire nexus file?  If so, do it and redirect to the
@@ -647,7 +647,7 @@ sub processEdit {
     {
 	PBDB::Nexusfile::deleteFile($dbt, $nexusfile_no);
 	print $q->redirect( -uri => "$READ_URL");
-	exit;
+	return;
     }
     
     # Are we saving a new version of the notes?  If so, do that and redirect
@@ -666,7 +666,7 @@ sub processEdit {
 	
 	PBDB::Nexusfile::setFileInfo($dbt, $nexusfile_no, { notes => $notes, filename => $filename });
 	print $q->redirect( -uri => "$READ_URL");
-	exit;
+	return;
     }
     
     # Otherwise, just redirect to the main menu.
@@ -674,7 +674,7 @@ sub processEdit {
     else
     {
 	print $q->redirect( -uri => "$READ_URL");
-	exit;
+	return;
     }
 }
 
@@ -1001,14 +1001,14 @@ sub sendFile {
     unless ( ref $nf )
     {
 	findError($q, $nf);
-	exit;
+	return;
     }
     
     # Otherewise, send out the specified file.
     
     print $q->header(-type => "text/plain", -charset => 'utf-8' );
     print encode_utf8(PBDB::Nexusfile::getFileData($dbt, $nf->{nexusfile_no}));
-    exit;
+    return;
 }
 
 
@@ -1122,7 +1122,7 @@ sub findError {
     print "<h1>$message</h1>\n";
     print "<h2>$body</h2>\n";
     print "</body></html>\n";
-    exit;
+    return;
 }
 
 

@@ -2,7 +2,7 @@ package PBDB::Classification;
 
 use PBDB::TaxonInfo;
 use strict;
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::Debug qw(dbg);
 
 my $DEBUG = 0;

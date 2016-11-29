@@ -1,8 +1,8 @@
 {
     "renderer" : ["TT", {"template_parameters" : {"INCLUDE_PATH" : "/data/TGC/views"}, "strict" : 0 }],
     "header" : [
-        { "To" : " <>" },
-        { "From" : "Wing <noreply@wingapi.com>" },
+        { "To" : "[% me.real_name %] <[% me.email %]>" },
+        { "From" : "admin@paleobiodb.org" },
         { "Subject" : "Password Reset" }
     ],
     "alternatives" : [

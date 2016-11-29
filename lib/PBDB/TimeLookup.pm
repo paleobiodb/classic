@@ -1,6 +1,6 @@
 package PBDB::TimeLookup;
 
-use Data::Dumper;
+# use Data::Dumper;
 use Carp qw(carp croak);
 use strict;
 

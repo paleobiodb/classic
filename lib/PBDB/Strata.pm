@@ -4,7 +4,7 @@ use strict;
 use PBDB::TaxonInfo;
 use URI::Escape;
 use HTML::Entities;
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::Debug qw(dbg);
 use PBDB::Person;
 use PBDB::PBDBUtil;
@@ -129,9 +129,9 @@ sub displayStrata {
         #dbg("c_no: $row->{collection_no} l1: $row->{lithology1} l2: $row->{lithology2} e: $row->{environment}");
         #dbg(" f: $row->{formation} g: $row->{geological_group} m: $row->{member} <br>");
     }
-    dbg("is mbr: $is_member is form: $is_formation is grp: $is_group<hr>");
-    dbg("c_form: <pre>" . Dumper(%c_formations) . "</pre>");
-    dbg("c_mbr: <pre>" . Dumper(%c_members) . "</pre>");
+    # dbg("is mbr: $is_member is form: $is_formation is grp: $is_group<hr>");
+    # dbg("c_form: <pre>" . Dumper(%c_formations) . "</pre>");
+    # dbg("c_mbr: <pre>" . Dumper(%c_members) . "</pre>");
 
     # Display Header
 
@@ -184,7 +184,7 @@ sub displayStrata {
             my $html = "<p>Group: ";
             foreach my $g_lc (@groups) {
                 my $g = ($group_uc{$g_lc}) ? $group_uc{$g_lc} : $g_lc;
-                my $escaped = uri_escape($g);
+                my $escaped = uri_escape_utf8($g // '');
                 $html .=  makeAnchor("displayStrata", "geological_group=$escaped&group_formation_member=$escaped", "$g") . ", ";
             }
             $html =~ s/, $//;
@@ -198,7 +198,7 @@ sub displayStrata {
             my $html = "<p>Formation: ";
             foreach my $fm_lc (@formations) {
                 my $fm = ($formation_uc{$fm_lc}) ? $formation_uc{$fm_lc} : $fm_lc;
-                my $escaped = uri_escape($fm);
+                my $escaped = uri_escape_utf8($fm // '');
                 $html .=  makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped", "$fm") . ", ";
             }
             $html =~ s/, $//;
@@ -214,11 +214,12 @@ sub displayStrata {
             $coll_link = "";
             my $fm = ($formation_uc{$fm_lc}) ? $formation_uc{$fm_lc} : $fm_lc;
             if ($fm) {
-                my $escaped = uri_escape($q->param('group_formation_member'));
-                my $escaped2 = uri_escape($fm);
+                my $escaped = uri_escape_utf8($q->param('group_formation_member') // '');
+                # my $escaped2 = uri_escape_utf8($fm);	 $$$ example 
+                my $escaped2 = uri_escape_utf8($fm // '');
                 $coll_link =  makeAnchor("displayCollResults", "geological_group=$escaped&formation=$escaped2", "$fm");
             } else {
-                my $escaped = uri_escape($q->param('group_formation_member'));
+                my $escaped = uri_escape_utf8($q->param('group_formation_member') // '');
                 $coll_link =  makeAnchor("displayCollResults", "geological_group=$escaped&formation=NULL_OR_EMPTY", "<i>unnamed</i>");
             }
             $html .=  "$coll_link ($c_formations{$fm}), ";
@@ -235,13 +236,13 @@ sub displayStrata {
             $coll_link = "";
             my $mbr = ($member_uc{$mbr_lc}) ? $member_uc{$mbr_lc} : $mbr_lc;
             if ($mbr) {
-                my $a_params = "formation=".uri_escape($q->param('group_formation_member'));
-                $a_params .= "&geological_group=".uri_escape($q->param('geological_group')) if $q->param('geological_group');
-                $a_params .= "&member=".uri_escape($mbr);
+                my $a_params = "formation=".uri_escape_utf8($q->param('group_formation_member') // '');
+                $a_params .= "&geological_group=".uri_escape_utf8($q->param('geological_group') // '') if $q->param('geological_group');
+                $a_params .= "&member=".uri_escape_utf8($mbr // '');
                 $coll_link = makeAnchor("displayCollResults", "$a_params", "$mbr");
             } else {
-                my $a_params = "formation=".uri_escape($q->param('group_formation_member'));
-                $a_params .= "&geological_group=".uri_escape($q->param('geological_group')) if $q->param('geological_group');
+                my $a_params = "formation=".uri_escape_utf8($q->param('group_formation_member') // '');
+                $a_params .= "&geological_group=".uri_escape_utf8($q->param('geological_group') // '') if $q->param('geological_group');
                 $a_params .= "&member=NULL_OR_EMPTY";
                 $coll_link = makeAnchor("displayCollResults", "$a_params", "<i>unnamed</i>");
             } 
@@ -260,10 +261,10 @@ sub displayStrata {
             if ($lith_count{$lithology}) {
                 $cnt = $lith_count{$lithology};
 
-                my $a_params = "group_formation_member=".uri_escape($q->param('group_formation_member'));
-                $a_params .= "&formation=".uri_escape($q->param('formation')) if $q->param('formation');
-                $a_params .= "&geological_group=".uri_escape($q->param('geological_group')) if $q->param('geological_group');
-                $a_params .= "&lithologies=".uri_escape($lithology);
+                my $a_params = "group_formation_member=".uri_escape_utf8($q->param('group_formation_member') // '');
+                $a_params .= "&formation=".uri_escape_utf8($q->param('formation') // '') if $q->param('formation');
+                $a_params .= "&geological_group=".uri_escape_utf8($q->param('geological_group') // '') if $q->param('geological_group');
+                $a_params .= "&lithologies=".uri_escape_utf8($lithology // '');
                 
                 $coll_link = makeAnchor("displayCollResults", "$a_params", "$lithology");
                 $html .= "$coll_link ($lith_count{$lithology}), ";
@@ -282,10 +283,10 @@ sub displayStrata {
     if (%environment_count) {
         foreach my $environment (@env_list) {
             if ($environment_count{$environment}) {
-                my $a_params = "group_formation_member=".uri_escape($q->param('group_formation_member'));
-                $a_params .= "&formation=".uri_escape($q->param('formation')) if $q->param('formation');
-                $a_params .= "&geological_group=".uri_escape($q->param('grup')) if $q->param('geological_group');
-                $a_params .= "&environment=".uri_escape($environment);
+                my $a_params = "group_formation_member=".uri_escape_utf8($q->param('group_formation_member') // '');
+                $a_params .= "&formation=".uri_escape_utf8($q->param('formation') // '') if $q->param('formation');
+                $a_params .= "&geological_group=".uri_escape_utf8($q->param('grup') // '') if $q->param('geological_group');
+                $a_params .= "&environment=".uri_escape_utf8($environment // '');
                 $coll_link = makeAnchor("displayCollResults", "$a_params", "$environment");
                 $html .= "$coll_link ($environment_count{$environment}), ";
             }
@@ -347,9 +348,9 @@ sub checkConflict {
             $gp_groups{$row->{'formation'}}{$row->{'geological_group'}} += 1;
         }
     }
-    dbg("p_form: <pre>" . Dumper(%p_formations) . "</pre>");
-    dbg("p_grp: <pre>" . Dumper(%p_groups) . "</pre>");
-    dbg("gp_grp: <pre>" . Dumper(%gp_groups) . "</pre>");
+    # dbg("p_form: <pre>" . Dumper(%p_formations) . "</pre>");
+    # dbg("p_grp: <pre>" . Dumper(%p_groups) . "</pre>");
+    # dbg("gp_grp: <pre>" . Dumper(%gp_groups) . "</pre>");
 
     my ($p_formation_cnt, $p_group_cnt, $conflict_found);
     $p_formation_cnt = 0; $p_group_cnt = 0;
@@ -399,8 +400,8 @@ sub displayStrataChoice {
         print "The ".$q->param('group_formation_member')." formation belongs to multiple groups.  Please select the one you want: <p>";
         foreach my $grp (keys %group_links) {
             print " - " if ($count++) != 0;
-            my $escaped = uri_escape($grp);
-            my $escaped2 = uri_escape($q->param('group_formation_member'));
+            my $escaped = uri_escape_utf8($grp // '');
+            my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
             print makeAnchor("displayStrata", "geological_group=$escaped&group_formation_member=$escaped2", "$grp");
         }          
         print "</p>";
@@ -408,8 +409,8 @@ sub displayStrataChoice {
         print "The ".$q->param('group_formation_member')." member belongs to multiple formations.  Please select the one you want: <p>";
         foreach my $fm (sort keys %formation_links) {
             print " - " if ($count++) != 0;
-            my $escaped = uri_escape($fm);
-            my $escaped2 = uri_escape($q->param('group_formation_member'));
+            my $escaped = uri_escape_utf8($fm // '');
+            my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
             print makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped2", "$fm ");
         }          
         print "</p>";
@@ -417,14 +418,14 @@ sub displayStrataChoice {
         print "The term ".$q->param('group_formation_member')." is ambiguous and belongs to multiple formations or groups.  Please select the one you want: <p>";
         foreach my $fm (sort keys %formation_links) {
             print " - " if ($count++) != 0;
-            my $escaped = uri_escape($fm);
-            my $escaped2 = uri_escape($q->param('group_formation_member'));
+            my $escaped = uri_escape_utf8($fm // '');
+            my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
             print makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped2", "$fm (formation) ");
         }          
         foreach my $grp (sort keys %group_links) {
             print " - " if ($count++) != 0;
-            my $escaped = uri_escape($grp);
-            my $escaped2 = uri_escape($q->param('group_formation_member'));
+            my $escaped = uri_escape_utf8($grp // '');
+            my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
             print makeAnchor("displayStrata", "&geological_group=$escaped&group_formation_member=$escaped2", "$grp (group)<br> ");
         }          
         print "</p>";
@@ -518,17 +519,17 @@ sub displaySearchStrataResults {
                 my ($time_str, $place_str);
                 my $link;
                 if ($last_group) { 
-                    my $escaped = uri_escape($last_group);
-                    my $escaped2 = uri_escape($last_group);
+                    my $escaped = uri_escape_utf8($last_group // '');
+                    my $escaped2 = uri_escape_utf8($last_group // '');
                     $link .= makeAnchor("displayStrata", "geological_group=$escaped&group_formation_member=$escaped2", "$last_group");
                 }
                 if ($last_group && $last_formation) { 
                     $link .= "/";
                 }
                 if ($last_formation) {
-                    my $escaped = uri_escape($last_group);
-                    my $escaped2 = uri_escape($last_formation);
-                    my $escaped3 = uri_escape($last_formation);
+                    my $escaped = uri_escape_utf8($last_group // '');
+                    my $escaped2 = uri_escape_utf8($last_formation // '');
+                    my $escaped3 = uri_escape_utf8($last_formation // '');
                     $link .= makeAnchor("displayStrata", "geological_group=$escaped&formation=$escaped2&group_formation_member=$escaped3", "$last_formation");
                 }
                 if (!$last_group && !$last_formation) {
@@ -537,10 +538,10 @@ sub displaySearchStrataResults {
                 # Tack on members
                 $link .= "<small> - ";
                 foreach my $member (sort values %member_list) {
-                    my $escaped = uri_escape($last_group);
-                    my $escaped2 = uri_escape($last_formation);
-                    my $escaped3 = uri_escape($member);
-                    my $escaped4 = uri_escape($member);
+                    my $escaped = uri_escape_utf8($last_group // '');
+                    my $escaped2 = uri_escape_utf8($last_formation // '');
+                    my $escaped3 = uri_escape_utf8($member // '');
+                    my $escaped4 = uri_escape_utf8($member // '');
                     $link .= makeAnchor("displayStrata", "geological_group=$escaped&formation=$escaped2&member=$escaped3&group_formation_member=$escaped4", "$member, ");
                 }
                 $link =~ s/, $//;
@@ -614,7 +615,7 @@ sub displaySearchStrataResults {
             } else {
                 print "<tr>";
             }
-            print "<td>$tableRows[$i]</td>";
+            print "<td>$tableRows[$i]</td>"; # $$$ wide character France, rows 61 to 120
             if ($i+$limit/2 < $ofRows) {
                 print "<td>".$tableRows[$i+$limit/2]."</td>";
             } else {
@@ -641,7 +642,7 @@ sub displaySearchStrataResults {
         return;
     } else {
         print "<center>\n<p class=\"pageTitle\">Your search produced no matches</p>";
-        print "<p>Please try again with fewer search terms.</p>\n</center>\n";
+        print "<p>Please try again with fewer or different search terms.</p>\n</center>\n";
     }
  
     ###
@@ -652,13 +653,14 @@ sub displaySearchStrataResults {
     # this q2  var is necessary because the processCollectionSearch
     # method alters the CGI object's internals above, and deletes some fields
     # so, we create a new CGI object with everything intact
-    my $q2 = new CGI;
+    # my $q2 = new CGI;
+    my $q2 = &PBDB::freshParams;
     my @params = $q2->param;
     my $getString = "rowOffset=".($rowOffset+$limit);
     foreach my $param_key (@params) {
         if ($param_key ne "rowOffset") {
             if ($q2->param($param_key) ne "" || $param_key eq 'section_name') {
-                $getString .= "&".uri_escape($param_key)."=".uri_escape($q2->param($param_key));
+                $getString .= "&".uri_escape_utf8($param_key // '')."=".uri_escape_utf8($q2->param($param_key) // '');
             }
         }
     }
@@ -672,7 +674,7 @@ sub displaySearchStrataResults {
         }
         print "<a href='$READ_URL?$getString'><b>Get $numLeft units</b></a> - "; #jpjenk: what do we do here?
     }
-    print makeAnchor("displaySearchSectionForm", "", "<b>Search again</b>"); #jpjenk: another no parameter call
+    print makeAnchor("displaySearchStrataForm", "", "<b>Search again</b>");
 
     print "</center></p>";
     # End footer links

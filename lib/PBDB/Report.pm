@@ -8,7 +8,7 @@ use Class::Date qw(date localdate gmdate now);
 use Text::CSV_XS;
 use PBDB::PBDBUtil;
 use PBDB::TimeLookup;
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $IS_FOSSIL_RECORD $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeAnchor);
 
@@ -676,7 +676,7 @@ sub reportQueryDB{
     $groupSQL =~ s/^,//;
     if ($q->param('taxon_name') =~ /[^\s\w, \t\n-:;]/) {
         print "<div align=\"center\">".PBDB::Debug::printErrors(["Invalid taxon name"])."</div>";
-        exit;
+        return;
     }
 	if (($q->param('output') eq "collections" && ($q->param('Sepkoski') eq "Yes" || $q->param('taxon_name'))) || 
         ($q->param('output') eq "occurrences") ||
@@ -714,7 +714,7 @@ sub reportQueryDB{
                     # Uses hash slices to set the keys to be equal to unique taxon_nos.  Like a mathematical UNION.
                     @taxon_nos_unique{@all_taxon_nos} = ();
                 } else { #result > 1
-                    push @{$self->{'warnings'}}, "The counts are not restricted to '$taxon' because more than one taxon has that name. If this is a problem email the <a href='mailto: admin@paleobiodg.org'>Paleobiology Database Administrator</a>.";
+                    push @{$self->{'warnings'}}, "The counts are not restricted to '$taxon' because more than one taxon has that name. If this is a problem email the Paleobiology Database Administrator.";
                 }
             }
             my $taxon_nos_string = join(", ", keys %taxon_nos_unique);

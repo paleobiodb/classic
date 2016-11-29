@@ -7,6 +7,8 @@ package PBDB::Measurement;
 use PBDB::TaxaCache;
 use PBDB::Ecology;
 use PBDB::Reference;
+use PBDB::TimeLookup;
+use PBDB::Download;
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($READ_URL $HTML_DIR $TAXA_TREE_CACHE);
 
@@ -105,9 +107,9 @@ sub getMeasurements	{
     } elsif ($options{'taxon_name'} || $options{'taxon_no'}) {
         my @taxa;
         if ($options{'taxon_name'}) {
-            @taxa = TaxonInfo::getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'}},['taxon_no']);
+            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'}},['taxon_no']);
         } else {
-            @taxa = TaxonInfo::getTaxa($dbt,{'taxon_no'=>$options{'taxon_no'}},['taxon_no']);
+            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$options{'taxon_no'}},['taxon_no']);
         }
         if (@taxa) {
             my (@taxon_nos,%all_taxa);
@@ -459,7 +461,7 @@ sub displayDownloadMeasurementsResults  {
 	if ( ! $q->param('taxon_name') ) 	{
 		my $errorMessage = '<center><p class="medium"><i>You must enter the name of a taxonomic group.</i></p></center>';
 		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		PBDB::displayDownloadMeasurementsForm($errorMessage);
+		displayDownloadMeasurementsForm($errorMessage);
 		return;
 	}
 
@@ -509,7 +511,7 @@ sub displayDownloadMeasurementsResults  {
 	if ( ! @parents ) 	{
 		my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('taxon_name').' is not in our database. Please try another name.</i></p></center>';
 		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		PBDB::displayDownloadMeasurementsForm($errorMessage);
+		displayDownloadMeasurementsForm($errorMessage);
 		return;
 	}
 
@@ -522,7 +524,7 @@ sub displayDownloadMeasurementsResults  {
 		if ( ! $exclude ) 	{
 			my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('exclude').' is not in our database. Please try another name.</i></p></center>';
 			print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-			PBDB::displayDownloadMeasurementsForm($errorMessage);
+			displayDownloadMeasurementsForm($errorMessage);
 			return;
 		}
 		$exclude_clause = "AND (lft<$exclude->{'lft'} OR rgt>$exclude->{'rgt'})";
@@ -575,7 +577,7 @@ sub displayDownloadMeasurementsResults  {
 	if ( ! @taxa ) 	{
 		my $errorMessage = '<center><p class="medium"><i>We have no measurement data for species belonging to '.$q->param('taxon_name').'. Please try another taxon.</i></p></center>';
 		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		PBDB::displayDownloadMeasurementsForm($errorMessage);
+		displayDownloadMeasurementsForm($errorMessage);
 		return;
 	}
 
@@ -600,7 +602,7 @@ sub displayDownloadMeasurementsResults  {
 		if ( ! @with_habits ) 	{
 			my $errorMessage = '<center><p class="medium"><i>We have no measurement data for species in the selected life habit categories. Adding more categories might help.</i></p></center>';
 			print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-			PBDB::displayDownloadMeasurementsForm($errorMessage);
+			displayDownloadMeasurementsForm($errorMessage);
 			return;
 		}
 		@taxa = @with_habits;
@@ -671,14 +673,14 @@ sub displayDownloadMeasurementsResults  {
 	if ( ! @measurements ) 	{
 		my $errorMessage = '<center><p class="medium"><i>We have data records for this taxon but your options exclude them. Try broadening your search criteria.</i></p></center>';
 		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		PBDB::displayDownloadMeasurementsForm($errorMessage);
+		displayDownloadMeasurementsForm($errorMessage);
 		return;
 	}
 
 	# step 3: save measurements of species found in a subset of collections
 
 	my ($resos,$collections,$countries,$continent_list,$continents_checked,$interval_nos,$strat_unit);
-	my $download = Download->new($dbt,$q,$s,$hbo);
+	my $download = PBDB::Download->new($dbt,$q,$s,$hbo);
 	# JA 18.6.12
 	if ( $q->param('taxonomic_resolution') && $q->param('taxonomic_resolution') ne "all" )	{
 		if ( $q->param('taxonomic_resolution') eq "identified to genus" )	{
@@ -723,8 +725,7 @@ sub displayDownloadMeasurementsResults  {
 		($continent_list,$countries) = ("","");
 	}
 	if ( $q->param('max_interval') =~ /^[A-Z][a-z]/i )	{
-		require TimeLookup;
-		my $t = new TimeLookup($dbt);
+		my $t = new PBDB::TimeLookup($dbt);
 	# eml_max and min aren't on the form yet
 		my ($intervals,$errors,$warnings) = $t->getRange('',$q->param('max_interval'),'',$q->param('min_interval'));
 		$interval_nos = join(',',@$intervals);
@@ -771,7 +772,7 @@ sub displayDownloadMeasurementsResults  {
 		if ( ! @with_occs )	{
 			my $errorMessage = '<center><p class="medium"><i>None of the collections include data for '.$q->param('taxon_name').'. Please try another name or broaden your search criteria.</i></p></center>';
 			print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-			PBDB::displayDownloadMeasurementsForm($errorMessage);
+			displayDownloadMeasurementsForm($errorMessage);
 			return;
 		}
 		my %avail;
@@ -1351,7 +1352,7 @@ sub displayDownloadMeasurementsResults  {
 	if ( $rows < 1 )	{
 		my $errorMessage = '<center><p class="medium"><i>None of the collections include data for '.$q->param('taxon_name').'. Please try another name or broaden your search criteria.</i></p></center>';
 		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		PBDB::displayDownloadMeasurementsForm($errorMessage);
+		displayDownloadMeasurementsForm($errorMessage);
 		return;
 	}
 	print "<div style=\"margin-left: 10em; margin-bottom: 5em; width: 35em;\">\n\n";

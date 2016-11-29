@@ -16,9 +16,9 @@ function showAll(calledFromCorner)	{
 		// start showing block
 		if ( alldivs[i].id == calledFromCorner )	{
 			showingBlock = 1;
-			html = alldivs[i].innerHTML;
-			html = html.replace( /show all/,"" );
-			alldivs[i].innerHTML = html;
+			// html = alldivs[i].innerHTML;
+			// html = html.replace( /show all/,"" );
+			// alldivs[i].innerHTML = html;
 		// next block encountered, stop showing block
 		} else if ( /show all/.test( alldivs[i].innerHTML ) )	{
 			showingBlock = 0;

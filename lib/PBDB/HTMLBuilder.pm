@@ -7,6 +7,9 @@ use Data::Dumper;
 use PBDB::Reference;
 use PBDB::Person; # not used?
 use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $MESSAGE_FILE);
+
+use Encode;
+
 use strict;
 
 # Package wide variable, little messy but other modules need to access it
@@ -327,7 +330,7 @@ sub parseTemplate {
     my $filename = $_[0];
     
     open FH,"<$filename" or return undef;
-    my $txt = join("",<FH>);
+    my $txt = decode_utf8(join("",<FH>));
 
     my $root = {
         'type'=>'root',
@@ -486,7 +489,7 @@ sub readSimple {
     my $filename = $_[0];
 
     open FH,"<$filename" or return undef;
-    my $txt = join("",<FH>);
+    my $txt = decode_utf8(join("",<FH>));
     
     return $txt;
 }
@@ -819,7 +822,7 @@ sub htmlError {
     print $self->stdIncludes("std_page_top");
 	print $message;
     print $self->stdIncludes("std_page_bottom");
-	exit;
+	return;
 }
 
 # This is a wrapper to put the goodies into the standard page bottom

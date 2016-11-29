@@ -3,8 +3,9 @@ use strict;
 
 use PBDB::TypoChecker; # not used
 use Carp qw(carp);
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::TaxaCache;
+use PBDB::Validation;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
 
@@ -16,7 +17,7 @@ sub new {
 	my $class = shift;
     my $dbt = shift;
     my $opinion_no = shift;
-	my Opinion $self = fields::new($class);
+	my PBDB::Opinion $self = fields::new($class);
     $self->{'dbt'}=$dbt;
 
     my ($sql,@results);
@@ -40,7 +41,7 @@ sub new {
 
 # Universal accessor
 sub get {
-    my Opinion $self = shift;
+    my PBDB::Opinion $self = shift;
     my $fieldName = shift;
     if ($fieldName) {
         return $self->{'DBrow'}{$fieldName};
@@ -51,7 +52,7 @@ sub get {
 
 # Get the raw underlying database hash;
 sub getRow {
-    my Opinion $self = shift;
+    my PBDB::Opinion $self = shift;
     return $self->{'DBrow'};
 }
 
@@ -118,7 +119,7 @@ sub getOpinion {
 
 
 sub pubyr {
-	my Opinion $self = shift;
+	my PBDB::Opinion $self = shift;
 
 	# get all info from the database about this record.
 	my $hr = $self->{'DBrow'};
@@ -151,7 +152,7 @@ sub pubyr {
 #
 # For example, "belongs to Equidae according to J. D. Archibald 1998"
 sub formatAsHTML {
-	my Opinion $self = shift;
+	my PBDB::Opinion $self = shift;
     my %options = @_;
 	my $row = $self->{'DBrow'};
     my $dbt = $self->{'dbt'};
@@ -701,12 +702,14 @@ sub displayOpinionForm {
 
 	# print the form	
     $fields{'error_message'} = $error_message;
-
-    if ($fossil_record_ref) {
-        print $hbo->populateHTML("fossil_record_opinion", \%fields);
-    } else {
-        print $hbo->populateHTML("add_enter_opinion", \%fields);
+    
+    unless ( $s->get('role') =~ /authorizer|enterer/ )
+    {
+	$fields{limited} = 1;
     }
+    
+    print $hbo->populateHTML("add_enter_opinion", \%fields);
+    
 }
 
 
@@ -852,16 +855,16 @@ sub submitOpinionForm {
 		}
 
 		# make sure the format of the author names is proper
-		if  ($q->param('author1init') && ! Validation::properInitial($q->param('author1init'))) {
+		if  ($q->param('author1init') && !PBDB::Validation::properInitial($q->param('author1init'))) {
 			$errors->add("The first author's initials are improperly formatted");		
 		}
-		if  ($q->param('author2init') && ! Validation::properInitial($q->param('author2init'))) {
+		if  ($q->param('author2init') && !PBDB::Validation::properInitial($q->param('author2init'))) {
 			$errors->add("The second author's initials are improperly formatted");		
 		}
-		if  ( $q->param('author1last') && !Validation::properLastName($q->param('author1last')) ) {
+		if  ( $q->param('author1last') && !PBDB::Validation::properLastName($q->param('author1last')) ) {
             $errors->add("The first author's last name is improperly formatted");
 		}
-		if  ( $q->param('author2last') && !Validation::properLastName($q->param('author2last')) ) {
+		if  ( $q->param('author2last') && !PBDB::Validation::properLastName($q->param('author2last')) ) {
 			$errors->add("The second author's last name is improperly formatted");	
 		}
 		if ($q->param('otherauthors') && !$q->param('author2last') ) {
@@ -871,7 +874,7 @@ sub submitOpinionForm {
 		if ($q->param('pubyr')) {
             my $pubyr = $q->param('pubyr');
 			
-			if (! Validation::properYear($pubyr)) {
+			if (!PBDB::Validation::properYear($pubyr)) {
 				$errors->add("The year is improperly formatted");
 			}
 			
@@ -1031,7 +1034,7 @@ sub submitOpinionForm {
                 } else {
                     $q->param('confirm_create_spelling'=>$q->param('child_spelling_name'));
                     $q->param('confirm_create_rank'=>$q->param('child_spelling_rank'));
-                    $errors->add("The ".$q->param('child_spelling_rank')." '$childSpellingName' doesn't exist in our database.  If this isn't a typo, hit submit again to automatically create a new database record for it");	
+                    $errors->add("The ".$q->param('child_spelling_rank')." '$childSpellingName' doesn't exist in our database.  If this isn't a typo, select submit again to automatically create a new database record for it");	
                 }
             } elsif (scalar(@spellings) == 1) {
                 $fields{'child_spelling_no'} = $spellings[0]->{'taxon_no'};
@@ -1105,7 +1108,7 @@ sub submitOpinionForm {
         if ( ! @opinions_to_migrate1 && ! @opinions_to_migrate2 && ( @parents_to_migrate1 || @parents_to_migrate2 ) ) {
             $msg .= "<b>$childSpellingName</b> already exists</a>."; 
         }
-        $msg .= " If you hit submit again, this name will be combined permanently with the existing one. This means: <ul>";
+        $msg .= " If you select submit again, this name will be combined permanently with the existing one. This means: <ul>";
         $msg .= " <li> '$childName' will be considered the 'original' name.  If another spelling is actually the original one, please enter opinions based on that other name.</li>";
         $msg .= " <li> Authority information will be made identical and linked.  Changes to one name's authority record will be copied over automatically to the other's.</li>";
         $msg .= " <li> These names will be considered the same when editing/adding opinions, downloading, searching, etc.</li>";
@@ -1277,27 +1280,27 @@ sub submitOpinionForm {
 		$errors->add("If you enter a diagnosis, please also select a category for it in the \"Diagnosis\" pulldown");
 	}
 
-    if ($IS_FOSSIL_RECORD) {
-        if ($q->param('max_interval_name')) {
-            my ($max_no,$err1) = FossilRecord::parseIntervalName($dbt,$q->param('max_interval_name'));
-            $fields{'max_interval_no'} = $max_no;
-            foreach (@$err1) {
-                $errors->add($_->{'message'});
-            }
-        } elsif ($childRank =~ /genus/) {
-            $errors->add('First interval is required');
-        }
+    # if ($IS_FOSSIL_RECORD) {
+    #     if ($q->param('max_interval_name')) {
+    #         my ($max_no,$err1) = FossilRecord::parseIntervalName($dbt,$q->param('max_interval_name'));
+    #         $fields{'max_interval_no'} = $max_no;
+    #         foreach (@$err1) {
+    #             $errors->add($_->{'message'});
+    #         }
+    #     } elsif ($childRank =~ /genus/) {
+    #         $errors->add('First interval is required');
+    #     }
 
-        if ($q->param('min_interval_name')) {
-            my ($min_no,$err2) = FossilRecord::parseIntervalName($dbt,$q->param('min_interval_name'));
-            $fields{'min_interval_no'} = $min_no;
-            foreach (@$err2) {
-                $errors->add($_->{'message'});
-            }
-        } elsif ($childRank =~ /genus/) {
-            $errors->add('Last interval is required');
-        }
-    }
+    #     if ($q->param('min_interval_name')) {
+    #         my ($min_no,$err2) = FossilRecord::parseIntervalName($dbt,$q->param('min_interval_name'));
+    #         $fields{'min_interval_no'} = $min_no;
+    #         foreach (@$err2) {
+    #             $errors->add($_->{'message'});
+    #         }
+    #     } elsif ($childRank =~ /genus/) {
+    #         $errors->add('Last interval is required');
+    #     }
+    # }
 
     # Get the fields from the form and get them ready for insertion
     # All other fields should have been set or thrown an error message at some previous time
@@ -1649,9 +1652,7 @@ sub fixMassEstimates	{
 # for a reference no/taxon
 # Moved/Adapted from PBDB::Taxon::displayOpinionChoiceForm PS 01/24/2004
 sub displayOpinionChoiceForm {
-    my $dbt = shift;
-    my $s = shift;
-    my $q = shift;
+    my ($q, $s, $dbt, $hbo) = @_;
     my $dbh = $dbt->dbh;
 
     my $sepkoski;
@@ -1740,8 +1741,8 @@ sub displayOpinionChoiceForm {
             my @results = @{$dbt->getData($sql)};
             if (scalar(@results) == 0) {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No opinions were found</div>');
-                PBDB::displayOpinionSearchForm();
-                exit;
+                PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+                return;
             }
             print "<div align=\"center\">";
             if ($s->isDBMember())	{
@@ -1779,12 +1780,12 @@ sub displayOpinionChoiceForm {
                 $message .= "<li class='medium'>$_</li>" foreach @errors;
                 $message .= "</ul>\n</div>\n<br>\n"; 
                 $q->param('errors' => $message);
-                PBDB::displayOpinionSearchForm();
-                exit;
+                PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+		return;
             } else {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No search terms were entered</div>');
-                PBDB::displayOpinionSearchForm();
-                exit;
+                PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+		return;
             }
         }
     } 

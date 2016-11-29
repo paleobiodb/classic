@@ -24,7 +24,7 @@
 
 package PBDB::TaxaCache;
 
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::TaxonInfo;
 use PBDB::Constants qw($TAXA_TREE_CACHE $TAXA_LIST_CACHE $IS_FOSSIL_RECORD);
 use Carp qw(carp);
@@ -1011,6 +1011,11 @@ sub getParents {
         $rank = $dbt->dbh->quote($1);
     }
     foreach my $taxon_no (@$taxon_nos_ref) {
+	if ( $taxon_no =~ /^(\d+)/ )
+	{
+	    $taxon_no = $1;
+	}
+	
         if ($rank) {
             # my $sql = "SELECT a.taxon_no,a.taxon_name,a.taxon_rank,a.extant
             # FROM $TAXA_LIST_CACHE l, $TAXA_TREE_CACHE t, authorities a WHERE

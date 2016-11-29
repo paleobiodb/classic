@@ -620,7 +620,8 @@ sub streamResult {
     my $sth = $self->{main_sth};
     my $row;
     
-    PBDB_Data::debug_msg("STREAMING");
+    # where is this module?
+    #PBDB_Data::debug_msg("STREAMING");
     
     # First send out the partial output previously stashed by
     # generateCompoundResult().

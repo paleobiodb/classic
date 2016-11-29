@@ -2,7 +2,7 @@ package PBDB::TaxonInfo;
 
 use PBDB::Taxon;
 use PBDB::TimeLookup;  # not used
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::Collection;
 use PBDB::CollectionEntry;
 use PBDB::Reference;
@@ -20,13 +20,7 @@ use PBDB::Constants qw($HOST_URL $READ_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECO
 use strict;
 
 
-# JA: rjp did a big complicated reformatting of the following and I can't
-#  confirm that no damage was done in the course of it
-# him being an idiot, I think it's his fault that all the HTML originally was
-#  embedded instead of being in a template HTML file that's passed to
-#  populateHTML
-# possibly Muhl's fault because he uses populateHTML nowhere in this module
-# I fixed this 21.10.04
+# JA: fixed this 21.10.04
 sub searchForm {
 	my $hbo = shift;
 	my $q = shift;
@@ -508,7 +502,7 @@ sub displayTaxonInfoResults {
 	#     };
 	#     if ( @$ )
 	#     {
-	# 	print "<p>The map could not be displayed, because an error occurred.</p>\n";
+	# 	print "<center><p>The map could not be displayed, because an error occurred.</p></center>\n";
 	#     }
         # } else {
         #     print qq|<form method="POST" action="">|;
@@ -686,8 +680,7 @@ sub doCollections{
     }
     $range .= " <i>or</i> $lb to $ub Ma";
 
-    # I hate to hit another table, but we need to know whether ANY of the
-    #  included taxa are extant JA 15.12.06
+    # need to know whether ANY of the included taxa are extant JA 15.12.06
     my $mincrownfirst;
     my %iscrown;
     my $extant;
@@ -798,7 +791,6 @@ sub doCollections{
 	# "vague" means there's some other interval falling entirely within
 	#  this one JA 26.1.05
     # Don't do it this way, not reliable
-
     # sort the collections by taxon name so the names can be printed just once
     #  per set of collections sharing the same taxon
     @{$colls} = sort { $a->{genera} cmp $b->{genera} } @{$colls};
@@ -1015,8 +1007,6 @@ sub doCollections{
 }
 
 # JA 23.9.11
-# replaces Schroeter's much more complicated getIntervalsData with a simple
-#  database hit
 sub intervalData	{
 	my ($dbt,$colls) = @_;
 	my %is_no;
@@ -1028,8 +1018,6 @@ sub intervalData	{
 }
 
 # JA 23.9.11
-# replaces Schroeter's old, hard-fought calculateAgeRange function, which was
-#  vastly more complicated
 sub getAgeRange	{
 	my ($dbt,$colls) = @_;
 	my @coll_nos = map { $_ ->{'collection_no'} } @$colls;
@@ -1472,7 +1460,7 @@ $output .= qq|<div class="displayPanel" align="left" style="margin-bottom: 2em; 
     }
 
     if ($orig_no) {
-        $output .= '<p><b><a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download authority and opinion data</a></b> - <b><a href=# onClick="javascript: document.doViewClassification.submit()">View classification of included taxa</a></b>';
+        # $output .= '<p><b><a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download authority and opinion data</a></b> - <b><a href=# onClick="javascript: document.doViewClassification.submit()">View classification of included taxa</a></b>';
         $output .= "<form method=\"POST\" action=\"\" name=\"doDownloadTaxonomy\">";
         $output .= '<input type="hidden" name="action" value="displayDownloadTaxonomyResults">';
         $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
@@ -1597,7 +1585,6 @@ sub getSynonymyParagraph	{
     #  to getMostRecentClassification because (1) the code was redundant, and
     #  (2) this way you can identify the opinion actually used in the taxon's
     #   classification, so it can be bolded in the history paragraph JA 17.4.07
-    # whoops, need to get original combination first JA 12.6.07
     my $orig = getOriginalCombination($dbt, $taxon_no);	
     my @results = getMostRecentClassification($dbt,$orig,{'use_synonyms'=>'no'});
 
@@ -2224,7 +2211,7 @@ sub getMostRecentClassification {
             my @spellingRows = @{$dbt->getData($sql)};
             my @spellings = ($child_no);
             push @spellings, $_->{'spelling'} foreach @spellingRows;
-            # misspellings are a nightmare JA 4.8.09
+            # JA 4.8.09
             # start with the child_no because there may be no correctly
             #  spelt opinion
             my ($synonym_no,$spelling_no) = ($rows[0]->{'child_no'},$rows[0]->{'child_no'});
@@ -2861,7 +2848,7 @@ sub beginFirstAppearance	{
 	my ($hbo,$q,$error_message) = @_;
 	print $hbo->populateHTML('first_appearance_form', [$error_message], ['error_message']);
 	if ( $error_message )	{
-		exit;
+		return;
 	}
 }
 
@@ -3614,7 +3601,7 @@ sub basicTaxonInfo	{
 		} elsif ( scalar @taxon_nos > 1 )	{
 			listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		} else	{
-			$error = "Nothing matching your search is in the database. Please try again.";
+			$error = "<center>Nothing matching your search is in the database. Please try again.</center>";
 			$taxon_name = "Failed search!";
 		}
 	} elsif ( $taxon_name )	{
@@ -3635,7 +3622,7 @@ sub basicTaxonInfo	{
 			my $sql = "SELECT taxon_no FROM authorities WHERE common_name LIKE '".$name."'";
 			push @taxon_nos , ${$dbt->getData($sql)}[0]->{'taxon_no'};
 			if ( ! @taxon_nos )	{
-				$error = "WARNING: '".$taxon_name."' is not in the database. Please search again.";
+				$error = "<center>WARNING: '".$taxon_name."' is not in the database. Please search again.</center>";
 			}
 		}
 		if ( $taxon_nos[0] eq "" )	{
@@ -3660,7 +3647,7 @@ sub basicTaxonInfo	{
 		}
 		if ( ! @taxon_nos && $q->param('last_taxon') > 0 && ! $occ )	{
 			$taxon_no = $q->param('last_taxon');
-			$error = "WARNING: '".$taxon_name."' is not in the database. Please search again.";
+			$error = "<center>WARNING: '".$taxon_name."' is not in the database. Please search again.</center>";
 		} elsif ( ! @taxon_nos && ! $occ )	{
 			my $rank_clause = "AND taxon_rank='species'";
 			if ( $taxon_name !~ / / )	{
@@ -3689,7 +3676,7 @@ sub basicTaxonInfo	{
 			}
 			$taxon_no = $guess->{'taxon_no'};
 			$taxon_no = getSeniorSynonym($dbt,$taxon_no); 
-			$error = "WARNING: '".$taxon_name."' is not in the database. ";
+			$error = "<cneter>WARNING: '".$taxon_name."' is not in the database.</center>";
 			if ( $guess->{'taxon_name'} )	{
 				$error .= italicize($guess)." seems like a plausible match.";
 			}
@@ -3706,7 +3693,7 @@ sub basicTaxonInfo	{
 		print $hbo->stdIncludes($PAGE_TOP);
 		print "<p>You must enter a taxon name.</p>\n\n";
 		print $hbo->stdIncludes($PAGE_BOTTOM);
-		exit;
+		return;
 	}
 
 	# PAGE TITLE ETC.
@@ -3716,7 +3703,17 @@ sub basicTaxonInfo	{
 
 	my ($sql,$auth,$class_hash);
 	if ( $taxon_no )	{
-		$sql= "SELECT taxon_name,taxon_rank,common_name,extant,a.reference_no,ref_is_authority,$authorfields,type_specimen,type_body_part,part_details,type_locality,discussion,lft,rgt,IF(discussed_by>0,name,'') AS discussant,email FROM authorities a,refs r,$TAXA_TREE_CACHE t,person p WHERE a.reference_no=r.reference_no AND a.taxon_no=".$taxon_no." AND a.taxon_no=t.taxon_no AND (discussed_by=person_no OR discussed_by IS NULL)";
+	    my $just_taxon_no;
+	    if ( $taxon_no =~ /^(\d+)/ )
+	    {
+		$just_taxon_no = $1;
+	    }
+	    else
+	    {
+		$just_taxon_no = 0;
+	    }
+		$sql= "SELECT taxon_name,taxon_rank,common_name,extant,a.reference_no,ref_is_authority,$authorfields,type_specimen,type_body_part,part_details,type_locality,discussion,lft,rgt,IF(discussed_by>0,name,'') AS discussant,email FROM authorities a,refs r,$TAXA_TREE_CACHE t,person p WHERE a.reference_no=r.reference_no AND a.taxon_no=$just_taxon_no. AND a.taxon_no=t.taxon_no AND (discussed_by=person_no OR discussed_by IS NULL)";
+		# print STDERR "SQL: $sql\n\n";
 		$auth = ${$dbt->getData($sql)}[0];
 
 		$class_hash = PBDB::TaxaCache::getParents($dbt,[$taxon_no],'array_full');
@@ -3766,7 +3763,7 @@ sub basicTaxonInfo	{
 	if ( $taxon_no )	{
 		my $author = formatShortAuthor($auth);
 		if ( $auth->{'ref_is_authority'} =~ /y/i )	{
-			$author = makeAnchor("displayReference?reference_no=$auth->{'reference_no'}&amp;is_real_user=$is_real_user", $author);
+			$author = makeAnchor("displayReference", "reference_no=$auth->{'reference_no'}&amp;is_real_user=$is_real_user", $author);
 		}
 		$header .= $author;
 		if ( $auth->{'common_name'} )	{
@@ -4423,7 +4420,7 @@ sub getMatchingSubtaxa	{
 		# infinite loops are bad
 		$q->param('match' => '');
 		basicTaxonInfo($q,$s,$dbt,$hbo);
-		exit;
+		return;
 	}
 }
 
@@ -4472,7 +4469,7 @@ sub listTaxonChoices	{
 |;
 	if ( $numbersOnly > 0 )	{
 		print $hbo->stdIncludes($PAGE_TOP);
-		exit;
+		return;
 	}
 
 }

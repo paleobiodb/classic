@@ -8,6 +8,9 @@ use Class::Date qw(date localdate gmdate now);
 #use Image::Magick;
 use PBDB::DBTransactionManager;
 use PBDB::TimeLookup;
+use PBDB::Validation;
+use PBDB::TaxonInfo;
+use PBDB::Collection;
 use Digest::MD5;
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($WRITE_URL $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE);
@@ -160,7 +163,7 @@ sub mapCheckParams {
         # Get EML values, check interval names
         if ($interval_name =~ /[a-zA-Z]/) {
             my ($eml, $name) = PBDB::TimeLookup::splitInterval($interval_name);
-            if (!Validation::checkInterval($dbt,$eml,$name)) {
+            if (!PBDB::Validation::checkInterval($dbt,$eml,$name)) {
                 push @errors, "We have no record of $interval_name in the database";
             } 
         }
@@ -168,7 +171,7 @@ sub mapCheckParams {
         # Generate warning for taxon with homonyms
         if ($taxon_name) {
             if($q->param('taxon_rank') ne "species") {
-                my @taxa = TaxonInfo::getTaxa($dbt, {'taxon_name'=>$taxon_name,'remove_rank_change'=>1});
+                my @taxa = PBDB::TaxonInfo::getTaxa($dbt, {'taxon_name'=>$taxon_name,'remove_rank_change'=>1});
                 if (scalar(@taxa)  > 1) {
                     my @nos;
                     push @nos , $_->{'taxon_no'} foreach @taxa;
@@ -211,7 +214,7 @@ sub mapQueryDB {
                 if ($toptions{'interval_name'}) {
                     ($toptions{'eml_max_interval'},$toptions{'max_interval'}) = PBDB::TimeLookup::splitInterval($toptions{'interval_name'});
                 }
-                my ($dataRowsRef,$ofRows) = Collection::getCollections($dbt,$s,\%toptions,$fields);  
+                my ($dataRowsRef,$ofRows) = PBDB::Collection::getCollections($dbt,$s,\%toptions,$fields);  
                 $dataSets[$ptset] = $dataRowsRef;
             }
         } elsif ($ptset == 1) {
@@ -226,7 +229,7 @@ sub mapQueryDB {
                 if ($options{'interval_name'}) {
                     ($options{'eml_max_interval'},$options{'max_interval'}) = PBDB::TimeLookup::splitInterval($options{'interval_name'});
                 }
-                my ($dataRowsRef,$ofRows,$warnings) = Collection::getCollections($dbt,$s,\%options,$fields);  
+                my ($dataRowsRef,$ofRows,$warnings) = PBDB::Collection::getCollections($dbt,$s,\%options,$fields);  
                 push @warnings, @$warnings; 
                 $dataSets[$ptset] = $dataRowsRef;
             }
@@ -236,202 +239,202 @@ sub mapQueryDB {
 }
 
 
-# This function prints footer for the image, makes clickable background tiles,
-# converts and outputs the image to different formats, and closes up everything
-sub mapFinishImage {
-    my $self = shift;
-    my @dataSets = @{$_[0]};
+# # This function prints footer for the image, makes clickable background tiles,
+# # converts and outputs the image to different formats, and closes up everything
+# sub mapFinishImage {
+#     my $self = shift;
+#     my @dataSets = @{$_[0]};
 
 
-    # following lines taken out by JA 27.10.06 while re-implementing support
-    #  for GIF format files, not sure what it does to IE browsers
-    # do this only if the browser is not IE
-    # confusion reigns supreme, seems to work fine for GIF and PNG but not
-    #  JPEG so I'm reinstating it JA 1.10.08
-    # this prevents errors with rendering of transparent pixels in PNG format
-#    if ( $q->param('browser') =~ /Microsoft/ || $q->param('linecommand') =~ /[A-Za-z]/ )	{
-        $im->trueColorToPalette();
-#    }
+#     # following lines taken out by JA 27.10.06 while re-implementing support
+#     #  for GIF format files, not sure what it does to IE browsers
+#     # do this only if the browser is not IE
+#     # confusion reigns supreme, seems to work fine for GIF and PNG but not
+#     #  JPEG so I'm reinstating it JA 1.10.08
+#     # this prevents errors with rendering of transparent pixels in PNG format
+# #    if ( $q->param('browser') =~ /Microsoft/ || $q->param('linecommand') =~ /[A-Za-z]/ )	{
+#         $im->trueColorToPalette();
+# #    }
 
-    # this doesn't actually seem to work (see below), left in for posterity
-    #print MAPGIF $im->gif;
-    #close MAPGIF;
-    #chmod 0664, "$GIF_DIR/$gifname";
+#     # this doesn't actually seem to work (see below), left in for posterity
+#     #print MAPGIF $im->gif;
+#     #close MAPGIF;
+#     #chmod 0664, "$GIF_DIR/$gifname";
 
-    my $image = Image::Magick->new;
+#     my $image = Image::Magick->new;
 
-    open(PNG,">$GIF_DIR/$pngname");
-    binmode(PNG);
-    print PNG $im->png;
-    close PNG;
-    chmod 0664, "$GIF_DIR/$pngname";
+#     open(PNG,">$GIF_DIR/$pngname");
+#     binmode(PNG);
+#     print PNG $im->png;
+#     close PNG;
+#     chmod 0664, "$GIF_DIR/$pngname";
 
-    if ( $q->param('taxon_no') || $q->param('taxon_name') )	{
-	my $taxon;
-    	if ( $q->param('taxon_no') )	{
-		$taxon = $q->param('taxon_no');
-    	} elsif ( $q->param('taxon_name') )	{
-		$taxon = $q->param('taxon_name');
-		$taxon =~ s/ /_/g;
-	}
-        open(PNG,">$GIF_DIR/taxon".$taxon.".png");
-        binmode(PNG);
-        print PNG $im->png;
-        close PNG;
-        chmod 0664, "$GIF_DIR/taxon".$taxon.".png";
-    }
+#     if ( $q->param('taxon_no') || $q->param('taxon_name') )	{
+# 	my $taxon;
+#     	if ( $q->param('taxon_no') )	{
+# 		$taxon = $q->param('taxon_no');
+#     	} elsif ( $q->param('taxon_name') )	{
+# 		$taxon = $q->param('taxon_name');
+# 		$taxon =~ s/ /_/g;
+# 	}
+#         open(PNG,">$GIF_DIR/taxon".$taxon.".png");
+#         binmode(PNG);
+#         print PNG $im->png;
+#         close PNG;
+#         chmod 0664, "$GIF_DIR/taxon".$taxon.".png";
+#     }
 
-    open(GIF,"<$GIF_DIR/$pngname");
-    binmode(GIF);
-    $image->Read(file=>\*GIF);
+#     open(GIF,"<$GIF_DIR/$pngname");
+#     binmode(GIF);
+#     $image->Read(file=>\*GIF);
 
-# horrible workaround required by screwy performance of GD on flatpebble
-    close GIF;
-    open GIF2,">$GIF_DIR/$gifname";
-    $image->Write(file=>\*GIF2,filename=>"$GIF_DIR/$gifname");
-    close GIF2;
-    chmod 0664, "$GIF_DIR/$gifname";
+# # horrible workaround required by screwy performance of GD on flatpebble
+#     close GIF;
+#     open GIF2,">$GIF_DIR/$gifname";
+#     $image->Write(file=>\*GIF2,filename=>"$GIF_DIR/$gifname");
+#     close GIF2;
+#     chmod 0664, "$GIF_DIR/$gifname";
 
-    open JPG,">$GIF_DIR/$jpgname";
-    $image->Write(file=>\*JPG,filename=>"$GIF_DIR/$jpgname");
-    close JPG;
-    chmod 0664, "$GIF_DIR/$jpgname";
+#     open JPG,">$GIF_DIR/$jpgname";
+#     $image->Write(file=>\*JPG,filename=>"$GIF_DIR/$jpgname");
+#     close JPG;
+#     chmod 0664, "$GIF_DIR/$jpgname";
 
-    close GIF;
+#     close GIF;
     
-    open(AI,">$GIF_DIR/$ainame");
-    open AIHEAD,"<./data/AI.header";
-    while (<AIHEAD>)	{
-        print AI $_;
-    }
-    close AIHEAD;
+#     open(AI,">$GIF_DIR/$ainame");
+#     open AIHEAD,"<./data/AI.header";
+#     while (<AIHEAD>)	{
+#         print AI $_;
+#     }
+#     close AIHEAD;
 
-    print AI $ai;
+#     print AI $ai;
 
-    open(AIFOOT,"<./data/AI.footer");
-    while (<AIFOOT>){
-        print AI $_;
-    }
-    close AIFOOT;
-    close AI;
+#     open(AIFOOT,"<./data/AI.footer");
+#     while (<AIFOOT>){
+#         print AI $_;
+#     }
+#     close AIFOOT;
+#     close AI;
 
-    # make clickable background rectangles for repositioning the map
-    my $clickstring = "?a=displayMapResults";
-    unless($q->param("simple_map") =~ /YES/i){
-        my %param;
-        foreach ($q->param(),keys %map_defaults) {
-            my $val = $q->param($_);
-            if ($val ne '' && $map_defaults{$_} ne $val && $_ !~ /mapscale|maplng|maplat/) {
-                $param{$_} = $q->param($_); 
-            }
-        }
-        foreach my $k (sort keys %param) {
-            $clickstring .= "&amp;$k=".uri_escape($param{$k});
-        }
+#     # make clickable background rectangles for repositioning the map
+#     my $clickstring = "?a=displayMapResults";
+#     unless($q->param("simple_map") =~ /YES/i){
+#         my %param;
+#         foreach ($q->param(),keys %map_defaults) {
+#             my $val = $q->param($_);
+#             if ($val ne '' && $map_defaults{$_} ne $val && $_ !~ /mapscale|maplng|maplat/) {
+#                 $param{$_} = $q->param($_); 
+#             }
+#         }
+#         foreach my $k (sort keys %param) {
+#             $clickstring .= "&amp;$k=".uri_escape_utf8($param{$k} // '');
+#         }
 
-        # Crate a new cgi object cause the original may have been changed
-        #my $q2 = new CGI;
-        #for $p ( @params )	{
-        #    if ( $q2->param($p) )	{
-        #        $clickstring .= "&" . $p . "=" . $q2->param($p);
-        #    }
-        #}
-#        if ($scale > 1) {
-            for my $i ( 1..10 )	{
-                for my $j ( 1..10 )	{
-                    my $xbot = int(( $i - 1 ) / 10 * $width);
-                    my $xtop = int($i / 10 * $width);
-                    my $ybot = int(( $j - 1 ) / 10 * $height);
-                    my $ytop = int($j / 10 * $height);
-                    my $newlng = int($midlng + ( ( 360 / $scale ) * ( $i - 5 ) / 10 ));
-                    my $newlat = int($midlat - ( ( 180 / $scale ) * ( $j - 5 ) / 10 ));
-                    $latlngstring = "&maplng=" . $newlng;
-                    $latlngstring .= "&maplat=" . $newlat;
-                    # need this because mapscale is varied for the "Zoom"
-                    #  buttons below
-                    $latlngstring .= "&mapscale=" . $scale;
-                    print MAPOUT qq|<area shape="rect" coords="$xbot,$ybot,$xtop,$ytop" href="$clickstring$latlngstring">\n|;
-                }
-            }
-#        }
-    }
+#         # Crate a new cgi object cause the original may have been changed
+#         #my $q2 = new CGI;
+#         #for $p ( @params )	{
+#         #    if ( $q2->param($p) )	{
+#         #        $clickstring .= "&" . $p . "=" . $q2->param($p);
+#         #    }
+#         #}
+# #        if ($scale > 1) {
+#             for my $i ( 1..10 )	{
+#                 for my $j ( 1..10 )	{
+#                     my $xbot = int(( $i - 1 ) / 10 * $width);
+#                     my $xtop = int($i / 10 * $width);
+#                     my $ybot = int(( $j - 1 ) / 10 * $height);
+#                     my $ytop = int($j / 10 * $height);
+#                     my $newlng = int($midlng + ( ( 360 / $scale ) * ( $i - 5 ) / 10 ));
+#                     my $newlat = int($midlat - ( ( 180 / $scale ) * ( $j - 5 ) / 10 ));
+#                     $latlngstring = "&maplng=" . $newlng;
+#                     $latlngstring .= "&maplat=" . $newlat;
+#                     # need this because mapscale is varied for the "Zoom"
+#                     #  buttons below
+#                     $latlngstring .= "&mapscale=" . $scale;
+#                     print MAPOUT qq|<area shape="rect" coords="$xbot,$ybot,$xtop,$ytop" href="$clickstring$latlngstring">\n|;
+#                 }
+#             }
+# #        }
+#     }
 
-    print MAPOUT "</map>\n";
-    print MAPOUT "</table>\n";
+#     print MAPOUT "</map>\n";
+#     print MAPOUT "</table>\n";
 
-    print MAPOUT "<img border=\"0\" alt=\"PaleoDB map\" height=\"$totalheight\" width=\"$width\" src=\"$MAP_URL/$gifname\" usemap=\"#paleodbmap\" ismap>\n\n";
+#     print MAPOUT "<img border=\"0\" alt=\"PaleoDB map\" height=\"$totalheight\" width=\"$width\" src=\"$MAP_URL/$gifname\" usemap=\"#paleodbmap\" ismap>\n\n";
 
-    print MAPOUT qq|\n<center>\n<div class="verysmall" style="width: 50em; margin-top: 1em; margin-bottom: 1em; text-align: left;">\n\n|;
-    unless ($q->param("simple_map") =~ /YES/i){
-        my %coll_count = ();
-        foreach my $dataSet (@dataSets) {
-            if ($dataSet) {
-                foreach my $c (@$dataSet) {
-                    $coll_count{$c->{'collection_no'}} = 1;
-                }
-            }
-        }
-        my $count = scalar(keys %coll_count);
-        if ($count > 1)	{
-            print MAPOUT "<b>$count&nbsp;collections</b> fall ";
-        } elsif ($count == 1)	{
-            print MAPOUT "<b>Exactly&nbsp;one collection</b> falls ";
-        }  else	{
-            # PM 09/13/02 Added bit about missing lat/long data to message
-            print MAPOUT "<b>Sorry!</b> Either the collections were missing lat/long data, or no collections fall ";
-        }
-        print MAPOUT "within the mapped area, have lat/long data, and matched your query.";
+#     print MAPOUT qq|\n<center>\n<div class="verysmall" style="width: 50em; margin-top: 1em; margin-bottom: 1em; text-align: left;">\n\n|;
+#     unless ($q->param("simple_map") =~ /YES/i){
+#         my %coll_count = ();
+#         foreach my $dataSet (@dataSets) {
+#             if ($dataSet) {
+#                 foreach my $c (@$dataSet) {
+#                     $coll_count{$c->{'collection_no'}} = 1;
+#                 }
+#             }
+#         }
+#         my $count = scalar(keys %coll_count);
+#         if ($count > 1)	{
+#             print MAPOUT "<b>$count&nbsp;collections</b> fall ";
+#         } elsif ($count == 1)	{
+#             print MAPOUT "<b>Exactly&nbsp;one collection</b> falls ";
+#         }  else	{
+#             # PM 09/13/02 Added bit about missing lat/long data to message
+#             print MAPOUT "<b>Sorry!</b> Either the collections were missing lat/long data, or no collections fall ";
+#         }
+#         print MAPOUT "within the mapped area, have lat/long data, and matched your query.";
 
-        if ($dotsizeterm eq "proportional")	{
-            print MAPOUT "Sizes of $dotshape are proportional to counts of collections at each point.\n"
-        }
+#         if ($dotsizeterm eq "proportional")	{
+#             print MAPOUT "Sizes of $dotshape are proportional to counts of collections at each point.\n"
+#         }
 
-        print MAPOUT "<br>You may download the map in ";
-        print MAPOUT "<b><a href=\"$MAP_URL/$ainame\">Adobe Illustrator</a></b>, ";
-        print MAPOUT "<b><a href=\"$MAP_URL/$gifname\">GIF</a></b>, ";
-        print MAPOUT "<b><a href=\"$MAP_URL/$jpgname\">JPEG</a></b>, ";
-        print MAPOUT "or <b><a href=\"$MAP_URL/$pngname\">PNG</a></b> format.\n";
+#         print MAPOUT "<br>You may download the map in ";
+#         print MAPOUT "<b><a href=\"$MAP_URL/$ainame\">Adobe Illustrator</a></b>, ";
+#         print MAPOUT "<b><a href=\"$MAP_URL/$gifname\">GIF</a></b>, ";
+#         print MAPOUT "<b><a href=\"$MAP_URL/$jpgname\">JPEG</a></b>, ";
+#         print MAPOUT "or <b><a href=\"$MAP_URL/$pngname\">PNG</a></b> format.\n";
 
-        print MAPOUT "Click on a point to recenter it.\n";
-        print MAPOUT "\n</div>\n</center>\n\n";
+#         print MAPOUT "Click on a point to recenter it.\n";
+#         print MAPOUT "\n</div>\n</center>\n\n";
 
-        $clickstring .= "&maplng=" . $midlng;
-        $clickstring .= "&maplat=" . $midlat;
+#         $clickstring .= "&maplng=" . $midlng;
+#         $clickstring .= "&maplat=" . $midlat;
 
-        $zoom1 = 2;
-        while ( $scale + $zoom1 > 12 )	{
-            $zoom1--;
-        }
-        $zoom2 = 2;
-        while ( $scale - $zoom2 < 1 )	{
-            $zoom2--;
-        }
+#         $zoom1 = 2;
+#         while ( $scale + $zoom1 > 12 )	{
+#             $zoom1--;
+#         }
+#         $zoom2 = 2;
+#         while ( $scale - $zoom2 < 1 )	{
+#             $zoom2--;
+#         }
 
-        $temp = $clickstring . "&mapscale=" . ( $scale + $zoom1 );
-        print MAPOUT "<center>\n<div class=\"small\">\n<b><a href=\"$temp\">Zoom&nbsp;in</a></b> - \n";
+#         $temp = $clickstring . "&mapscale=" . ( $scale + $zoom1 );
+#         print MAPOUT "<center>\n<div class=\"small\">\n<b><a href=\"$temp\">Zoom&nbsp;in</a></b> - \n";
 
-        $temp = $clickstring . "&mapscale=" . ( $scale - $zoom2 );
-        print MAPOUT "<b><a href=\"$temp\">Zoom&nbsp;out</a></b> -\n";
+#         $temp = $clickstring . "&mapscale=" . ( $scale - $zoom2 );
+#         print MAPOUT "<b><a href=\"$temp\">Zoom&nbsp;out</a></b> -\n";
 
-        if ($q->param('form_source') eq 'basic_map_form') {
-            print MAPOUT "<b><a href='?a=basicMapForm'>Search&nbsp;again</a></b></p>\n";
-        } else {
-            print MAPOUT "<b><a href='?a=mapForm'>Search&nbsp;again</a></b></p>\n";
-        }
-    }
+#         if ($q->param('form_source') eq 'basic_map_form') {
+#             print MAPOUT "<b><a href='?a=basicMapForm'>Search&nbsp;again</a></b></p>\n";
+#         } else {
+#             print MAPOUT "<b><a href='?a=mapForm'>Search&nbsp;again</a></b></p>\n";
+#         }
+#     }
 
-    # JA 26.4.06
-    if ($q->param("simple_map") =~ /YES/i){
-        print MAPOUT "<p>You may download this map in ";
-        print MAPOUT "<b><a href=\"$MAP_URL/$ainame\">Adobe Illustrator</a></b>, ";
-        print MAPOUT "<b><a href=\"$MAP_URL/$gifname\">GIF</a></b>, ";
-        print MAPOUT "<b><a href=\"$MAP_URL/$jpgname\">JPEG</a></b>, ";
-        print MAPOUT "or <b><a href=\"$MAP_URL/$pngname\">PNG</a></b> format.</p>\n";
-    }
-    print MAPOUT "\n</div></center>\n\n";
+#     # JA 26.4.06
+#     if ($q->param("simple_map") =~ /YES/i){
+#         print MAPOUT "<p>You may download this map in ";
+#         print MAPOUT "<b><a href=\"$MAP_URL/$ainame\">Adobe Illustrator</a></b>, ";
+#         print MAPOUT "<b><a href=\"$MAP_URL/$gifname\">GIF</a></b>, ";
+#         print MAPOUT "<b><a href=\"$MAP_URL/$jpgname\">JPEG</a></b>, ";
+#         print MAPOUT "or <b><a href=\"$MAP_URL/$pngname\">PNG</a></b> format.</p>\n";
+#     }
+#     print MAPOUT "\n</div></center>\n\n";
 
-    close MAPOUT;
-}
+#     close MAPOUT;
+# }
 
 
 sub mapSetScale	{

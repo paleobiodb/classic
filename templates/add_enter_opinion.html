@@ -7,6 +7,12 @@ function checkForm()	{
 	var frm = document.forms[1];
 	var error = "";
 
+    if ( '%%limited%%' )
+    {
+	wing.error('You do not have authorization to edit taxonomic opinions');
+	return false;
+    }
+    
 	var hasLength = frm.ref_has_opinion.length - 1;
 	var checkedHas = 0;
 	var repeatedHas = 0;
@@ -117,6 +123,11 @@ function checkForm()	{
 <div align="center"><p class="pageTitle">Opinion record for <span id="taxon_display_name"></span></p></div>
 
 <div style="width: 45em; margin-left: auto; margin-right: auto;">
+
+<div show="limited"><center>
+  <p style="align: center; margin-bottom: 2em;"><em>You do not have
+  authorization to edit this data.</em></p>
+</center></div>
 
 <div show="error_message">%%error_message%%</div>
 

@@ -14,35 +14,31 @@
 
             <p class="large">Basic steps</p>
             <ul>
-              <li><a href="?a=displaySearchRefs&amp;type=add">Add a new reference</a></li>
-              <div show="access">
-              <li><a href="?a=displayAuthorityTaxonSearchForm">Add/edit taxonomic name</A></li>
-              <li><a href="?a=displayOpinionSearchForm">Add/edit taxonomic opinion</A></li>
+              <li><a href="/classic/displaySearchRefs?type=add">Add a new reference</a></li>
+              <div hide="limited">
+              <li><a href="/classic/displayAuthorityTaxonSearchForm">Add/edit taxonomic name</A></li>
+              <li><a href="/classic/displayOpinionSearchForm">Add/edit taxonomic opinion</A></li>
               </div>
-              <li><a href="?a=displaySearchCollsForAdd">Add a new collection</a></li>
-              <li><a href="?a=displayOccurrenceAddEdit">Add taxonomic occurrences</a>&nbsp;&nbsp;</li>
-              <li><a href="?a=displaySearchColls&type=occurrence_list">Paste in an occurrence list</a>&nbsp;&nbsp;</li>
-              <li><a href="?a=displaySearchColls&type=occurrence_table">Add/edit a table of occurrences</a>&nbsp;&nbsp;</li>
+              <li><a href="/classic/displaySearchCollsForAdd">Add a new collection</a></li>
+              <li><a href="/classic/displayOccurrenceAddEdit">Add taxonomic occurrences</a>&nbsp;&nbsp;</li>
+              <li><a href="/classic/displaySearchColls?type=occurrence_list">Paste in an occurrence list</a>&nbsp;&nbsp;</li>
+              <!-- <li><a href="/classic/displaySearchColls?type=occurrence_table">Add/edit a table of occurrences</a>&nbsp;&nbsp;</li> -->
             </ul>
 
             <p class="large">References</p>
             <ul>
-              <li><a href="?a=displaySearchRefs&amp;type=select">Change current reference</a></li>
-              <li><a href="?a=editCurrentRef">Edit current reference</a></li>
-              <li><a href="?a=displaySearchRefs&amp;type=edit">Edit a different reference</a></li>
+              <li><a href="/classic/displaySearchRefs?type=select">Change current reference</a></li>
+              <li><a href="/classic/editCurrentRef">Edit current reference</a></li>
+              <li><a href="/classic/displaySearchRefs?type=edit">Edit a different reference</a></li>
             </ul>
 
             <p class="large">Collections and occurrences</p>
             <ul>
-              <li><a href="?a=displaySearchColls&amp;type=edit">Edit an old collection</a></li>
-              <li><a href="?a=displayOccurrenceAddEdit">Edit old occurrences</a>&nbsp;&nbsp;</li>
-              <div show="access">
-              <li><a href="?a=displayReIDCollsAndOccsSearchForm">Reidentify occurrences</a></li>
-              </div>
-              <li><a href="?a=startStartReclassifyOccurrences">Reclassify occurrences of homonyms</a></li>
-              <div show="access">
-              <li><a href="?a=searchOccurrenceMisspellingForm">Correct misspellings</a></li>
-              </div>
+              <li><a href="/classic/displaySearchColls?type=edit">Edit an old collection</a></li>
+              <li><a href="/classic/displayOccurrenceAddEdit">Edit old occurrences</a>&nbsp;&nbsp;</li>
+              <li><a href="/classic/displayReIDCollsAndOccsSearchForm">Reidentify occurrences</a></li>
+              <li><a href="/classic/startStartReclassifyOccurrences">Reclassify occurrences of homonyms</a></li>
+              <li><a href="/classic/searchOccurrenceMisspellingForm">Correct misspellings</a></li>
             </ul>
 
           </div>
@@ -53,12 +49,12 @@
 
             <p class="large">Search</p>
             <ul>
-              <li><a href="?a=displaySearchRefs&amp;type=view">Search for a reference</a></li>
-              <li><a href="?a=displaySearchColls&amp;type=view">Search for collections</a></li>
-	      <li><a href="?a=nexusFileSearch">Search for nexus files</a></li>
-              <li><a href="?a=displaySearchStrataForm&amp;type=view">Search for a stratigraphic unit</a></li>
-              <li><a href="?a=beginTaxonInfo">Search for a taxon</a></li>
-              <li><a href="?a=classificationForm">Print a taxonomic hierarchy</a></li>
+              <li><a href="/classic/displaySearchRefs?type=view">Search for a reference</a></li>
+              <li><a href="/classic/displaySearchColls?type=view">Search for collections</a></li>
+	      <li><a href="/classic/nexusFileSearch">Search for nexus files</a></li>
+              <li><a href="/classic/displaySearchStrataForm?type=view">Search for a stratigraphic unit</a></li>
+              <li><a href="/classic/beginTaxonInfo">Search for a taxon</a></li>
+              <li><a href="/classic/classificationForm">Print a taxonomic hierarchy</a></li>
 <!--
               <li><a href="?a=listReviews">Read review pages</a></li>
 -->
@@ -66,27 +62,20 @@
 
             <p class="large">Download</p>
             <ul>
-	      <li><a href="?a=displayDownloadGenerator">Download records of all types</a></li>
-              <!-- <li><a href="?a=displayDownloadForm">Old form for occurrences</a></li> -->
-              <!-- <li><a href="?a=displayDownloadTaxonomyForm">Old form for taxonomic names</a></li> -->
-              <!-- <li><a href="?a=displayDownloadMeasurementsForm">Old form for measurements</a></li> -->
-	      <li><a href="?page=OSA">Download data archives</a></li>
+	      <li><a href="/classic/displayDownloadGenerator">Download records of all types</a></li>
+              <!-- <li><a href="/classic/displayDownloadForm">Old form for occurrences</a></li> -->
+              <!-- <li><a href="/classic/displayDownloadTaxonomyForm">Old form for taxonomic names</a></li> -->
+              <!-- <li><a href="/classic/displayDownloadMeasurementsForm">Old form for measurements</a></li> -->
+	      <li><a href="/classic?page=OSA">Download data archives</a></li>
             </ul>
-
+            <br> <!-- Mark's Special Line -->
             <p class="large">Additional entry functions</p>
             <ul>
-              <div show="access">
-<!--
-              <li><a href="?a=displayReviewForm">Add/edit review page</a></li>
--->
-              </div>
-              <li><a href="?a=startStartEcologyTaphonomySearch">Add/edit ecological/taphonomic data</a></li>
-              <li><a href="?a=startStartEcologyVertebrateSearch">Add/edit vertebrate ecology data</a></li>
-              <div show="access">
-              <li><a href="?a=displaySpecimenSearchForm">Add/edit specimen measurement data</a></li>
-              </div>
-              <li><a href="?a=badNameForm">Search for bad names</a></li>
-	          <li><a href="?a=uploadNexusFile">Upload a nexus file</a></li>
+              <li><a href="/classic/startStartEcologyTaphonomySearch">Add/edit ecological/taphonomic data</a></li>
+              <li><a href="/classic/startStartEcologyVertebrateSearch">Add/edit vertebrate ecology data</a></li>
+              <li><a href="/classic/displaySpecimenSearchForm">Add/edit specimen measurement data</a></li>
+              <li><a href="/classic/badNameForm">Search for bad names</a></li>
+	          <li><a href="/classic/uploadNexusFile">Upload a nexus file</a></li>
 	        </ul>
             <!-- <p class="large">Database settings</p> -->
             <!-- <ul> -->
@@ -108,17 +97,24 @@
         </tr>
         <tr>
           <td colspan=2>
+<br>
 <div style="align: left; padding-left: 3em; padding-right: 3em;">
-<i><p class="tiny">Please consult the <a href="javascript: tipsPopup('/public/tips/tutorial.html')">data entry tutorial</a> and tip sheets for entering
+<p class="tiny">Please consult the <a href="javascript: tipsPopup('/public/tips/tutorial.html')">data entry tutorial</a> and tip sheets for entering
 <a href="javascript: tipsPopup('/public/tips/tips.html')">collection data</a>,
 <a href="javascript: tipsPopup('/public/tips/occurrence_tips.html')">occurrences</a>,
 <a href="javascript: tipsPopup('/public/tips/lithtips.html')">lithologies</a>,
 <a href="javascript: tipsPopup('/public/tips/environtips.html')">paleoenvironments/tectonic settings</a>,
 <a href="javascript: tipsPopup('/public/tips/taxonomy_FAQ.html')">taxonomic data</a>,
-<a href="javascript: tipsPopup('/public/tips/ecology_tips.html')">ecology/taphonomy</a>,
-<a href="javascript: tipsPopup('/public/tips/paleobotany_tips.html')">paleobotany data</a>, and
-<a href="javascript: tipsPopup('/public/tips/upload_tips.html')">batch uploads</a>. If you have further questions you can write to any member of the <a href="?page=EC">Executive Committee</a> or the <a href="mailto:admin@paleobiodb.org">database administrator</a>.
-Remember: enter all the data, don't enter lumped or mixed collections, and search carefully to avoid entering duplicates.</p>
+<a href="javascript: tipsPopup('/public/tips/ecology_tips.html')">ecology/taphonomy</a>, and 
+<a href="javascript: tipsPopup('/public/tips/paleobotany_tips.html')">paleobotany data</a>.
+<!-- <a href="javascript: tipsPopup('/public/tips/upload_tips.html')">batch uploads</a>. -->
+
+ <!-- If you have further questions you can write to any member of the <a href="?page=EC">Executive Committee</a> or the <a href="mailto:admin@paleobiodb.org">database administrator</a>.-->
+<p class="tiny">Remember: Enter all the data, don't enter lumped or mixed collections. Also search carefully to avoid entering duplicates.</p>
+<p class="tiny">
+    <!-- Visit the the PBDB <a href="https://github.com/paleobiodb/PBDB_changelog/issues"><b>change log</b></a> for updates.-->
+    Report technical malfunctions found on this site to the <a href="mailto:admin@paleobiodb.org"><b>database administrator</b></a>.
+</p>
 </div>
     </td>
   </tr>

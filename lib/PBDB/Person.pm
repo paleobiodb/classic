@@ -18,7 +18,7 @@ sub personForm	{
 
 	if ( $s->get('roles') !~ /officer/ )	{
 		PBDB::menu();
-		exit;
+		return;
 	}
 
 	my @fields = ('title');
@@ -68,7 +68,7 @@ sub personForm	{
 			push @values , "editPerson";
 		} elsif ( $person_no == 0 && $q->param('action') ne "personForm" )	{
 			PBDB::menu($q->param('name')." isn't in the system");
-			exit;
+			return;
 		} else	{
 			push @values , "Add a person";
 			$q->param('action' => 'addPerson');
@@ -94,7 +94,7 @@ sub personForm	{
 	push @fields , "names";
 	print $hbo->populateHTML('person',\@values,\@fields);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
-	exit;
+	return;
 }
 
 # replaces old admin.pl code JA 22.3.13

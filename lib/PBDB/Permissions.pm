@@ -220,7 +220,7 @@ sub getWriteRows {
 
 	while ( my $row = $sth->fetchrow_hashref() ) {
 
-        exit;
+        return;
 		my $okToWrite = "";				# Clear
 		my $failedReason = "";			# Clear
 

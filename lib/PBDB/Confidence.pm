@@ -1,7 +1,7 @@
 package PBDB::Confidence;
 
 use strict;
-use Data::Dumper; 
+# use Data::Dumper; 
 use PBDB::TaxaCache;
 use PBDB::Classification; # not used
 use PBDB::Collection;
@@ -9,6 +9,7 @@ use PBDB::Person;
 use PBDB::TaxonInfo;
 use PBDB::HTMLBuilder;
 use PBDB::PBDBUtil;
+use PBDB::TimeLookup;
 use URI::Escape;
 use Memoize;
 use PBDB::Reference;
@@ -107,7 +108,7 @@ sub displaySearchSectionResults{
     # get the enterer's preferences (needed to determine the number
     # of displayed blanks) JA 1.8.02
 
-    my $t = new TimeLookup($dbt);
+    my $t = new PBDB::TimeLookup($dbt);
     my @period_order = $t->getScaleOrder($dbt,'69');
     # Convert max_interval_no to a period like 'Quaternary'
     my $int2period = $t->getScaleMapping('69','names');
@@ -137,12 +138,12 @@ sub displaySearchSectionResults{
         $place_str =~ s/^,//;
         my $link = '';
         if ($lastregion && $found_regionalbed) {
-            my $escaped = uri_escape($lastregion);
+            my $escaped = uri_escape_utf8($lastregion // '');
             $link .= makeAnchor("displayStratTaxaForm", "taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=$excaped&amp;input_type=regional", "$lastregion");
             if ($lastsection) { $link .= " / "};
         }    
         if ($lastsection && $found_localbed) {
-            my $escaped = uri_escape($lastsection);
+            my $escaped = uri_escape_utf8($lastsection // '');
             $link .= makeAnchor("displayStratTaxaForm", "taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=$escaped&amp;input_type=local", "$lastsection");
         }    
             
@@ -261,7 +262,7 @@ sub displaySearchSectionResults{
     foreach my $param_key (@params) {
         if ($param_key ne "rowOffset") {
             if ($q2->param($param_key) ne "" || $param_key eq 'section_name') {
-                $getString .= "&amp;".uri_escape($param_key)."=".uri_escape($q2->param($param_key));
+                $getString .= "&amp;".uri_escape_utf8($param_key // '')."=".uri_escape_utf8($q2->param($param_key) // '');
             }
         }
     }
@@ -550,7 +551,7 @@ sub displayStratTaxa {
         print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
         print "<center><table cellpadding=5 border=0>\n";
         print "<tr><td><input type=checkbox checked=checked onClick=\"checkAll(this,'sp_checkbox');\"> Check all</td></tr>\n";
-        print "<input type=\"hidden\" name=\"input\" value=\"".uri_escape($section_name)."\">";
+        print "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
         print "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
         print "<input type=\"hidden\" name=\"input_type\" value=\"".$q->param('input_type')."\">\n";
         my @sortList = sort {$a cmp $b} keys(%occ_list);
@@ -585,7 +586,7 @@ sub optionsForm    {
     # A small form is meant to displayed alongside a chart, so must be tall and skinny, and use different styles
     my $form_type = (shift || "large");
     
-    my $section_name = uri_unescape($q->param("input"));
+    my $section_name = uri_unescape_utf8($q->param("input") // '');
     my $type = $q->param("input_type");
 
 # -----------------REMAKE STRAT LIST-----------(REMOVES UNCHECKED)-----------
@@ -622,7 +623,7 @@ sub optionsForm    {
         print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateTaxaInterval\">";
     } else  {
         print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateStratInterval\">";
-        print "<input type=\"hidden\" name=\"input\" value=\"".uri_escape($section_name)."\">";
+        print "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
         print "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
     }    
     print "<input type=\"hidden\" name=\"input_type\" value=\"".$q->param('input_type')."\">";
@@ -724,7 +725,7 @@ sub calculateTaxaInterval {
     my @intervalnumber;
     my @not_in_scale;
 
-    my $t = new TimeLookup($dbt);
+    my $t = new PBDB::TimeLookup($dbt);
     my $mapping  = $t->getScaleMapping($scale);
     my ($top_age,$base_age) = $t->getBoundaries;
 
@@ -743,7 +744,7 @@ sub calculateTaxaInterval {
     
 
     my $interval_names;
-    my %intervals = TimeLookup::allIntervals($dbt);
+    my %intervals = PBDB::TimeLookup::allIntervals($dbt);
     $interval_names->{$_} = $intervals{$_}->{'name'} foreach keys %intervals;
 
     my %taxa_hash;

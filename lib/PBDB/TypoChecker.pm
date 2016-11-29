@@ -1,7 +1,7 @@
 package PBDB::TypoChecker;
 
 use PBDB::Debug qw(dbg);
-use Data::Dumper;
+# use Data::Dumper;
 use PBDB::CollectionEntry;
 use PBDB::Person;
 use PBDB::PBDBUtil;

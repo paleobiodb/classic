@@ -18,7 +18,7 @@ sub startReclassifyOccurrences	{
 
 	if (!$s->isDBMember()) {
 	    # have to be logged in
-		$s->enqueue($q->query_string());
+		$s->enqueue_action("startReclassifyOccurrences", $q);
 		PBDB::displayLoginPage( "Please log in first." );
 	} elsif ( $q->param("collection_no") )	{
         # if they have the collection number, they'll immediately go to the
@@ -430,7 +430,7 @@ sub processReclassifyForm	{
 	    my $taxon_name = $q->param('taxon_name');
             print makeAnchor("displayCollResults", "type=reclassify_occurrence&occurrences_authorizer_no=$occurrences_authorizer_no&taxon_name=$taxon_name", "Reclassify $taxon_name") . " - ";
         }
-    	print makeAnchor("startStartReclassifyOccurrences", "", "Reclassify another collection or taxon") . "</a></p>\n\n"; #jpjenk-blank params?
+    	print makeAnchor("startStartReclassifyOccurrences", "", "Reclassify another collection or taxon") . "</p>\n\n";
     }
 
 	print "</center>\n\n";
@@ -446,12 +446,12 @@ sub classificationSelect {
     my $html = "";
     if ($is_reid) {
         $html .= "<input type=\"hidden\" $disabled name=\"old_reid_taxon_no\" value=\"$taxon_no\">\n";
-        $html .= "<input type=\"hidden\" $disabled name=\"reid_description\" value=\"".uri_escape($description)."\">\n";
+        $html .= "<input type=\"hidden\" $disabled name=\"reid_description\" value=\"".uri_escape_utf8($description // '')."\">\n";
         $html .= "<input type=\"hidden\" $disabled name=\"reid_no\" value=\"$key_no\">\n";
         $html .= "<select $disabled name=\"reid_taxon_no\">";
     } else {
 		$html .= "<input type=\"hidden\" $disabled name=\"old_taxon_no\" value=\"$taxon_no\">\n";
-        $html .= "<input type=\"hidden\" $disabled name=\"occurrence_description\" value=\"".uri_escape($description)."\">\n";
+        $html .= "<input type=\"hidden\" $disabled name=\"occurrence_description\" value=\"".uri_escape_utf8($description // '')."\">\n";
 		$html .= "<input type=\"hidden\" $disabled name=\"$OCCURRENCE_NO\" value=\"$key_no\">\n";
         $html .= "<select $disabled name=\"taxon_no\">";
     }

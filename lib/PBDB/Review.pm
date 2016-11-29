@@ -3,6 +3,7 @@ package PBDB::Review;
 
 use PBDB::Constants qw($READ_URL $HTML_DIR $TAXA_TREE_CACHE);
 
+use PBDB::Map;
 use PBDB::Debug;
 use PBDB::Reference;
 
@@ -668,8 +669,7 @@ sub makeMap	{
 	if ( @errors )	{
 		print "<center><p class=\"small\" style=\"margin-bottom: 2em;\">WARNING: ".join("; ",@errors)."</p></center>\n\n";
 	}
-	require Map;
-	my $m = Map->new($q,$dbt,$s);
+	my $m = PBDB::Map->new($q,$dbt,$s);
 	my ($map_html_path,$errors,$warnings) = $m->buildMap('dataSet'=>$colls);
 
 	my $count = `cat $HTML_DIR/public/maps/gifcount`;

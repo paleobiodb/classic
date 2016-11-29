@@ -64,25 +64,27 @@
                 <li><a href="/classic/?page=OSA">Data archives</a></li>
               </ul>
             </li>
-            [%- IF current_user %]
+            [% IF current_user.role != "guest" %]
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Actions<b class="caret"></b></a>
               <ul class="dropdown-menu">
                 <li><a href="/classic?a=displaySearchRefs&amp;type=select">Select reference</a></li>
                 <li><a href="/classic?a=clearRef&amp;type=select">Clear reference</a></li>
-                <li><a href="/classic?a=editCurrentRef">Edit reference</a></li>
                 <li><a href="/classic?a=displaySearchRefs&amp;type=add">Add reference</a></li>
-                <li><a href="/classic?a=displaySearchColls&amp;type=edit">Edit collection</a></li>
+                <li><a href="/classic?a=editCurrentRef">Edit reference</a></li>
                 <li><a href="/classic?a=displaySearchCollsForAdd">Add collection</a></li>
-                <li><a href="/classic?a=displayOccurrenceAddEdit">Add/Edit Occurrences</a></li>
-                <li><a href="/classic?a=displayAuthorityTaxonSearchForm">Add/Edit Names</a></li>
-                <li><a href="/classic?a=displayOpinionSearchForm">Add/Edit Opinions</a></li>
-                <li><a href="/classic?a=displaySpecimenSearchForm">Add/Edit Measurements</a></li>
+                <li><a href="/classic?a=displaySearchColls&amp;type=edit">Edit collection</a></li>
+                <li><a href="/classic?a=displayOccurrenceAddEdit">Add/Edit occurrences</a></li>
+                <li><a href="/classic?a=displaySpecimenSearchForm">Add/Edit measurements</a></li>
+                [% IF current_user.role != "student" %]
+                    <li><a href="/classic?a=displayAuthorityTaxonSearchForm">Add/Edit names</a></li>
+                    <li><a href="/classic?a=displayOpinionSearchForm">Add/Edit opinions</a></li>
+                [% END %]
               </ul>
             </li>
             [% END -%]
             [%- IF reference_name %]
-              <li><a href="/classic?a=displayRefResults&amp;use_current=%%reference_no%%">Ref: [% reference_name %]</a></li>
+              <li><a href="/classic/displayReference?reference_no=[% reference_no %]">Ref: [% reference_name %]</a></li>
             [% END -%]
 	      </ul>
 
@@ -105,7 +107,7 @@
 		  <hr>
 		  <li><a href="/account">Account settings</a></li>
 		  [% IF current_user.admin %]
-		  <li><a href="/admin/users">Manage users</a></li>
+		  <li><a href="/admin/users">Manage database users</a></li>
 		  [% END %]
 		  [% IF current_user.role == "authorizer" %]
 		  <li><a href="/account/enterers">Manage my enterers</a></li>

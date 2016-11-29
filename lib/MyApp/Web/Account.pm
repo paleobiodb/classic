@@ -158,6 +158,64 @@ post '/login' => sub {
 };
 
 
+post '/account/reset-password' => sub {
+    return template 'account/reset-password', {error_message => 'You must supply an email address or username.'} unless params->{login};
+    
+    my $login = params->{login};
+    my $schema = site_db();
+    my $user = $schema->resultset('User')->search({username => $login},{rows=>1})->single;
+    
+    unless (defined $user)
+    {
+	my @results = $schema->resultset('User')->search({email => $login });
+	
+	if ( @results == 1 )
+	{
+	    $user = $results[0];
+	}
+	
+	elsif ( @results > 1 )
+	{
+	    return template 'account/reset-password', { error_message => 'Email is not unique.' };
+	}
+	
+        # $user = site_db()->resultset('User')->search({email => $login},{rows=>1})->single;
+        # return template 'account/reset-password', {error_message => 'User not found.'} unless defined $user;
+    }
+    
+    unless ( defined $user )
+    {
+	$user = find_user($login);
+	
+	if ( !defined $user || $user eq 'NONE' )
+	{
+	    return template 'account/reset-password', { error_message => 'User not found.'};
+	}
+	
+	elsif ( $user eq 'MULTIPLE' )
+	{
+	    return template 'account/reset-password', { error_message => 'User name is ambiguous.' };
+	}
+    }
+    
+    # If we have an e-mail address for this user, send a password-reset message.  Otherwise,
+    # there's nothing we can do.
+    
+    if ($user->email) {
+        my $code = $user->generate_password_reset_code();
+        $user->send_templated_email(
+            'reset_password',
+            {
+                code        => $code,
+            }
+        );
+        return redirect '/account/reset-password-code';
+    }
+    
+    return template 'account/reset-password', {error_message => 'That account has no email address associated with it.'};
+};
+
+
 sub find_user {
     
     my ($name) = @_;

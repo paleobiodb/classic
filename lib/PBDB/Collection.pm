@@ -23,6 +23,7 @@ use PBDB::TimeLookup;
 use PBDB::TaxaCache;
 use PBDB::Person;
 use PBDB::Permissions;
+use PBDB::Ecology;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;
@@ -1275,7 +1276,7 @@ sub basicCollectionInfo	{
 	# if the collection is protected, pretend the search failed
 	if ( ! $okToRead )	{
 		$q->param('type' => 'view');
-		PBDB::displaySearchColls('Your search produced no matches: please try again');
+		PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
 		return;
 	}
 
@@ -2241,7 +2242,7 @@ sub displayCollectionEcology	{
 	my $parents = PBDB::TaxaCache::getParents($dbt,\@taxon_nos,'array_full');
     # We only look at these categories for now
 	my @categories = ("life_habit", "diet1", "diet2","minimum_body_mass","maximum_body_mass","body_mass_estimate");
-    my $ecology = Ecology::getEcology($dbt,$parents,\@categories,'get_basis');
+    my $ecology = PBDB::Ecology::getEcology($dbt,$parents,\@categories,'get_basis');
 
 	if (!%$ecology) {
 		print "<center><p>Sorry, there are no ecological data for any of the taxa</p></center>\n\n";
@@ -2256,7 +2257,7 @@ sub displayCollectionEcology	{
         foreach ('minimum_body_mass','maximum_body_mass','body_mass_estimate') {
             if ($ecology->{$taxon_no}{$_}) {
                 if ($ecology->{$taxon_no}{$_} < 1) {
-                    $ecology->{$taxon_no}{$_} = Ecology::kgToGrams($ecology->{$taxon_no}{$_});
+                    $ecology->{$taxon_no}{$_} = PBDB::Ecology::kgToGrams($ecology->{$taxon_no}{$_});
                     $ecology->{$taxon_no}{$_} .= ' g';
                 } else {
                     $ecology->{$taxon_no}{$_} .= ' kg';

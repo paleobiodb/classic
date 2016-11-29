@@ -22,6 +22,7 @@ use PBDB::PBDBUtil;
 use PBDB::Opinion;
 use PBDB::ReferenceEntry;
 use PBDB::Permissions;
+use Text::CSV_XS;
 
 use Carp qw(carp);
 
@@ -369,10 +370,13 @@ sub displayRefResults {
 		# Set the reference_no
 		unless ( $q->param('use_primary') || $q->param('type') =~ /view|edit/ )	{
 			$s->setReferenceNo( $data[0]->{'reference_no'});
+			print "REDIRECTING\n";
+			Dancer::redirect "/classic/dequeue";
+			return;
 		}
 
 		# QUEUE
-		my %queue = $s->unqueue();
+		my %queue = $s->dequeue();
 		my $action = $queue{'action'};
 
 		# Get all query params that may have been stuck on the queue
@@ -489,20 +493,19 @@ sub displayRefResults {
         if ($offset + 30 < scalar(@data)) {
             my %vars = $q->Vars();
             $vars{'refsSeen'} += 30;
-            my $old_query = "";
+            my $ref_params = "";
             foreach my $k (sort keys %vars) {
-                $old_query .= "&$k=$vars{$k}" if $vars{$k};
+                $ref_params .= "&$k=$vars{$k}";
             }
-            $old_query =~ s/^&//;
-	    print qq{FIX THIS};
-            # print qq|<a href="$exec_url?$old_query">Get the next 30 references</a> - |;
+            $ref_params=~ s/^&//;
+            print makeAnchor("displayRefResults", "$ref_params", "Display the next 30 references");
         } 
 
         my $authname = $s->get('authorizer');
         $authname =~ s/\. //;
         printRefsCSV(\@data,$authname);
-        print qq|<a href="/public/references/${authname}_refs.csv">Download all the references</a> -\n|;
-	    print makeAnchor("displaySearchRefs", "type=$type", "Do another search");
+        # print qq|<a href="/public/references/${authname}_refs.csv">Download all the references</a> -\n|;
+	    # print makeAnchor("displaySearchRefs", "type=$type", "Change search parameters");
 	    print "</p></center><br>\n";
         
         if ($type eq 'add') {
@@ -526,12 +529,12 @@ sub displayRefResults {
 			my $error = "<p class=\"small\" style=\"margin-left: 8em; margin-right: 8em;\">";
 			if ( $query_description )	{
 				$query_description =~ s/ $//;
-				$error .= "Nothing matches $query_description: ";
+				$error .= "<center>Nothing matches $query_description: ";
 				if ( $alternatives )	{
 					$alternatives =~ s/ and / or /;
 					$error .= " if you didn't mean $alternatives, ";
 				}
-				$error .= "please try again</p>\n\n";
+				$error .= "please try again</center></p>\n\n";
 			} else	{
 				$error .= "<center>Please enter at least one search term</center></p>\n";
 			}

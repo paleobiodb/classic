@@ -1,15 +1,15 @@
-,
+[% me.real_name %],
 
 To reset your password click on this link: 
 
-https:///account/reset-password-code?code=
+https://[% sitename %]/account/reset-password-code?code=[% code %]
 
 
 Or follow these instructions:
 
-1) Go to https:///account/reset-password-code
+1) Go to https://[% sitename %]/account/reset-password-code
 
-2) Enter "" in the reset code field.
+2) Enter "[% code %]" in the reset code field.
 
 3) Enter a new password into the password fields.
 

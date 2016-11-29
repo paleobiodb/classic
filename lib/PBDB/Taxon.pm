@@ -16,7 +16,7 @@ package PBDB::Taxon;
 use strict;
 
 use PBDB::Errors;
-use Data::Dumper;
+# use Data::Dumper;
 use URI::Escape;
 use Mail::Mailer;
 use PBDB::TaxaCache;
@@ -25,6 +25,7 @@ use PBDB::TaxonInfo;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $TAXA_TREE_CACHE makeAnchor);
 
+use PBDB::Opinion;
 use PBDB::Reference;
 use Carp qw(carp);
 
@@ -489,6 +490,11 @@ sub displayAuthorityForm {
 	}
 
 	# print the form
+	
+	unless ( $s->get('role') =~ /authorizer|enterer/ )
+	{
+	    $fields{limited} = 1;
+	}
 
 	my $html = $hbo->populateHTML("add_enter_authority", \%fields);
     
@@ -576,10 +582,10 @@ sub submitAuthorityForm {
 #		}
 		
         # make sure the format of the author names is proper
-        if  ($q->param('author1init') && ! PBDB::Validation::properInitial($q->param('author1init'))) {
+        if  ($q->param('author1init') && !PBDB::Validation::properInitial($q->param('author1init'))) {
             $errors->add("The first author's initials are improperly formatted");
         }
-        if  ($q->param('author2init') && ! PBDB::Validation::properInitial($q->param('author2init'))) {
+        if  ($q->param('author2init') && !PBDB::Validation::properInitial($q->param('author2init'))) {
             $errors->add("The second author's initials are improperly formatted");
         }
         if  ( $q->param('author1last') && !PBDB::Validation::properLastName($q->param('author1last')) ) {
@@ -755,7 +761,7 @@ sub submitAuthorityForm {
 	}
 
 	if ( ! $q->param('extant') && $q->param('taxon_rank') =~ /genus|species/ )	{
-		$errors->add("You must pull down an 'extant' value");
+		$errors->add("You must select an 'extant' value");
 	}
 
 	# If the rank was species or subspecies, then we also need to insert
@@ -917,7 +923,7 @@ sub submitAuthorityForm {
             }
             $taxonExists = ($taxonExists == 1) ? "once" : $taxonExists." times";
             $q->param('confirmed_taxon_name'=>$q->param('taxon_name'));
-			$errors->add("This taxonomic name already appears $taxonExists in the database: ".join(", ",@pub_info).". If this record is a homonym and you want to create a new record, hit submit again. If its a rank change, just enter an opinion based on the existing taxon that uses the new rank and it'll be automatically created.");
+			$errors->add("This taxonomic name already appears $taxonExists in the database: ".join(", ",@pub_info).". If this record is a homonym and you want to create a new record, select submit again. If its a rank change, just enter an opinion based on the existing taxon that uses the new rank and it'll be automatically created.");
 		}
 	}
 
@@ -958,7 +964,7 @@ sub submitAuthorityForm {
             my @results = @{$dbt->getData($sql)};
             my @parents = ();
             foreach my $row (@results) {
-                Opinion::resetOriginalNo($dbt,$fields{'original_no'},$row);
+                PBDB::Opinion::resetOriginalNo($dbt,$fields{'original_no'},$row);
 #                if ($row->{'child_no'} != $fields{original_no}) {
                     if ($row->{'status'} eq 'misspelling of') {
                         if ($row->{'parent_spelling_no'} =~ /^\d+$/) {
@@ -1027,13 +1033,13 @@ sub submitAuthorityForm {
         my $origResultTaxonNumber = PBDB::TaxonInfo::getOriginalCombination($dbt,$resultTaxonNumber);
         
         $end_message .= qq| <div align="center" class="displayPanel"><table cellpadding="10" class="small"><tr><td valign="top"><p class="large" style="margin-left: 2em;">Name functions</p><ul>|;
-        $end_message .= "<li>" . makeAnchor("displayAuthorityTaxonSearchForm", "Add/edit another taxon") . "</li><br>";
+        $end_message .= "<li>" . makeAnchor("displayAuthorityTaxonSearchForm", "", "Add/edit another taxon") . "</li><br>";
         $end_message .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_no=$resultTaxonNumber", "Edit $fields{taxon_name}") . "</li><br>";
         $end_message .= "<li>" . makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$resultReferenceNumber", "Edit a name from the same reference") . "</li><br>";
         $end_message .= "<li>" . makeAnchor("displayAuthorityTaxonSearchForm", "use_reference=new", "Add/edit another taxon from another reference") . "</li><br>";
         $end_message .= "<li>" . makeAnchor("checkTaxonInfo", "taxon_no=$resultTaxonNumber", "Get general information about $fields{taxon_name}") . "</a></li>";
         $end_message .= qq|</ul></td><td valign=top><p class="large" style="margin-left: 2em;">Opinion functions</p><ul>|;
-        $end_message .= "<li>" . makeAnchor("displayOpinionSearchForm", "Add/edit opinion about another taxon") . "</li>";
+        $end_message .= "<li>" . makeAnchor("displayOpinionSearchForm", "", "Add/edit opinion about another taxon") . "</li>";
         # user may want to immediately enter or edit either:
         # (1) the opinion of the taxon's author, if not ref is authority
         #  and assuming that the actual reference is nowhere in the
@@ -2474,8 +2480,8 @@ sub disentangleNames	{
 	}
 
 	# body mass estimates are also mixed up
-	Opinion::fixMassEstimates($dbt,$dbh,PBDB::TaxonInfo::getOriginalCombination($dbt,$version1[0]));
-	Opinion::fixMassEstimates($dbt,$dbh,PBDB::TaxonInfo::getOriginalCombination($dbt,$version2[0]));
+	PBDB::Opinion::fixMassEstimates($dbt,$dbh,PBDB::TaxonInfo::getOriginalCombination($dbt,$version1[0]));
+	PBDB::Opinion::fixMassEstimates($dbt,$dbh,PBDB::TaxonInfo::getOriginalCombination($dbt,$version2[0]));
 
 	# all of the children of the disentangled names are now hosed because their
 	#  upwards classifications go through them, so update

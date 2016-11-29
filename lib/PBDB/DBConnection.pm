@@ -32,6 +32,7 @@ sub connect {
     if (!$connection) {
         die("Could not connect to database");
     } else {
+	$connection->{mysql_enable_utf8} = 1;
         return $connection;
     }
 }

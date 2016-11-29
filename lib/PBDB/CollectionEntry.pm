@@ -16,6 +16,7 @@ use PBDB::Person;
 use PBDB::Permissions;
 use PBDB::Reference;
 use PBDB::ReferenceEntry;
+use PBDB::Reclassify;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;    
@@ -72,8 +73,8 @@ sub displayCollectionForm {
     my $session_ref = $s->get('reference_no');
     if ($isNewEntry) {
         if (!$session_ref) {
-            $s->enqueue($q->query_string() );
-            PBDB::displaySearchRefs( "Please choose a reference first" );
+            $s->enqueue_action('displayColectionForm', $q);
+            PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
             return;
         }  
     }
@@ -436,7 +437,7 @@ sub processCollectionForm {
         }
 
         my $verb = ($isNewEntry) ? "added" : "updated";
-        print "<center><p class=\"pageTitle\" style=\"margin-bottom: -0.5em;\"><font color='red'>Collection record $verb</font></p><p class=\"medium\"><i>Do not hit the back button!</i></p></center>";
+        print "<center><p class=\"pageTitle\" style=\"margin-bottom: -0.5em;\"><font color='red'>Collection record $verb</font></p><p class=\"medium\"><i>Do not press the back button!</i></p></center>";
 
 	my $coll;
        	my ($colls_ref) = getCollections($dbt,$s,{$COLLECTION_NO=>$collection_no},['authorizer','enterer','modifier','*']);
@@ -1029,30 +1030,30 @@ sub displayCollectionDetailsPage {
     }
 
     if ($row->{'regionalsection'}) {
-    	my $escaped = uri_escape($row->{regionalsection});
+    	my $escaped = uri_escape_utf8($row->{regionalsection} // '');
         $row->{'regionalsection'} = makeAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=regional&input=$escaped", $row->{regionalsection});
     }
 
     if ($row->{'localsection'}) {
-    	my $escaped = uri_escape($row->{localsection});
+    	my $escaped = uri_escape_utf8($row->{localsection} // '');
         $row->{'localsection'} = makeAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=local&input=$escaped", "$row->{localsection}");
     }
 
     if ($row->{'member'}) {
-    	my $escaped = uri_escape($row->{geological_group});
-    	my $escaped2 = uri_escape($row->{formation});
-    	my $escaped3 = uri_escape($row->{member});
+    	my $escaped = uri_escape_utf8($row->{geological_group} // '');
+    	my $escaped2 = uri_escape_utf8($row->{formation} // '');
+    	my $escaped3 = uri_escape_utf8($row->{member} // '');
         $row->{'member'} = makeAnchor("displayStrata", "group_hint=$escaped&formation_hint=$escaped2&group_formation_member=$escaped3", "$row->{member}");
     }
 
     if ($row->{'formation'}) {
-    	my $escaped = uri_escape($row->{geological_group});
-    	my $escaped2 = uri_escape($row->{formation});
+    	my $escaped = uri_escape_utf8($row->{geological_group} // '');
+    	my $escaped2 = uri_escape_utf8($row->{formation} // '');
         $row->{'formation'} = makeAnchor("displayStrata", "group_hint=$escaped&group_formation_member=$escaped2", "$row->{formation}");
     }
 
     if ($row->{'geological_group'}) {
-    	my $escaped = uri_escape($row->{geological_group});
+    	my $escaped = uri_escape_utf8($row->{geological_group} // '');
         $row->{'geological_group'} = makeAnchor("displayStrata", "group_formation_member=$escaped", "$row->{geological_group}");
     }
 
@@ -1362,10 +1363,10 @@ sub buildTaxonomicList {
                   "  <div class=\"displayPanelContent\">\n" ;
 
 		if ($new_found) {
-            push @warnings, "Taxon names in <b>bold</b> are new to the occurrences table. Please make sure there aren't any typos. If there are, DON'T hit the back button; click the edit link below.";
+            push @warnings, "<center>Taxon names in <b>bold</b> are new to the occurrences table. Please make sure there aren't any typos. If there are, Do not press the back button; click the edit link below.</center>";
 		}
         if  ($are_reclassifications) {
-            push @warnings, "Some taxa could not be classified because multiple versions of the names (such as homonyms) exist in the database.  Please choose which versions you mean and hit \"Classify taxa.\"";
+            push @warnings, "<center>Some taxa could not be classified because multiple versions of the names (such as homonyms) exist in the database.  Please choose which versions you mean and select \"Classify taxa.\"</center>";
         }
 
         if (@warnings) {
@@ -1593,7 +1594,7 @@ sub formatOccurrenceTaxonName {
     my $link_action;
     if ( $row->{'taxon_no'} > 0 )	{
         $link_action = $row->{'taxon_no'};
-        $link_action = "&amp;taxon_no=" . uri_escape($link_action);
+        $link_action = "&amp;taxon_no=" . uri_escape_utf8($link_action // '');
     } elsif ($row->{'genus_name'} && $row->{'genus_reso'} !~ /informal/) {
         $link_action = $row->{'genus_name'};
 
@@ -1603,7 +1604,7 @@ sub formatOccurrenceTaxonName {
         if ($row->{'species_name'} && $row->{'species_reso'} !~ /informal/ && $row->{'species_name'} !~ /^indet\.|^sp\./) {
             $link_action .= " $row->{'species_name'}";
         }
-        $link_action = "&amp;taxon_name=" . uri_escape($link_action);
+        $link_action = "&amp;taxon_name=" . uri_escape_utf8($link_action // '');
     }
 
 

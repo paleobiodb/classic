@@ -10,6 +10,7 @@
 package PBDB::Nexusfile;
 use strict;
 
+use PBDB::TaxonInfo;
 use Carp qw(carp croak);
 use Digest::MD5;
 
@@ -555,7 +556,7 @@ sub generateTaxa {
 	    
 	    # Otherwise, look for it in the database.
 	    
-	    ($taxon) = TaxonInfo::getTaxa($dbt, { taxon_name => $search_name,
+	    ($taxon) = PBDB::TaxonInfo::getTaxa($dbt, { taxon_name => $search_name,
 						  match_subgenera => 1 });
 	    
 	    # If we find it, we can stop here.
@@ -593,7 +594,7 @@ sub generateTaxa {
 	
 	$result = $dbh->do($SQL_STRING);
 	
-	my $containing_taxon = TaxonInfo::getContainerTaxon($dbt, \@taxa);
+	my $containing_taxon = PBDB::TaxonInfo::getContainerTaxon($dbt, \@taxa);
 	
 	if ( $containing_taxon > 0 )
 	{
@@ -661,7 +662,7 @@ sub updateTaxa {
 	    $genus = $1;
 	}
 	
-	my ($t) = TaxonInfo::getTaxa($dbt, { taxon_name => $name });
+	my ($t) = PBDB::TaxonInfo::getTaxa($dbt, { taxon_name => $name });
 	
 	unless ( $t )
 	{
@@ -674,11 +675,11 @@ sub updateTaxa {
 	    
 	    elsif ( $genus )
 	    {
-		($t) = TaxonInfo::getTaxa($dbt, { taxon_name => $1 });
+		($t) = PBDB::TaxonInfo::getTaxa($dbt, { taxon_name => $1 });
 		
 		unless ( $t )
 		{
-		    ($t) = TaxonInfo::getTaxa($dbt, { taxon_name => $1, match_subgenera => 1 });
+		    ($t) = PBDB::TaxonInfo::getTaxa($dbt, { taxon_name => $1, match_subgenera => 1 });
 		}
 		
 		elsif ( $2 =~ /\.$/ )
@@ -691,7 +692,7 @@ sub updateTaxa {
 	    
 	    else
 	    {
-		($t) = TaxonInfo::getTaxa($dbt, { taxon_name => $name, match_subgenera => 1 });
+		($t) = PBDB::TaxonInfo::getTaxa($dbt, { taxon_name => $name, match_subgenera => 1 });
 	    }
 	}
 	

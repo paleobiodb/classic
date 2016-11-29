@@ -2,7 +2,6 @@
 <script language="JavaScript" type="text/javascript">
 <!-- Begin
 
-
 function checkForm()	{
 
         var frm = document.forms[1];
@@ -12,6 +11,12 @@ function checkForm()	{
 	var refLength = frm.ref_is_authority.length - 1;
 	var inNameList = 0;
 
+    if ( '%%limited%%' )
+    {
+	wing.error('You do not have authorization to edit taxonomic names');
+	return false;
+    }
+    
 	if ( typeof(frm.original_no) != "undefined" )	{
 		origLength = frm.original_no.length - 1;
 		for ( i = 0; i <= origLength; i++ )	{
@@ -84,7 +89,7 @@ function checkForm()	{
 	if ( typeof(frm.preservation) != "undefined" )	{
 		var pres = frm.preservation.options[frm.preservation.selectedIndex].text;
 		if ( pres == 'not a trace' )	{
-			error += "* We are no longer using the 'not a trace' category; please select another value\n";
+			error += "* We are no longer using the Preservation category: <i>not a trace</i>; please select another value\n";
 		}
 		if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
 			error += "* If the type isn't a body or in amber the taxon can't be extant\n";
@@ -92,7 +97,7 @@ function checkForm()	{
 	} else if ( typeof(frm.preservation2) != "undefined" )	{
 		var pres = frm.preservation2.options[frm.preservation2.selectedIndex].text;
 		if ( pres == 'not a trace' )	{
-			error += "* We are no longer using the 'not a trace' category; please select another value\n";
+			error += "* We are no longer using the Preservation category: <i>not a trace</i>; please select another value\n";
 		}
 		if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
 			error += "* If the type isn't a body or in amber the taxon can't be extant\n";
@@ -127,7 +132,7 @@ function checkForm()	{
 
 <center>
 <div align="center" style="width: 50em;"><p class="pageTitle">Authority data for <span id="taxon_name"></span></p></div>
-
+<br>
 <div style="width: 60em; margin-top: -2em; margin-bottom: 1em; margin-left: auto; margin-right: auto;">
 <span style="padding-right: 1em;"><span id="authorizer_name"></span></span>
 <span style="padding-right: 1em;"><span id="enterer_name"></span></span>
@@ -135,6 +140,9 @@ function checkForm()	{
 <span style="padding-right: 1em;"><span id="created"></span></span>
 <span id="modified"></span>
 </div>
+
+<div show="limited" style="color: red;">
+  <p><em>You do not have authorization to edit this data.</em></p></div>
 
 <div show="error_message">
 <span id="error_message"></span>

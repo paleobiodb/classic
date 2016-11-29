@@ -5,9 +5,11 @@
 use strict;
 
 package PBDB::Debug;
+
 use base 'Exporter';
 
 our @EXPORT_OK = qw(dbg save_request load_request);  # symbols to export on request
+
 
 use PBDB::Constants qw($APP_DIR $CGI_DEBUG);
 

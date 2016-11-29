@@ -4,6 +4,8 @@ package PBDB::MeasurementEntry;
 
 use PBDB::TaxaCache;
 use PBDB::Reference;
+use PBDB::Debug;
+use PBDB::PBDBUtil;
 use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
 
 
@@ -23,7 +25,7 @@ sub submitSpecimenSearch {
 
     if ( ! $q->param('taxon_name') && ! $q->param('comment') && ! int($q->param('collection_no')) ) {
         push my @error , "You must enter a taxonomic name, comment, or collection number";
-        print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
     }
 
     # Grab the data from the database, filtering by either taxon_name and/or collection_no
@@ -97,7 +99,7 @@ sub submitSpecimenSearch {
 
     if (scalar(@results) == 0 && $q->param('collection_no')) {
         push my @error , "Occurrences of this taxon could not be found";
-        print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
     } elsif (scalar(@results) == 1 && $q->param('collection_no')) {
         $q->param('occurrence_no'=>$results[0]->{'occurrence_no'});
         displaySpecimenList($dbt,$hbo,$q,$s);
@@ -106,7 +108,7 @@ sub submitSpecimenSearch {
         displaySpecimenList($dbt,$hbo,$q,$s);
     } elsif (scalar(@results) == 0 && scalar(@results_taxa_only) == 0) {
         push my @error , "Occurrences or taxa matching these search terms could not be found";
-        print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
     } else {
         my ($things,$collection_header,$knownUnknown) = ('occurrences and names','Collection','unknown');
         if( $q->param('get_occurrences') =~ /^no/i )	{
@@ -215,7 +217,7 @@ sub displaySpecimenList {
     # We need a taxon_no passed in, cause taxon_name is ambiguous
 	if ( ! $q->param('occurrence_no') && ! $q->param('taxon_no')) {
 		push my @error , "There is no occurrence or classification of this taxon";
-		print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+		print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
 		return;
 	}
 
@@ -229,7 +231,7 @@ sub displaySpecimenList {
             return;
         }
         $collection = "(collection $row->{collection_no})";
-        my $reid_row = PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
+        my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
         if ($reid_row) {
             $taxon_name = $reid_row->{'genus_name'}." ".$reid_row->{'species_name'};
         } else {
@@ -553,7 +555,7 @@ sub populateMeasurementForm {
         my $sql = "SELECT c.collection_name, o.collection_no, o.genus_name, o.species_name, o.occurrence_no, o.taxon_no FROM collections c, occurrences o WHERE c.collection_no=o.collection_no AND o.occurrence_no=".int($q->param('occurrence_no'));
         my $row = ${$dbt->getData($sql)}[0];
 
-        my $reid_row = PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
+        my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
         if ($reid_row) {
             $taxon_name = $reid_row->{'genus_name'}." ".$reid_row->{'species_name'};
         } else {
@@ -564,7 +566,7 @@ sub populateMeasurementForm {
 
         if (!$row || !$taxon_name || !$collection) {
             push my @error , "The occurrence of this taxon could not be found";
-            print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+            print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
             return;
         }
     } else {
@@ -599,8 +601,8 @@ sub populateMeasurementForm {
         $last_position{$_->{'measurement_type'}} = $_->{'position'} foreach @{$dbt->getData($sql)};
         if (!$s->get('reference_no')) {
             # Make them choose a reference first
-            $s->enqueue($q->query_string());
-            PBDB::displaySearchRefs("Please choose a reference before adding specimen measurement data",1);
+            $s->enqueue_entry('populateMeasurementForm', $q);
+            PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference before adding specimen measurement data",1);
             return;
         } else {
             if ($q->param('specimen_no') == -1) {
@@ -823,7 +825,7 @@ sub processMeasurementForm	{
     # We need a taxon_no passed in, cause taxon_name is ambiguous
     if ( ! $q->param('occurrence_no') && ! $q->param('taxon_no')) {
         push my @error , "There is no matching taxon or occurrence";
-        print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
         return;
     }
 
@@ -841,7 +843,7 @@ sub processMeasurementForm	{
             $taxon_no = $reid_taxon;
         }
 
-        my $reid_row = PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
+        my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
         if ($reid_row) {
             $taxon_name = $reid_row->{'genus_name'}." ".$reid_row->{'species_name'};
         } else {
@@ -852,7 +854,7 @@ sub processMeasurementForm	{
 
         if (!$row || !$taxon_name || !$collection) {
             push my @error , "The occurrence of this taxon could not be found";
-            print "<center><p>".Debug::printWarnings(\@error)."</p></center>\n";
+            print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
             return;
         }
     } else {

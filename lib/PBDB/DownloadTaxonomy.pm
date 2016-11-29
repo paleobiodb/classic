@@ -11,6 +11,7 @@ use PBDB::Opinion;  # not used?
 use PBDB::Reference;
 use PBDB::ReferenceEntry;
 use Carp qw(carp);
+use Text::CSV_XS;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
 

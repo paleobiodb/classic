@@ -4,6 +4,7 @@ use Moose;
 use Wing::Perl;
 use Data::Dumper;
 use Ouch;
+use Carp qw(confess cluck);
 # use Dancer ':syntax';
 
 extends 'Wing::DB::Result';
@@ -164,18 +165,19 @@ before end_session => sub {
     PBDB::Session->end_login_session($session->id);
 };
 
+
+# Do a bunch of checks before creating a new user.
+
 before verify_creation_params => sub {
     
     my ($self, $params, $current_user) = @_;
     
-    # check orcid
+    # print STDERR "VERIFY_CREATION_PARAMS\n";
     
-    my $orcid = $params->{orcid};
+    # Generate real_name from first_name, middle_name, and last_name.  Do some basic checks on all
+    # of these fields.
     
-    ouch(400, "Invalid ORCID") if defined $orcid && $orcid ne '' &&
-	$orcid !~ qr{ ^ \d\d\d\d - \d\d\d\d - \d\d\d\d - \d\d\d\d $ }xsi;
-
-    # need to construct real_name from first_name, middle_name, last_name
+    $params->{first_name} = ucfirst $params->{first_name} if $params->{first_name};
     
     my $first_name = $params->{first_name};
     
@@ -187,16 +189,20 @@ before verify_creation_params => sub {
 	ouch(400, "Invalid character '$1' in first name");
     }
     
+    $params->{last_name} = ucfirst $params->{last_name} if $params->{last_name};
+    
     my $last_name = $params->{last_name};
-   
+    
     ouch(400, "Last name is required") unless $last_name;
     ouch(400, "Last name must include at least one letter") unless $last_name =~ /\w/i;
+    
+    $params->{middle_name} = ucfirst $params->{middle_name} if $params->{middle_name};
     
     my $middle_name = $params->{middle_name} || '';
     
     if ( $middle_name )
     {
-	$middle_name .= "." if $middle_name =~ qr{ ^ \w $ }xsi;
+	$middle_name = $params->{middle_name} = "$middle_name." if $middle_name =~ qr{ ^ \w $ }xsi;
 	
 	ouch(400, "Middle name must include at least one letter") unless $middle_name =~ /\w/i;
     }
@@ -206,10 +212,7 @@ before verify_creation_params => sub {
     $real_name .= " $last_name";
     
     $params->{real_name} = $real_name;
-    
-    # No need to repeat name checks in 'verify_posted_params' since these have already been done here.
-    
-    $params->{name_checked} = 1;
+    $params->{name_check_done} = 1;
     
     # Construct a username from first_name, last_name.  Add a numeric suffix if necessary for
     # uniqueness.
@@ -229,7 +232,7 @@ before verify_creation_params => sub {
 	
 	$found_user = $schema->resultset('User')->search({username => $username },{rows=>1})->single;
 	
-	ouch(400, "Try a different name.") if $found_user && $suffix >= 50;
+	ouch(400, "Try a different name.") if $found_user && $suffix > 9;
     }
     
     $params->{username} = $username;
@@ -246,38 +249,123 @@ before verify_creation_params => sub {
     
     ouch(400, "Institution is required.") unless $params->{institution};
     ouch(400, "Email is required.") unless $params->{email};
-    ouch(400, "Password is required.") unless $params->{password1};
-    ouch(400, "Repeat your password to make sure you know what you typed.") unless $params->{password2};
     
-    # Verify e-mail uniqueness.
-    
-    $found_user = $schema->resultset('User')->search( { email => $params->{email} }, { rows => 1 } )->single;
-    
-    if ( $found_user )
+    unless ( $params->{password} )
     {
-	ouch(400, "That e-mail is already in use. Try a different one.");
+	ouch(400, "Password is required!") unless $params->{password1};
+	ouch(400, "Repeat your password to make sure you know what you typed.") unless $params->{password2};
+	ouch(442, "The passwords you typed do not match.") unless $params->{password1} eq $params->{password2};
     }
     
-    # Check CAPTCHA code.  This should be the very last thing, so that any other errors get
-    # reported first. $$$ no, set flag for 'verify_posted_params'.
+    # Indicate that we should be checking the CAPTCHA code, *AFTER* all other checks are
+    # done. This means we have to put it off until verify_posted_params is called.
     
-    unless ( $params->{verify_text} )
-    {
-	ouch(400, "Please enter the code letters.");
-    }
-    
-    unless ( MyApp::Web::verify_captcha($params->{verify_text}) )
-    {
-	ouch(400, "Invalid code. Please try again.");
-    }
+    $params->{check_captcha} = 1;
 };
 
 
-before verify_posted_params {
-    
+# The following checks are done when creating a new user or updating a user record.  Some of them
+# are skipped on create, signaled by the 'name_check_done' flag, because they would be redundant
+# to checks already done under 'verify_creation_params'.  If the 'check_captcha' flag is set (it
+# would be set by 'verify_creation_params' above) then do that check as the very last thing.  We
+# do this so that the user isn't asked for the CAPTCHA code untill we have verified that all the
+# rest of their field values are correct.
+
+before verify_posted_params => sub {
+
     my ($self, $params, $current_user) = @_;
     
-    # $$$ Name checks should go here, along with CAPTCHA check.
+    # print STDERR "VERIFY_POSTED_PARAMS\n";
+    
+    # If an ORCID was specified, make sure it has the appropriate syntax.
+    
+    my $orcid = $params->{orcid};
+    
+    ouch(400, "Invalid ORCID") if defined $orcid && $orcid ne '' &&
+	$orcid !~ qr{ ^ \d\d\d\d - \d\d\d\d - \d\d\d\d - \d\d\d[\dX] $ }xs;
+    
+    # If at least one name parameter was specified, we need to check its value and re-compute
+    # real_name. But we skip this check if it was already done in &verify_creation_params.
+    
+    if ( ! $params->{name_check_done} &&
+	 ( defined $params->{first_name} ||
+	   defined $params->{last_name} ||
+	   defined $params->{middle_name} ) )
+    {
+	my $first_name = $params->{first_name};
+	my $middle_name = $params->{middle_name};
+	my $last_name = $params->{last_name};
+	
+	if ( defined $first_name )
+	{
+	    $first_name = $params->{first_name} = ucfirst $first_name;
+	    
+	    ouch(400, "First name is required") if $first_name eq '';
+	    ouch(400, "First name must include at least one letter") unless $first_name =~ /\w/;
+	    ouch(400, "Invalid character '$1' in first name") if
+		$first_name =~ /([@"()#%^*{}\[\]<>?;])/;
+	}
+	
+	else
+	{
+	    $first_name = $self->first_name;
+	}
+	
+	if ( defined $middle_name )
+	{
+	    $middle_name = $params->{middle_name} = ucfirst $middle_name;
+	    $middle_name = $params->{middle_name} = "$middle_name." if $middle_name =~ qr{ ^ \w $ }xsi;
+	    
+	    ouch(400, "Middle name must include at least one letter") unless $middle_name eq '' ||
+		$middle_name =~ /\w/i;
+	    ouch(400, "Invalid character '$1' in middle name") if
+		$middle_name =~ /([@"()#%^*{}\[\]<>?;])/;
+	}
+	
+	else
+	{
+	    $middle_name = $self->middle_name;
+	}
+	
+	if ( defined $last_name )
+	{
+	    $last_name = $params->{last_name} = ucfirst $last_name;
+	    
+	    ouch(400, "Last name is required") unless $last_name;
+	    ouch(400, "Last name must include at least one letter") unless $last_name =~ /\w/i;
+	    ouch(400, "Invalid character '$1' in last name") if
+		$last_name =~ /([@"()#%^*{}\[\]<>?;])/;
+	}
+	
+	else
+	{
+	    $last_name = $self->last_name;
+	}
+	
+	# Now re-build real_name using the new values.
+	
+	my $real_name = $first_name;
+	$real_name .= " $middle_name" if $middle_name;
+	$real_name .= " $last_name";
+	
+	$params->{real_name} = $real_name;
+    }
+    
+    # If the 'check_captcha" flag has been set, do the check now.  We do it here instead of in
+    # &verify_creation_params so that it follows all other checks.
+    
+    if ( $params->{check_captcha} )
+    {
+	unless ( $params->{verify_text} )
+	{
+	    ouch(400, "Please enter the code letters from the image.");
+	}
+	
+	unless ( MyApp::Web::verify_captcha($params->{verify_text}) )
+	{
+	    ouch(400, "Incorrect code letters. Please try again.");
+	}
+    }
 };
 
 
@@ -294,6 +382,55 @@ sub make_username {
 
     return $username;
 }
+
+
+# Whenever a user record is updated, we need to check if it has a person_no value.  If so, then we
+# update the corresponding record in the table 'pbdb.person'.
+
+around update => sub {
+    
+    my ($orig, $self) = @_;
+    
+    my $person_no = $self->person_no;
+    my $name_changed = $self->is_column_changed('real_name');
+    my $inst_changed = $self->is_column_changed('institution');
+    
+    $orig->($self);
+    
+    return unless $person_no;
+    
+    # print STDERR "AFTER UPDATE\n";
+    
+    my $dbh = Wing::db->storage->dbh;
+    
+    if ( $name_changed )
+    {
+	# print STDERR "UPDATE NAME\n";
+	
+	my $sql = "
+		UPDATE pbdb.person join users as u using (person_no)
+		SET person.first_name = u.first_name,
+		    person.middle = u.middle_name,
+		    person.last_name = u.last_name,
+		    person.name = concat(left(u.first_name,1), '. ', u.last_name),
+		    person.reversed_name = concat(u.last_name, ', ', left(u.first_name, 1), '.')
+		WHERE person_no = $person_no";
+	
+	$dbh->do($sql);
+    }
+    
+    if ( $inst_changed )
+    {
+	# print STDERR "UPDATE INSTITUTION\n";
+	
+	my $sql = "
+		UPDATE pbdb.person join users as u using (person_no)
+		SET person.institution = u.institution
+		WHERE person_no = $person_no";
+	
+	$dbh->do($sql);
+    }
+};
 
 
 around describe => sub {

@@ -2,8 +2,21 @@
 package PBDB::PrintHierarchy;
 
 use PBDB::TaxonInfo;
+use PBDB::Reference;
 use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM $TAXA_TREE_CACHE makeAnchor);
 use strict;
+
+
+
+our %shortranks = ( "subspecies" => "","species" => "",
+	 "subgenus" => "Subg.", "genus" => "G.", "subtribe" => "Subtr.",
+	 "tribe" => "Tr.", "subfamily" => "Subfm.", "family" => "Fm.",
+	 "superfamily" => "Superfm.", "infraorder" => "Infraor.",
+	 "suborder" => "Subor.", "order" => "Or.", "superorder" => "Superor.",
+	 "infraclass" => "Infracl.", "subclass" => "Subcl.", "class" => "Cl.",
+	 "superclass" => "Supercl.", "subphylum" => "Subph.",
+	 "phylum" => "Ph.");
+
 
 sub classificationForm	{
 	my $hbo = shift;
@@ -28,15 +41,6 @@ sub classificationForm	{
 sub classify	{
 	my ($dbt,$hbo,$s,$q) = @_;
 
-	my %shortranks = ( "subspecies" => "","species" => "",
-	 "subgenus" => "Subg.", "genus" => "G.", "subtribe" => "Subtr.",
-	 "tribe" => "Tr.", "subfamily" => "Subfm.", "family" => "Fm.",
-	 "superfamily" => "Superfm.", "infraorder" => "Infraor.",
-	 "suborder" => "Subor.", "order" => "Or.", "superorder" => "Superor.",
-	 "infraclass" => "Infracl.", "subclass" => "Subcl.", "class" => "Cl.",
-	 "superclass" => "Supercl.", "subphylum" => "Subph.",
-	 "phylum" => "Ph.");
-
 	my $taxon_no = $q->param('taxon_no');
 	my $reference_no = $q->param('reference_no');
 	if ( $q->param('parent_no') )	{
@@ -48,22 +52,24 @@ sub classify	{
 	if ( $q->param('citation') )	{
 		my ($auth,$year) = split / /,$q->param('citation');
 		if ( $year < 1700 || $year > 2100 )	{
-			print $hbo->stdIncludes($PAGE_TOP);
+			# print $hbo->stdIncludes($PAGE_TOP);
 			classificationForm($hbo, $s, 'The publication year is misformatted');
-			print $hbo->stdIncludes($PAGE_BOTTOM);
-			exit;
+			# print $hbo->stdIncludes($PAGE_BOTTOM);
+			# exit;
+			return;
 		}
 		my $sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,pubyr,reftitle,pubtitle,pubvol,firstpage,lastpage FROM refs WHERE author1last='$auth' AND pubyr=$year ORDER BY author1last DESC,author2last DESC,pubyr DESC";
 		my @refs = @{$dbt->getData($sql)};
 		if ( $#refs == 0 )	{
 			$reference_no = $refs[0]->{'reference_no'};
 		} elsif ( $#refs > 0 )	{
-			print $hbo->stdIncludes($PAGE_TOP);
+			# print $hbo->stdIncludes($PAGE_TOP);
 			my @ref_list;
-			push @ref_list , "<p class=\"verysmall\" style=\"margin-left: 2em; margin-right: 0.5em; text-indent: -1em; text-align: left; margin-bottom: -0.8em;\">".Reference::formatLongRef($_)." (ref ".$_->{'reference_no'}.")</p>\n" foreach @refs;
+			push @ref_list , "<p class=\"verysmall\" style=\"margin-left: 2em; margin-right: 0.5em; text-indent: -1em; text-align: left; margin-bottom: -0.8em;\">".PBDB::Reference::formatLongRef($_)." (ref ".$_->{'reference_no'}.")</p>\n" foreach @refs;
 			classificationForm($hbo, $s, 'The following matches were found',join('',@ref_list)."<div style=\"height: 1em;\"></div>");
-			print $hbo->stdIncludes($PAGE_BOTTOM);
-			exit;
+			# print $hbo->stdIncludes($PAGE_BOTTOM);
+			# exit;
+			return;
 		}
 	}
 	my $fields = "t.taxon_no,taxon_name,taxon_rank,common_name,extant,status,IF (ref_is_authority='YES',r.author1last,a.author1last) author1last,IF (ref_is_authority='YES',r.author2last,a.author2last) author2last,IF (ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF (ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,lft,rgt";
@@ -76,10 +82,11 @@ sub classify	{
 		my $sql = "SELECT child_spelling_no,parent_spelling_no FROM opinions WHERE reference_no=".$reference_no." AND ref_has_opinion='YES'";
 		my @opinions = @{$dbt->getData($sql)};
 		if ( ! @opinions )	{
-			print $hbo->stdIncludes($PAGE_TOP);
+			# print $hbo->stdIncludes($PAGE_TOP);
 			classificationForm($hbo, $s, 'No newly expressed taxonomic opinions are tied to this reference');
-			print $hbo->stdIncludes($PAGE_BOTTOM);
-			exit;
+			# print $hbo->stdIncludes($PAGE_BOTTOM);
+			# exit;
+			return;
 		}
 		my %isChild;
 		$isChild{$_->{'child_spelling_no'}}++ foreach @opinions;
@@ -118,11 +125,12 @@ sub classify	{
 
 	if ( ! $taxon_no && ! @taxa )	{
 		if ( ! $q->param('boxes_only') )	{
-			print $hbo->stdIncludes($PAGE_TOP);
+			# print $hbo->stdIncludes($PAGE_TOP);
 			classificationForm($hbo, $s, 'Nothing matched the search term');
-			print $hbo->stdIncludes($PAGE_BOTTOM);
+			# print $hbo->stdIncludes($PAGE_BOTTOM);
 		}
-		exit;
+		# exit;
+		return;
 	}
 
 	# grab all children of the parent taxon
@@ -131,9 +139,9 @@ sub classify	{
 		my $range = ${$dbt->getData($sql)}[0];
 		if ( $range->{'lft'} + 1 == $range->{'rgt'} )	{
 			if ( ! $q->param('boxes_only') )	{
-				print $hbo->stdIncludes($PAGE_TOP);
+				# print $hbo->stdIncludes($PAGE_TOP);
 				classificationForm($hbo, $s, 'Nothing is classified within this taxon');
-				print $hbo->stdIncludes($PAGE_BOTTOM);
+				# print $hbo->stdIncludes($PAGE_BOTTOM);
 			}
 			return;
 		} elsif ( $range->{rgt} - $range->{lft} > 1000000 ) {
@@ -181,112 +189,58 @@ sub classify	{
 		}
 	}
 
-	if ( ! $q->param('boxes_only') )	{
-		print $hbo->stdIncludes($PAGE_TOP);
-		chmod 0664, "$HTML_DIR/public/classification/classification.csv";
-		open OUT, ">$HTML_DIR/public/classification/classification.csv";
-		print OUT "taxon_rank,taxon_name,author,common_name,status,extant\n";
-	}
+	# if ( ! $q->param('boxes_only') )	{
+	# 	print $hbo->stdIncludes($PAGE_TOP);
+	# 	chmod 0664, "$HTML_DIR/public/classification/classification.csv";
+	# 	open OUT, ">$HTML_DIR/public/classification/classification.csv";
+	# 	print OUT "taxon_rank,taxon_name,author,common_name,status,extant\n";
+	# }
 	print $hbo->populateHTML('js_classification');
 	if ( ! $q->param('boxes_only') )	{
 		print "<center><p class=\"pageTitle\">Classification of $title</p></center>\n\n";
 	}
 
 	print "<div class=\"verysmall\" style=\"width: 50em; margin-left: auto; margin-right: auto;\">\n\n";
-
+	
+	# Create an object to keep track of taxon counts across recursive invocations of
+	# &traverse. 
+	
+	my $counts = { children => \%children,
+		       valids => \%valids,
+		       invalids => \%invalids,
+		       at_level => undef,
+		       max_depth => 0,
+		       shown_depth => 0,
+		       sum_children => 0 };
+	
 	# don't display every name, only the top-level ones
-	my ($maxDepth,$shownDepth,$sumchildren,@atlevel);
-	for my $p ( @parents )	{
-		($maxDepth,$shownDepth,$sumchildren) = (0,9999,0);
-		@atlevel = ();
-		traverse( $p , '' , 1 );
-		for my $i ( 1..9 )	{
-			$sumchildren = $sumchildren + $atlevel[$i];
-			if ( $sumchildren >= 10 && $i > 1 )	{
-				$shownDepth = $i;
-				if ( $sumchildren <= 30 )	{
-					$shownDepth = $i + 1;
-				}
-				last;
-			}
+	
+	for my $p ( @parents )	
+	{
+	    $counts->{at_level} = [ ];
+	    $counts->{shown_depth} = 9999;
+	    $counts->{sum_children} = 0;
+	    
+	    traverse( $counts, $p, 1 );
+	    
+	    for my $i ( 1..9 )
+	    {
+		$counts->{sum_children} += $counts->{at_level}[$i];
+		if ( $counts->{sum_children} >= 10 && $i > 1 )
+		{
+		    $counts->{shown_depth} = $i;
+		    if ( $counts->{sum_children} <= 30 )	{
+			$counts->{shown_depth} = $i + 1;
+		    }
+		    last;
 		}
-		printBox( $p , '' , 1 );
+	    }
+	    
+	    printBox( $counts, $p, 1 );
 	}
-
+	
 	print "\n</div>\n\n";
-
-	# recursively counts children and terminals
-	sub traverse	{
-		my ($t,$parent_no,$depth) = @_;
-		if ( $depth > $maxDepth )	{
-			$maxDepth = $depth;
-		}
-		$atlevel[$depth] += scalar( @{$children{$t->{'taxon_no'}}} );
-		traverse( $_ , $t->{'taxon_no'} , $depth + 1 ) foreach @{$valids{$t->{'taxon_no'}}};
-		return;
-	}
-
-	# recursively print boxes including taxon names and subtaxa
-	sub printBox	{
-		my ($t,$parent_no,$depth) = @_;
-		my @nos;
-		push @nos , $_->{'taxon_no'} foreach @{$valids{$t->{'taxon_no'}}};
-		my $list = join(',',@nos);
-		if ( $invalids{$t->{'taxon_no'}} )	{
-			$list .= ",".$t->{'taxon_no'}."bad";
-		}
-		$list =~ s/^,//;
-		my $extant = ( $t->{'extant'} !~ /y/i ) ? "no" : "yes";
-		print OUT "$t->{'taxon_rank'},\"$t->{'taxon_name'}\",\"".PBDB::TaxonInfo::formatShortAuthor($t)."\",\"$t->{'common_name'}\",\"$t->{'status'}\",$extant\n";
-		$extant = ( $t->{'extant'} !~ /y/i ) ? "&dagger;" : "";
-        my $taxoninfo = PBDB::TaxonInfo::italicize($t);
-		my $name = $shortranks{$t->{'taxon_rank'}}." "."$extant" . makeAnchor("basicTaxonInfo", "taxon_no=$t->{taxon_no}", "$taxoninfo");
-		if ( $t->{'author1last'} )	{
-			$name .= " ".PBDB::TaxonInfo::formatShortAuthor($t);
-		}
-		if ( $t->{'common_name'} )	{
-			$name .= " [".$t->{'common_name'}."]";
-		}
-		my $class = ( $depth <= $shownDepth ) ? 'shownClassBox' : 'hiddenClassBox';
-		my $style = ( $depth == 1 ) ? ' style="border-left: 0px; margin-bottom: 0.8em; "' : '';
-		print qq|  <div id="t$t->{taxon_no}" id="classBox" class="$class"$style>
-|;
-		my $firstMargin = ( $depth <= $shownDepth ) ? "0em" : "0em";
-		if ( $list )	{
-			print qq|    <div id="n$t->{taxon_no}" class="classTaxon" style="margin-bottom: $firstMargin;" onClick="showChildren('$t->{taxon_no}','$list');">|;
-		} else	{
-			print qq|    <div id="n$t->{taxon_no}" class="classTaxon">|;
-		}
-		print "$name</div>\n";
-		if ( $depth == 1 && $list && $#{$valids{$t->{'taxon_no'}}} > 0 && $maxDepth > $shownDepth )	{
-			print qq|    <div id="hot$t->{taxon_no}" class="classHotCorner" style="font-size: 0.7em;"><span onClick="showAll('hot$t->{taxon_no}');">show all</span></div>
-|;
-		} elsif ( $depth > 1 && $depth < $shownDepth && $list )	{
-			print qq|    <div id="hot$t->{taxon_no}" class="classHotCorner" style="font-size: 0.7em;"><span onClick="hideChildren('$t->{taxon_no}','$list');">hide</span></div>
-|;
-		} elsif ( $depth > 1 && $list )	{
-			print qq|    <div id="hot$t->{taxon_no}" class="classHotCorner"><span onClick="showChildren('$t->{taxon_no}','$list');">+</span></div>
-|;
-		}
-		printBox( $_ , $t->{'taxon_no'} , $depth + 1 ) foreach @{$valids{$t->{'taxon_no'}}};
-		if ( $invalids{$t->{'taxon_no'}} )	{
-			my $class = ( $depth + 1 <= $shownDepth ) ? 'shownClassBox' : 'hiddenClassBox';
-			print qq|  <div id="t$t->{'taxon_no'}bad" class="$class">
-|;
-			@{$invalids{$t->{'taxon_no'}}} = sort { $a->{'taxon_name'} cmp $b->{'taxon_name'} } @{$invalids{$t->{'taxon_no'}}};
-			for my $t ( @{$invalids{$t->{'taxon_no'}}} )	{
-				my $extant = ( $t->{'extant'} !~ /y/i ) ? "no" : "yes";
-				print OUT "$t->{'taxon_rank'},\"$t->{'taxon_name'}\",\"".PBDB::TaxonInfo::formatShortAuthor($t)."\",\"$t->{'common_name'}\",\"$t->{'status'}\",$extant\n";
-			}
-			my @badList;
-			push @badList , PBDB::TaxonInfo::italicize($_)." ".PBDB::TaxonInfo::formatShortAuthor($_)." [".$_->{'status'}."]" foreach @{$invalids{$t->{'taxon_no'}}};
-			my $marginTop = ( $list ) ? "0.5em" : "0.5em;";
-			print "Invalid names: ".join(', ',@badList)."</div>\n";
-		}
-		print "  </div>\n";
-		return;
-	}
-
+	
 	if ( ! $q->param('boxes_only') )	{
 		print qq|<form method="POST" action="$READ_URL" name="doDownloadTaxonomy">
 <input type="hidden" name="action" value="displayDownloadTaxonomyResults">
@@ -298,14 +252,118 @@ sub classify	{
 			print qq|<input type="hidden" name="reference_no" value="$reference_no">|;
 		}
 		print "</form>\n"; 
-		print '<center><p class="tiny" style="padding-bottom: 3em;">';
-		print '<a href="/public/classification/classification.csv">Download</a></b> this list of taxonomic names';
-		print ' - <a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download</a> authority and opinion data for these taxa';
-		print " - " . makeAnchor("classify", "", "See another classification") . "</p></center>";
-		print $hbo->stdIncludes($PAGE_BOTTOM);
-		close OUT;
+		# print '<center><p class="tiny" style="padding-bottom: 3em;">';
+		# print '<a href="/public/classification/classification.csv">Download</a></b> this list of taxonomic names';
+		# print ' - <a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download</a> authority and opinion data for these taxa';
+		# print " - " . makeAnchor("classify", "", "See another classification") . "</p></center>";
+		# print $hbo->stdIncludes($PAGE_BOTTOM);
+		# close OUT;
 	}
 	return $#taxa + 1;
+}
+
+
+# traverse ( )
+# 
+# Recursively count children and terminals.
+
+sub traverse {
+    
+    my ($counts, $taxon, $depth) = @_;
+    
+    my $taxon_no = $taxon->{taxon_no};
+    return unless $taxon_no;
+    
+    if ( $depth > $counts->{max_depth} )
+    {
+	$counts->{max_depth} = $depth;
+    }
+    
+    $counts->{at_level}[$depth] += scalar( @{$counts->{children}{$taxon_no}} );
+    
+    foreach my $t ( @{$counts->{valids}{$taxon_no}} )
+    {
+	traverse( $counts, $t, $depth+1 );
+    }
+    
+    return;
+}
+
+
+# printBox ( )
+#
+# Recursively print boxes including taxon names and subtaxa.
+
+sub printBox {
+    my ($counts, $taxon, $depth) = @_;
+    
+    my $taxon_no = $taxon->{taxon_no};
+    my @nos;
+    
+    foreach my $t ( @{$counts->{valids}{$taxon_no}} )
+    {
+	push @nos , $t->{taxon_no} ;
+    }
+    
+    my $list = join(',',@nos);
+    if ( $counts->{invalids}{$taxon_no} )	{
+	$list .= ",${taxon_no}bad";
+    }
+    $list =~ s/^,//;
+    # my $extant = ( $taxon->{'extant'} !~ /y/i ) ? "no" : "yes";
+    # print OUT "$taxon->{'taxon_rank'},\"$taxon->{'taxon_name'}\",\"".PBDB::TaxonInfo::formatShortAuthor($t)."\",\"$taxon->{'common_name'}\",\"$taxon->{'status'}\",$extant\n";
+    my $extant = ( $taxon->{'extant'} !~ /y/i ) ? "&dagger;" : "";
+    my $taxoninfo = PBDB::TaxonInfo::italicize($taxon);
+    my $name = $shortranks{$taxon->{'taxon_rank'}}." "."$extant" . makeAnchor("basicTaxonInfo", "taxon_no=$taxon_no", $taxoninfo);
+    if ( $taxon->{'author1last'} )	{
+	$name .= " ".PBDB::TaxonInfo::formatShortAuthor($taxon);
+    }
+    if ( $taxon->{'common_name'} )	{
+	$name .= " [".$taxon->{'common_name'}."]";
+    }
+    my $class = ( $depth <= $counts->{shown_depth} ) ? 'shownClassBox' : 'hiddenClassBox';
+    my $style = ( $depth == 1 ) ? ' style="border-left: 0px; margin-bottom: 0.8em; "' : '';
+    print qq|  <div id="t$taxon_no" id="classBox" class="$class"$style>
+|;
+    my $firstMargin = ( $depth <= $counts->{shown_depth} ) ? "0em" : "0em";
+    if ( $list )	{
+	print qq|    <div id="n$taxon_no" class="classTaxon" style="margin-bottom: $firstMargin;" onClick="showChildren('$taxon_no','$list');">|;
+    } else	{
+	print qq|    <div id="n$taxon_no" class="classTaxon">|;
+    }
+    print "$name</div>\n";
+    if ( $depth == 1 ) { # && $list && $#{$counts->{valids}{$taxon_no}} > 0 && $counts->{max_depth} > $counts->{shown_depth} )	{
+	print qq|    <div id="hot$taxon_no" class="classHotCorner" style="font-size: 0.7em;"><span onClick="showAll('hot$taxon_no');">show all</span></div>
+|;
+    } elsif ( $depth > 1 && $depth < $counts->{shown_depth} && $list )	{
+	print qq|    <div id="hot$taxon_no" class="classHotCorner" style="font-size: 0.7em;"><span onClick="hideChildren('$taxon_no','$list');">hide</span></div>
+|;
+    } elsif ( $depth > 1 && $list )	{
+	print qq|    <div id="hot$taxon_no" class="classHotCorner"><span onClick="showChildren('$taxon_no','$list');">+</span></div>
+|;
+    }
+
+    foreach my $t ( @{$counts->{valids}{$taxon_no}} )
+    {
+	printBox( $counts, $t, $depth+1 );
+    }
+    
+    if ( $counts->{invalids}{$taxon_no} )	{
+	my $class = ( $depth + 1 <= $counts->{shown_depth} ) ? 'shownClassBox' : 'hiddenClassBox';
+	print qq|  <div id="t${taxon_no}bad" class="$class">
+|;
+	@{$counts->{invalids}{$taxon_no}} = sort { $a->{'taxon_name'} cmp $b->{'taxon_name'} } @{$counts->{invalids}{$taxon_no}};
+	# for my $t ( @{$counts->{invalids}{$taxon_no}} )	{
+	# 	my $extant = ( $taxon->{'extant'} !~ /y/i ) ? "no" : "yes";
+	# 	print OUT "$taxon->{'taxon_rank'},\"$taxon->{'taxon_name'}\",\"".PBDB::TaxonInfo::formatShortAuthor($taxon)."\",\"$taxon->{'common_name'}\",\"$taxon->{'status'}\",$extant\n";
+	# }
+	my @badList;
+	push @badList , PBDB::TaxonInfo::italicize($_)." ".PBDB::TaxonInfo::formatShortAuthor($_)." [".$_->{'status'}."]" foreach @{$counts->{invalids}{$taxon_no}};
+	my $marginTop = ( $list ) ? "0.5em" : "0.5em;";
+	print "Invalid names: ".join(', ',@badList)."</div>\n";
+    }
+    print "  </div>\n";
+    return;
 }
 
 

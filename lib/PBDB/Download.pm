@@ -379,7 +379,7 @@ sub checkInput {
     }
 
     if ( ! $q->param("restrict_to_field") && $q->param("restrict_to_list" ) )	{
-        push @errors , "You must pull down a 'Download only the following' value if you want to use this option";
+        push @errors , "You must select a 'Download only the following' value if you want to use this option";
     }
     
     if ( @errors )	{
