@@ -1147,7 +1147,7 @@ sub quickSearch	{
 	if ( $qs =~ /[^A-Za-z% ]/ || $qs =~ / .* / )	{
 	# case 1: string looks like author/year, so try references
 		my @words = split / /,$qs;
-		if ( $words[$#words] >= 1758 && $words[$#words] <= $yyyy )	{
+		if ( $words[$#words] =~ /^\d+$/ && $words[$#words] >= 1758 && $words[$#words] <= $yyyy )	{
 			$q->param('name_pattern' => 'equals');
 			$q->param('name' => $words[0]);
 			$q->param('year_relation' => 'in');
