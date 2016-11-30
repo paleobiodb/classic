@@ -1,0 +1,1568 @@
+---
+schema:
+  procedures: {}
+  tables:
+    api_key_permissions:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - api_key_id
+          match_type: ''
+          name: api_key_permissions_fk_api_key_id
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - id
+          reference_table: api_keys
+          type: FOREIGN KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - user_id
+          match_type: ''
+          name: api_key_permissions_fk_user_id
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - id
+          reference_table: users
+          type: FOREIGN KEY
+      extra:
+        mysql_charset: utf8
+        mysql_collate: utf8_unicode_ci
+      fields:
+        api_key_id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: api_key_id
+          order: 5
+          size:
+            - 36
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        permission:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: permission
+          order: 4
+          size:
+            - 30
+        user_id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: user_id
+          order: 6
+          size:
+            - 36
+      indices:
+        - fields:
+            - api_key_id
+          name: api_key_permissions_idx_api_key_id
+          options: []
+          type: NORMAL
+        - fields:
+            - user_id
+          name: api_key_permissions_idx_user_id
+          options: []
+          type: NORMAL
+        - fields:
+            - date_created
+          name: idx_date_created
+          options: []
+          type: NORMAL
+        - fields:
+            - date_updated
+          name: idx_date_updated
+          options: []
+          type: NORMAL
+        - fields:
+            - api_key_id
+            - user_id
+          name: idx_apikey_user
+          options: []
+          type: NORMAL
+      name: api_key_permissions
+      options: []
+      order: 12
+    api_keys:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - name
+          match_type: ''
+          name: api_keys_name
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: UNIQUE
+        - deferrable: 1
+          expression: ''
+          fields:
+            - user_id
+          match_type: ''
+          name: api_keys_fk_user_id
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - id
+          reference_table: users
+          type: FOREIGN KEY
+      extra:
+        mysql_charset: utf8
+        mysql_collate: utf8_unicode_ci
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 1
+          name: name
+          order: 6
+          size:
+            - 30
+        private_key:
+          data_type: char
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: private_key
+          order: 4
+          size:
+            - 36
+        reason:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: reason
+          order: 5
+          size:
+            - 255
+        uri:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: uri
+          order: 7
+          size:
+            - 255
+        user_id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: user_id
+          order: 8
+          size:
+            - 36
+      indices:
+        - fields:
+            - user_id
+          name: api_keys_idx_user_id
+          options: []
+          type: NORMAL
+        - fields:
+            - date_created
+          name: idx_date_created
+          options: []
+          type: NORMAL
+        - fields:
+            - date_updated
+          name: idx_date_updated
+          options: []
+          type: NORMAL
+      name: api_keys
+      options: []
+      order: 8
+    authents:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - enterer_no
+            - authorizer_no
+          match_type: ''
+          name: authents_enterer_no_authorizer_no
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: UNIQUE
+        - deferrable: 1
+          expression: ''
+          fields:
+            - authorizer_no
+          match_type: ''
+          name: authents_fk_authorizer_no
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - person_no
+          reference_table: users
+          type: FOREIGN KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - enterer_no
+          match_type: ''
+          name: authents_fk_enterer_no
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - person_no
+          reference_table: users
+          type: FOREIGN KEY
+      extra:
+        mysql_charset: utf8
+        mysql_collate: utf8_unicode_ci
+      fields:
+        authorizer_no:
+          data_type: int
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 1
+          name: authorizer_no
+          order: 4
+          size:
+            - 0
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        enterer_no:
+          data_type: int
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 1
+          name: enterer_no
+          order: 5
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+      indices:
+        - fields:
+            - authorizer_no
+          name: authents_idx_authorizer_no
+          options: []
+          type: NORMAL
+        - fields:
+            - enterer_no
+          name: authents_idx_enterer_no
+          options: []
+          type: NORMAL
+        - fields:
+            - date_created
+          name: idx_date_created
+          options: []
+          type: NORMAL
+        - fields:
+            - date_updated
+          name: idx_date_updated
+          options: []
+          type: NORMAL
+      name: authents
+      options: []
+      order: 9
+    authorizer_enterers:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - authorizer_id
+          match_type: ''
+          name: authorizer_enterers_fk_authorizer_id
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - id
+          reference_table: users
+          type: FOREIGN KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - enterer_id
+          match_type: ''
+          name: authorizer_enterers_fk_enterer_id
+          on_delete: CASCADE
+          on_update: CASCADE
+          options: []
+          reference_fields:
+            - id
+          reference_table: users
+          type: FOREIGN KEY
+      extra:
+        mysql_charset: utf8
+        mysql_collate: utf8_unicode_ci
+      fields:
+        authorizer_id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: authorizer_id
+          order: 5
+          size:
+            - 36
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        enterer_id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: enterer_id
+          order: 4
+          size:
+            - 36
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+      indices:
+        - fields:
+            - authorizer_id
+          name: authorizer_enterers_idx_authorizer_id
+          options: []
+          type: NORMAL
+        - fields:
+            - enterer_id
+          name: authorizer_enterers_idx_enterer_id
+          options: []
+          type: NORMAL
+        - fields:
+            - date_created
+          name: idx_date_created
+          options: []
+          type: NORMAL
+        - fields:
+            - date_updated
+          name: idx_date_updated
+          options: []
+          type: NORMAL
+      name: authorizer_enterers
+      options: []
+      order: 10
+    classics:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - uri_part
+          match_type: ''
+          name: classics_uri_part
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: UNIQUE
+        - deferrable: 1
+          expression: ''
+          fields:
+            - user_id
+          match_type: ''
+          name: classics_fk_user_id
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields:
+            - id
+          reference_table: users
+          type: FOREIGN KEY
+      extra:
+        mysql_charset: utf8
+        mysql_collate: utf8_unicode_ci
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        description:
+          data_type: mediumtext
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: description
+          order: 7
+          size:
+            - 0
+        end_date:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: end_date
+          order: 8
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        is_cool:
+          data_type: tinyint
+          default_value: 0
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: is_cool
+          order: 4
+          size:
+            - 0
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 6
+          size:
+            - 60
+        start_date:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: start_date
+          order: 9
+          size:
+            - 0
+        status:
+          data_type: varchar
+          default_value: pending
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: status
+          order: 5
+          size:
+            - 60
+        uri_part:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 1
+          name: uri_part
+          order: 11
+          size:
+            - 60
+        user_id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: user_id
+          order: 10
+          size:
+            - 36
+      indices:
+        - fields:
+            - user_id
+          name: classics_idx_user_id
+          options: []
+          type: NORMAL
+        - fields:
+            - date_created
+          name: idx_date_created
+          options: []
+          type: NORMAL
+        - fields:
+            - date_updated
+          name: idx_date_updated
+          options: []
+          type: NORMAL
+      name: classics
+      options: []
+      order: 11
+    trends_logs:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 5
+          size:
+            - 60
+        note:
+          data_type: text
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: note
+          order: 6
+          size:
+            - 0
+        value:
+          data_type: float
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: value
+          order: 4
+          size:
+            - 15
+            - 2
+      indices:
+        - fields:
+            - date_created
+            - name
+            - value
+          name: idx_date_name_value
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+          name: idx_name
+          options: []
+          type: NORMAL
+      name: trends_logs
+      options: []
+      order: 1
+    trends_logs_daily:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        day:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: day
+          order: 6
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 5
+          size:
+            - 60
+        value:
+          data_type: float
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: value
+          order: 4
+          size:
+            - 15
+            - 2
+      indices:
+        - fields:
+            - day
+            - name
+            - value
+          name: idx_date_name_value
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+            - day
+          name: idx_name_date
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+          name: idx_name
+          options: []
+          type: NORMAL
+      name: trends_logs_daily
+      options: []
+      order: 2
+    trends_logs_hourly:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        hour:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: hour
+          order: 6
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 5
+          size:
+            - 60
+        value:
+          data_type: float
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: value
+          order: 4
+          size:
+            - 15
+            - 2
+      indices:
+        - fields:
+            - hour
+            - name
+            - value
+          name: idx_date_name_value
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+            - hour
+          name: idx_name_date
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+          name: idx_name
+          options: []
+          type: NORMAL
+      name: trends_logs_hourly
+      options: []
+      order: 3
+    trends_logs_monthly:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        month:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: month
+          order: 6
+          size:
+            - 0
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 5
+          size:
+            - 60
+        value:
+          data_type: float
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: value
+          order: 4
+          size:
+            - 15
+            - 2
+      indices:
+        - fields:
+            - month
+            - name
+            - value
+          name: idx_date_name_value
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+            - month
+          name: idx_name_date
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+          name: idx_name
+          options: []
+          type: NORMAL
+      name: trends_logs_monthly
+      options: []
+      order: 4
+    trends_logs_yearly:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 5
+          size:
+            - 60
+        value:
+          data_type: float
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: value
+          order: 4
+          size:
+            - 15
+            - 2
+        year:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: year
+          order: 6
+          size:
+            - 0
+      indices:
+        - fields:
+            - year
+            - name
+            - value
+          name: idx_date_name_value
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+            - year
+          name: idx_name_date
+          options: []
+          type: NORMAL
+        - fields:
+            - name
+          name: idx_name
+          options: []
+          type: NORMAL
+      name: trends_logs_yearly
+      options: []
+      order: 5
+    trendsreports:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      extra:
+        mysql_charset: utf8
+        mysql_collate: utf8_unicode_ci
+      fields:
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        fields:
+          data_type: mediumblob
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: fields
+          order: 5
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        name:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: name
+          order: 4
+          size:
+            - 60
+      indices:
+        - fields:
+            - date_created
+          name: idx_date_created
+          options: []
+          type: NORMAL
+        - fields:
+            - date_updated
+          name: idx_date_updated
+          options: []
+          type: NORMAL
+      name: trendsreports
+      options: []
+      order: 6
+    users:
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - id
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+        - deferrable: 1
+          expression: ''
+          fields:
+            - email
+          match_type: ''
+          name: users_email
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: UNIQUE
+        - deferrable: 1
+          expression: ''
+          fields:
+            - username
+          match_type: ''
+          name: users_username
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: UNIQUE
+      fields:
+        admin:
+          data_type: tinyint
+          default_value: 0
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: admin
+          order: 12
+          size:
+            - 0
+        authorizer_no:
+          data_type: int
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: authorizer_no
+          order: 8
+          size:
+            - 0
+        country:
+          data_type: char(2)
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: country
+          order: 4
+          size:
+            - 0
+        date_created:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_created
+          order: 2
+          size:
+            - 0
+        date_updated:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: date_updated
+          order: 3
+          size:
+            - 0
+        developer:
+          data_type: tinyint
+          default_value: 0
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: developer
+          order: 20
+          size:
+            - 0
+        email:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 1
+          name: email
+          order: 17
+          size:
+            - 255
+        first_name:
+          data_type: varchar(80)
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: first_name
+          order: 10
+          size:
+            - 0
+        id:
+          data_type: char
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: id
+          order: 1
+          size:
+            - 36
+        institution:
+          data_type: varchar(80)
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: institution
+          order: 11
+          size:
+            - 0
+        last_login:
+          data_type: datetime
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: last_login
+          order: 21
+          size:
+            - 0
+        last_name:
+          data_type: varchar(80)
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: last_name
+          order: 7
+          size:
+            - 0
+        middle_name:
+          data_type: varchar(80)
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: middle_name
+          order: 6
+          size:
+            - 0
+        password:
+          data_type: char
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: password
+          order: 18
+          size:
+            - 50
+        password_salt:
+          data_type: char
+          default_value: abcdefghijklmnop
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: password_salt
+          order: 15
+          size:
+            - 16
+        password_type:
+          data_type: varchar
+          default_value: bcrypt
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: password_type
+          order: 14
+          size:
+            - 10
+        person_no:
+          data_type: int
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: person_no
+          order: 5
+          size:
+            - 0
+        real_name:
+          data_type: varchar
+          default_value: ''
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: real_name
+          order: 13
+          size:
+            - 255
+        role:
+          data_type: varchar(80)
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 0
+          name: role
+          order: 9
+          size:
+            - 0
+        use_as_display_name:
+          data_type: varchar
+          default_value: username
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: use_as_display_name
+          order: 19
+          size:
+            - 10
+        username:
+          data_type: varchar
+          default_value: ~
+          is_nullable: 0
+          is_primary_key: 0
+          is_unique: 1
+          name: username
+          order: 16
+          size:
+            - 30
+      indices:
+        - fields:
+            - real_name
+            - username
+            - email
+          name: idx_search
+          options: []
+          type: NORMAL
+        - fields:
+            - country
+          name: idx_country
+          options: []
+          type: NORMAL
+        - fields:
+            - person_no
+          name: idx_person_no
+          options: []
+          type: NORMAL
+        - fields:
+            - last_name
+          name: idx_last_name
+          options: []
+          type: NORMAL
+      name: users
+      options: []
+      order: 7
+  triggers: {}
+  views: {}
+translator:
+  add_drop_table: 0
+  filename: ~
+  no_comments: 0
+  parser_args:
+    sources:
+      - APIKey
+      - APIKeyPermission
+      - AuthEnt
+      - AuthorizerEnterer
+      - Classic
+      - TrendsLog
+      - TrendsLogDaily
+      - TrendsLogHourly
+      - TrendsLogMonthly
+      - TrendsLogYearly
+      - TrendsReport
+      - User
+  parser_type: SQL::Translator::Parser::DBIx::Class
+  producer_args: {}
+  producer_type: SQL::Translator::Producer::YAML
+  show_warnings: 0
+  trace: 0
+  version: 0.11021
