@@ -105,6 +105,8 @@ sub new {
     my $dbh = $dbt->dbh;
     my $self;
     
+    $is_admin ||= 0;
+    
     # If we don't have a Wing session identifier, or if we don't have an enterer_no value
     # indicating a logged-in user, then there is no need to add anything to session_data.  We just
     # create a record that specifies the role of "guest", which is not able to do anything except
@@ -143,8 +145,8 @@ sub new {
     unless ( $session_record )
     {
 	my $sql = "
-		INSERT INTO session_data (session_id, enterer_no)
-		VALUES ($quoted_id, $enterer_no)";
+		INSERT INTO session_data (session_id, enterer_no, authorizer_no, superuser)
+		VALUES ($quoted_id, $enterer_no, $authorizer_no, $is_admin)";
 	
 	$dbh->do($sql);
 	
