@@ -1,7 +1,12 @@
 #!/bin/bash
-. /data/Wing/bin/dataapps.sh
+# . /data/Wing/bin/dataapps.sh
+export WING_HOME=/data/Wing
 export WING_APP=/data/MyApp
 export WING_CONFIG=/data/MyApp/etc/wing.conf
+
+export PATH=/data/Wing/bin:$PATH
+export ANY_MOOSE=Moose
+
 cd /data/MyApp/bin
 
 if [ $UID == 0 ] 
