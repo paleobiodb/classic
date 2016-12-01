@@ -8,7 +8,7 @@ use Class::Date qw(date localdate gmdate now);
 use Text::CSV_XS;
 use PBDB::PBDBUtil;
 use PBDB::TimeLookup;
-# use Data::Dumper;
+use Data::Dumper qw(Dumper);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $IS_FOSSIL_RECORD $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeAnchor);
 
