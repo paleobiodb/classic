@@ -134,7 +134,7 @@ sub new {
     
     my $quoted_id = $dbh->quote($session_id);
     my $sql = "	SELECT session_id, enterer_no, queue, reference_no, marine_invertebrate, micropaleontology,
-			paleobotany, taphonomy, vertebrate
+			paleobotany, taphonomy, vertebrate, authorizer, enterer
 		FROM session_data WHERE session_id = $quoted_id";
     
     my ($session_record) = $dbh->selectrow_hashref( $sql, { Slice => { } } );
@@ -147,6 +147,12 @@ sub new {
 	my $sql = "
 		INSERT INTO session_data (session_id, enterer_no, authorizer_no, superuser)
 		VALUES ($quoted_id, $enterer_no, $authorizer_no, $is_admin)";
+	
+	$dbh->do($sql);
+	
+	$sql = "UPDATE session_data JOIN person as auth on auth.person_no = session_data.authorizer_no
+			JOIN person as ent on ent.person_no = session_data.enterer_no
+		SET session_data.authorizer = auth.name, session_data.enterer = ent.name";
 	
 	$dbh->do($sql);
 	
