@@ -3712,11 +3712,13 @@ sub basicTaxonInfo	{
 	    {
 		$just_taxon_no = 0;
 	    }
-		$sql= "SELECT taxon_name,taxon_rank,common_name,extant,a.reference_no,ref_is_authority,$authorfields,type_specimen,type_body_part,part_details,type_locality,discussion,lft,rgt,IF(discussed_by>0,name,'') AS discussant,email FROM authorities a,refs r,$TAXA_TREE_CACHE t,person p WHERE a.reference_no=r.reference_no AND a.taxon_no=$just_taxon_no. AND a.taxon_no=t.taxon_no AND (discussed_by=person_no OR discussed_by IS NULL)";
+	    $sql= "SELECT taxon_name,taxon_rank,common_name,extant,a.reference_no,ref_is_authority,$authorfields,type_specimen,type_body_part,part_details,type_locality,discussion,lft,rgt,IF(discussed_by>0,name,'') AS discussant,email FROM authorities a,refs r,$TAXA_TREE_CACHE t,person p WHERE a.reference_no=r.reference_no AND a.taxon_no=$just_taxon_no. AND a.taxon_no=t.taxon_no AND (discussed_by=person_no OR discussed_by IS NULL)";
 		# print STDERR "SQL: $sql\n\n";
-		$auth = ${$dbt->getData($sql)}[0];
-
-		$class_hash = PBDB::TaxaCache::getParents($dbt,[$taxon_no],'array_full');
+	    $auth = ${$dbt->getData($sql)}[0];
+	    
+	    $class_hash = PBDB::TaxaCache::getParents($dbt,[$taxon_no],'array_full');
+	    if ( ref $class_hash->{$taxon_no} eq 'ARRAY' )
+	    {
 		my @class_array = @{$class_hash->{$taxon_no}};
 		if ( ! $auth->{'common_name'} )	{
 			for my $i ( 0..$#class_array )	{
@@ -3726,6 +3728,7 @@ sub basicTaxonInfo	{
 				}
 			}
 		}
+	    }
 	}
 
 	my $page_title = ();
@@ -3781,16 +3784,19 @@ sub basicTaxonInfo	{
 
 	if ( $taxon_no )	{
 		my $parent_hash = PBDB::TaxaCache::getParents($dbt,[$taxon_no],'array_full');
-		my @parent_array = @{$parent_hash->{$taxon_no}};
-		my $cof = PBDB::Collection::getClassOrderFamily($dbt,'',\@parent_array);
-		my @parent_links;
-		for my $r ( 'class','order','family' )	{
+		if ( ref $parent_hash->{$taxon_no} eq 'ARRAY' )
+		{
+		    my @parent_array = @{$parent_hash->{$taxon_no}};
+		    my $cof = PBDB::Collection::getClassOrderFamily($dbt,'',\@parent_array);
+		    my @parent_links;
+		    for my $r ( 'class','order','family' )	{
 			if ( $cof->{$r} )	{
-				push @parent_links , makeAnchor("basicTaxonInfo", "taxon_no=" . $cof->{$r.'_no'}, $cof->{$r});
+			    push @parent_links , makeAnchor("basicTaxonInfo", "taxon_no=" . $cof->{$r.'_no'}, $cof->{$r});
 			}
-		}
-		if ( @parent_links )	{
+		    }
+		    if ( @parent_links )	{
 			print "<p class=\"small\" style=\"margin-top: -0.25em; margin-bottom: 0.75em; margin-left: 1em;\">".join(' - ',@parent_links)."</p>\n\n";
+		    }
 		}
 	}
 

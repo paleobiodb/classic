@@ -2,6 +2,8 @@
 
 package PBDB::EcologyEntry;
 
+use strict;
+
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($WRITE_URL makeAnchor);
 use PBDB::Reference;
@@ -11,27 +13,27 @@ use PBDB::Reference;
 my @fields = ('composition1', 'composition2', 'entire_body', 'body_part', 'adult_length', 'adult_width', 'adult_height', 'adult_area', 'adult_volume', 'thickness', 'architecture', 'form', 'reinforcement', 'folds', 'ribbing', 'spines', 'internal_reinforcement', 'polymorph', 'ontogeny', 'grouping', 'clonal', 'taxon_environment', 'locomotion', 'attached', 'epibiont', 'life_habit', 'depth_habitat', 'diet1', 'diet2', 'vision', 'reproduction', 'asexual', 'brooding', 'dispersal1', 'dispersal2', 'comments','minimum_body_mass','minimum_body_mass_unit','maximum_body_mass','maximum_body_mass_unit','body_mass_comment','body_mass_estimate','body_mass_estimate_unit','body_mass_source','body_mass_type');
 
 sub populateEcologyForm	{
-	my $dbt = shift;
-	my $hbo = shift;
-	my $q = shift;
-	my $s = shift;
+    my $dbt = shift;
+    my $hbo = shift;
+    my $q = shift;
+    my $s = shift;
     my $dbh = $dbt->dbh;
 
     # We need a taxon_no passed in, cause taxon_name is ambiguous
-	if ( ! $q->param('taxon_no')) {
-		print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the taxon's name is not in the system</div></center>\n";
-		return;
-	}
-    $taxon_no = int($q->param('taxon_no'));
+    if ( ! $q->param('taxon_no')) {
+	print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the taxon's name is not in the system</div></center>\n";
+	return;
+    }
+    my $taxon_no = int($q->param('taxon_no'));
 
     # For form display purposes
-	$sql = "SELECT taxon_name FROM authorities WHERE taxon_no=" . $taxon_no;
-	$taxon_name =  ${$dbt->getData($sql)}[0]->{'taxon_name'};
+    my $sql = "SELECT taxon_name FROM authorities WHERE taxon_no=" . $taxon_no;
+    my $taxon_name =  ${$dbt->getData($sql)}[0]->{'taxon_name'};
 
 
-	# query the ecotaph table for the old data
-	$sql = "SELECT * FROM ecotaph WHERE taxon_no=" . $taxon_no;
-	my $ecotaph = ${$dbt->getData($sql)}[0];
+    # query the ecotaph table for the old data
+    $sql = "SELECT * FROM ecotaph WHERE taxon_no=" . $taxon_no;
+    my $ecotaph = ${$dbt->getData($sql)}[0];
     my @values = ();
     if (!$ecotaph) {
         # This is a new entry

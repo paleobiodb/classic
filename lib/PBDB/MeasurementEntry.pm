@@ -8,6 +8,7 @@ use PBDB::Debug;
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
 
+use strict;
 
 # written by PS 6/22/2005 - 6/24/2005
 # Handle display and processing of form to enter measurements for specimens
@@ -27,7 +28,7 @@ sub submitSpecimenSearch {
         push my @error , "You must enter a taxonomic name, comment, or collection number";
         print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
     }
-
+    
     # Grab the data from the database, filtering by either taxon_name and/or collection_no
     my $sql1 = "SELECT c.collection_no, c.collection_name, IF(c.country IN ('Canada','United States'),c.state,c.country) place, i.interval_name max,IF(min_interval_no>0,i2.interval_name,'') min,o.occurrence_no,o.genus_reso o_genus_reso,o.genus_name o_genus_name,o.species_reso o_species_reso,o.species_name o_species_name,o.comments o_comments, '' re_genus_reso,'' re_genus_name,'' re_species_reso,'' re_species_name,'' re_comments, count(DISTINCT specimen_no) cnt FROM (occurrences o, collections c, intervals i) LEFT JOIN specimens s ON o.occurrence_no=s.occurrence_no LEFT JOIN intervals i2 ON c.min_interval_no=i2.interval_no LEFT JOIN reidentifications re ON o.occurrence_no=re.occurrence_no WHERE o.collection_no=c.collection_no AND c.max_interval_no=i.interval_no AND re.reid_no IS NULL ";
     my $sql2 = "SELECT c.collection_no, c.collection_name, IF(c.country IN ('Canada','United States'),c.state,c.country) place, i.interval_name max,IF(min_interval_no>0,i2.interval_name,'') min,o.occurrence_no,o.genus_reso o_genus_reso,o.genus_name o_genus_name,o.species_reso o_species_reso,o.species_name o_species_name,o.comments o_comments, re.genus_reso re_genus_reso,re.genus_name re_genus_name,re.species_reso re_species_reso,re.species_name re_species_name,re.comments re_comments, count(DISTINCT specimen_no) cnt FROM (reidentifications re, occurrences o, collections c, intervals i) LEFT JOIN specimens s ON o.occurrence_no=s.occurrence_no LEFT JOIN intervals i2 ON c.min_interval_no=i2.interval_no WHERE re.occurrence_no=o.occurrence_no AND o.collection_no=c.collection_no AND c.max_interval_no=i.interval_no AND most_recent='YES' ";
@@ -86,7 +87,7 @@ sub submitSpecimenSearch {
         }
         $sql1 .= " GROUP BY o.occurrence_no";
         $sql2 .= " GROUP BY o.occurrence_no";
-        $sql .= "($sql1) UNION ($sql2) ORDER BY collection_no";
+        my $sql = "($sql1) UNION ($sql2) ORDER BY collection_no";
         @results = @{$dbt->getData($sql)};
     }
 
@@ -224,7 +225,7 @@ sub displaySpecimenList {
     my (@results,$taxon_name,$extant,$collection);
     if ($q->param('occurrence_no')) {
         @results = getMeasurements($dbt,$q->param('occurrence_no'));
-        $sql = "SELECT collection_no,genus_name,species_name,occurrence_no FROM occurrences WHERE occurrence_no=".int($q->param("occurrence_no"));
+        my $sql = "SELECT collection_no,genus_name,species_name,occurrence_no FROM occurrences WHERE occurrence_no=".int($q->param("occurrence_no"));
         my $row = ${$dbt->getData($sql)}[0];
         if (!$row) {
             print "An error has occurred, could not find occurrence in database";
@@ -252,7 +253,7 @@ sub displaySpecimenList {
         }
         @results = @{$dbt->getData($sql)};
 
-        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))},[taxon_rank,taxon_name,extant]);
+        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))},['taxon_rank','taxon_name','extant']);
         if ($taxon->{'taxon_rank'} =~ /species/) {
             $taxon_name = $taxon->{'taxon_name'};
         } elsif ($taxon->{'taxon_rank'} =~ /genus/) {
@@ -346,7 +347,7 @@ END_SCRIPT
         $parts{$row->{specimen_part}}++ if ($row->{specimen_part});
     }
 
-    $specimen_count = scalar(keys(%specimens));
+    my $specimen_count = scalar(keys(%specimens));
 
     if ($specimen_count == 0)	{
         if ($q->param('occurrence_no')) {
@@ -375,7 +376,7 @@ END_SCRIPT
     my $sql = "SELECT occurrence_no,taxon_no,specimen_id,specimen_part,is_type,measurement_source,measurement_type FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND reference_no=".$s->get('reference_no')." ORDER BY s.specimen_no DESC LIMIT 100";
     my @last_entries = @{$dbt->getData($sql)};
     my ($old_records,$id);
-    for $entry ( @last_entries )	{
+    for my $entry ( @last_entries )	{
         if ( $entry->{occurrence_no} != $last_entries[0]->{occurrence_no} || $entry->{taxon_no} != $last_entries[0]->{taxon_no} || $entry->{specimen_id} ne $last_entries[0]->{specimen_id} )	{
             last;
         }
@@ -497,7 +498,7 @@ print qq|<center>
     for my $t ( 0..$#teeth )	{
         $tooth{$teeth[$t]} = $t;
     }
-    foreach $specimen_no (sort {$tooth{$specimens{$a}->{specimen_part}} <=> $tooth{$specimens{$b}->{specimen_part}} || $a <=> $b} keys %specimens) {
+    foreach my $specimen_no (sort {$tooth{$specimens{$a}->{specimen_part}} <=> $tooth{$specimens{$b}->{specimen_part}} || $a <=> $b} keys %specimens) {
         my $row = $specimens{$specimen_no};
 	my $id = $row->{specimen_id} // '';
 	$specimen_no //= 0;
@@ -613,8 +614,8 @@ sub populateMeasurementForm {
                 #  entered from the current ref JA 13.4.12
                 my $fieldstring = "s.".join(',s.',@specimen_fields);
                 $fieldstring =~ s/is_type/is_type AS specimen_is_type/;
-                $sql = "SELECT $fieldstring,average AS last_average FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND reference_no=".$s->get('reference_no')." ORDER BY s.specimen_no DESC";
-                $row = ${$dbt->getData($sql)}[0];
+                my $sql = "SELECT $fieldstring,average AS last_average FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND reference_no=".$s->get('reference_no')." ORDER BY s.specimen_no DESC";
+                my $row = ${$dbt->getData($sql)}[0];
                 # but if that fails, at least the part might be recoverable
                 if ( ! $row )	{
                     $sql = "SELECT specimen_part FROM specimens WHERE $old_field=$old_no ORDER BY specimen_no DESC";
@@ -711,8 +712,8 @@ sub populateMeasurementForm {
         }
     } elsif ($q->param('specimen_no') > 0) {
         # query the specimen table for the old data
-        $sql = "SELECT * FROM specimens WHERE specimen_no=".int($q->param('specimen_no'));
-        $row = ${$dbt->getData($sql)}[0];
+        my $sql = "SELECT * FROM specimens WHERE specimen_no=".int($q->param('specimen_no'));
+        my $row = ${$dbt->getData($sql)}[0];
 
         #Query the measurements table for the old data
         $sql = "SELECT * FROM measurements WHERE specimen_no=".int($q->param('specimen_no'));
@@ -794,7 +795,7 @@ sub populateMeasurementForm {
 	#  irrelevant records
 	my ($g,$s) = split / /,$taxon_name;
 	my $sql = "(SELECT collection_name,occurrence_no FROM collections c,occurrences o WHERE c.collection_no=o.collection_no AND genus_name='$g' AND species_name='$s') UNION (SELECT collection_name,occurrence_no FROM collections c,reidentifications r WHERE c.collection_no=r.collection_no AND genus_name='$g' AND species_name='$s') ORDER BY collection_name";
-       	@colls = @{$dbt->getData($sql)};
+       	my @colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
 		push @fields , 'occurrences';
 		my $occ_list = "<div style=\"margin-top: 0.5em;\">... and/or switch this record to ";
@@ -935,10 +936,10 @@ sub processMeasurementForm	{
         # don't forget sex JA 2.5.12
         my $sex = ( $fields{'sex'} =~ /male/i ) ? "'".$fields{'sex'}."'" : "NULL";
         if ( $fields{'specimen_no'} <= 0 && $fields{'specimen_id'} =~ /[A-Za-z0-9]/ )	{
-            $sql = "SELECT specimen_no FROM specimens WHERE ((taxon_no=".$fields{'taxon_no'}." AND taxon_no>0) OR (occurrence_no=".$fields{'occurrence_no'}." AND occurrence_no>0)) AND specimen_id='".$fields{'specimen_id'}."' AND specimen_id IS NOT NULL AND BINARY specimen_part='".$fields{'specimen_part'}."' AND sex=$sex LIMIT 1";
+            my $sql = "SELECT specimen_no FROM specimens WHERE ((taxon_no=".$fields{'taxon_no'}." AND taxon_no>0) OR (occurrence_no=".$fields{'occurrence_no'}." AND occurrence_no>0)) AND specimen_id='".$fields{'specimen_id'}."' AND specimen_id IS NOT NULL AND BINARY specimen_part='".$fields{'specimen_part'}."' AND sex=$sex LIMIT 1";
             $fields{'specimen_no'} = ${$dbt->getData($sql)}[0]->{'specimen_no'};
         } elsif ( $fields{'specimen_no'} <= 0 )	{
-            $sql = "SELECT m.specimen_no,m.measurement_type,m.average,comments FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND ((specimen_id IS NULL AND taxon_no=".$fields{'taxon_no'}." AND taxon_no>0) OR (specimen_id IS NULL AND occurrence_no=".$fields{'occurrence_no'}." AND occurrence_no>0)) AND BINARY specimen_part='".$fields{'specimen_part'}."' AND sex=$sex LIMIT 1";
+            my $sql = "SELECT m.specimen_no,m.measurement_type,m.average,comments FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND ((specimen_id IS NULL AND taxon_no=".$fields{'taxon_no'}." AND taxon_no>0) OR (specimen_id IS NULL AND occurrence_no=".$fields{'occurrence_no'}." AND occurrence_no>0)) AND BINARY specimen_part='".$fields{'specimen_part'}."' AND sex=$sex LIMIT 1";
             my $match = ${$dbt->getData($sql)}[0];
             # preliminary match
             $fields{'specimen_no'} = $match->{'specimen_no'};
@@ -964,7 +965,7 @@ sub processMeasurementForm	{
                 $fields{'occurrence_no'} = $q->param('switch_occ');
                 $fields{'taxon_no'} = undef;
             } elsif ( $q->param('switch_coll') > 0 )	{
-                $sql = "SELECT occurrence_no FROM occurrences WHERE collection_no=".$q->param('switch_coll')." AND genus_name='".$q->param('genus_name')."' AND species_name='".$q->param('species_name')."'";
+                my $sql = "SELECT occurrence_no FROM occurrences WHERE collection_no=".$q->param('switch_coll')." AND genus_name='".$q->param('genus_name')."' AND species_name='".$q->param('species_name')."'";
                 $fields{'occurrence_no'} = ${$dbt->getData($sql)}[0]->{'occurrence_no'};
                 # the user might have screwed up the collection number...
                 if ( $fields{'occurrence_no'} == 0 )	{
@@ -974,17 +975,17 @@ sub processMeasurementForm	{
 		}
             }
             if ( $fields{'occurrence_no'} > 0 )	{
-                $sql = "SELECT collection_name FROM collections c,occurrences o WHERE c.collection_no=o.collection_no AND occurrence_no=".$fields{'occurrence_no'};
+                my $sql = "SELECT collection_name FROM collections c,occurrences o WHERE c.collection_no=o.collection_no AND occurrence_no=".$fields{'occurrence_no'};
                 $newcoll = ${$dbt->getData($sql)}[0]->{'collection_name'};
             } elsif ( $q->param('switch_coll') > 0 )	{
-                $sql = "SELECT collection_name FROM collections c WHERE collection_no=".$q->param('switch_coll');
+                my $sql = "SELECT collection_name FROM collections c WHERE collection_no=".$q->param('switch_coll');
                 $badcoll = ${$dbt->getData($sql)}[0]->{'collection_name'};
             }
-            $result = $dbt->updateRecord($s,'specimens','specimen_no',$fields{'specimen_no'},\%fields);
+            my $result = $dbt->updateRecord($s,'specimens','specimen_no',$fields{'specimen_no'},\%fields);
             $specimen_no = $fields{specimen_no};
 
             if ($result) {
-                $sql = "SELECT * FROM measurements WHERE specimen_no=".int($fields{'specimen_no'});
+                my $sql = "SELECT * FROM measurements WHERE specimen_no=".int($fields{'specimen_no'});
                 my @measurements = @{$dbt->getData($sql)};
 
                 my %in_db= (); # Find rows from DB
@@ -1039,7 +1040,7 @@ sub processMeasurementForm	{
                     #  part plus type is gone it must have been erased by hand,
                     #  so delete it
                     } elsif ( $in_db{$type} && $q->param('full_form') =~ /y/i )	{
-                        $sql = "DELETE FROM measurements WHERE measurement_no=".$in_db{$type}{'measurement_no'} . " LIMIT 1";
+                        my $sql = "DELETE FROM measurements WHERE measurement_no=".$in_db{$type}{'measurement_no'} . " LIMIT 1";
                         $dbh->do($sql);
                     # otherwise do nothing because the user isn't actually
                     #  editing the specimen's existing measurements
@@ -1134,9 +1135,9 @@ sub processMeasurementForm	{
     }
 
 	my $more_links = "<div class=\"verysmall\" style=\"margin-bottom: 0.5em;\">add/edit a measurement of " . makeAnchor("displaySpecimenSearchForm", "", "another taxon");
-	if ( $collection_no > 0 )	{
-		$more_links .= " or " . makeAnchor("submitSpecimenSearch", "collection_no=$collection_no", "another occurrence in this collection") . "<br>";
-	}
+	# if ( $collection_no > 0 )	{
+	# 	$more_links .= " or " . makeAnchor("submitSpecimenSearch", "collection_no=$collection_no", "another occurrence in this collection") . "<br>";
+	# }
 	$more_links .= " or another " . makeAnchor("submitSpecimenSearch", "taxon_name=$taxon_name", "occurrence") . " of $taxon_name, or</div>
 ";
 	displaySpecimenList($dbt,$hbo,$q,$s,'processMeasurementForm',$more_links);
@@ -1212,6 +1213,7 @@ sub syncWithAuthorities {
 
     my $sql = "SELECT s.taxon_no,specimens_measured,specimen_id,specimen_part,magnification,is_type,type_specimen,type_body_part,part_details FROM specimens s,authorities a WHERE specimen_no=$specimen_no AND s.taxon_no=a.taxon_no";
     my $row = ${$dbt->getData($sql)}[0];
+    my %fields;
 
     # bomb out if the specimens data don't clearly pertain to the type or
     #  the authorities table has complete data already
@@ -1227,13 +1229,13 @@ sub syncWithAuthorities {
             $generic_parts{$p} = 1;
         }
         if ( $row->{'specimen_part'} )	{
-            if ( $generic_parts{$row->{'specimen_part'}} && ! $row{'type_body_part'} ) {
+            if ( $generic_parts{$row->{'specimen_part'}} && ! $row->{'type_body_part'} ) {
                 $fields{'type_body_part'} = $row->{'specimen_part'};
-            } elsif ( ! $row{'part_details'} )	{
+            } elsif ( ! $row->{'part_details'} )	{
                 $fields{'part_details'} = $row->{'specimen_part'};
             }
         }
-        if ( ! $row{'type_specimen'} )	{
+        if ( ! $row->{'type_specimen'} )	{
             $fields{'type_specimen'} = $row->{'specimen_id'};
         }
         $dbt->updateRecord($s,'authorities','taxon_no',$taxon_no,\%fields);

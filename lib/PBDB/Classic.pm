@@ -93,12 +93,15 @@ get '/cgi-bin/bridge.pl' => sub {
     
     elsif ( $action )
     {
-	redirect "/classic/$action", 301;
+	my $uri = request->uri;
+	$uri =~ s{^/cgi-bin/bridge.pl}{/classic/$action};
+	
+	redirect $uri, 302;
     }
     
     else
     {
-	redirect "/classic", 301;
+	redirect "/classic", 302;
     }
 };
 
@@ -109,7 +112,7 @@ post '/cgi-bin/bridge.pl' => sub {
     
     if ( $action )
     {
-	redirect "/classic/$action", 301;
+	return classic_request(params->{path_action});
     }
     
     else
@@ -229,7 +232,6 @@ sub classic_request {
     {
 	my %params = $s->dequeue();
 	$action = $q->reset_params(\%params);
-	print STDERR "NEW ACTION = $action\n";
     }
     
     if ( $action eq 'clearRef' )
@@ -3612,11 +3614,8 @@ sub displayOccurrenceAddEdit {
 # JA 5.7.07
 sub formatTaxonNameInput	{
     
-    my ($q, $s, $dbt, $hbo, $occ_row) = @_;
-    # my ($occ_row) = @_; #jpjenk (q s dbt hbo) here?
+    my ($occ_row) = @_;
     
-    # my $occ_row = shift;
-
     if ( $occ_row->{'genus_reso'} )	{
         if ( $occ_row->{'genus_reso'} =~ /"/ )	{
             $occ_row->{'taxon_name'} = '"';
@@ -4254,8 +4253,7 @@ sub processOccurrenceTable {
 
 sub generateCollectionLabel {
     
-    my ($q, $s, $dbt, $hbo, $collection_no) = @_;
-    # my ($dbt, $collection_no) = @_; #jpjenk (q s dbt hbo) here?
+    my ($dbt, $collection_no) = @_; #jpjenk (q s dbt hbo) here?
     
     $collection_no = int($collection_no); 
     return unless $collection_no;

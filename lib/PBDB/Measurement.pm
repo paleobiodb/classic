@@ -4,6 +4,8 @@
 
 package PBDB::Measurement;
 
+use strict;
+
 use PBDB::TaxaCache;
 use PBDB::Ecology;
 use PBDB::Reference;
@@ -46,7 +48,8 @@ sub getMeasurements	{
         push @tables , 'refs r';
         push @where , ('s.reference_no=r.reference_no');
     }
-
+    $options{lengths} ||= [ ];
+    $options{widths} ||= [ ];
     if ( join('',@{$options{'lengths'}}) =~ /unknown/ )	{
         push @where , qq|(position IN ('|.join("','",@{$options{'lengths'}}).qq|') OR position IS NULL OR measurement_type!='length')|;
     } elsif ( $options{'lengths'} )	{
@@ -145,7 +148,7 @@ sub getMeasurements	{
         $sql2 .= " AND o.occurrence_no=".int($options{'occurrence_no'});
         $clause_found = 1;
     }
-
+    my $sql;
     if ($options{'get_global_specimens'} && $sql3 =~ /taxon_no IN/) {
         $sql = "($sql1) UNION ($sql2) UNION ($sql3)";
     } else {
@@ -273,20 +276,24 @@ sub getMeasurementTable {
     $p_table{'all_refs'} = join(', ',sort keys %seen_ref);
 
     for my $part ( keys %p_table )	{
-        my %m_table = %{$p_table{$part}};
-        foreach my $type (keys %types) {
-            if ($m_table{$type}{'specimens_measured'}) {
-                $m_table{$type}{'average'} = exp($m_table{$type}{'average'}/$m_table{$type}{'specimens_measured'});
-                # if any averages were used in finding the min and max, the
-                #  values are statistically bogus and should be erased
-                # likewise if the sample size is 1
-                if ( $m_table{$type}{'average_only'} == 1 || $m_table{$type}{'specimens_measured'} == 1 )	{
-                    $m_table{$type}{'min'} = "";
-                    $m_table{$type}{'max'} = "";
-                }
-            }
+	my %m_table;
+	if ( ref $p_table{$part} eq 'HASH' )
+	{
+	    %m_table = %{$p_table{$part}};
+	}
+	foreach my $type (keys %types) {
+	    if ($m_table{$type}{'specimens_measured'}) {
+		$m_table{$type}{'average'} = exp($m_table{$type}{'average'}/$m_table{$type}{'specimens_measured'});
+		# if any averages were used in finding the min and max, the
+		#  values are statistically bogus and should be erased
+		# likewise if the sample size is 1
+		if ( $m_table{$type}{'average_only'} == 1 || $m_table{$type}{'specimens_measured'} == 1 )	{
+		    $m_table{$type}{'min'} = "";
+		    $m_table{$type}{'max'} = "";
+		}
+	    }
         }
-   
+	
         my @values = ();
         my $can_compute = 0; # Can compute median, and error (std dev)
         my $is_group = 0; # Is it aggregate group data or a bunch of singles?
@@ -1215,7 +1222,7 @@ sub displayDownloadMeasurementsResults  {
 			}
 			my %m_table = %{$p_table{$part}};
 			if ( %m_table )	{
-				$printed_part = $part;
+			    my $printed_part = $part;
 				if ( $part eq "" )	{
 					$printed_part = "unknown";
 				}

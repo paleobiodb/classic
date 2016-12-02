@@ -1,4 +1,5 @@
-    <script language="JavaScript" type="text/javascript">
+<script src="/public/classic_js/xregexp-all.js" language="JavaScript" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
     <!-- Begin
 
 	window.onload = showHideEditors;
@@ -6,11 +7,21 @@
 	var warning_count = 0;
 
 	function checkForm() {
-		var year = /^[1-2][0-9]{3}$/;
-		var capital = /[A-Z]/;
-		var period = /[A-Za-z]\.$/;
-		var space = /([A-Za-z])(\.| | \.)([A-Za-z])|([A-Z][A-Z])/;
-		var all_caps = /^[A-Z][A-Z]/;
+	    var year = /^[1-2][0-9]{3}$/;
+	    // var capital = /[A-Z]/;
+	    var capital = XRegExp('\\p{Lu}');
+	    
+	    // var period = /[A-Za-z]\.$/;
+	    var period = XRegExp('\\p{L}\\.$');
+	    
+	    // var space = /([A-Za-z])(\.| | \.)([A-Za-z])|([A-Z][A-Z])/;
+	    
+	    // var all_caps = /^[A-Z][A-Z]/;
+	    var all_caps = XRegExp('\\p{Lu}{3}');
+	    var all_lower = XRegExp('\\p{Ll}{3}');
+	    
+	    var other_authors = XRegExp('^\\p{L}{2}|\\p{L}\\.$');
+	    
 		var frm = document.forms[1];
 		var errors = "";
 		var warnings = "";
@@ -36,9 +47,9 @@
 			if ( period.test ( frm.author1init.value ) == false ) {
 			    errors += "* The first author's initials must end with a period\n"; 
 			}
-			if ( space.test ( frm.author1init.value ) == true ) {
-			    errors += "* There must be a period and a space between the first author's two initials\n"; 
-			}
+			// if ( space.test ( frm.author1init.value ) == true ) {
+			//     errors += "* There must be a period and a space between the first author's two initials\n"; 
+			// }
 		}
 
 		// First Author Last
@@ -64,9 +75,9 @@
 			if ( period.test ( frm.author2init.value ) == false ) {
 			    errors += "* The second author's initials must end with a period\n"; 
 			}
-			if ( space.test ( frm.author2init.value ) == true ) {
-			    errors += "* There must be a period and a space between the second author's two initials\n"; 
-			}
+			// if ( space.test ( frm.author2init.value ) == true ) {
+			//     errors += "* There must be a period and a space between the second author's two initials\n"; 
+			// }
 		}
 
 		// Second Author Last
@@ -80,10 +91,10 @@
 		}
 
 		// OtherAuthors
-		var contents = frm.otherauthors.value;
-		var pattern = /(^[A-Z][a-z\']+)|([A-Z]\.$)/;
-		var result = contents.match(pattern);
-		if ( result != null )	{
+		// var contents = frm.otherauthors.value;
+		// var pattern = /(^[A-Z][a-z\']+)|([A-Z]\.$)/;
+		// var result = contents.match(pattern);
+		if ( frm.otherauthors.value.match(other_authors) )	{
 			errors += "* Names of additional authors must be formatted with " +
 			" initials before last names\n"+
 			"Example: P. McCartney, J. P. Jones, J. Hendrix\n";
@@ -121,18 +132,19 @@
                 }
             }
         }
-		var contents = frm.editors.value;
-		var pattern = /(^[A-Z][a-z\']+)|([A-Z]\.$)/;
-		var result = contents.match(pattern);
-		if ( result != null )	{
+		// var contents = frm.editors.value;
+		// var pattern = /(^[A-Z][a-z\']+)|([A-Z]\.$)/;
+		// var result = contents.match(pattern);
+		if ( frm.editors.value.match(other_authors) )	{
 			errors += "* Names of editors must be formatted with " +
 			" initials before last names\n"+
 			"Example: P. McCartney, J. P. Jones, J. Hendrix\n";
 		}
 
-		if ( /[^A-Za-z0-9\)\]\?\!"\.]$/.test(frm.reftitle.value) )	{
-			errors += "* The reference's title must end with a letter\n";
-		}
+	    // if ( /[^A-Za-z0-9\)\]\?\!"\.]$/.test(frm.reftitle.value) )	{
+	    if ( /\.$/.test(frm.reftitle.value) ) {
+		errors += "* The reference's title must end with a letter\n";
+	    }
 		if ( /\.$/.test(frm.reftitle.value) )	{
 			if ( ! / nov\.$/.test(frm.reftitle.value) && ! /U\.S\.A\.$/.test(frm.reftitle.value) && ! /U\.S\.S\.R\.$/.test(frm.reftitle.value) && ! / sp\.$/.test(frm.reftitle.value) && ! / spec\.$/.test(frm.reftitle.value) && ! / nov\.$/.test(frm.reftitle.value) )	{
 				warnings += "* A reference title shouldn't end with a period\n";
@@ -157,15 +169,17 @@
 		if ( /  /.test(frm.reftitle.value) )	{
 			errors += "* The reference's title includes extra spaces\n";
 		}
-		if ( /[A-Z][A-Z][A-Z]/.test(frm.reftitle.value) && ! /[a-z][a-z][a-z]/.test(frm.reftitle.value) )	{
+		if ( all_caps.test(frm.reftitle.value) && ! all_lower.test(frm.reftitle.value) )	{
 			errors += "* Don't capitalize the entire reference title\n";
 		}
 
-		if ( /[^A-Za-z0-9\)\]\?\!"]$/.test(frm.pubtitle.value) )	{
-			errors += "* The book/serial name must end with a letter\n";
-		}
+		// if ( /[^A-Za-z0-9\)\]\?\!"]$/.test(frm.pubtitle.value) )	{
+	    if ( /\.$/.test(frm.pubtitle.value) ) {
+		errors += "* The book/serial name must end with a letter\n";
+	    }
 		if ( /[~@\#\$%\^\*_\+\{\}\|\\<>\t\n]/.test(frm.pubtitle.value) || /[^A-Za-z0-9]\//.test(frm.pubtitle.value) || /[\/][^A-Za-z0-9]/.test(frm.pubtitle.value) || /[:;\?\!][A-Za-z0-9]/.test(frm.pubtitle.value) )	{
-			errors += "* The book/serial name includes weird characters\n";
+		    warnings += "* The book/serial name includes weird characters\n";
+		    warning_count++;
 		}
 		if ( /\.[^0-9 ]/.test(frm.pubtitle.value) )	{
 			warnings += "* The book/serial name may include a stray period\n";
@@ -174,7 +188,7 @@
 		if ( /  /.test(frm.pubtitle.value) )	{
 			errors += "* The book/serial name includes extra spaces\n";
 		}
-		if ( /[A-Z][A-Z][A-Z]/.test(frm.pubtitle.value) && ! /[a-z][a-z][a-z]/.test(frm.pubtitle.value) && ! /PLoS ONE/.test(frm.pubtitle.value) )	{
+		if ( all_caps.test(frm.pubtitle.value) && ! all_lower.test(frm.pubtitle.value) && ! /PLoS ONE/.test(frm.pubtitle.value) )	{
 			errors += "* Don't capitalize the entire book/serial name\n";
 		}
 		// Report errors

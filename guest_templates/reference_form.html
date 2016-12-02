@@ -9,9 +9,9 @@
 <link REL="shortcut icon" HREF="/public/images/favicon.ico" type="image/x-icon" />
 
 <!--javascript containing common functions-->
+<script src="/public/classic_js/xregexp-all.js" language="JavaScript" type="text/javascript"></script>
 <script src="/public/classic_js/login.js" language="JavaScript" type="text/javascript"></script>
 <script src="/public/classic_js/common.js" language="JavaScript" type="text/javascript"></script>
-
 </head>
 
 <body>
@@ -31,7 +31,8 @@
 
     function checkForm() {
 		var year = /^[1-2][0-9]{3}$/;
-		var capital = /[A-Z]/;
+		// var capital = /[A-Z]/;
+	        var capital = XRegExp('\\p{Lu}');
 		var frm = document.forms[1];
 		var errors = "";
 

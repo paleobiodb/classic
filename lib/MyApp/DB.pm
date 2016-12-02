@@ -5,7 +5,7 @@ use utf8;
 no warnings qw(uninitialized);
 extends qw/DBIx::Class::Schema/;
 
-our $VERSION = 8;
+our $VERSION = 9;
 
 
 __PACKAGE__->load_namespaces(

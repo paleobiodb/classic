@@ -3,6 +3,8 @@
 
 package PBDB::Ecology;
 
+use strict;
+
 use PBDB::TaxaCache;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE $TAXA_LIST_CACHE);
@@ -127,11 +129,14 @@ sub getEcology {
         # of its parent, starting with the lowest ranked parent first
         my @exec_order = ();
         push @exec_order, $taxon_no; #taxon/most current combination first
-        push @exec_order, @{$alt_taxon_nos{$taxon_no}}; #then syns/recombs
-        foreach my $parent (@{$classification_hash->{$taxon_no}}) {
-            push @exec_order, $parent->{'taxon_no'}; #ditto as above
-            push @exec_order, @{$alt_taxon_nos{$parent->{'taxon_no'}}}; 
-        }
+        push @exec_order, @{$alt_taxon_nos{$taxon_no}} if ref $alt_taxon_nos{$taxon_no} eq 'ARRAY'; #then syns/recombs
+	if ( ref $classification_hash->{$taxon_no} eq 'ARRAY' )
+	{
+	    foreach my $parent (@{$classification_hash->{$taxon_no}}) {
+		push @exec_order, $parent->{'taxon_no'}; #ditto as above
+		push @exec_order, @{$alt_taxon_nos{$parent->{'taxon_no'}}} if ref $alt_taxon_nos{$parent->{taxon_no}} eq 'ARRAY'; 
+	    }
+	}
         
         my ($seen_diet,$seen_composition,$seen_adult) = (0,0,0);
         foreach my $use_taxon_no (@exec_order) {

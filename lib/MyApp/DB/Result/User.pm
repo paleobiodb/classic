@@ -81,6 +81,12 @@ __PACKAGE__->wing_fields(
       },
 );
 
+__PACKAGE__->wing_datetime_field(
+      last_pwchange  => { 
+	view => 'private',
+      }
+);
+
 __PACKAGE__->wing_children(
     authorizer_enterers => {
 	view		=> 'public',
@@ -618,6 +624,13 @@ sub set_role {
 
     print STDERR "$sql\n";
 }
+
+
+after encrypt_and_set_password => sub {
+    my ($self) = @_;
+
+    $self->last_pwchange(DateTime->now);
+};
 
 no Moose;
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);

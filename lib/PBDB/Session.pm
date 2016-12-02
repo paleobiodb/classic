@@ -144,9 +144,11 @@ sub new {
     
     unless ( $session_record )
     {
+	my $quoted_role = $dbh->quote($role);
+	
 	my $sql = "
-		INSERT INTO session_data (session_id, enterer_no, authorizer_no, superuser)
-		VALUES ($quoted_id, $enterer_no, $authorizer_no, $is_admin)";
+		INSERT INTO session_data (session_id, enterer_no, authorizer_no, role, superuser)
+		VALUES ($quoted_id, $enterer_no, $authorizer_no, $quoted_role, $is_admin)";
 	
 	$dbh->do($sql);
 	
