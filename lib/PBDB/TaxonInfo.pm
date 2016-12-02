@@ -15,7 +15,8 @@ use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($HOST_URL $READ_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECORD 
-		       $PAGE_TOP $PAGE_BOTTOM $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeATag makeAnchor makeURL);
+		       $PAGE_TOP $PAGE_BOTTOM $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeATag makeAnchor 
+		       makeAnchorWithAttrs makeURL);
 
 use strict;
 
