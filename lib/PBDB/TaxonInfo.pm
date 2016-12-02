@@ -4463,8 +4463,8 @@ sub listTaxonChoices	{
 			$classes = ($i/2 == int($i/2)) ? qq|"small darkList"| : "small";
 		}
 		# the width term games browsers
-		print qq|<td class=$classes style="width: 1em; padding: 0.25em; padding-left: 1em; padding-right: 1em; white-space: nowrap;">&bull; <a href="|;
-		print makeURL("basicTaxonInfo", "taxon_no=$results[$i]->{taxon_no}") . qq| style="color: black;">$authorityLine</a></td>|;
+		print qq|<td class=$classes style="width: 1em; padding: 0.25em; padding-left: 1em; padding-right: 1em; white-space: nowrap;">&bull; |;
+		print makeAnchorWithAttrs("basicTaxonInfo", "taxon_no=$results[$i]->{taxon_no}", 'style="color: black;"', $authorityLine) . "</td>";
 		print "</tr>\n<tr>";
 	}
 	print qq|</tr>
