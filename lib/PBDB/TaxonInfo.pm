@@ -1461,16 +1461,17 @@ $output .= qq|<div class="displayPanel" align="left" style="margin-bottom: 2em; 
     }
 
     if ($orig_no) {
+	$output .= "<p><b>" . makeAnchor("classify", "taxon_no=$orig_no", "View classification of included taxa") . "</b></p>\n";
+	
         # $output .= '<p><b><a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download authority and opinion data</a></b> - <b><a href=# onClick="javascript: document.doViewClassification.submit()">View classification of included taxa</a></b>';
-        $output .= "<form method=\"POST\" action=\"\" name=\"doDownloadTaxonomy\">";
-        $output .= '<input type="hidden" name="action" value="displayDownloadTaxonomyResults">';
-        $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
-        $output .= "</form>\n";
-        $output .= "<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
-        $output .= '<input type="hidden" name="action" value="classify">';
-        $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
-        $output .= "</form>\n";
-        
+        # $output .= "<form method=\"POST\" action=\"\" name=\"doDownloadTaxonomy\">";
+        # $output .= '<input type="hidden" name="action" value="displayDownloadTaxonomyResults">';
+        # $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
+        # $output .= "</form>\n";
+        # $output .= "<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
+        # $output .= '<input type="hidden" name="action" value="classify">';
+        # $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
+        # $output .= "</form>\n";
     }
 	return $output;
 }
