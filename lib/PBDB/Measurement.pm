@@ -407,11 +407,12 @@ sub getMassEstimates	{
 
 	my (@values,@masses,@eqns,@refs);
 	my (%mean,%estimates);
-	for my $part ( @part_list )	{
-		my %m_table = %{$p_table{$part}};
-		if ( ! %m_table )	{
-			next;
-		}
+	for my $part ( @part_list )
+	{
+	    next unless ref $p_table{$part} eq 'HASH';
+	    my %m_table = %{$p_table{$part}};
+	    next unless keys %m_table;
+	    
 		foreach my $type (('length','width','area','diameter','circumference')) {
 			if ( $type eq "area" && $m_table{length}{average} && $m_table{width}{average} && $part =~ /^[PMpm][1234]$/ && ! $skip_area )	{
 				$m_table{area}{average} = $m_table{length}{average} * $m_table{width}{average};

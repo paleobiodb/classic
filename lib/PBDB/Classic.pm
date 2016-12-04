@@ -141,6 +141,11 @@ sub classic_request {
     my ($action) = @_;
     
     $DB::single = 1;
+
+    if ( $action eq 'testerror' )
+    {
+	croak "Test error!!!";
+    }
     
     my $wing_session = get_session();
     
@@ -3388,7 +3393,7 @@ sub startProcessSanityCheck	{
     my ($q, $s, $dbt, $hbo) = @_;
     
 	return if PBDB::PBDBUtil::checkForBot();
-	require SanityCheck;
+	require PBDB::SanityCheck;
 	logRequest($s,$q);
     
 	print $hbo->stdIncludes($PAGE_TOP);
@@ -3400,24 +3405,24 @@ sub startProcessSanityCheck	{
 
 ##############
 ## PAST stuff
-sub PASTQueryForm {
+# sub PASTQueryForm {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    require PAST;
-    print $hbo->stdIncludes($PAGE_TOP);
-    PAST::queryForm($dbt,$q,$hbo,$s);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
-sub PASTQuerySubmit {
+#     require PAST;
+#     print $hbo->stdIncludes($PAGE_TOP);
+#     PAST::queryForm($dbt,$q,$hbo,$s);
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
+# sub PASTQuerySubmit {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    require PAST;
-    print $hbo->stdIncludes($PAGE_TOP);
-    PAST::querySubmit($dbt,$q,$hbo,$s);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
+#     require PAST;
+#     print $hbo->stdIncludes($PAGE_TOP);
+#     PAST::querySubmit($dbt,$q,$hbo,$s);
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
 ## End PAST stuff
 ##############
 
@@ -4258,53 +4263,53 @@ sub generateCollectionLabel {
     $collection_no = int($collection_no); 
     return unless $collection_no;
 
-    require GD;
+    # require GD;
     my $sql = "SELECT collection_name FROM collections WHERE collection_no=".int($collection_no);
     my $collection_name = ${$dbt->getData($sql)}[0]->{'collection_name'};
-    PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/collection_labels");
-    my $file = $HTML_DIR."/public/collection_labels/$collection_no.png";
-    my $txt = "#$collection_no: $collection_name";
+    # PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/collection_labels");
+    # my $file = $HTML_DIR."/public/collection_labels/$collection_no.png";
+    # my $txt = "#$collection_no: $collection_name";
 
-    my $font= "$DATA_DIR/fonts/sapirsan.ttf";
-    my $font_size = 10;
-    my $x = $font_size+2;
-    my $height = 240;
-    my $y = $height-3;
-    my $num_lines = 3;
-    my $angle = 1.57079633;# Specified in radians = .5*pi
+    # my $font= "$DATA_DIR/fonts/sapirsan.ttf";
+    # my $font_size = 10;
+    # my $x = $font_size+2;
+    # my $height = 240;
+    # my $y = $height-3;
+    # my $num_lines = 3;
+    # my $angle = 1.57079633;# Specified in radians = .5*pi
 
-    my $width = ($font_size+1)*$num_lines+3;
-    my $im = new GD::Image($width,$height,1);
-    my $white = $im->colorAllocate(255,255,255); # Allocate background color first
-    my $black = $im->colorAllocate(0,0,0);
-    $im->transparent($white);
-    $im->filledRectangle(0,0,$width-1,$height-1,$white);
+    # my $width = ($font_size+1)*$num_lines+3;
+    # my $im = new GD::Image($width,$height,1);
+    # my $white = $im->colorAllocate(255,255,255); # Allocate background color first
+    # my $black = $im->colorAllocate(0,0,0);
+    # $im->transparent($white);
+    # $im->filledRectangle(0,0,$width-1,$height-1,$white);
 
-    my @words = split(/[\s-]+/,$txt);
-    my $line_count = 1;
-    foreach my $word (@words) {
-        # This first call to stringFT is to GD::Image - this doesn't draw anything
-        # but instead gets the @bounds back quickly so we know whether or now to 
-        # wrap to the next line
-        my @bounds = GD::Image->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
-#        print "Bounds are: ".join(",",@bounds)." for $word<BR>";
-        if ($bounds[3] < 0) {
-            #bounds[3] is the top left y coordinate or some such. if its < 0, then this
-            # strin gis running off the image so break to next line
-            $x += $font_size + 1;
-            last if ($line_count > $num_lines);
-            $y = $height - 3;
-            my @bounds = $im->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
-            $y = $bounds[3] - int($font_size/3);
-        } else {
-            my @bounds = $im->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
-            $y = $bounds[3] - int($font_size);
-        }
-    }
+#     my @words = split(/[\s-]+/,$txt);
+#     my $line_count = 1;
+#     foreach my $word (@words) {
+#         # This first call to stringFT is to GD::Image - this doesn't draw anything
+#         # but instead gets the @bounds back quickly so we know whether or now to 
+#         # wrap to the next line
+#         my @bounds = GD::Image->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
+# #        print "Bounds are: ".join(",",@bounds)." for $word<BR>";
+#         if ($bounds[3] < 0) {
+#             #bounds[3] is the top left y coordinate or some such. if its < 0, then this
+#             # strin gis running off the image so break to next line
+#             $x += $font_size + 1;
+#             last if ($line_count > $num_lines);
+#             $y = $height - 3;
+#             my @bounds = $im->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
+#             $y = $bounds[3] - int($font_size/3);
+#         } else {
+#             my @bounds = $im->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
+#             $y = $bounds[3] - int($font_size);
+#         }
+#     }
 
-    open IMG,">$file";
-    print IMG $im->png; 
-    close IMG;
+#     open IMG,">$file";
+#     print IMG $im->png; 
+#     close IMG;
     return $collection_name;
 }
 
@@ -5403,7 +5408,7 @@ sub displayStratTaxaForm{
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require Confidence;
+    require PBDB::Confidence;
     print $hbo->stdIncludes($PAGE_TOP);
     PBDB::Confidence::displayStratTaxa($q, $s, $dbt);
     print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -5414,7 +5419,7 @@ sub showOptionsForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require Confidence;
+    require PBDB::Confidence;
 	print $hbo->stdIncludes($PAGE_TOP);
 	PBDB::Confidence::optionsForm($q, $s, $dbt);
 	print $hbo->stdIncludes($PAGE_BOTTOM);
@@ -5425,7 +5430,7 @@ sub calculateTaxaInterval {
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require Confidence;
+    require PBDB::Confidence;
     logRequest($s,$q);
 	print $hbo->stdIncludes($PAGE_TOP);
 	PBDB::Confidence::calculateTaxaInterval($q, $s, $dbt);
@@ -5437,7 +5442,7 @@ sub calculateStratInterval {
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require Confidence;
+    require PBDB::Confidence;
     logRequest($s,$q);
 	print $hbo->stdIncludes($PAGE_TOP);
 	PBDB::Confidence::calculateStratInterval($q, $s, $dbt);
