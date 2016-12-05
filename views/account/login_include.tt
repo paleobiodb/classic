@@ -39,14 +39,16 @@
 </form>
 <hr>
 <div class="col-sm-16">
-  <br><br><br><br>
+  <br><br>
   <ul class="list-bullet">
-  <li>If you do not have an account already, creating a guest account is the first step in becoming a contributer to PBDB.</li>
+  <li><b><font color="red">Attention</b>: For security reasons, enters and students may no longer login using their authorizer's password. You may have been doing this unknowingly. If you see the 'forgotten password' link when attempting to login, please select it to create a unique password for your account. Creating a new password is recommended for all users and may be done on your Account Settings page.</font></li>
+  <p>
+  <li>If you do not have an account already, creating a guest account is the first step in becoming a contributer to the PBDB.</li>
   <p>
   <li>Once created, select Account Upgrade in your Account Settings to requst the role of Authorizer.</li>
   <p>
   <li>If you are working under an Authorizer, they will be able to promote you to the role or Student or Enterer.</li>
   <p>
-  <li>You are free to use the guest account without upgrade but will only be able to search and download, not edit or enter data.</li>
+  <li>You are welcome to use the guest account without upgrade but will only be able to search and download, not edit or enter data.</li>
   </ul> 
 </div>
