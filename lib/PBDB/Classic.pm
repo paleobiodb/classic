@@ -2351,7 +2351,7 @@ sub processTaxonSearch {
                         print "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name&amp;skip_typo_check=1", "$none") . " - create a new taxon record";
                     }
                     print "</ul>";
-
+                    my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
                     print "<div align=left class=small style=\"width: 500\">";
                     print "<p>The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of the names above match, please enter a new taxon record.";
                     print "</div></p>";
@@ -2393,10 +2393,10 @@ sub processTaxonSearch {
                 print qq|<div align=left class="small">\n<p>|;
                 if ( $#typoResults > 0 )	{
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    print "The taxon '" . $localtaxon_name . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of them are what you're looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
+                    print "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of them are what you're looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
                 } else	{
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    print "The taxon '" . $taxon_name . "' doesn't exist in the database.  However, an approximate match was found and is listed above.  If it is not what you are looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$taxon_name", "enter a new authority record") . " first.";
+                    print "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, an approximate match was found and is listed above.  If it is not what you are looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
                 }
                 print "</div></p>";
                 print "</div>";
@@ -2404,7 +2404,7 @@ sub processTaxonSearch {
             } else {
                 if ($q->param('taxon_name')) {
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    push my @errormessages , "The taxon '" . $localtaxon_name . "' doesn't exist in the database.<br>Please " . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name", "<b>enter</b>") . " an authority record for this taxon first.";
+                    push my @errormessages , "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.<br>Please " . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name", "<b>enter</b>") . " an authority record for this taxon first.";
                     print "<div align=\"center\" class=\"large\">".PBDB::Debug::printWarnings(\@errormessages)."</div>";
                 } else {
                     print "<div align=\"center\" class=\"large\">No taxonomic names were found that match the search criteria.</div>";
