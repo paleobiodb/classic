@@ -1,8 +1,7 @@
 
-<script src="/public/classic_js/xregexp-all.js" language="JavaScript" type="text/javascript"></script>
-
 <script language="JavaScript" type="text/javascript">
 <!-- Begin
+
 
 function checkForm()	{
 
@@ -13,12 +12,6 @@ function checkForm()	{
 	var refLength = frm.ref_is_authority.length - 1;
 	var inNameList = 0;
 
-    if ( '%%limited%%' )
-    {
-	wing.error('You do not have authorization to edit taxonomic names');
-	return false;
-    }
-    
 	if ( typeof(frm.original_no) != "undefined" )	{
 		origLength = frm.original_no.length - 1;
 		for ( i = 0; i <= origLength; i++ )	{
@@ -64,24 +57,23 @@ function checkForm()	{
 	} else if ( frm.ref_is_authority[refLength].checked && frm.author1last.value == "" && /species|genus/.test(frm.taxon_rank.value) )	{
 		error += "* You forgot to enter the author name\n";
 	}
-	// match all letter characters
-    var bad_name_char = XRegExp('[^- \'\\p{L}]');
-    var init_check = XRegExp('^\\p{L}[.]$|^\\p{L}[.]-\\p{L}[.]$|^\\p{L}[.]( \\p{L}[.])*$');
-    if ( frm.author1init.vaue != "" && ! init_check.test(frm.author1init.value) ) {
-	error += "* The first author's initials are misformatted\n";
-    }
-    if ( frm.author1last.value != "" && bad_name_char.test(frm.author1last.value) && ! /, [sSjJ]r\./.test(frm.author1last.value) )	{
-	error += "* There seems to be a typo in the first author's last name\n";
-    }
-    if ( frm.author2init.value != "" && ! init_check.test(frm.author2init.value) )	{
+	// unicode values are for a-grave, a-acute, e-grave, e-acute, n-tilde, o-umlaut, u-umlaut
+	if ( frm.author1last.value != "" && /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC'\- ]/.test(frm.author1last.value) && ! /, Jr\./.test(frm.author1last.value) )	{
+		error += "* There seems to be a typo in the first author's last name\n";
+	} else if ( frm.author1last.value != "" && ! /^(|d'|d[aeo](|[nrs]) |Di|O'|M(c|ac|')|v[ao]n )[A-Z](|[a-z]+-[A-Z])[a-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC]+(|, Jr\.)$/.test(frm.author1last.value) && ! /^[A-Z][a-z]+ (|d'|[dv][a-z]+ )[A-Z][a-z]+(|, Jr\.)$/.test(frm.author1last.value) )	{
+                error += "* The first author's last name is misformatted\n";
+	}
+	if ( frm.author2init.value != "" && ! /^[A-Z]\.$/.test(frm.author2init.value) && ! /^[A-Z]\.( |\-)[A-Z]\.$/.test(frm.author2init.value) && ! /^[A-Z]\. [A-Z]\. [A-Z]\.$/.test(frm.author2init.value)  )	{
 		error += "* The second author's initials are misformatted\n";
 	}
-	if ( frm.author2last.value != "" &&  bad_name_char.test(frm.author2last.value) && ! /, [sSjJ]r\./.test(frm.author2last.value) )	{
+	if ( frm.author2last.value != "" && /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC'\- ]/.test(frm.author2last.value) && ! /, Jr\./.test(frm.author2last.value) )	{
 		error += "* There seems to be a typo in the second author's last name\n";
+	} else if ( frm.author2last.value != "" && ! /^(|d'|d[aeo](|[nrs]) |Di|O'|M(c|ac|')|v[ao]n )[A-Z](|[a-z]+-[A-Z])[a-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC]+(|, Jr\.)$/.test(frm.author2last.value) && ! /^[A-Z][a-z]+ (|d'|[dv][a-z]+ )[A-Z][a-z]+(|, Jr\.)$/.test(frm.author2last.value) )	{
+		error += "* The second author's last name is misformatted\n";
 	}
 	if ( /[^0-9]/.test(frm.pubyr.value) )	{
 		error += "* The publication year is misformatted\n";
-	} else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2030 ) )	{
+	} else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2020 ) )	{
 		error += "* The publication year is wrong\n";
 	}
 	if ( typeof(frm.type_specimen) != "undefined" && frm.type_specimen.value != "" && frm.extant.selectedIndex == 0 )	{
@@ -92,7 +84,7 @@ function checkForm()	{
 	if ( typeof(frm.preservation) != "undefined" )	{
 		var pres = frm.preservation.options[frm.preservation.selectedIndex].text;
 		if ( pres == 'not a trace' )	{
-			error += "* We are no longer using the Preservation category: <i>not a trace</i>; please select another value\n";
+			error += "* We are no longer using the 'not a trace' category; please select another value\n";
 		}
 		if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
 			error += "* If the type isn't a body or in amber the taxon can't be extant\n";
@@ -100,7 +92,7 @@ function checkForm()	{
 	} else if ( typeof(frm.preservation2) != "undefined" )	{
 		var pres = frm.preservation2.options[frm.preservation2.selectedIndex].text;
 		if ( pres == 'not a trace' )	{
-			error += "* We are no longer using the Preservation category: <i>not a trace</i>; please select another value\n";
+			error += "* We are no longer using the 'not a trace' category; please select another value\n";
 		}
 		if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
 			error += "* If the type isn't a body or in amber the taxon can't be extant\n";
@@ -114,7 +106,7 @@ function checkForm()	{
 		error += "* The common name must end with a letter\n";
 	} else if ( /([^a-z]\-|\-[^a-z])/.test(frm.common_name.value) )	{
 		error += "* There's a stray hyphen in the common name\n";
-	} else if ( bad_name_char.test(frm.common_name.value) || /[^a-z]$/.test(frm.common_name.value) )	{
+	} else if ( /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC \-']/.test(frm.common_name.value) || /[^a-z]$/.test(frm.common_name.value) )	{
 		error += "* The common name is misformatted\n";
 	}
 
@@ -135,17 +127,14 @@ function checkForm()	{
 
 <center>
 <div align="center" style="width: 50em;"><p class="pageTitle">Authority data for <span id="taxon_name"></span></p></div>
-<br>
-<div style="width: 60em; margin-top: -2em; margin-bottom: 1em; margin-left: auto; margin-right: auto;">
+
+<div style="width: 60em; margin-top: -2em; margin-bottom: 1em; margin-left: auto; margin-right: auto; font-size: 0.6em;">
 <span style="padding-right: 1em;"><span id="authorizer_name"></span></span>
 <span style="padding-right: 1em;"><span id="enterer_name"></span></span>
 <span style="padding-right: 1em;"><span id="modifier_name"><span></span>
 <span style="padding-right: 1em;"><span id="created"></span></span>
 <span id="modified"></span>
 </div>
-
-<div show="limited" style="color: red;">
-  <p><em>You do not have authorization to edit this data.</em></p></div>
 
 <div show="error_message">
 <span id="error_message"></span>
@@ -169,14 +158,11 @@ function checkForm()	{
 <div align="left" style="width: 30em;">
 <div style="float: left; clear: none;">
   <input id="ref_is_authority" name="ref_is_authority" type="radio" value="PRIMARY">
-  <input type="text" id="taxon_name" name="taxon_name"> was first named in the data record's primary reference:
+  <input type="text" id="taxon_name" name="taxon_name" size="20"> was first named in the data record's primary reference:
   <div align="left" class="small" style="width: 48em; margin-bottom: 0.5em; margin-left: 3em; text-indent: -1em;"><span id="formatted_primary_reference"></span>&nbsp;<span id="primary_reference_link"></span></div>
 </div>
 </div>
 
-<!-- <div style="float: left; clear: right; margin-left: 2em; margin-bottom: 1.5em;"> -->
-<!-- <input type="submit" value="Submit"> -->
-<!-- </div> -->
 
 <div show="current_reference">
 <div align="left" style="float: left; clear: none;">
@@ -190,22 +176,22 @@ function checkForm()	{
   <input id="ref_is_authority" name="ref_is_authority" type="radio" value="NO">
   ... <i>or</i> it was named in an earlier publication:
 
-<table><tr><td align="right" class="small"><span class="prompt">First author:</span></td>
-<td><input id="author1init" name="author1init" class="small"></td>
-<td><input id="author1last" name="author1last" class="small"></td>
-<td align="left" class="small" style="padding-left: 0.5em";><span class="prompt">Second author:</span></td>
-<td align="left"><input id="author2init" name="author2init" class="small"></td>
-<td align="left"><input id="author2last" name="author2last" class="small"></td>
+<table><tr><td align="right" class="verysmall"><span class="prompt">First author:</span></td>
+<td><input id="author1init" name="author1init" class="verysmall" size=4></td>
+<td><input id="author1last" name="author1last" class="verysmall" size=10></td>
+<td align="left" class="verysmall" style="padding-left: 0.5em";><span class="prompt">Second author:</span></td>
+<td align="left"><input id="author2init" name="author2init" class="verysmall" size=4></td>
+<td align="left"><input id="author2last" name="author2last" class="verysmall" size=10></td>
 </tr>
-<tr><td valign="top" align="right" class="small" style="padding-left: 2em;"><span class="prompt">Other authors:</span></td>
-<td colspan="3"><textarea id="otherauthors" name="otherauthors" class="small" rows=1 cols="30"></textarea></td>
-<td align="right" class="small"><span class="prompt">Year:</span></td>
-<td colspan="1" class="small"><input id="pubyr" name="pubyr" class="small"></td>
+<tr><td valign="top" align="right" class="verysmall" style="padding-left: 2em;"><span class="prompt">Other authors:</span></td>
+<td colspan="3"><textarea id="otherauthors" name="otherauthors" class="verysmall" rows=1 cols="30"></textarea></td>
+<td align="right" class="verysmall"><span class="prompt">Year:</span></td>
+<td colspan="1" class="verysmall"><input id="pubyr" name="pubyr" class="verysmall" size=5></td>
 </tr>
 
 <tr>
-<td colspan="4" class="small" align="left" style="padding-top: 0.5em;"><span class="prompt">Pages:</span> <input id="pages" name="pages" class="small">
-<span class="prompt">Figures:</span> <input id="figures" name="figures" class="small"></td></tr>
+<td colspan="4" class="verysmall" align="left" style="padding-top: 0.5em;"><span class="prompt">Pages:</span> <input id="pages" name="pages" class="verysmall" size=12>
+<span class="prompt">Figures:</span> <input id="figures" name="figures" class="verysmall" size=12></td></tr>
 </table>
 
 </div>  
@@ -235,7 +221,7 @@ function checkForm()	{
 <div style="clear: right;">
 <div style="padding-top: 1em;">
 <span class="prompt">Type specimen:</span>
-<input id="type_specimen" name="type_specimen">
+<input id="type_specimen" name="type_specimen" size="20">
 </div>
 </div>
 </div>
@@ -252,7 +238,7 @@ function checkForm()	{
 <div show="show_type_specimen">
 <div style="clear: right;">
 <span class="prompt">Specific body part:</span>
-<input id="part_details" name="part_details">
+<input id="part_details" name="part_details" size="23">
 </div>
 </div>
 
@@ -264,9 +250,9 @@ function checkForm()	{
 <input type="hidden" name="specimen_no">
 <div class="small" style="clear: right; white-space: nowrap;">
 <span class="prompt">Length:</span>
-<input class="small" name="length"> mm
+<input class="small" name="length" size="4"> mm
 &nbsp;<span class="prompt">Width:</span>
-<input class="small" name="width"> mm
+<input class="small" name="width" size="4"> mm
 </div>
 </div>
 </div>
@@ -275,7 +261,7 @@ function checkForm()	{
 <div show="show_type_specimen">
 <div style="padding-top: 1em;">
 <span class="prompt">Type locality (PaleoDB number):</span>
-<input id="type_locality" name="type_locality">
+<input id="type_locality" name="type_locality" size="8">
 </div>
 </div>
 
@@ -318,8 +304,8 @@ function checkForm()	{
 <div style="clear: right; padding-top: 1em;">
 <span class="prompt">Common name:
 </span>
-<input type="text" id="common_name" name="common_name"><br>
-<span class="small">Enter the most common name uncapitalized and in singular form.</span>
+<input type="text" id="common_name" name="common_name" size="20"><br>
+<span class="verysmall">Enter the most common name uncapitalized and in singular form.</span>
 </div>
 
 </div>
@@ -343,21 +329,22 @@ function checkForm()	{
 <textarea id="discussion" name="comments" rows="8" cols="70">
 </textarea>
 </div>
-<div class="small" style="float: left; width: 52em; margin-left: 2em;">
+<div class="verysmall" style="float: left; width: 52em; margin-left: 2em;">
 %%current_discussant%%
 %%credit_me%%
 Valid markup includes the HTML &lt;b&gt;, &lt;i&gt;, and &lt;u&gt; tags (but not &lt;p&gt; or &lt;br&gt;) and the wiki tags [[ ]], which autogenerate a link to a taxon, collection, or reference page.
 </div>
 </div>
 
+<div style="float: left; clear: center; margin-left: 20em; margin-top: 2em;">
+<input type="submit" value="Submit">
+</div>
 <div class="tiny" style="float: left; clear: left; margin-top: 1em; margin-left: 14em;">
 Please read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html#AuthorityForm')">FAQ</a>.
 If the name is misspelled, <a href="%%write_url%%?action=displayAuthorityTaxonSearchForm">try another search</a>.
 </div>
-<!-- <div style="float: left; clear: right; margin-left: 2em; margin-bottom: 1.5em;"> -->
-<div>
-<center><input type="submit" value="Submit" style="float: left; clear: left; margin-top: 1em; margin-left: 22em;"></center>
-</div>
+
+
 </div>
 
 </div>
