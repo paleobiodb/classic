@@ -1493,7 +1493,7 @@ window.onload = hideName;
 
 function addLink(link_id,link_action,taxon_name)	{
 	if ( ! /href/.test( document.getElementById(link_id).innerHTML ) )	{
-		document.getElementById(link_id).innerHTML = makeAnchor("basicTaxonInfo", ' + '"link_action' + '&amp;is_real_user=1", ' + '"taxon_name"); //jpjenk: is this right?
+		document.getElementById(link_id).innerHTML = '<a href="?a=basicTaxonInfo' + link_action + '&amp;is_real_user=1">' + taxon_name + '</a>';
 	}
 }
 

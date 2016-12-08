@@ -1644,7 +1644,7 @@ function showAuthors()	{
 				if ( $s->{'taxon_rank'} =~ /genus|species/ )	{
 					$s->{'good'} = "<i>".$s->{'good'}."</i>";
 				}
-				$s->{'good'} = makeAnchor("basicTaxonInfo", "taxon_no=$s->{'synonym_no'}" . $s->{'good'});
+				$s->{'good'} = makeAnchor("basicTaxonInfo", "taxon_no=$s->{synonym_no}", $s->{good});
 				$lookup{$s->{'synonym_no'}} = $s->{'good'};
 				push @need_authors , $s->{'synonym_no'};
 			}
@@ -1732,7 +1732,7 @@ function showAuthors()	{
 			$o->{'formatted'} .= " ".$postfix;
 		}
 		if ( $lookup{$o->{'synonym_no'}} )	{
-			$o->{'formatted'} = '"'.$o->{'formatted'}.'" = '.$lookup{$o->{'synonym_no'}};
+			$o->{formatted} = '"' . $o->{formatted} . '" = ' . $lookup{$o->{'synonym_no'}};
 		}
 $o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}</span></sup>|;
 		if ( $o->{'abund_value'} )	{

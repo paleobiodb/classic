@@ -121,9 +121,10 @@ function checkForm()	{
 					}
 			// case 4: first is a reID and second has no reID
 			// only complain if the refs are identical
-					if ( reid_nos[i].value > 0 && has2 < 1 && ref_nos[i].value == ref_nos[j].value )	{
-						errors += "* " + simpleName + " is listed twice\n";
-					}
+			// Update: MM commented this out at Mark Uhen's request
+					//if ( reid_nos[i].value > 0 && has2 < 1 && ref_nos[i].value == ref_nos[j].value )	{
+					//	errors += "* " + simpleName + " is listed twice\n";
+					//}
 			// case 5: first has no reID and second is a reID
 					if ( has < 1 && reid_nos[j].value > 0 && ref_nos[i].value == ref_nos[j].value )	{
 						errors += "* " + simpleName + " is listed twice\n";

@@ -128,11 +128,11 @@ sub properLastName {
 	
     # If its just a bunch of capital letters repress it
     # Take lengths <= 3 to be acronyms (such as ETE)
-	if ($input =~ m/^[A-Z][A-Z]/ && length($input) > 3) {
+	if ($input =~ m/^\p{Lu}\p{Lu}/ && length($input) > 3) {
 		return 0;	
 	}
     # Too many weird cases like "de Something" or "le Something III", or whatever, do a simple check for now
-	if ($input !~ m/^[A-Za-z,-.\'][A-Za-z ,-.\'\W]*$/) {
+	if ($input !~ m/^[\p{L},-.\'][\p{L} ,-.\'\W]*$/) {
 		return 0;	
 	}
 	
@@ -149,15 +149,15 @@ sub properInitial {
 	if ($input !~ m/\./) {
 		return 0;
 	}
-	if ($input !~ m/^[A-Z][A-Za-z .-]*$/) {
+	if ($input !~ m/^[\p{Lu}\p{Lt}][\p{L} .-]*$/) {
 		return 0;
 	}
 	# boy, am I sorry we didn't have this one before JA 28.7.08
-	if ($input =~ m/([A-Za-z])(\.| | \.)([A-Za-z])|([A-Z][A-Z])/ )	{
+	if ($input =~ m/(\p{L})(\.| | \.)(\p{L})|(\p{L}\p{L})/ )	{
 		return 0;
 	}
 	# while we're at it
-	if ($input =~ m/([A-Za-z])(| )$/) {
+	if ($input =~ m/(\p{L})(| )$/) {
 		return 0;
 	}
 	

@@ -73,7 +73,7 @@
      <div class="col-sm-offset-4 col-sm-8">
        <p><img id="captcha_img" hspace="47" width="90" height="50"></p>
          <center>
-           <input type="text" size="20" name="verify_text" placeholder="Enter above letters">
+           <input type="text" size="20" name="verify_text" id="verify_text">
            <input class="btn btn-primary" type="submit" name="check_text" value="Create Guest Account">
          </center>
      </div>
@@ -86,6 +86,7 @@
     
 var img_elt = document.getElementById("captcha_img");
 var name_elt = document.getElementById("last_name");
+var verify_elt = document.getElementById("verify_text");
 
 if ( name_elt && img_elt && name_elt.value != "" && img_elt.src == "" )
 {
@@ -101,6 +102,11 @@ function add_captcha ( ) {
 	img_elt.src = "/account/captcha.gif";
 	img_elt.alt="CAPTCHA image";
     }
+    
+    if ( verify_elt )
+    {
+	verify_elt.placeholder = "Enter above letters";
+    }   
 }
 
 </script>
