@@ -1,4 +1,6 @@
 
+<script src="/public/classic_js/xregexp-all.js" language="JavaScript" type="text/javascript"></script>
+
 <script language="JavaScript" type="text/javascript">
 <!-- Begin
 
@@ -57,66 +59,69 @@ function checkForm()	{
 	} else if ( frm.ref_is_authority[refLength].checked && frm.author1last.value == "" && /species|genus/.test(frm.taxon_rank.value) )	{
 		error += "* You forgot to enter the author name\n";
 	}
-	// unicode values are for a-grave, a-acute, e-grave, e-acute, n-tilde, o-umlaut, u-umlaut
-	if ( frm.author1last.value != "" && /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC'\- ]/.test(frm.author1last.value) && ! /, Jr\./.test(frm.author1last.value) )	{
-		error += "* There seems to be a typo in the first author's last name\n";
-	} else if ( frm.author1last.value != "" && ! /^(|d'|d[aeo](|[nrs]) |Di|O'|M(c|ac|')|v[ao]n )[A-Z](|[a-z]+-[A-Z])[a-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC]+(|, Jr\.)$/.test(frm.author1last.value) && ! /^[A-Z][a-z]+ (|d'|[dv][a-z]+ )[A-Z][a-z]+(|, Jr\.)$/.test(frm.author1last.value) )	{
-                error += "* The first author's last name is misformatted\n";
-	}
-	if ( frm.author2init.value != "" && ! /^[A-Z]\.$/.test(frm.author2init.value) && ! /^[A-Z]\.( |\-)[A-Z]\.$/.test(frm.author2init.value) && ! /^[A-Z]\. [A-Z]\. [A-Z]\.$/.test(frm.author2init.value)  )	{
+    
+    // match all letter characters
+    var bad_name_char = XRegExp('[^- \'\\p{L}]');
+    var init_check = XRegExp('^\\p{L}[.]$|^\\p{L}[.]-\\p{L}[.]$|^\\p{L}[.]( \\p{L}[.])*$');
+    
+    if ( frm.author1init.value && frm.author1init.value != "" && ! init_check.test(frm.author1init.value) ) {
+	error += "* The first author's initials are misformatted\n";
+    }
+    if ( frm.author1last.value && frm.author1last.value != "" && bad_name_char.test(frm.author1last.value) 
+	 && ! /, [sSjJ]r\./.test(frm.author1last.value) )	{
+	error += "* There seems to be a typo in the first author's last name\n";
+    }
+    if ( frm.author2init.value && frm.author2init.value != "" && ! init_check.test(frm.author2init.value) )	{
 		error += "* The second author's initials are misformatted\n";
+    }
+    if ( frm.author2last.value != "" &&  bad_name_char.test(frm.author2last.value) && ! /, [sSjJ]r\./.test(frm.author2last.value) )	{
+	error += "* There seems to be a typo in the second author's last name\n";
+    }
+    if ( /[^0-9]/.test(frm.pubyr.value) )	{
+	error += "* The publication year is misformatted\n";
+    } else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2030 ) )	{
+	error += "* The publication year is wrong\n";
+    }
+    if ( typeof(frm.type_specimen) != "undefined" && frm.type_specimen.value != "" && frm.extant.selectedIndex == 0 )	{
+	error += "* If you know the type's number you must know whether the taxon is extant\n";
+    } else if ( typeof(frm.type_body_part) != "undefined" && frm.type_body_part.value != "" && frm.extant.selectedIndex == 0 )	{
+	error += "* If you know the type's body part you must know whether the taxon is extant\n";
+    }
+    if ( typeof(frm.preservation) != "undefined" )	{
+	var pres = frm.preservation.options[frm.preservation.selectedIndex].text;
+	if ( pres == 'not a trace' )	{
+	    error += "* We are no longer using the 'not a trace' category; please select another value\n";
 	}
-	if ( frm.author2last.value != "" && /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC'\- ]/.test(frm.author2last.value) && ! /, Jr\./.test(frm.author2last.value) )	{
-		error += "* There seems to be a typo in the second author's last name\n";
-	} else if ( frm.author2last.value != "" && ! /^(|d'|d[aeo](|[nrs]) |Di|O'|M(c|ac|')|v[ao]n )[A-Z](|[a-z]+-[A-Z])[a-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC]+(|, Jr\.)$/.test(frm.author2last.value) && ! /^[A-Z][a-z]+ (|d'|[dv][a-z]+ )[A-Z][a-z]+(|, Jr\.)$/.test(frm.author2last.value) )	{
-		error += "* The second author's last name is misformatted\n";
+	if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
+	    error += "* If the type isn't a body or in amber the taxon can't be extant\n";
 	}
-	if ( /[^0-9]/.test(frm.pubyr.value) )	{
-		error += "* The publication year is misformatted\n";
-	} else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2020 ) )	{
-		error += "* The publication year is wrong\n";
+    } else if ( typeof(frm.preservation2) != "undefined" )	{
+	var pres = frm.preservation2.options[frm.preservation2.selectedIndex].text;
+	if ( pres == 'not a trace' )	{
+	    error += "* We are no longer using the 'not a trace' category; please select another value\n";
 	}
-	if ( typeof(frm.type_specimen) != "undefined" && frm.type_specimen.value != "" && frm.extant.selectedIndex == 0 )	{
-		error += "* If you know the type's number you must know whether the taxon is extant\n";
-	} else if ( typeof(frm.type_body_part) != "undefined" && frm.type_body_part.value != "" && frm.extant.selectedIndex == 0 )	{
-		error += "* If you know the type's body part you must know whether the taxon is extant\n";
+	if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
+	    error += "* If the type isn't a body or in amber the taxon can't be extant\n";
 	}
-	if ( typeof(frm.preservation) != "undefined" )	{
-		var pres = frm.preservation.options[frm.preservation.selectedIndex].text;
-		if ( pres == 'not a trace' )	{
-			error += "* We are no longer using the 'not a trace' category; please select another value\n";
-		}
-		if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
-			error += "* If the type isn't a body or in amber the taxon can't be extant\n";
-		}
-	} else if ( typeof(frm.preservation2) != "undefined" )	{
-		var pres = frm.preservation2.options[frm.preservation2.selectedIndex].text;
-		if ( pres == 'not a trace' )	{
-			error += "* We are no longer using the 'not a trace' category; please select another value\n";
-		}
-		if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
-			error += "* If the type isn't a body or in amber the taxon can't be extant\n";
-		}
-	}
-	if ( /^([^a-z][A-Za-z]*)(| [^a-z][A-Za-z]*)(| [^a-z][A-Za-z]*)$/.test(frm.common_name.value) )	{
-		error += "* Don't capitalize the common name\n";
-	} else if ( /^[^A-Za-z]/.test(frm.common_name.value) )	{
-		error += "* The common name must start with a letter\n";
-	} else if ( /[^A-Za-z]$/.test(frm.common_name.value) )	{
-		error += "* The common name must end with a letter\n";
-	} else if ( /([^a-z]\-|\-[^a-z])/.test(frm.common_name.value) )	{
-		error += "* There's a stray hyphen in the common name\n";
-	} else if ( /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC \-']/.test(frm.common_name.value) || /[^a-z]$/.test(frm.common_name.value) )	{
-		error += "* The common name is misformatted\n";
-	}
-
-	if ( error != "" )	{
-		alert(error);
-		return false;
-	}
-	frm.check_status.value = "done";
-	return true;
-
+    }
+    if ( /^([^a-z][A-Za-z]*)(| [^a-z][A-Za-z]*)(| [^a-z][A-Za-z]*)$/.test(frm.common_name.value) )	{
+	error += "* Don't capitalize the common name\n";
+    } else if ( /^[^A-Za-z]/.test(frm.common_name.value) )	{
+	error += "* The common name must start with a letter\n";
+    } else if ( /[^A-Za-z]$/.test(frm.common_name.value) )	{
+	error += "* The common name must end with a letter\n";
+    } else if ( /([^a-z]\-|\-[^a-z])/.test(frm.common_name.value) )	{
+	error += "* There's a stray hyphen in the common name\n";
+    } else if ( bad_name_char.test(frm.common_name.value) || /[^a-z]$/.test(frm.common_name.value) )	{
+	error += "* The common name is misformatted\n";
+    }
+    
+    if ( error != "" )	{
+	alert(error);
+	return false;
+    }
+    frm.check_status.value = "done";
+    return true;
 }
 
 // End -->
