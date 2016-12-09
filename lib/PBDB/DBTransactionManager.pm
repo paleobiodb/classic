@@ -10,6 +10,7 @@ use PBDB::Permissions;
 use Data::Dumper qw(Dumper);
 use Carp qw(carp croak);
 use PBDB::Debug qw(dbg);
+use Encode;
 
 use fields qw(dbh _id _err table_definitions table_names last_action_sql last_undo_sql last_errmsg);
 
@@ -1046,7 +1047,7 @@ sub logEvent {
 	return;
     }
     
-    print $logfile $log_record;
+    print $logfile encode_utf8($log_record);
     print $logfile "# =\n";
     
     unless ( my_unlock($logfile) )
@@ -1152,7 +1153,8 @@ sub my_error {
     my ($errmsg, $log_record) = @_;
     
     print STDERR "DATALOG ERROR: $errmsg\n";
-    print STDERR $log_record;
+    print STDERR encode_utf8($log_record);
+    print STDERR "# =\n";
 }
 
 
