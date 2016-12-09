@@ -1281,7 +1281,7 @@ sub buildTaxonomicList {
                         my @all_matches = PBDB::Taxon::getBestClassification($dbt,$rowref);
                         if (@all_matches) {
                             $are_reclassifications = 1;
-                            $rowref->{'classification_select'} = Reclassify::classificationSelect($dbt, $rowref->{$OCCURRENCE_NO},0,1,\@all_matches,$rowref->{'taxon_no'},$taxon_name);
+                            $rowref->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $rowref->{$OCCURRENCE_NO},0,1,\@all_matches,$rowref->{'taxon_no'},$taxon_name);
                         }
                     }
                 }
@@ -1817,7 +1817,7 @@ sub getReidHTMLTableByOccNum {
                     my @all_matches = PBDB::Taxon::getBestClassification($dbt,$row);
                     if (@all_matches) {
                         $are_reclassifications = 1;
-                        $row->{'classification_select'} = Reclassify::classificationSelect($dbt, $row->{$OCCURRENCE_NO},0,1,\@all_matches,$row->{'taxon_no'},$taxon_name);
+                        $row->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $row->{$OCCURRENCE_NO},0,1,\@all_matches,$row->{'taxon_no'},$taxon_name);
                     }
                 }
             }

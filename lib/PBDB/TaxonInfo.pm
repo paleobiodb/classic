@@ -169,12 +169,17 @@ sub checkTaxonInfo {
 #   entered_name could also be set, for link display purposes. entered_name may not correspond 
 #   to taxon_no, depending on if we follow a synonym or go to an original combination
 sub displayTaxonInfoResults {
-	my ($dbt,$s,$q,$hbo) = @_;
+    my ($dbt,$s,$q,$hbo) = @_;
 
     my $dbh = $dbt->dbh;
 
     my $taxon_no = int($q->param('taxon_no'));
-
+    
+    if ( $taxon_no =~ /^(\d+)[^\d]/ )
+    {
+	$taxon_no = $1;
+    }
+    
     my ($is_real_user,$not_bot) = (0,1);
     if ($q->request_method() eq 'POST' || $q->param('is_real_user') || $s->isDBMember()) {
         $is_real_user = 1;
@@ -3840,12 +3845,10 @@ sub basicTaxonInfo	{
 	my (@bad_spellings,@all_spellings,@distinct_auths);
 	if ( $taxon_no )	{
 		push @distinct_auths , $auth;
-		my $real_taxon_no = $taxon_no;
-		if ( $taxon_no =~ /^(\d+)/ ) { $real_taxon_no = $1; }
-		$sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND synonym_no=$real_taxon_no AND spelling_no=synonym_no AND t.taxon_no!=spelling_no AND a.taxon_name!='".$auth->{'taxon_name'}."' ORDER BY taxon_name";
+		$sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND synonym_no=$taxon_no AND spelling_no=synonym_no AND t.taxon_no!=spelling_no AND a.taxon_name!='".$auth->{'taxon_name'}."' ORDER BY taxon_name";
 		my @spelling_refs = @{$dbt->getData($sql)};
 		push @spellings , $_->{'taxon_no'} foreach @spelling_refs;
-		$sql = "SELECT a.taxon_no,taxon_name,taxon_rank,status,$authorfields,type_specimen,type_body_part,part_details,type_locality,spelling_no FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND synonym_no=$real_taxon_no AND synonym_no!=spelling_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no GROUP BY taxon_name,author1init,author1last,author2init,author2last,otherauthors,pubyr ORDER BY taxon_name";
+		$sql = "SELECT a.taxon_no,taxon_name,taxon_rank,status,$authorfields,type_specimen,type_body_part,part_details,type_locality,spelling_no FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND synonym_no=$taxon_no AND synonym_no!=spelling_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no GROUP BY taxon_name,author1init,author1last,author2init,author2last,otherauthors,pubyr ORDER BY taxon_name";
 		my @syn_refs = @{$dbt->getData($sql)};
 		push @bad_spellings , $_->{'taxon_no'} foreach @syn_refs;
 		@all_spellings = (@spellings,@bad_spellings);
