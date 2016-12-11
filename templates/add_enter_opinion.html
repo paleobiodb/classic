@@ -1,12 +1,14 @@
 
+<script src="/public/classic_js/xregexp-all.js" language="JavaScript" type="text/javascript"></script>
+
 <script language="JavaScript" type="text/javascript">
 <!-- Begin
 
 function checkForm()	{
 
-	var frm = document.forms[1];
-	var error = "";
-
+    var frm = document.forms[1];
+    var error = "";
+    
     if ( '%%limited%%' )
     {
 	wing.error('You do not have authorization to edit taxonomic opinions');
@@ -31,23 +33,24 @@ function checkForm()	{
 	if ( ( checkedHas == repeatedHas || frm.author1init.value != "" || frm.pubyr.value != "" ) && frm.author1last.value == "" )	{
 		error += "* You forgot to enter the author name\n";
 	}
-	if ( frm.author1init.value != "" && ! /^[A-Z]\.$/.test(frm.author1init.value) && ! /^[A-Z]\.( |\-)[A-Z]\.$/.test(frm.author1init.value) && ! /^[A-Z]\. [A-Z]\. [A-Z]\.$/.test(frm.author1init.value)  )	{
-		error += "* The first author's initials are misformatted\n";
-	}
-	// unicode values are for a-grave, a-acute, e-grave, e-acute, n-tilde, o-umlaut, u-umlaut
-	if ( frm.author1last.value != "" && /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC'\- ]/.test(frm.author1last.value) && ! /, Jr\./.test(frm.author1last.value) )	{
-		error += "* There seems to be a typo in the first author's last name\n";
-	} else if ( frm.author1last.value != "" && ! /^(|d'|d[aeo](|[nrs]) |Di|O'|M(c|ac|')|v[ao]n )[A-Z](|[a-z]+-[A-Z])[a-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC]+(|, Jr\.)$/.test(frm.author1last.value) && ! /^[A-Z][a-z]+ (|[dv][a-z]+ )[A-Z][a-z]+(|, Jr\.)$/.test(frm.author1last.value) )	{
-		error += "* The first author's last name is misformatted\n";
-	}
-	if ( frm.author2init.value != "" && ! /^[A-Z]\.$/.test(frm.author2init.value) && ! /^[A-Z]\.( |\-)[A-Z]\.$/.test(frm.author2init.value) && ! /^[A-Z]\. [A-Z]\. [A-Z]\.$/.test(frm.author2init.value)  )	{
+
+    // match all letter characters
+    var bad_name_char = XRegExp('[^- \'\\p{L}]');
+    var init_check = XRegExp('^\\p{L}[.]$|^\\p{L}[.]-\\p{L}[.]$|^\\p{L}[.]( \\p{L}[.])*$');
+    
+    if ( frm.author1init.value && frm.author1init.value != "" && ! init_check.test(frm.author1init.value) ) {
+	error += "* The first author's initials are misformatted\n";
+    }
+    if ( frm.author1last.value && frm.author1last.value != "" && bad_name_char.test(frm.author1last.value) 
+	 && ! /, [sSjJ]r\./.test(frm.author1last.value) )	{
+	error += "* There seems to be a typo in the first author's last name\n";
+    }
+    if ( frm.author2init.value && frm.author2init.value != "" && ! init_check.test(frm.author2init.value) )	{
 		error += "* The second author's initials are misformatted\n";
-	}
-	if ( frm.author2last.value != "" && /[^A-Za-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC'\- ]/.test(frm.author2last.value) && ! /, Jr\./.test(frm.author2last.value) )	{
-		error += "* There seems to be a typo in the second author's last name\n";
-	} else if ( frm.author2last.value != "" && ! /^(|d'|d[aeo](|[nrs]) |Di|O'|M(c|ac|')|v[ao]n )[A-Z](|[a-z]+-[A-Z])[a-z\u00E0\u00E1\u00E8\u00E9\u00F1\u00F6\u00FC]+(|, Jr\.)$/.test(frm.author2last.value) && ! /^[A-Z][a-z]+ (|[dv][a-z]+ )[A-Z][a-z]+(|, Jr\.)$/.test(frm.author2last.value) )	{
-		error += "* The second author's last name is misformatted\n";
-	}
+    }
+    if ( frm.author2last.value != "" &&  bad_name_char.test(frm.author2last.value) && ! /, [sSjJ]r\./.test(frm.author2last.value) )	{
+	error += "* There seems to be a typo in the second author's last name\n";
+    }
 	if ( /[^0-9]/.test(frm.pubyr.value) )	{
 		error += "* The publication year is misformatted\n";
 	} else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2020 ) )	{

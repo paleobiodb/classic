@@ -372,9 +372,13 @@ END_SCRIPT
 
     # anyone working on a large paper will enter the same type and source value
     #  almost every time, so grab the last one
-    my (%checked,@part_values,$part_value,%part_used,%selected);
-    my $sql = "SELECT occurrence_no,taxon_no,specimen_id,specimen_part,is_type,measurement_source,measurement_type FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND reference_no=".$s->get('reference_no')." ORDER BY s.specimen_no DESC LIMIT 100";
-    my @last_entries = @{$dbt->getData($sql)};
+    my (%checked,@part_values,$part_value,%part_used,%selected,@last_entries);
+
+    if ( my $reference_no = $s->get('reference_no') )
+    {
+	my $sql = "SELECT occurrence_no,taxon_no,specimen_id,specimen_part,is_type,measurement_source,measurement_type FROM specimens s,measurements m WHERE s.specimen_no=m.specimen_no AND reference_no=$reference_no ORDER BY s.specimen_no DESC LIMIT 100";
+	@last_entries = @{$dbt->getData($sql)};
+    }
     my ($old_records,$id);
     for my $entry ( @last_entries )	{
         if ( $entry->{occurrence_no} != $last_entries[0]->{occurrence_no} || $entry->{taxon_no} != $last_entries[0]->{taxon_no} || $entry->{specimen_id} ne $last_entries[0]->{specimen_id} )	{
