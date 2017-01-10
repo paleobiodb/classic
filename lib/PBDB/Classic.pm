@@ -5209,7 +5209,7 @@ sub displayOccsForReID {
         my $localsort_occs_by=$q->param('sort_occs_by');
         my $localsort_occs_order=$q->param('sort_occs_order');
 		print "<td align=center>";
-		print "<b>" . makeAnchor("displayCollResults", "type=reid&taxon_name=$taxon_name&collection_no=$collection_no&sort_occs_by=$localsort_occs_by&sort_occs_order=$localsort_occs_order&page_no=$pageNo"), "Skip to the next 10 occurrences" . "</b>";
+		print "<b>" . makeAnchor("displayCollResults", "type=reid&taxon_name=$taxon_name&collection_no=$collection_no&sort_occs_by=$localsort_occs_by&sort_occs_order=$localsort_occs_order&page_no=$pageNo", "Skip to the next 10 occurrences") . "</b>";
 		print "</td></tr>\n";
 		print "<tr><td class=small align=center><i>Warning: if you go to the next page without saving, your changes will be lost</i></td>\n";
 	}
