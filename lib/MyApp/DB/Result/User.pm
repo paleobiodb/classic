@@ -390,6 +390,39 @@ sub make_username {
 }
 
 
+# Whenever a user's role is updated, we need to make sure it has a person_no
+# value.
+
+before role => sub {
+
+    my ($self, $new_role) = @_;
+    
+    return unless defined $new_role;
+    
+    # my $dbh = Wing::db->storage->dbh;
+    
+    if ( $new_role eq 'authorizer' )
+    {
+	my $person_no = $self->make_person_no;
+	
+	ouch(500, "Could not set person_no") unless $person_no && $person_no > 0;
+	
+	$self->authorizer_no($person_no);
+    }
+    
+    elsif ( $new_role eq 'guest' )
+    {
+	$self->authorizer_no(0);
+    }
+
+    # otherwise, the value should be either 'enterer' or 'student'.
+    
+    elsif ( $self->authorizer_no eq $self->person_no )
+    {
+	$self->authorizer_no(0);
+    }
+};
+
 # Whenever a user record is updated, we need to check if it has a person_no value.  If so, then we
 # update the corresponding record in the table 'pbdb.person'.
 
