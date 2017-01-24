@@ -10,11 +10,11 @@ in the future.
 ## Issue reporting
 Please raise issues related to the database in general on the PBDB Change Log repository. Issues on this repository should be
 reserved for the core development team. This application is deployed live at [http://paleobiodb.org](http://paleobiodb.org)
-and specific bugs related to its operation should be reported to [admin@paleobiodb.org](mailto:paleobiodb.org).
+and specific bugs related to its operation should be reported to [admin@paleobiodb.org](mailto:admin@paleobiodb.org).
 
 ## Core developers
-[Michael McClennen](http://github.com/mmcclenn) "mmcclenn"
-[Julian Jenkins](http://github.com/jpjenk) "jpjenk"
+* [Michael McClennen](http://github.com/mmcclenn) "mmcclenn"
+* [Julian Jenkins](http://github.com/jpjenk) "jpjenk"
 
 ## Dependencies
 * The PBDB application is written in Perl5 and, like any large project, relies on a number of public modules for text
