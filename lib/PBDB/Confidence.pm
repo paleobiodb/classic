@@ -139,7 +139,7 @@ sub displaySearchSectionResults{
         my $link = '';
         if ($lastregion && $found_regionalbed) {
             my $escaped = uri_escape_utf8($lastregion // '');
-            $link .= makeAnchor("displayStratTaxaForm", "taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=$excaped&amp;input_type=regional", "$lastregion");
+            $link .= makeAnchor("displayStratTaxaForm", "taxon_resolution=$taxon_resolution&amp;show_taxon_list=$show_taxon_list&amp;input=$escaped&amp;input_type=regional", "$lastregion");
             if ($lastsection) { $link .= " / "};
         }    
         if ($lastsection && $found_localbed) {
