@@ -141,7 +141,7 @@ sub classic_request {
     my ($action) = @_;
     
     $DB::single = 1;
-
+    
     if ( $action eq 'testerror' )
     {
 	croak "Test error!!!";
@@ -309,7 +309,7 @@ sub classic_request {
     my $action_output;
     my $action_sub;
     
-    open(SAVE_STDOUT, '>&1');
+    open(SAVE_STDOUT, '>&STDOUT');
     
     # unless ( $DB::OUT )
     # {
@@ -336,7 +336,7 @@ sub classic_request {
     # 	ouch 500, $@, { path => request->path };
     # }
     
-    $output .= $action_output;
+    $output .= decode_utf8($action_output);
     
     $vars = {};
     if ($user) {
