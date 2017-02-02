@@ -569,10 +569,11 @@ sub displayReference {
                  . '</div></div></div>';
         return $html;
     };
-
-	print $hbo->stdIncludes($PAGE_TOP);
-    print "<div align=\"center\"><p class=\"pageTitle\">" . formatShortRef($ref) . "</p></div>";
-
+    
+    my $shortRef = formatShortRef($ref);
+    
+    my $output = "<div align=\"center\"><p class=\"pageTitle\">$shortRef</p></div>";
+    
     my $citation = formatLongRef($ref);
     if ($s->isDBMember())	{
         $citation .= " <small>";
@@ -583,8 +584,8 @@ sub displayReference {
     if ( $alternatives )	{
         $citation .= "<div style=\"margin-top: 0.5em;\">Other possible matches include $alternatives.</div>\n\n";
     }
-    print $box->("Full reference",$citation);
-   
+    $output .= $box->("Full reference",$citation);
+    
     # Start Metadata box
     my $html = "<table border=0 cellspacing=0 cellpadding=0\">";
     $html .= "<tr><td class=\"fieldName\">ID number: </td><td>&nbsp;$reference_no</td></tr>";
@@ -619,7 +620,7 @@ sub displayReference {
     }
     $html .= "</table>";
     if ($html) {
-        print $box->("Metadata",$html);
+        $output .= $box->("Metadata",$html);
     }
 
   
@@ -644,7 +645,7 @@ sub displayReference {
             $html .= "view taxonomic name$plural";
             $html .= qq|</a> |;
         }
-        print $box->(qq'Taxonomic names ($authority_count)',$html);
+        $output .= $box->(qq'Taxonomic names ($authority_count)',$html);
     }
     
     # Handle opinions box
@@ -678,7 +679,7 @@ sub displayReference {
 
 	my $class_link; 
 	$class_link = " - <small>" . makeAnchor("classify", "reference_no=$reference_no", "view classification") . "</small>";
-	print $box->(qq'Taxonomic opinions ($opinion_count) $class_link',$html);
+	$output .= $box->(qq'Taxonomic opinions ($opinion_count) $class_link',$html);
     }
 
 	# list taxa with measurements based on this reference JA 4.12.10
@@ -686,7 +687,7 @@ sub displayReference {
 	if ( @taxon_refs )	{
 		my @taxa;
 		push @taxa , makeAnchor("basicTaxonInfo", "taxon_no=$_->{'taxon_no'}", $_->{'taxon_name'}) foreach @taxon_refs;
-		print $box->("Measurements",join('<br>',@taxa));
+		$output .= $box->("Measurements",join('<br>',@taxa));
 	}
     
     # Handle phlogenetic character matrices box
@@ -716,7 +717,7 @@ sub displayReference {
     if ( @nexus_lines )
     {
 	my $count = scalar(@nexus_files);
-	print $box->("Phylogenetic character matrices ($count)", join("<br>\n", @nexus_lines));
+	$output .= $box->("Phylogenetic character matrices ($count)", join("<br>\n", @nexus_lines));
     }
     
     # Handle collections box
@@ -783,11 +784,11 @@ sub displayReference {
             $html .= makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "view collection$plural");
         }
         if ($html) {
-            print $box->("Collections (" . makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count") . ")", $html);
+            $output .= $box->("Collections (" . makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count") . ")", $html);
         }
     }
 
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 # JA 4.12.10

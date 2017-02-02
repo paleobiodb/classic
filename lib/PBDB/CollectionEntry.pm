@@ -65,6 +65,7 @@ sub getClassOrderFamily	{
 sub displayCollectionForm {
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     my $isNewEntry = ($q->param('collection_no') =~ /^\d+$/) ? 0 : 1;
     my $reSubmission = ($q->param('action') =~ /processCollectionForm/) ? 1 : 0;
@@ -151,7 +152,7 @@ sub displayCollectionForm {
         $can_modify->{$s->get('authorizer_no')} = 1;
         unless ($can_modify->{$row{'authorizer_no'}} || $s->isSuperUser) {
             my $authorizer = PBDB::Person::getPersonName($dbt,$row{'authorizer_no'});
-            print "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
+            $output .= "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
             return;
         }
 
@@ -222,7 +223,7 @@ sub displayCollectionForm {
     $ref = PBDB::Reference::getReference($dbt,$vars{'reference_no'});
     $formatted_primary = PBDB::Reference::formatLongRef($ref);
 
-	print PBDB::PBDBUtil::printIntervalsJava($dbt);
+	$output .= PBDB::PBDBUtil::printIntervalsJava($dbt);
 
     if ($isNewEntry) {
         $vars{'page_title'} =  "Collection entry form";
@@ -236,7 +237,9 @@ sub displayCollectionForm {
     }
 
     # Output the main part of the page
-    print $hbo->populateHTML("collection_form", \%vars);
+    $output .= $hbo->populateHTML("collection_form", \%vars);
+    
+    return $output;
 }
 
 
@@ -246,6 +249,7 @@ sub displayCollectionForm {
 sub processCollectionForm {
 	my ($dbt,$q,$s,$hbo) = @_;
 	my $dbh = $dbt->dbh;
+	my $output = '';
 
 	my $reference_no = $q->param("reference_no");
 	my $secondary = $q->param('secondary_reference_no');
@@ -294,8 +298,7 @@ sub processCollectionForm {
 
 	# bomb out if no such interval exists JA 28.7.03
 	if ( $q->param('max_interval_no') < 1 )	{
-		print "<center><p>You can't enter an unknown time interval name</p>\n<p>Please go back, check the time scales, and enter a valid name</p></center>";
-		return;
+		return "<center><p>You can't enter an unknown time interval name</p>\n<p>Please go back, check the time scales, and enter a valid name</p></center>";
 	}
 
     unless($q->param('fossilsfrom1')) {
@@ -306,10 +309,11 @@ sub processCollectionForm {
     }
 
 
-    return unless validateCollectionForm($dbt,$q,$s);
-	my $is_valid = 1;
-    if ($is_valid) {
-
+    if ( $output = validateCollectionForm($dbt,$q,$s) )
+    {
+	return $output;
+    }
+	
         #set paleolat, paleolng if we can PS 11/07/2004
         my ($paleolat, $paleolng, $pid);
         if ($q->param('lngdeg') >= 0 && $q->param('lngdeg') =~ /\d+/ &&
@@ -437,7 +441,7 @@ sub processCollectionForm {
         }
 
         my $verb = ($isNewEntry) ? "added" : "updated";
-        print "<center><p class=\"pageTitle\" style=\"margin-bottom: -0.5em;\"><font color='red'>Collection record $verb</font></p><p class=\"medium\"><i>Do not press the back button!</i></p></center>";
+        $output .= "<center><p class=\"pageTitle\" style=\"margin-bottom: -0.5em;\"><font color='red'>Collection record $verb</font></p><p class=\"medium\"><i>Do not press the back button!</i></p></center>";
 
 	my $coll;
        	my ($colls_ref) = getCollections($dbt,$s,{$COLLECTION_NO=>$collection_no},['authorizer','enterer','modifier','*']);
@@ -472,9 +476,10 @@ sub processCollectionForm {
 
             $coll->{'collection_links'} = $links;
 
-            displayCollectionDetailsPage($dbt,$hbo,$q,$s,$coll);
+            $output .= displayCollectionDetailsPage($dbt,$hbo,$q,$s,$coll);
         }
-    }
+	
+    return $output;
 }
 
 # Set the release date
@@ -530,22 +535,23 @@ sub getReleaseString	{
 # Make this more thorough in the future
 sub validateCollectionForm {
 	my ($dbt,$q,$s) = @_;
+	my $output = '';
 	
 	unless($q->param('check_status') eq 'done')
 	{
-	    print "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n";
-	    print "<br>\n";
-	    return 0;
+	    $output .= "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n";
+	    $output .= "<br>\n";
+	    return $output;
 	}
 	
 	unless($q->param('max_interval'))
 	{
-	    print "<center><p>The time interval field is required!</p>\n<p>Please go back and specify the time interval for this collection</p></center>\n";
-	    print "<br>\n";
-	    return 0;
+	    $output .= "<center><p>The time interval field is required!</p>\n<p>Please go back and specify the time interval for this collection</p></center>\n";
+	    $output .= "<br>\n";
+	    return $output;
 	}
 	
-	return 1;
+	return;
 }
 
 
@@ -604,23 +610,24 @@ sub setMaIntervalNo	{
 #  * User selects a collection from the displayed list
 #  * System displays selected collection
 sub displayCollectionDetails {
-	my ($dbt,$q,$s,$hbo) = @_;
-	my $dbh = $dbt->dbh;
+    
+    my ($dbt,$q,$s,$hbo) = @_;
+    my $dbh = $dbt->dbh;
+    
 	# previously displayed a collection, but this function is only now
 	#  used for entry results display, so bots shouldn't see anything
 	#  JA 4.6.13
 	if ( PBDB::PBDBUtil::checkForBot() )	{
 		return;
 	}
-
+	
 	my $collection_no = int($q->param('collection_no'));
 
     # Handles the meat of displaying information about the colleciton
     # Separated out so it can be reused in enter/edit collection confirmation forms
     # PS 2/19/2006
     if ($collection_no !~ /^\d+$/) {
-        print PBDB::Debug::printErrors(["Invalid collection number $collection_no"]);
-        return;
+        return PBDB::Debug::printErrors(["Invalid collection number $collection_no"]);
     }
 
 	# grab the entire person table and work with a lookup hash because
@@ -634,16 +641,14 @@ sub displayCollectionDetails {
 	$coll->{enterer} = $name{$coll->{enterer_no}};
 	$coll->{modifier} = $name{$coll->{modifier_no}};
 	if (!$coll ) {
-		print PBDB::Debug::printErrors(["No collection with collection number $collection_no"]);
-		return;
+	    return PBDB::Debug::printErrors(["No collection with collection number $collection_no"]);
 	}
 
     my $page_vars = {};
     if ( $coll->{'research_group'} =~ /ETE/ && $q->param('guest') eq '' )	{
         $page_vars->{ete_banner} = "<div style=\"padding-left: 0em; padding-right: 2em; float: left;\"><a href=\"http://www.mnh.si.edu/ETE\"><img alt=\"ETE\" src=\"/public/bannerimages/ete_logo.jpg\"></a></div>";
     }
-    print $hbo->stdIncludes($PAGE_TOP, $page_vars);
-
+    
     $coll = formatCoordinate($s,$coll);
 
     # Handle display of taxonomic list now
@@ -671,9 +676,7 @@ sub displayCollectionDetails {
 
     $coll->{'collection_links'} = $links;
 
-    displayCollectionDetailsPage($dbt,$hbo,$q,$s,$coll);
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return displayCollectionDetailsPage($dbt,$hbo,$q,$s,$coll);
 }
 
 # split out of displayCollectionDetails JA 6.11.09
@@ -1066,7 +1069,7 @@ sub displayCollectionDetailsPage {
             $row->{$r} =~ s/\n/<br>/g;
         }
     }
-    print $hbo->populateHTML('collection_display_fields', $row);
+    return $hbo->populateHTML('collection_display_fields', $row);
 
 } # end sub displayCollectionDetails()
 

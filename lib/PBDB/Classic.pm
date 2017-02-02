@@ -140,7 +140,7 @@ sub classic_request {
 
     my ($action) = @_;
     
-    $DB::single = 1;
+    # $DB::single = 1;
     
     if ( $action eq 'testerror' )
     {
@@ -306,7 +306,8 @@ sub classic_request {
     my $output = template 'header_include', $vars;	# Displays Wing header, but doesn't work
 							# when run from command line.
     
-    my $action_output;
+    my $print_output;
+    my $return_output;
     my $action_sub;
     
     open(SAVE_STDOUT, '>&STDOUT');
@@ -314,11 +315,12 @@ sub classic_request {
     # unless ( $DB::OUT )
     # {
 	close(STDOUT);
-	open(STDOUT, '>', \$action_output);
+	open(STDOUT, '>', \$print_output);
     # }
     
     eval {
-	&$action($q, $s, $dbt, $hbo);
+	$DB::single = 1;
+	$return_output = &$action($q, $s, $dbt, $hbo);
     };
 
     if ( $@ )
@@ -326,7 +328,7 @@ sub classic_request {
 	ouch 500, $@, { path => request->path };
     }
 
-    elsif ( ! $action_output && ! $DB::OUT )
+    elsif ( ! $print_output && ! $return_output && ! $DB::OUT )
     {
 	ouch 500, "No output was generated.", { path => request->path };
     }
@@ -336,7 +338,15 @@ sub classic_request {
     # 	ouch 500, $@, { path => request->path };
     # }
     
-    $output .= decode_utf8($action_output);
+    if ( $print_output )
+    {
+	$output .= decode_utf8($print_output);
+    }
+    
+    else
+    {
+	$output .= $return_output;
+    }
     
     $vars = {};
     if ($user) {
@@ -1121,9 +1131,11 @@ sub displayReference {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Reference::displayReference($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Reference::displayReference($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 sub processReferenceForm {
@@ -1295,9 +1307,11 @@ sub basicCollectionSearch	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 
@@ -1308,7 +1322,9 @@ sub displayCollResults {
     
     my ($q, $s, $dbt, $hbo, $dataRows) = @_;
     
-	# dataRows might be passed in by basicCollectionSearch
+    my $output = '';
+    
+    # dataRows might be passed in by basicCollectionSearch
     # my $dataRows = shift;
 	my $ofRows;
 	if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
@@ -1318,10 +1334,10 @@ sub displayCollResults {
 	# return if PBDB::PBDBUtil::checkForBot();
     
 	# if ( ! $s->get('enterer') && $q->param('type') eq "reclassify_occurrence" )    {
-	# 	print $hbo->stdIncludes( $PAGE_TOP );
-	# 	print "<center>\n<p class=\"pageTitle\">Sorry!</p>\n";
-        # print "<p>You can't reclassify occurrences unless you <a href=\"https://paleobiodb.org/account\">login</a> first.</p>\n</center>\n";
-	# 	print $hbo->stdIncludes($PAGE_BOTTOM);
+	# 	$output .= $hbo->stdIncludes( $PAGE_TOP );
+	# 	$output .= "<center>\n<p class=\"pageTitle\">Sorry!</p>\n";
+        # $output .= "<p>You can't reclassify occurrences unless you <a href=\"https://paleobiodb.org/account\">login</a> first.</p>\n</center>\n";
+	# 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
 	# 	return;
 	# }
     
@@ -1450,49 +1466,49 @@ sub displayCollResults {
 			return;
 		}
 
-		print $hbo->stdIncludes( $PAGE_TOP );
+		$output .= $hbo->stdIncludes( $PAGE_TOP );
 
         # Display header link that says which collections we're currently viewing
         if (@$warnings) {
-            print "<div align=\"center\">".PBDB::Debug::printWarnings($warnings)."</div>";
+            $output .= "<div align=\"center\">".PBDB::Debug::printWarnings($warnings)."</div>";
         }
 
-        print "<center>";
+        $output .= "<center>";
         if ($ofRows > 1) {
-		print "<p class=\"pageTitle\">There are $ofRows matches\n";
+		$output .= "<p class=\"pageTitle\">There are $ofRows matches\n";
 		if ($ofRows > $limit) {
-			print " - here are";
+			$output .= " - here are";
 			if ($rowOffset > 0) {
-				print " rows ".($rowOffset+1)." to ";
+				$output .= " rows ".($rowOffset+1)." to ";
 				my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-				print $printRows;
+				$output .= $printRows;
 			} else {
-				print " the first ";
+				$output .= " the first ";
 				my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-				print $printRows;
-				print " rows";
+				$output .= $printRows;
+				$output .= " rows";
 			}
 		}
-		print "</p>\n";
+		$output .= "</p>\n";
 	} elsif ( $ofRows == 1 ) {
-		print "<p class=\"pageTitle\">There is exactly one match</p>\n";
+		$output .= "<p class=\"pageTitle\">There is exactly one match</p>\n";
 	} else	{
-		print "<p class=\"pageTitle\">There are no matches</p>\n";
+		$output .= "<p class=\"pageTitle\">There are no matches</p>\n";
 	}
-	print "</center>\n";
+	$output .= "</center>\n";
 
-	print qq|<div class="displayPanel" style="margin-left: auto; margin-right: auto; padding: 0.5em; padding-left: 1em;">
+	$output .= qq|<div class="displayPanel" style="margin-left: auto; margin-right: auto; padding: 0.5em; padding-left: 1em;">
 	<table class="small" border="0" cellpadding="4" cellspacing="0">|;
 
 	# print columns header
-	print qq|<tr>
+	$output .= qq|<tr>
 <th>Collection</th>
 <th align=left>Authorizer</th>
 <th align=left nowrap>Collection name</th>
 <th align=left>Reference</th>
 |;
-	print "<th align=left>Distance</th>\n" if ($type eq 'add');
-	print "</tr>\n\n";
+	$output .= "<th align=left>Distance</th>\n" if ($type eq 'add');
+	$output .= "</tr>\n\n";
  
         # Make non-editable links not highlighted  
         my ($p,%is_modifier_for); 
@@ -1559,9 +1575,9 @@ sub displayCollResults {
 
 			# should it be a dark row, or a light row?  Alternate them...
  			if ( $count % 2 == 0 ) {
-				print "<tr class=\"darkList\">";
+				$output .= "<tr class=\"darkList\">";
  			} else {
-				print "<tr>";
+				$output .= "<tr>";
 			}
 
 
@@ -1571,31 +1587,31 @@ sub displayCollResults {
                                     $is_modifier_for{$dataRow->{'authorizer_no'}})) {
                 # This needs re-coding to make the html anchor work - jpjenk
                 if ( $q->param('basic') =~ /yes/i && $type eq "view" )	{
-                    print "<td align=center valign=top><a href=\"$exec_url?a=basicCollectionSearch&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
+                    $output .= "<td align=center valign=top><a href=\"$exec_url?a=basicCollectionSearch&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
                 } else	{
-                    print "<td align=center valign=top><a href=\"$exec_url?a=$action&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
+                    $output .= "<td align=center valign=top><a href=\"$exec_url?a=$action&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
                 }
 
                 # for collection edit:
                 if($q->param('use_primary')){
-                    print "&use_primary=yes";
+                    $output .= "&use_primary=yes";
                 }
                 
                 # These may be useful to displayOccsForReID
                 if($q->param('genus_name')){
-                    print "&genus_name=".$q->param('genus_name');
+                    $output .= "&genus_name=".$q->param('genus_name');
                 }
                 
                 if($q->param('species_name')){
-                    print "&species_name=".$q->param('species_name');
+                    $output .= "&species_name=".$q->param('species_name');
                 }
                 if ($q->param('occurrences_authorizer_no')) {
-                    print "&occurrences_authorizer_no=".$q->param('occurrences_authorizer_no');
+                    $output .= "&occurrences_authorizer_no=".$q->param('occurrences_authorizer_no');
                 }
-                print "\">$dataRow->{$COLLECTION_NO}</a></td>";
+                $output .= "\">$dataRow->{$COLLECTION_NO}</a></td>";
             } else {	
                 # Don't link it if if we're in edit mode and we don't have permission
-                print "<td align=center valign=top>$dataRow->{$COLLECTION_NO}</td>";
+                $output .= "<td align=center valign=top>$dataRow->{$COLLECTION_NO}</td>";
             }
 
 
@@ -1637,38 +1653,38 @@ sub displayCollResults {
             if ($dataRow->{'old_id'}) {
                 $timeplace .= " - old id";
             }
-            print "<td valign=top nowrap>$dataRow->{authorizer}</td>\n";
-            print qq|<td valign="top" style="padding-left: 0.5em; text-indent: -0.5em;"><span style="padding-right: 1em;">${collection_names}</span> <span class="tiny"><i>${timeplace}</i></span></td>
+            $output .= "<td valign=top nowrap>$dataRow->{authorizer}</td>\n";
+            $output .= qq|<td valign="top" style="padding-left: 0.5em; text-indent: -0.5em;"><span style="padding-right: 1em;">${collection_names}</span> <span class="tiny"><i>${timeplace}</i></span></td>
 |;
-            print "<td valign=top nowrap>$reference</td>\n";
-            print "<td valign=top align=center>".int($dataRow->{distance})." km </td>\n" if ($type eq 'add');
-            print "</tr>";
+            $output .= "<td valign=top nowrap>$reference</td>\n";
+            $output .= "<td valign=top align=center>".int($dataRow->{distance})." km </td>\n" if ($type eq 'add');
+            $output .= "</tr>";
             }
-            print "</table>\n</div>\n";
+            $output .= "</table>\n</div>\n";
     } elsif ( $displayRows == 1 ) { # if only one row to display...
 		$q->param($COLLECTION_NO=>$dataRows[0]->{$COLLECTION_NO});
                 if ( $q->param('basic') =~ /yes/i && $type eq "view" )	{
-			PBDB::Collection::basicCollectionInfo($dbt,$q,$s,$hbo);
-			return;
+		    my $output = $hbo->stdIncludes($PAGE_TOP);
+		    $output .= PBDB::Collection::basicCollectionInfo($dbt,$q,$s,$hbo);
+		    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+		    return $output;
 		}
 		# Do the action directly if there is only one row
 		return execAction($q, $s, $dbt, $hbo, $action);
     } else {
 		# If this is an add,  Otherwise give an error
 		if ( $type eq "add" ) {
-			displayCollectionForm($q, $s, $dbt, $hbo);
-			return;
+		    return displayCollectionForm($q, $s, $dbt, $hbo);
 		} else {
-			my $error = "<center>\n<p style=\"margin-top: -1em;\">Your search produced no matches: please try again</p>";
-			displaySearchColls($q, $s, $dbt, $hbo, $error);
-			return;
+		    my $error = "<center>\n<p style=\"margin-top: -1em;\">Your search produced no matches: please try again</p>";
+		    return displaySearchColls($q, $s, $dbt, $hbo, $error);
 		}
     }
 
     ###
     # Display the footer links
     ###
-    print "<center><p>";
+    $output .= "<center><p>";
 
     # this q2  var is necessary because the processCollectionSearch
     # method alters the CGI object's internals above, and deletes some fields 
@@ -1692,21 +1708,21 @@ sub displayCollResults {
         } else {
             $numLeft = "the next " . $limit;
         }
-        print "<a href=\"$exec_url?$getString\"><b>View $numLeft matches</b></a> - ";
+        $output .= "<a href=\"$exec_url?$getString\"><b>View $numLeft matches</b></a> - ";
     } 
 
 	if ( $type eq "add" )	{
-		print makeAnchor("displaySearchCollsForAdd", "type=add", "Do another search");
+		$output .= makeAnchor("displaySearchCollsForAdd", "type=add", "Do another search");
 	} else	{
-		print makeAnchor("displaySearchColls", "type=$type", "Do another search");
+		$output .= makeAnchor("displaySearchColls", "type=$type", "Do another search");
 	}
 
-    print "</center></p>";
+    $output .= "</center></p>";
     # End footer links
 
 
 	if ( $type eq "add" ) {
-		print qq|<form action="$exec_url">\n|;
+		$output .= qq|<form action="$exec_url">\n|;
 
 		# stash the lat/long coordinates to be populated on the
 		#  entry form JA 6.4.04
@@ -1714,19 +1730,19 @@ sub displayCollResults {
 				"lngdeg","lngmin","lngsec","lngdec","lngdir");
 		for my $cf (@coordfields)	{
 			if ( $q->param($cf) )	{
-				print "<input type=\"hidden\" name=\"$cf\" value=\"";
-				print $q->param($cf) . "\">\n";
+				$output .= "<input type=\"hidden\" name=\"$cf\" value=\"";
+				$output .= $q->param($cf) . "\">\n";
 			}
 		}
 
-		print qq|<input type="hidden" name="action" value="displayCollectionForm">
+		$output .= qq|<input type="hidden" name="action" value="displayCollectionForm">
 |;
-		print qq|<center>\n<input type=submit value="Add a new collection">|;
-		print "</center>\n</form>\n";
+		$output .= qq|<center>\n<input type=submit value="Add a new collection">|;
+		$output .= "</center>\n</form>\n";
 	}
 		
-	print $hbo->stdIncludes($PAGE_BOTTOM);
-
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 } # end sub displayCollResults
 
 
