@@ -18,11 +18,11 @@ sub populateEcologyForm	{
     my $q = shift;
     my $s = shift;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     # We need a taxon_no passed in, cause taxon_name is ambiguous
     if ( ! $q->param('taxon_no')) {
-	print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the taxon's name is not in the system</div></center>\n";
-	return;
+	return "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the taxon's name is not in the system</div></center>\n";
     }
     my $taxon_no = int($q->param('taxon_no'));
 
@@ -40,8 +40,7 @@ sub populateEcologyForm	{
         if (!$s->get('reference_no')) {
             # Make them choose a reference first
             $s->enqueue_action('startPopulateEcologyForm', $q);
-            PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference before adding ecological/taphonomic data</center>",1);
-            return;
+            return PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference before adding ecological/taphonomic data</center>",1);
         } else {
             push @values, '' for @fields;
             for (my $i = 0;$i<scalar(@fields);$i++) { # default to kg for units
@@ -95,23 +94,23 @@ sub populateEcologyForm	{
 
 	# populate the form
 	if ($q->param('goal') eq 'ecovert')	{
-		print $hbo->populateHTML('ecovert_form', \@values, \@fields);
+		$output .= $hbo->populateHTML('ecovert_form', \@values, \@fields);
 	} else	{
-		print $hbo->populateHTML('ecotaph_form', \@values, \@fields);
+		$output .= $hbo->populateHTML('ecotaph_form', \@values, \@fields);
 	}
-	return;
+	return $output;
 }
 
 sub processEcologyForm	{
 	my $dbt = shift;
 	my $q = shift;
 	my $s = shift;
-    my $dbh = $dbt->dbh;
+        my $dbh = $dbt->dbh;
+        my $output = '';
 
 	# can't proceed without a taxon no
 	if (!$q->param('taxon_no'))	{
-		print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the ecology/taphonomy table can't be updated because the taxon's name is not in the system</div></center>\n";
-		return;
+		return "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the ecology/taphonomy table can't be updated because the taxon's name is not in the system</div></center>\n";
 	}
 	my $taxon_no = int($q->param('taxon_no'));
 	my $sql;
@@ -125,8 +124,7 @@ sub processEcologyForm	{
 
     	# result is found, so bomb out
 		if ( $ecotaph )	{
-			print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, ecology/taphonomy information already exists for this taxon; please edit the old record instead of creating a new one</div></center>\n";
-            return;
+			return "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, ecology/taphonomy information already exists for this taxon; please edit the old record instead of creating a new one</div></center>\n";
 		}
 	}
 
@@ -150,25 +148,25 @@ sub processEcologyForm	{
 
 	if ( $q->param('ecotaph_no') > 0 )	{
         $dbt->updateRecord($s,'ecotaph','ecotaph_no',$q->param('ecotaph_no'),\%fields);
-		print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Ecological/taphonomic data for $taxon_name have been updated</div></center>\n";
+		$output .= "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Ecological/taphonomic data for $taxon_name have been updated</div></center>\n";
 	} else {
         # Set the reference_no
         $fields{'reference_no'} = $s->get('reference_no');
         $dbt->insertRecord($s,'ecotaph',\%fields);
-		print "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Ecological/taphonomic data for $taxon_name have been added</div></center>\n";
+		$output .= "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Ecological/taphonomic data for $taxon_name have been added</div></center>\n";
 	}
 
     my $action = ($q->param('goal') eq 'ecovert') ? 'startStartEcologyVertebrateSearch' : 'startStartEcologyTaphonomySearch';
     my $goal = $q->param('goal');
-	print "<center><p>" . makeAnchor("startPopulateEcologyForm", "taxon_no=$taxon_no&goal=$goal", "Edit data for this taxon") . " - \n";
-	print "<a href=\"$WRITE_URL?action=$action\">Enter data for another taxon</a></p></center>\n"; #jpjenk: what to do here?
-	return;
+	$output .= "<center><p>" . makeAnchor("startPopulateEcologyForm", "taxon_no=$taxon_no&goal=$goal", "Edit data for this taxon") . " - \n";
+	$output .= makeAnchor($action, "", "Enter data for another taxon") . "</p></center>\n";
+	return $output;
 }
 
 
 # Converts an floating point number (in grams) into a text string (in kilograms)
 # that preserves the precision of the number, for insertion into the database
-# I.e 42.30 grams would become .04230 grams.  Note the 0 at the end, which preseres the precision
+# I.e 42.30 grams would become .04230 kilograms.  Note the 0 at the end, which preseres the precision
 sub gramsToKg {
     my $text = shift;
     my $decimal_offset = index($text,'.');

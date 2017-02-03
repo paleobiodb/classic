@@ -31,16 +31,17 @@ my $IMAGE_DIR = "$HTML_DIR/public/confidence";
 sub displayHomonymForm {
     my ($q,$s,$dbt,$homonym_names,$occ_list) = @_;
     my $dbh=$dbt->dbh;
+    my $output = '';
 
     my %occ_list = %$occ_list;
     my @homonym_names = @$homonym_names;
 
     my $pl1 = scalar(@homonym_names) > 1 ? "s" : "";
     my $pl2 = scalar(@homonym_names) > 1 ? "" : "s";
-    print "<center><p class=\"medium\">The following taxonomic name$pl1 belong$pl2 to multiple taxonomic <br>hierarchies.  Please choose the one$pl1 you want.</p>";
-    print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"buildListForm\">";
-    print "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param('taxon_resolution')."\">\n";
-    print "<input type=\"hidden\" name=\"input_type\" value=\"taxon\">\n";
+    $output .= "<center><p class=\"medium\">The following taxonomic name$pl1 belong$pl2 to multiple taxonomic <br>hierarchies.  Please choose the one$pl1 you want.</p>";
+    $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"buildListForm\">";
+    $output .= "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param('taxon_resolution')."\">\n";
+    $output .= "<input type=\"hidden\" name=\"input_type\" value=\"taxon\">\n";
                        
 
     my $i=0;
@@ -49,38 +50,43 @@ sub displayHomonymForm {
 
         # Find the parent taxon and use that to clarify the choice
 
-        print '<table border=0 cellspacing=3 cellpadding=3>'."\n";
-        print "<tr>";
+        $output .= '<table border=0 cellspacing=3 cellpadding=3>'."\n";
+        $output .= "<tr>";
         foreach my $taxon_no (@taxon_nos) {
             my $parent = PBDB::TaxaCache::getParent($dbt,$taxon_no);
-            print "<td><input type='radio' checked name='occurrence_list_$i' value='$taxon_no'>$homonym_name [$parent->{taxon_name}]</td>";
+            $output .= "<td><input type='radio' checked name='occurrence_list_$i' value='$taxon_no'>$homonym_name [$parent->{taxon_name}]</td>";
         }
-        print "<input type='hidden' name='taxon_name_$i' value='$homonym_name'>\n";
-        print "</tr>";
-        print "</table>";
+        $output .= "<input type='hidden' name='taxon_name_$i' value='$homonym_name'>\n";
+        $output .= "</tr>";
+        $output .= "</table>";
         $i++;
     }
     while(my ($taxon,$occurrence_list) = each %occ_list) {
-        print "<input type='hidden' name='occurrence_list_$i' value='$occurrence_list'>";
-        print "<input type='hidden' name='taxon_name_$i' value='$taxon'>\n";
+        $output .= "<input type='hidden' name='occurrence_list_$i' value='$occurrence_list'>";
+        $output .= "<input type='hidden' name='taxon_name_$i' value='$taxon'>\n";
         $i++;
     }
-    print "<br><input type='submit' name='submit' value='Submit'></center></form><br><br>";
+    $output .= "<br><input type='submit' name='submit' value='Submit'></center></form><br><br>";
+
+    return $output;
 }
 
 # Displays a search page modeled after the collections search to search for local/regional sections
 # PS 02/04/2005
 sub displaySearchSectionForm {
     my ($q,$s,$dbt,$hbo) = @_;
+    my $output = '';
 
     my %vars; 
     $vars{'enterer_me'} = $s->get('enterer_reversed');
     $vars{'page_title'} = "Section search form";
     $vars{'action'} = "displaySearchSectionResults";
     $vars{'links'} = qq|<p><span class="mockLink" onClick="javascript: checkForm(); document.collForm.submit();"><b>Search for sections</b></span></p>|;
-    print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-    print PBDB::Person::makeAuthEntJavascript($dbt);
-    print $hbo->populateHTML('search_collections_form',\%vars) ;
+    $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= $hbo->populateHTML('search_collections_form',\%vars) ;
+
+    return $output;
 }
 
 # Handles processing of the output from displaySectionSearchForm similar to displayCollResults
@@ -126,6 +132,7 @@ sub displaySearchSectionResults{
 
     # Only used below, in a couple places.  Print contents of a table row
     sub formatSectionLine {
+        my $output = '';
         my ($lastsection,$lastregion,$found_regionalbed,$found_localbed,$period_list,$country_list,$period_order,$taxon_resolution,$show_taxon_list) = @_;
         my ($time_str, $place_str);
         foreach my $period (@$period_order) {
@@ -181,51 +188,51 @@ sub displaySearchSectionResults{
     my $ofRows = scalar(@tableRows);
     if ($ofRows > 1) {       
         # Display header link that says which collections we're currently viewing
-        print "<center>";
-        print "<p class=\"pageTitle\">Your search produced $ofRows matches</p>\n";
+        $output .= "<center>";
+        $output .= "<p class=\"pageTitle\">Your search produced $ofRows matches</p>\n";
         if ($ofRows > $limit) {
-            print "<p class=\"medium\">Here are";
+            $output .= "<p class=\"medium\">Here are";
             if ($rowOffset > 0) {
-                print " rows ".($rowOffset+1)." to ";
+                $output .= " rows ".($rowOffset+1)." to ";
                 my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-                print $printRows;
-                print "</p>\n";
+                $output .= $printRows;
+                $output .= "</p>\n";
             } else {
-                print " the first ";
+                $output .= " the first ";
                 my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-                print $printRows;
-                print " rows</p>\n";
+                $output .= $printRows;
+                $output .= " rows</p>\n";
             }
         }
-        print "</center>\n";
-        print "<br>\n";
-        print "<table width='100%' border=0 cellpadding=4 cellspacing=0>\n";
+        $output .= "</center>\n";
+        $output .= "<br>\n";
+        $output .= "<table width='100%' border=0 cellpadding=4 cellspacing=0>\n";
 
-        # print columns header
-        print '<tr><th align=left nowrap>Section name</th>';
+        # $output .= columns header
+        $output .= '<tr><th align=left nowrap>Section name</th>';
         if ($rowOffset + $limit/2 < $ofRows) { 
-            print '<th align=left nowrap>Section name</th>';
+            $output .= '<th align=left nowrap>Section name</th>';
         }    
-        print '</tr>';
+        $output .= '</tr>';
    
-        # print each of the rows generated above
+        # $output .= each of the rows generated above
         for(my $i=$rowOffset;$i<$ofRows && $i < $rowOffset+$limit/2;$i++) {
             # should it be a dark row, or a light row?  Alternate them...
             if ( $i % 2 == 0 ) {
-                print "<tr class=\"darkList\">";
+                $output .= "<tr class=\"darkList\">";
             } else {
-                print "<tr>";
+                $output .= "<tr>";
             }
-            print "<td>$tableRows[$i]</td>";
+            $output .= "<td>$tableRows[$i]</td>";
             if ($i+$limit/2 < $ofRows) {
-                print "<td>".$tableRows[$i+$limit/2]."</td>";
+                $output .= "<td>".$tableRows[$i+$limit/2]."</td>";
             } else {
-                print "<td>&nbsp;</td>";
+                $output .= "<td>&nbsp;</td>";
             }
-            print "</tr>\n";
+            $output .= "</tr>\n";
         }
  
-        print "</table>\n";
+        $output .= "</table>\n";
     } elsif ($ofRows == 1 ) { # if only one row to display, cut to next page in chain
         my ($section,$section_type);
         if (!$lastsection || $q->param('section_name') eq $lastregion) {
@@ -235,23 +242,23 @@ sub displaySearchSectionResults{
             $section = $lastsection;
             $section_type='local';    
         }
-        print "<center>\n<p class=\"pageTitle\">Your search produced exactly one match ($section)</p></center>";
+        $output .= "<center>\n<p class=\"pageTitle\">Your search produced exactly one match ($section)</p></center>";
 
         my $my_q = new CGI({'show_taxon_list'=>$show_taxon_list,
                          'taxon_resolution'=>$taxon_resolution,
                          'input'=>$section,
                          'input_type'=>$section_type});
-        displayStratTaxa($my_q,$s,$dbt);
-        return;
+        $output .= displayStratTaxa($my_q,$s,$dbt);
+        return $output;
     } else {
-        print "<center>\n<p class=\"pageTitle\">Your search produced no matches</p>";
-        print "<p>Please try again with fewer search terms.</p>\n</center>\n";
+        $output .= "<center>\n<p class=\"pageTitle\">Your search produced no matches</p>";
+        $output .= "<p>Please try again with fewer search terms.</p>\n</center>\n";
     }
  
     ###
     # Display the footer links
     ###
-    print "<center><p>";
+    $output .= "<center><p>";
  
     # this q2  var is necessary because the processCollectionSearch
     # method alters the CGI object's internals above, and deletes some fields
@@ -274,13 +281,14 @@ sub displaySearchSectionResults{
         } else {
             $numLeft = "the next " . $limit;
         }
-        print makeAnchor($getString, "", "<b>Get $numLeft sections</b>") . " - "; #jpjenk-question
+        $output .= makeAnchor($getString, "", "<b>Get $numLeft sections</b>") . " - ";
     }
-    print makeAnchor("displaySearchSectionForm", "", "<b>Do another search</b>"); #jpjenk-question
+    $output .= makeAnchor("displaySearchSectionForm", "", "<b>Do another search</b>");
 
-    print "</center></p>";
+    $output .= "</center></p>";
     # End footer links
 
+    return $output;
 }
 
 # FIRST-PAGE
@@ -291,13 +299,14 @@ sub displayTaxaIntervalsForm {
     my @prefkeys = keys %pref;
     my $html = $hbo->populateHTML('taxa_intervals_form', [], [], \@prefkeys);
     # Spit out the HTML
-    print $html;
+    return $html;
 }
 
 # REMAKE SPECIES LIST
 sub displayTaxaIntervalsResults {
     my ($q,$s,$dbt,$hbo) = @_;
     my $dbh=$dbt->dbh;
+    my $output = '';
 
     # if homonyms found, display homonym chooser form
     # if no homonyms: 
@@ -324,13 +333,15 @@ sub displayTaxaIntervalsResults {
         }
 
         if (scalar(@homonyms) > 0) {
-            displayHomonymForm($q,$s,$dbt,\@homonyms,\%occ_list);
+            $output .= displayHomonymForm($q,$s,$dbt,\@homonyms,\%occ_list);
         } else {
-            buildList($q,$s,$dbt,$hbo,\%occ_list);
+            $output .= buildList($q,$s,$dbt,$hbo,\%occ_list);
         }
     } else {
-        displayTaxaIntervalsForm($q,$s,$dbt,$hbo);
+        $output .= displayTaxaIntervalsForm($q,$s,$dbt,$hbo);
     }
+    
+    return $output;
 }
 #--------------------------TAXON LIST BUILDER------------------------------------
 
@@ -343,6 +354,8 @@ sub buildList    {
     my $occ_list_base=shift;
     my %occ_list_base=%$occ_list_base;
     my %occ_list;
+
+    my $output = '';
 
     # Set from homonym form
     if (!%occ_list_base) {
@@ -433,40 +446,41 @@ sub buildList    {
     # Now print out the list generated above so the user can select potential species to exclude
     # if they selected 'analyze taxa separately'. Otherwise skip to the options form
     if (!scalar keys %occ_list) {
-        print "<center><p class=\"pageTitle\"><div class='warning'>Sorry, no occurrences of the taxa entered were found in the database.</div></p></center>";
-        displayTaxaIntervalsForm($q,$s,$dbt,$hbo);
+        $output .= "<center><p class=\"pageTitle\"><div class='warning'>Sorry, no occurrences of the taxa entered were found in the database.</div></p></center>";
+        $output .= displayTaxaIntervalsForm($q,$s,$dbt,$hbo);
     } else {
         if ($q->param('taxon_resolution') =~/genus|species/) {
-            print "<div align=\"center\"><p class=\"pageTitle\">Confidence interval taxon list</p></div><br>\n";
-            print "<div class=\"displayPanel\" style=\"margin-left: 2em; margin-right: 2em; padding-top: 1em;\">\n";
-            print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
-            print "<input type=\"hidden\" name=\"input_type\" value=\"taxon\">\n";
-            print "<center>\n";
+            $output .= "<div align=\"center\"><p class=\"pageTitle\">Confidence interval taxon list</p></div><br>\n";
+            $output .= "<div class=\"displayPanel\" style=\"margin-left: 2em; margin-right: 2em; padding-top: 1em;\">\n";
+            $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
+            $output .= "<input type=\"hidden\" name=\"input_type\" value=\"taxon\">\n";
+            $output .= "<center>\n";
 
             # Print out a list of taxa 3 columns wide
-            print "<table cellpadding=5 border=0>";
+            $output .= "<table cellpadding=5 border=0>";
             my @sortList = sort {$a cmp $b} keys(%occ_list);
             my $columns = int(scalar(@sortList)/3)+1;
             for(my $i=0;$i<$columns;$i++) {
-                print "<TR>";
+                $output .= "<TR>";
                 for(my $j=$i;$j<scalar(@sortList);$j=$j+$columns) {
                     $occ_list{$sortList[$j]} =~ s/,$//; 
-                    print "<TD><input type=checkbox name=taxon_name_$j value='$sortList[$j]' CHECKED=checked>" . 
+                    $output .= "<TD><input type=checkbox name=taxon_name_$j value='$sortList[$j]' CHECKED=checked>" . 
                           "<i>".$sortList[$j] . "</i><input type=hidden name=\"occurrence_list_$j\" value=\"$occ_list{$sortList[$j]}\"></TD>\n";
                 }
-                print "</TR>";
+                $output .= "</TR>";
             }
-            print "</table>";
+            $output .= "</table>";
 
-            print "<table CELLPADDING=5 BORDER=0>";
-            print "</table><br>"; 
-            print "<input type=\"submit\" value=\"Submit\">";
-            print "</form></center></div>";
+            $output .= "<table CELLPADDING=5 BORDER=0>";
+            $output .= "</table><br>"; 
+            $output .= "<input type=\"submit\" value=\"Submit\">";
+            $output .= "</form></center></div>";
         } else {
             $q->param('input_type'=>'taxon');
-            optionsForm($q, $s, $dbt, \%occ_list);
+            $output .= optionsForm($q, $s, $dbt, \%occ_list);
         }
     }
+    return $output;
 }
 #--------------DISPLAYS TAXA IN STRATIGRAPHIC SECTION FOR EDITING BY USER-------
 
@@ -478,6 +492,7 @@ sub displayStratTaxa {
     my %occ_list;
     my $section_name = $q->param("input");
     my $section_type = ($q->param("input_type") eq 'regional') ? 'regional' : 'local';
+    my $output = '';
 
     # This will get all the genera in a particular regional/localsection, automatically
     # getting the most recent reids of a an occurrence as well.
@@ -545,33 +560,33 @@ sub displayStratTaxa {
     } 
 
     if ($q->param('show_taxon_list') eq 'NO') {
-        optionsForm($q, $s, $dbt, \%occ_list);
+        $output .= optionsForm($q, $s, $dbt, \%occ_list);
     } else {
-        print "<div align=\"center\"><p class=\"pageTitle\">Stratigraphic section taxon list</p></div><br>\n";
-        print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
-        print "<center><table cellpadding=5 border=0>\n";
-        print "<tr><td><input type=checkbox checked=checked onClick=\"checkAll(this,'sp_checkbox');\"> Check all</td></tr>\n";
-        print "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
-        print "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
-        print "<input type=\"hidden\" name=\"input_type\" value=\"".$q->param('input_type')."\">\n";
+        $output .= "<div align=\"center\"><p class=\"pageTitle\">Stratigraphic section taxon list</p></div><br>\n";
+        $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
+        $output .= "<center><table cellpadding=5 border=0>\n";
+        $output .= "<tr><td><input type=checkbox checked=checked onClick=\"checkAll(this,'sp_checkbox');\"> Check all</td></tr>\n";
+        $output .= "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
+        $output .= "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
+        $output .= "<input type=\"hidden\" name=\"input_type\" value=\"".$q->param('input_type')."\">\n";
         my @sortList = sort {$a cmp $b} keys(%occ_list);
         my $columns = int(scalar(@sortList)/3)+1;
         for(my $i=0;$i<$columns;$i++) {
-            print "<tr>";
+            $output .= "<tr>";
             for(my $j=$i;$j<scalar(@sortList);$j=$j+$columns) {
                 $occ_list{$sortList[$j]} =~ s/,$//; 
-                print "<td><input type=checkbox name=taxon_name_$j value='$sortList[$j]' checked=checked class=\"sp_checkbox\">" . 
+                $output .= "<td><input type=checkbox name=taxon_name_$j value='$sortList[$j]' checked=checked class=\"sp_checkbox\">" . 
                       "<i>".$sortList[$j] . "</i><input type=hidden name=\"occurrence_list_$j\" value=\"$occ_list{$sortList[$j]}\"></td>\n";
             }
-            print "</tr>";
+            $output .= "</tr>";
         }
-        print "</center></table><br>\n";
-        print "<center><span class=\"tiny\">(To remove taxon from list for analysis, uncheck before pressing 'Submit')</span><br><br>\n";
-        print "<input type=\"submit\" value=\"Submit\">";
+        $output .= "</center></table><br>\n";
+        $output .= "<center><span class=\"tiny\">(To remove taxon from list for analysis, uncheck before pressing 'Submit')</span><br><br>\n";
+        $output .= "<input type=\"submit\" value=\"Submit\">";
         #print "<A HREF=\"/cgi-bin/$READ_URL?action=displayFirstForm\"><input type=\"button\" value=\"Start again\"></A>";
-        print "</center><br><br></form>\n\n";
+        $output .= "</center><br><br></form>\n\n";
     } 
-    return;
+    return $output;
 }
 #---------------OPTIONS FORM FOR CALCULATING CONFIDENCE INTERVALS---------------
 
@@ -588,6 +603,7 @@ sub optionsForm    {
     
     my $section_name = uri_unescape_utf8($q->param("input") // '');
     my $type = $q->param("input_type");
+    my $output = '';
 
 # -----------------REMAKE STRAT LIST-----------(REMOVES UNCHECKED)-----------
     if (!%occ_list) {
@@ -620,18 +636,18 @@ sub optionsForm    {
 #------------------------------OPTIONS FORM----------------------------------
 
     if ($type eq 'taxon')   {
-        print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateTaxaInterval\">";
+        $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateTaxaInterval\">";
     } else  {
-        print "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateStratInterval\">";
-        print "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
-        print "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
+        $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateStratInterval\">";
+        $output .= "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
+        $output .= "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
     }    
-    print "<input type=\"hidden\" name=\"input_type\" value=\"".$q->param('input_type')."\">";
+    $output .= "<input type=\"hidden\" name=\"input_type\" value=\"".$q->param('input_type')."\">";
     for(my $i=0;my ($taxon_name,$occurrence_list) = each(%occ_list);$i++){
-        print "<input type=hidden name=taxon_name_$i value='$taxon_name' CHECKED=checked><input type=hidden name=\"occurrence_list_$i\" value=\"$occurrence_list\">\n";
+        $output .= "<input type=hidden name=taxon_name_$i value='$taxon_name' CHECKED=checked><input type=hidden name=\"occurrence_list_$i\" value=\"$occurrence_list\">\n";
     }
 
-    print "\n\n";
+    $output .= "\n\n";
 
     my $methods = ['Strauss and Sadler (1989)','Marshall (1994)','Solow (1996)'];
     my $method_select = PBDB::HTMLBuilder::htmlSelect('conf_method',$methods,$methods,$q->param('conf_method'));
@@ -654,41 +670,41 @@ sub optionsForm    {
     my $glyph_type_select = PBDB::HTMLBuilder::htmlSelect('glyph_type',$glyph_types,$glyph_types,$glyph_type);
     
     if ($form_type eq 'large') {
-        print "<div align=\"center\"><p class=\"pageTitle\">Confidence interval options</p></div>\n";
-        print "<div class=\"displayPanel\" style=\"padding-top: 1em;\">\n";
-        print "<center><table cellpadding=5 border=0>\n";
+        $output .= "<div align=\"center\"><p class=\"pageTitle\">Confidence interval options</p></div>\n";
+        $output .= "<div class=\"displayPanel\" style=\"padding-top: 1em;\">\n";
+        $output .= "<center><table cellpadding=5 border=0>\n";
 
         if ($type eq 'taxon')   {    
-            print "<tr><th align=\"right\"> Time scale: </th><td><span class=\"tiny\">$scale_select</span></td></tr>";
+            $output .= "<tr><th align=\"right\"> Time scale: </th><td><span class=\"tiny\">$scale_select</span></td></tr>";
         } 
 
-        print "<tr><th></th><td><span class=\"tiny\">(Please select a time scale that is appropriate for the taxa you have chosen)</span></td></tr>";
-        print "<tr><th align=\"right\"> <nobr>Confidence interval method:</nobr> </th><td> $method_select<a href=\"javascript: tipsPopup('/public/tips/confidencetips1.html')\">   Help</a></td></tr>";
-        print "<tr><th align=\"right\"> Estimate: </th><td> $estimate_select</td><tr>";
-        print "<tr><th align=\"right\"> <nobr>Confidence level:</nobr> </th><td>$confidence_select</td></tr>";
-        print "<tr><th align=\"right\"> <nobr>Order taxa by:</nobr> </th><td> $order_by_select</td><tr>";
-        print "<tr><th align=\"right\"> <nobr>Draw occurrences with:</nobr> </th><td> $color_select $glyph_type_select</td><tr>";
-        print "</table><br>";
-        print "<input name=\"full\" type=\"submit\" value=\"Submit\">\n";
-        print "</form></center></div>\n\n";
+        $output .= "<tr><th></th><td><span class=\"tiny\">(Please select a time scale that is appropriate for the taxa you have chosen)</span></td></tr>";
+        $output .= "<tr><th align=\"right\"> <nobr>Confidence interval method:</nobr> </th><td> $method_select<a href=\"javascript: tipsPopup('/public/tips/confidencetips1.html')\">   Help</a></td></tr>";
+        $output .= "<tr><th align=\"right\"> Estimate: </th><td> $estimate_select</td><tr>";
+        $output .= "<tr><th align=\"right\"> <nobr>Confidence level:</nobr> </th><td>$confidence_select</td></tr>";
+        $output .= "<tr><th align=\"right\"> <nobr>Order taxa by:</nobr> </th><td> $order_by_select</td><tr>";
+        $output .= "<tr><th align=\"right\"> <nobr>Draw occurrences with:</nobr> </th><td> $color_select $glyph_type_select</td><tr>";
+        $output .= "</table><br>";
+        $output .= "<input name=\"full\" type=\"submit\" value=\"Submit\">\n";
+        $output .= "</form></center></div>\n\n";
     } else {
-        print '<center><div style="margin-left: 20px; margin-right: 20px;"><table class="darkList small" cellpadding=5 border=0 style="border: 1px #000000 solid">';
-        print '<tr><th align="center" colspan=4><div class="medium">Options</div></th><tr>';
+        $output .= '<center><div style="margin-left: 20px; margin-right: 20px;"><table class="darkList small" cellpadding=5 border=0 style="border: 1px #000000 solid">';
+        $output .= '<tr><th align="center" colspan=4><div class="medium">Options</div></th><tr>';
         
         if ($type eq 'taxon')   {    
-            print "<tr><th align=\"right\"> Time scale: </th><td colspan=3>$scale_select</td></tr>";
+            $output .= "<tr><th align=\"right\"> Time scale: </th><td colspan=3>$scale_select</td></tr>";
         } 
 
-        print "<tr><th align=\"right\"> Confidence interval method: </td><td> $method_select <a href=\"javascript: tipsPopup('/public/tips/confidencetips1.html')\">   Help</a></td>";
-        print "<TH align=\"right\"> Confidence level: </TH><TD>$confidence_select</td></tr>";
-        print "<TR><TH align=\"right\"> Estimate: </TH><TD>$estimate_select</td>";
-        print "<TH ALIGN=\"right\">Order taxa by: </TH><TD>$order_by_select</td><tr>";
-        print "<TR><TH align=\"right\">Draw occurrences with: </TH><TD COLSPAN=3>$color_select $glyph_type_select</td></tr>";
-        print "</table></div><br>";
-        print "<input name=\"full\" type=\"submit\" value=\"Submit\">\n";
-        print "</form></center>\n\n";
+        $output .= "<tr><th align=\"right\"> Confidence interval method: </td><td> $method_select <a href=\"javascript: tipsPopup('/public/tips/confidencetips1.html')\">   Help</a></td>";
+        $output .= "<TH align=\"right\"> Confidence level: </TH><TD>$confidence_select</td></tr>";
+        $output .= "<TR><TH align=\"right\"> Estimate: </TH><TD>$estimate_select</td>";
+        $output .= "<TH ALIGN=\"right\">Order taxa by: </TH><TD>$order_by_select</td><tr>";
+        $output .= "<TR><TH align=\"right\">Draw occurrences with: </TH><TD COLSPAN=3>$color_select $glyph_type_select</td></tr>";
+        $output .= "</table></div><br>";
+        $output .= "<input name=\"full\" type=\"submit\" value=\"Submit\">\n";
+        $output .= "</form></center>\n\n";
     }
-    return;
+    return $output;
 }
 
 #----------------------------------CALCULATE-INTERVALS-----------------------------------------
@@ -701,6 +717,8 @@ sub calculateTaxaInterval {
     my $i=0;
     my %occ_list;
     my $testspe =0;
+    my $output = '';
+
     while ($q->param("occurrence_list_$testspe"))  {
         if ($q->param("taxon_name_$testspe"))   {
             $occ_list{$q->param("taxon_name_$testspe")} = $q->param("occurrence_list_$testspe");
@@ -714,9 +732,9 @@ sub calculateTaxaInterval {
     my $conf_method = $q->param("conf_method");
 
     if (scalar(keys(%occ_list)) <= 1 && $conf_method eq "Solow (1996)")   {
-        optionsForm($q, $s, $dbt, \%occ_list);
-        print "<center><table><tr><th><font color=\"red\">The Solow (1996) method requires more than one taxon</font></th></tr></table></center><br>";
-        return;
+        $output .= optionsForm($q, $s, $dbt, \%occ_list);
+        $output .= "<center><table><tr><th><font color=\"red\">The Solow (1996) method requires more than one taxon</font></th></tr></table></center><br>";
+        return $output;
     }
 
 #    print $q->query_string."<br>";
@@ -847,9 +865,9 @@ sub calculateTaxaInterval {
     }
 
     if (scalar(@not_in_scale) == scalar(keys(%occ_list))) {
-        print "<p></p><div class=\"warning\">Warning: Could not map any of the taxa to the timescale requested. <br></div>";
-        optionsForm($q, $s, $dbt, \%occ_list, 'small');
-        return;
+        $output .= "<p></p><div class=\"warning\">Warning: Could not map any of the taxa to the timescale requested. <br></div>";
+        $output .= optionsForm($q, $s, $dbt, \%occ_list, 'small');
+        return $output;
     }
 
     if ($conf_method eq "Solow (1996)") { 
@@ -958,13 +976,15 @@ sub calculateTaxaInterval {
 
     my ($image_map,$image_name) = $cg->drawGraph();
 
-    print printResultsPage($q,'Confidence interval results',$image_map,$image_name,\%taxa_hash,\@sortedTaxa,"Ma",\@not_in_scale);
+    $output .= printResultsPage($q,'Confidence interval results',$image_map,$image_name,\%taxa_hash,\@sortedTaxa,"Ma",\@not_in_scale);
 
-    optionsForm($q, $s, $dbt, \%occ_list, 'small');
+    $output .= optionsForm($q, $s, $dbt, \%occ_list, 'small');
 
-    print "</div>\n\n";
+    $output .= print "</div>\n\n";
 
-    print "<center><p style=\"margin-bottom: 3em;\">" . makeAnchor("displayTaxaIntervalsForm", "", "<b>Start again</b>") . "</p></center>\n\n"; #jpjenk-question
+    $output .= print "<center><p style=\"margin-bottom: 3em;\">" . makeAnchor("displayTaxaIntervalsForm", "", "<b>Start again</b>") . "</p></center>\n\n"; #jpjenk-question
+
+    return $output;
 
 }
 
@@ -975,6 +995,7 @@ sub printResultsPage {
     my %taxa_hash = %$taxa_data;
     my @sortedTaxa = @$sorted_keys;
     my @warnings;
+    my $output = '';
 
     my $any_correlation = 0;
     my $any_extant = 0;
@@ -987,18 +1008,18 @@ sub printResultsPage {
     $image_count =~ s/[^0-9]//g;
 
     # RESULTS-PAGE
-    print "<div align=\"center\"><p class=\"pageTitle\">$title</p></div>";
+    $output .= "<div align=\"center\"><p class=\"pageTitle\">$title</p></div>";
     
-    print $image_map;
-    print "<div align=\"center\"><table><tr><td valign=\"top\" align=\"center\"><img src=\"/public/confidence/$image_name.png\"  usemap=\"#ConfidenceMap\" ismap border=0><br>";
-    print "<br>Download image as: <a href=\"/public/confidence/$image_name.png\">PNG</a>";
-    print ", <a href=\"/public/confidence/$image_name.jpg\">JPEG</a>";
-    print ", <a href=\"/public/confidence/$image_name.ai\">AI</a>";
-    print "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-    print "Download data as: <a href=\"/public/confidence/confidence$image_count.csv\">CSV</a>";
-    print "<br><br>Click on a taxon, section level, or gray box to get more info<br><br></td></tr>";
+    $output .= $image_map;
+    $output .= "<div align=\"center\"><table><tr><td valign=\"top\" align=\"center\"><img src=\"/public/confidence/$image_name.png\"  usemap=\"#ConfidenceMap\" ismap border=0><br>";
+    $output .= "<br>Download image as: <a href=\"/public/confidence/$image_name.png\">PNG</a>";
+    $output .= ", <a href=\"/public/confidence/$image_name.jpg\">JPEG</a>";
+    $output .= ", <a href=\"/public/confidence/$image_name.ai\">AI</a>";
+    $output .= "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+    $output .= "Download data as: <a href=\"/public/confidence/confidence$image_count.csv\">CSV</a>";
+    $output .= "<br><br>Click on a taxon, section level, or gray box to get more info<br><br></td></tr>";
   
-    print "<tr><td align=\"center\">";
+    $output .= "<tr><td align=\"center\">";
     my $html;
     my $csv;
     if($conf_method eq "Strauss and Sadler (1989)") {
@@ -1065,7 +1086,7 @@ sub printResultsPage {
         my $last_long  = ($data->{'last_long'}  =~ /\d/) ? sprintf("%.3f", $data->{'last_long'})  : "NA";
         my $last_sig   = $data->{'last_sig'};
       
-        # print table 2 
+        # $output .= table 2 
         @table = ();
         push @table,["","significance level","confidence limit$unit"];
         if ($first_sig =~ /\d/) {
@@ -1082,11 +1103,11 @@ sub printResultsPage {
 
     my $file = "$IMAGE_DIR/confidence$image_count.csv";
     open CSV,">$file";
-    print CSV $csv;
+    $output .= CSV $csv;
 
-    print $html;
+    $output .= $html;
 
-    print "<br></td></tr></table>\n\n";
+    $output .= "<br></td></tr></table>\n\n";
 
 
     if ($any_correlation)    {
@@ -1105,10 +1126,10 @@ sub printResultsPage {
     }
         
     if (@warnings) {
-        print "<div align=\"center\">".PBDB::Debug::printWarnings(\@warnings)."</div><br>\n\n";
+        $output .= "<div align=\"center\">".PBDB::Debug::printWarnings(\@warnings)."</div><br>\n\n";
     }
 
-    return;
+    return $output;
 }
 
 
@@ -1173,6 +1194,8 @@ sub calculateStratInterval	{
     my %sectionorder;
     my %bed_unit;
     my %occ_list;
+
+    my $output = '';
 
     for(my $i=0;$q->param("occurrence_list_$i");$i++) {
         my $taxon_name = $q->param("taxon_name_$i");
@@ -1366,15 +1389,15 @@ sub calculateStratInterval	{
 
     my ($image_map,$image_name) = $cg->drawGraph();
 
-    print printResultsPage($q,"<i>$section_name</i> stratigraphic section",$image_map,$image_name,\%taxa_hash,\@sortedTaxa,$common_unit,[]);
+    $output .= printResultsPage($q,"<i>$section_name</i> stratigraphic section",$image_map,$image_name,\%taxa_hash,\@sortedTaxa,$common_unit,[]);
 
-    optionsForm($q, $s, $dbt, \%occ_list, 'small');
+    $output .= optionsForm($q, $s, $dbt, \%occ_list, 'small');
 
-    print "</div>\n\n";
+    $output .= "</div>\n\n";
 
-    print " <center>" . makeAnchor("displaySearchSectionForm", "", "<b>Start again</b>") . "<p></center></center><br><br><br>\n\n"; #jpjenk-question
+    $output .= " <center>" . makeAnchor("displaySearchSectionForm", "", "<b>Start again</b>") . "<p></center></center><br><br><br>\n\n";
 
-    return;
+    return $output;
 } 
 
 
