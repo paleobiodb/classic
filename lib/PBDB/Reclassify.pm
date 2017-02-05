@@ -13,13 +13,14 @@ use PBDB::Constants qw($READ_URL $WRITE_URL $DB $COLLECTIONS $COLLECTION_NO $OCC
 # start the process to get to the reclassify occurrences page
 # modelled after startAddEditOccurrences
 sub startReclassifyOccurrences	{
-	my ($q,$s,$dbt,$hbo) = @_;
-    my $dbh = $dbt->dbh;
+        my ($q,$s,$dbt,$hbo) = @_;
+        my $dbh = $dbt->dbh;
+        my $output = '';
 
 	if (!$s->isDBMember()) {
 	    # have to be logged in
 		$s->enqueue_action("startReclassifyOccurrences", $q);
-		PBDB::displayLoginPage( "Please log in first." );
+		PBDB::displayLoginPage( "Please log in first." ); #printquestion-not how we do this now, should never get here.
 	} elsif ( $q->param("collection_no") )	{
         # if they have the collection number, they'll immediately go to the
         #  reclassify page
@@ -34,12 +35,13 @@ sub startReclassifyOccurrences	{
         $vars{'page_subtitle'} = "You may now reclassify either a set of occurrences matching a genus or higher taxon name, or all the occurrences in one collection.";
 
         # Spit out the HTML
-        print $hbo->stdIncludes( "std_page_top" );
-        print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-        print PBDB::Person::makeAuthEntJavascript($dbt);
-        print $hbo->populateHTML('search_occurrences_form',\%vars);
-        print $hbo->stdIncludes("std_page_bottom");  
+        $output .= $hbo->stdIncludes( "std_page_top" );
+        $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
+        $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+        $output .= $hbo->populateHTML('search_occurrences_form',\%vars);
+        $output .= $hbo->stdIncludes("std_page_bottom");  
     }
+    return $output;
 }
 
 # print a list of the taxa in the collection with pulldowns indicating
@@ -48,16 +50,17 @@ sub displayOccurrenceReclassify	{
     my ($q,$s,$dbt,$hbo,$collections_ref) = @_;
     my $dbh = $dbt->dbh;
     my @collections = ();
+    my $output = '';
     @collections = @$collections_ref if ($collections_ref);
     if ($q->param("collection_list")) {
         @collections = split(/\s*,\s*/,$q->param('collection_list'));
     }
 
-	print $hbo->stdIncludes("std_page_top");
+	$output .= $hbo->stdIncludes("std_page_top");
 
     my @occrefs;
     if (@collections) {
-	    print "<center><p class=\"pageTitle\">Classification of \"".$q->param('taxon_name')."\" occurrences</p>";
+	    $output .= "<center><p class=\"pageTitle\">Classification of \"".$q->param('taxon_name')."\" occurrences</p>";
         my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
         my @names = ($dbh->quote($genus));
         if ($subgenus) {
@@ -92,7 +95,7 @@ sub displayOccurrenceReclassify	{
     } else {
 	    my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->param('collection_no');
 	    my $coll_name = ${$dbt->getData($sql)}[0]->{collection_name};
-	    print "<center><p class=\"pageTitle\">Classification of taxa in collection ",$q->param('collection_no')," ($coll_name)</p>";
+	    $output .= "<center><p class=\"pageTitle\">Classification of taxa in collection ",$q->param('collection_no')," ($coll_name)</p>";
        
         my $authorizer_where = "";
         if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
@@ -112,17 +115,17 @@ sub displayOccurrenceReclassify	{
 	# tick through the occurrences
 	# NOTE: the list will be in data entry order, nothing fancy here
 	if ( @occrefs )	{
-		print "<form action=\"$WRITE_URL\" method=\"post\">\n";
-		print "<input id=\"action\" type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n";
-		print "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
+		$output .= "<form action=\"$WRITE_URL\" method=\"post\">\n";
+		$output .= "<input id=\"action\" type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n";
+		$output .= "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
         if (@collections) {
-            print "<input type=\"hidden\" name=\"taxon_name\" value=\"".$q->param('taxon_name')."\">";
-		    print "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
-            print "<tr><th class=\"large\" colspan=2>Collection</th><th class=\"large\" colspan=2 style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
+            $output .= "<input type=\"hidden\" name=\"taxon_name\" value=\"".$q->param('taxon_name')."\">";
+		    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+            $output .= "<tr><th class=\"large\" colspan=2>Collection</th><th class=\"large\" colspan=2 style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
         } else {
-            print "<input type=\"hidden\" name=\"collection_no\" value=\"".$q->param('collection_no')."\">";
-		    print "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
-            print "<tr><th class=\"large\">Taxon name</th><th colspan=2 class=\"large\" style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
+            $output .= "<input type=\"hidden\" name=\"collection_no\" value=\"".$q->param('collection_no')."\">";
+		    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+            $output .= "<tr><th class=\"large\">Taxon name</th><th colspan=2 class=\"large\" style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
         }
 	}
 
@@ -164,9 +167,9 @@ my $editable = 1;
                     }
                 }
 				if ( $rowcolor % 2 )	{
-					print "<tr>";
+					$output .= "<tr>";
 				} else	{
-					print "<tr class='darkList'>";
+					$output .= "<tr class='darkList'>";
 				}
 
                 my $collection_string = "";
@@ -191,9 +194,9 @@ my $editable = 1;
                     $collection_string .= "</span>";
                     $collection_string .= " <span class=\"tiny\" style=\"white-space: nowrap;\">$authorizer</span>";
 
-                    print "<td style=\"padding-right: 1.5em; padding-left: 1.5em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$o->{collection_no}", "$o->{collection_no}") . "</td><td>$collection_string</td>";
+                    $output .= "<td style=\"padding-right: 1.5em; padding-left: 1.5em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$o->{collection_no}", "$o->{collection_no}") . "</td><td>$collection_string</td>";
                 }
-				print "<td><span style=\"white-space:nowrap;\">&nbsp;&nbsp;\n";
+				$output .= "<td><span style=\"white-space:nowrap;\">&nbsp;&nbsp;\n";
 
 				# here's the name
 				my $formatted = "";
@@ -217,25 +220,25 @@ my $editable = 1;
                 $collection_string .= ": " if ($collection_string);
                  
 				if ( $o->{reid_no} )	{
-					print "&nbsp;&nbsp;<span class='small'>reID: </span>&nbsp;";
+					$output .= "&nbsp;&nbsp;<span class='small'>reID: </span>&nbsp;";
                 }
 
                 my $description = "$collection_string $formatted";
 
-				print $formatted;
-				print "</td>\n";
+				$output .= $formatted;
+				$output .= "</td>\n";
 
 				# start the select list
 				# the name depends on whether this is
 				#  an occurrence or reID
-				print "<td>&nbsp;&nbsp;\n";
+				$output .= "<td>&nbsp;&nbsp;\n";
                 if ($o->{reid_no}) {
-                    print classificationSelect($dbt,$o->{reid_no},1,$editable,\@all_matches,$o->{taxon_no},$description);
+                    $output .= classificationSelect($dbt,$o->{reid_no},1,$editable,\@all_matches,$o->{taxon_no},$description);
                 } else {
-                    print classificationSelect($dbt,$o->{$OCCURRENCE_NO},0,$editable,\@all_matches,$o->{taxon_no},$description);
+                    $output .= classificationSelect($dbt,$o->{$OCCURRENCE_NO},0,$editable,\@all_matches,$o->{taxon_no},$description);
                 }
-                print "</td>\n";
-				print "</tr>\n";
+                $output .= "</td>\n";
+				$output .= "</tr>\n";
 				$rowcolor++;
 			} else	{
 				push @badoccrefs , $o;
@@ -243,11 +246,11 @@ my $editable = 1;
 		}
 	}
 	if ( @occrefs )	{
-		print "</table>\n";
-		print "<p><input type=submit value='Reclassify'></p>\n";
-		print "</form>\n";
+		$output .= "</table>\n";
+		$output .= "<p><input type=submit value='Reclassify'></p>\n";
+		$output .= "</form>\n";
 	}
-	print "<p>\n";
+	$output .= "<p>\n";
     my @warnings;
 	if ( $nonExact)	{
 		push @warnings, "Exact formal classifications for some taxa could not be found, so approximate matches were used.  For example, a species might not be formally classified but its genus is.";
@@ -256,52 +259,54 @@ my $editable = 1;
         push @warnings, "Some occurrences can't be reclassified because they have a different authorizer.";
     }
     if (@warnings) {
-        print PBDB::Debug::printWarnings(\@warnings);
+        $output .= PBDB::Debug::printWarnings(\@warnings);
     }
 
-	# print the informal and otherwise unclassifiable names
+	# $output .= the informal and otherwise unclassifiable names
 	if ( @badoccrefs )	{
-		print "<hr>\n";
-		print "<p class=\"large\">Occurrences that cannot be classified</p>";
-		print "<p><i>Check these names for typos and/or create new taxonomic authority records for them</i></p>\n";
-		print "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+		$output .= "<hr>\n";
+		$output .= "<p class=\"large\">Occurrences that cannot be classified</p>";
+		$output .= "<p><i>Check these names for typos and/or create new taxonomic authority records for them</i></p>\n";
+		$output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
 	}
 	$rowcolor = 0;
 	for my $b ( @badoccrefs )	{
 		if ( $rowcolor % 2 )	{
-			print "<tr>";
+			$output .= "<tr>";
 		} else	{
-			print "<tr class='darkList'>";
+			$output .= "<tr class='darkList'>";
 		}
-		print "<td align='left'>&nbsp;&nbsp;";
+		$output .= "<td align='left'>&nbsp;&nbsp;";
 		if ( $b->{'species_name'} !~ /^indet\./)	{
-			print "<i>";
+			$output .= "<i>";
 		}
-		print "$b->{genus_reso} $b->{genus_name}";
+		$output .= "$b->{genus_reso} $b->{genus_name}";
         if ($b->{'subgenus_name'}) {
-            print " $b->{subgenus_reso} ($b->{subgenus_name})";
+            $output .= " $b->{subgenus_reso} ($b->{subgenus_name})";
         }
-        print " $b->{species_reso} $b->{species_name}\n";
+        $output .= " $b->{species_reso} $b->{species_name}\n";
 		if ( $b->{'species_name'} !~ /^indet\./)	{
-			print "</i>";
+			$output .= "</i>";
 		}
-		print "&nbsp;&nbsp;</td></tr>\n";
+		$output .= "&nbsp;&nbsp;</td></tr>\n";
 		$rowcolor++;
 	}
 	if ( @badoccrefs )	{
-		print "</table>\n";
+		$output .= "</table>\n";
 	}
 
-	print "<p>\n";
-	print "</center>\n";
+	$output .= "<p>\n";
+	$output .= "</center>\n";
 
-	print $hbo->stdIncludes("std_page_bottom");
+	$output .= $hbo->stdIncludes("std_page_bottom");
 
+        return $output;
 }
 
 sub processReclassifyForm	{
 	my ($q,$s,$dbt,$hbo) = @_;
 	my $dbh = $dbt->dbh;
+        my $output = '';
 
 	# get lists of old and new taxon numbers
 	# WARNING: taxon names are stashed in old numbers and authority info
@@ -316,24 +321,24 @@ sub processReclassifyForm	{
 	my @new_reid_taxa = $q->param('reid_taxon_no');
 	my @reids = $q->param('reid_no');
 
-	print $hbo->stdIncludes($PAGE_TOP);
+	$output .= $hbo->stdIncludes($PAGE_TOP);
 
-	print "<center>\n\n";
+	$output .= "<center>\n\n";
 
     if ($q->param('collection_no')) {
         my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->param('collection_no');
         my $coll_name = ${$dbt->getData($sql)}[0]->{collection_name};
-        print "<p class=\"pageTitle\">Reclassified taxa in collection " , $q->param('collection_no') ," (" , $coll_name , ")</p>\n\n";
-	    print "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
-        print "<tr><th class=\"large\">Taxon</th><th class=\"large\">Classification based on</th></tr>";
+        $output .= "<p class=\"pageTitle\">Reclassified taxa in collection " , $q->param('collection_no') ," (" , $coll_name , ")</p>\n\n";
+	    $output .= "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
+        $output .= "<tr><th class=\"large\">Taxon</th><th class=\"large\">Classification based on</th></tr>";
     } elsif ($q->param('taxon_name')) {
-        print "<p class=\"pageTitle\">Reclassified occurrences of " , $q->param('taxon_name') ,"</p>\n\n";
-	    print "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
-        print "<tr><th class=\"large\">Collection</th><th class=\"large\">Classification based on</th></tr>";
+        $output .= "<p class=\"pageTitle\">Reclassified occurrences of " , $q->param('taxon_name') ,"</p>\n\n";
+	    $output .= "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
+        $output .= "<tr><th class=\"large\">Collection</th><th class=\"large\">Classification based on</th></tr>";
     } else {
-        print "<p class=\"pageTitle\">Reclassified occurrences</p>";
-	    print "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
-        print "<tr><th class=\"large\">Taxon</th><th class=\"large\">Classification based on</th></tr>";
+        $output .= "<p class=\"pageTitle\">Reclassified occurrences</p>";
+	    $output .= "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
+        $output .= "<tr><th class=\"large\">Taxon</th><th class=\"large\">Classification based on</th></tr>";
     }
 
 	my $rowcolor = 0;
@@ -366,12 +371,12 @@ sub processReclassifyForm	{
 			}
 		# print the taxon's info
 			if ( $rowcolor % 2 )	{
-				print "<tr>";
+				$output .= "<tr>";
 			} else	{
-				print "<tr class='darkList'>";
+				$output .= "<tr class='darkList'>";
 			}
-			print "<td>&nbsp;&nbsp;$occurrence_description</td><td style=\"padding-left: 1em;\"> $authority&nbsp;&nbsp;</td>\n";
-			print "</tr>\n";
+			$output .= "<td>&nbsp;&nbsp;$occurrence_description</td><td style=\"padding-left: 1em;\"> $authority&nbsp;&nbsp;</td>\n";
+			$output .= "</tr>\n";
 			$rowcolor++;
 		}
 	}
@@ -401,41 +406,42 @@ sub processReclassifyForm	{
 
 		# print the taxon's info
 			if ( $rowcolor % 2 )	{
-				print "<tr>";
+				$output .= "<tr>";
 			} else	{
-				print "<tr class='darkList'>";
+				$output .= "<tr class='darkList'>";
 			}
-			print "<td>&nbsp;&nbsp;$reid_description</td><td style=\"padding-left: 1em;\"> $authority&nbsp;&nbsp;</td>\n";
-			print "</tr>\n";
+			$output .= "<td>&nbsp;&nbsp;$reid_description</td><td style=\"padding-left: 1em;\"> $authority&nbsp;&nbsp;</td>\n";
+			$output .= "</tr>\n";
 			$rowcolor++;
 		}
 	}
 
-	print "</table>\n\n";
+	$output .= "</table>\n\n";
     if (!$seen_reclassification) {
-        print "<div align=\"center\">No taxa reclassified</div>";
+        $output .= "<div align=\"center\">No taxa reclassified</div>";
     }
 
-	print "<p>";
+	$output .= "<p>";
    
     if ($q->param('show_links')) {
-        print uri_unescape($q->param("show_links"));
+        $output .= uri_unescape($q->param("show_links"));
     } else { 
         if ($q->param('collection_no')) {
 	    my $occurrences_authorizer_no = $q->param('occurrences_authorizer_no');
 	    my $collection_no = $q->param('collection_no');
-            print makeAnchor("startStartReclassifyOccurrences", "occurrences_authorizer_no=$occurrences_authorizer_no&collection_no=$collection_no", "Reclassify this collection") . " - ";
+            $output .= makeAnchor("startStartReclassifyOccurrences", "occurrences_authorizer_no=$occurrences_authorizer_no&collection_no=$collection_no", "Reclassify this collection") . " - ";
         } else {
 	    my $occurrences_authorizer_no = $q->param('occurrences_authorizer_no');
 	    my $taxon_name = $q->param('taxon_name');
-            print makeAnchor("displayCollResults", "type=reclassify_occurrence&occurrences_authorizer_no=$occurrences_authorizer_no&taxon_name=$taxon_name", "Reclassify $taxon_name") . " - ";
+            $output .= makeAnchor("displayCollResults", "type=reclassify_occurrence&occurrences_authorizer_no=$occurrences_authorizer_no&taxon_name=$taxon_name", "Reclassify $taxon_name") . " - ";
         }
-    	print makeAnchor("startStartReclassifyOccurrences", "", "Reclassify another collection or taxon") . "</p>\n\n";
+    	$output .= makeAnchor("startStartReclassifyOccurrences", "", "Reclassify another collection or taxon") . "</p>\n\n";
     }
 
-	print "</center>\n\n";
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+	$output .= "</center>\n\n";
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
+        return $output;
 }
 
 sub classificationSelect {
