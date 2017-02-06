@@ -13,6 +13,7 @@ use strict;
 
 sub displayReviewForm	{
 	my ($dbt,$q,$s,$hbo) = @_;
+        my $output = '';
 
 	# enterers may not create pages (sorry)
 	if ( $s->get('enterer') ne $s->get('authorizer') )	{

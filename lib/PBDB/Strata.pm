@@ -462,7 +462,7 @@ sub displaySearchStrataForm {
     # Set the Enterer
     $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
     $output .= PBDB::Person::makeAuthEntJavascript($dbt);
-    $output .= $hbo->populateHTML('search_collections_form',$vars)
+    $output .= $hbo->populateHTML('search_collections_form',$vars);
 
     return $output;
 }
