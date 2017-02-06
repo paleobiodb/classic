@@ -94,7 +94,7 @@ sub buildDownload {
 
     my @errors = $self->checkInput($q);
 
-    if ( @errors ) # printquestion (MM)
+    if ( @errors )
     {
 	my $errorString = "<li>" . join('</li><li>',@$errors) . "</li>";
 	my %vars = { error_message => $errorString };
@@ -4345,7 +4345,7 @@ sub dbg {
     my $self = shift;
     my $message = shift;
     
-    # if ( $DEBUG && $message ) { print "<font color='green'>$message</font><br>\n"; } #printquestion (MM)
+    # if ( $DEBUG && $message ) { print "<font color='green'>$message</font><br>\n"; }
 
     if ( $DEBUG && $message ) { print STDERR "DEBUG: $message\n"; }
     
