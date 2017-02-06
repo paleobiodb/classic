@@ -24,6 +24,9 @@ sub processSanityCheck	{
 	my $rgt;
 	my $lftrgt2;
 	my $error_message;
+
+        my $output = '';
+
 	if ( ! $q->param('taxon_name') )	{
 		$error_message = "You must enter a taxon name.";
 	} else	{
@@ -54,8 +57,7 @@ sub processSanityCheck	{
 	if ( $error_message )	{
 		$error_message = "<p><i>" . $error_message . " Please try again.</i></p>\n";
 		my $vars = {'error_message' => $error_message};
-		PBDB::displaySanityForm($vars);
-		return;
+		return PBDB::displaySanityForm($vars);
 	}
 
 	# many disused names are not marked as invalid and still include higher
@@ -109,14 +111,13 @@ sub processSanityCheck	{
 	if ( $authorknown{'genus'} + $authorunknown{'genus'} == 0 )	{
 		$error_message = "<p><i>No genera have been classified within this taxon yet. Please try again.</i></p>\n";
 		my $vars = {'error_message' => $error_message};
-		PBDB::displaySanityForm($vars);
-		return;
+		return PBDB::displaySanityForm($vars);
 	}
-	printf "<center><p class=\"pageTitle\" style=\"margin-bottom: 2em;\">Progress report: %s",$q->param('taxon_name');
+	$output .= sprintf("<center><p class=\"pageTitle\" style=\"margin-bottom: 2em;\">Progress report: %s",$q->param('taxon_name'));
 	if ( $q->param('excluded_taxon') )	{
-		printf " minus %s",$q->param('excluded_taxon');
+		$output .= sprintf(" minus %s",$q->param('excluded_taxon'));
 	}
-	printf "</p></center>\n\n",$q->param('taxon_name');
+	$output .= sprintf("</p></center>\n\n",$q->param('taxon_name'));
 
 	my %total;
 	my $authortext;
@@ -193,52 +194,52 @@ sub processSanityCheck	{
 		$withoccs{$rank} = $#temp + 1;
 	}
 
-	print "<p class=\"small\" style=\"margin-left: 2em; margin-right: 2em;\">Minimum percentages needed to earn grades: D > 30, C > 50, B > 70, A > 90. Percentages are based on data for genera.</p><br>\n\n";
+	$output .= "<p class=\"small\" style=\"margin-left: 2em; margin-right: 2em;\">Minimum percentages needed to earn grades: D > 30, C > 50, B > 70, A > 90. Percentages are based on data for genera.</p><br>\n\n";
 
-	printBoxTop("Valid subtaxa with occurrences");
+	$output .= printBoxTop("Valid subtaxa with occurrences");
 	for my $rank ( @ranks ) 	{
 		if ( $total{$rank} > 0 )	{
-			printf "%d of %d $plural{$rank} (%.1f%%)<br>\n",$withoccs{$rank}, $total{$rank}, 100 * $withoccs{$rank} / $total{$rank};
+			$output .= sprintf("%d of %d $plural{$rank} (%.1f%%)<br>\n",$withoccs{$rank}, $total{$rank}, 100 * $withoccs{$rank} / $total{$rank});
 			if ( $total{$rank} - $withoccs{$rank} > 0 && $total{$rank} - $withoccs{$rank} <= 200 )	{
 				my @temp = keys %{$dataneeded{$rank}{'no'}};
 				my @temp2 = keys %{$dataneeded{$rank}{'yes'}};
 				if ( @temp2 )	{
-					printMissing($rank,\@temp,'extinct');
-					printMissing($rank,\@temp2,'extant');
+					$output .= printMissing($rank,\@temp,'extinct');
+					$output .= printMissing($rank,\@temp2,'extant');
 				} else	{
-					printMissing($rank,\@temp);
+					$output .= printMissing($rank,\@temp);
 				}
 			}
 			if ( $rank ne "genus" )	{
-				print "<br>\n";
+				$output .= "<br>\n";
 			}
 		}
 	}
 	$grade = $grades[int(10 * $withoccs{'genus'} / $total{'genus'})];
-	printBoxBottom("Our",$grade);
+	$output .= printBoxBottom("Our",$grade);
 
-	printBoxTop("Valid subtaxa marked as extant or extinct");
+	$output .= printBoxTop("Valid subtaxa marked as extant or extinct");
 	my %unknownExtant;
 	for my $rank ( @ranks ) 	{
 		if ( $total{$rank} > 0 )	{
 			$unknownExtant{$rank} = ( $total{$rank} - $extant{$rank}{'yes'} - $extant{$rank}{'no'} );
-			printf "$plural{$rank}: %d extant, %d extinct, %d unknown (%.1f/%.1f/%.1f%%)<br>\n",$extant{$rank}{'yes'}, $extant{$rank}{'no'}, $unknownExtant{$rank}, 100 * $extant{$rank}{'yes'} / $total{$rank}, 100 * $extant{$rank}{'no'} / $total{$rank}, 100 * $unknownExtant{$rank} / $total{$rank};
+			$output .= sprintf("$plural{$rank}: %d extant, %d extinct, %d unknown (%.1f/%.1f/%.1f%%)<br>\n",$extant{$rank}{'yes'}, $extant{$rank}{'no'}, $unknownExtant{$rank}, 100 * $extant{$rank}{'yes'} / $total{$rank}, 100 * $extant{$rank}{'no'} / $total{$rank}, 100 * $unknownExtant{$rank} / $total{$rank});
 			if ( $unknownExtant{$rank} > 0 && $unknownExtant{$rank} <= 200 )	{
 				my @temp = keys %{$dataneeded2{$rank}};
-				printMissing($rank,\@temp);
+				$output .= printMissing($rank,\@temp);
 			}
 			if ( $rank ne "genus" )	{
-				print "<br>\n";
+				$output .= "<br>\n";
 			}
 		}
 	}
 	$grade = $grades[int(10 * ( $total{'genus'} - $unknownExtant{'genus'} ) / $total{'genus'})];
-	printBoxBottom("Our",$grade);
+	$output .= printBoxBottom("Our",$grade);
 
-	printBoxTop("Valid subtaxa with author and year data");
-	print "$authortext";
+	$output .= printBoxTop("Valid subtaxa with author and year data");
+	$output .= "$authortext";
 	$grade = $grades[int(10 * $authorknown{'genus'} / $total{'genus'})];
-	printBoxBottom("Our",$grade);
+	$output .= printBoxBottom("Our",$grade);
 
 	# the only opinion comes from the Compendium, Carroll, or McKenna/Bell
 	# this is tricky because the NAFMSD data uploaded on 23.1.02 overlapped
@@ -266,104 +267,105 @@ sub processSanityCheck	{
 		}
 	}
 
-	printBoxTop("Valid subtaxa with authority data from the original paper");
+	$output .= printBoxTop("Valid subtaxa with authority data from the original paper");
 	for my $rank ( @ranks ) 	{
 		if ( $total{$rank} > 0 )	{
-			printf "%d of %d $plural{$rank} (%.1f%%)<br>\n",$refis{$rank}, $total{$rank}, 100 * $refis{$rank} / $total{$rank};
+			$output .= sprintf("%d of %d $plural{$rank} (%.1f%%)<br>\n",$refis{$rank}, $total{$rank}, 100 * $refis{$rank} / $total{$rank});
 			if ( $total{$rank} - $refis{$rank} > 0 && $total{$rank} - $refis{$rank} <= 200 )	{
 				my @temp = keys %{$dataneeded3{$rank}};
-				printMissing($rank,\@temp);
+				$output .= printMissing($rank,\@temp);
 			}
 			if ( $rank ne "genus" )	{
-				print "<br>\n";
+				$output .= "<br>\n";
 			}
 		}
 	}
 	$grade = $grades[int(10 * $refis{'genus'} / $total{'genus'})];
-	printBoxBottom("Our",$grade);
+	$output .= printBoxBottom("Our",$grade);
 
-	printBoxTop("Subtaxa in compilations also having opinions from a primary source");
+	$output .= printBoxTop("Subtaxa in compilations also having opinions from a primary source");
 	my $incompilation = 0;
 	for my $rank ( @ranks ) 	{
 		if ( $compendium{$rank} > 0 )	{
-			printf "%d of %d $plural{$rank} (%.1f%%)<br>\n",$uncompendium{$rank}, $compendium{$rank}, 100 * $uncompendium{$rank} / $compendium{$rank};
+			$output .= sprintf("%d of %d $plural{$rank} (%.1f%%)<br>\n",$uncompendium{$rank}, $compendium{$rank}, 100 * $uncompendium{$rank} / $compendium{$rank});
 			$incompilation++;
 			if ( $compendium{$rank} - $uncompendium{$rank} > 0 && $compendium{$rank} - $uncompendium{$rank} <= 200 )	{
 				my @temp = keys %{$dataneeded{$rank}};
-				printMissing($rank,\@temp);
+				$output .= printMissing($rank,\@temp);
 			}
 			if ( $rank ne "genus" )	{
-				print "<br>\n";
+				$output .= "<br>\n";
 			}
 		}
 	}
 	if ( $incompilation == 0 )	{
-		print "We have no opinions about this group at all from compilations<br>\n";
+		$output .= "We have no opinions about this group at all from compilations<br>\n";
 	}
 	if ( $incompilation == 0 )	{
 		$grade = "A";
 	} else	{
 		$grade = $grades[int(10 * $uncompendium{'genus'} / $compendium{'genus'})];
 	}
-	printBoxBottom("Our",$grade);
+	$output .= printBoxBottom("Our",$grade);
 
-	printBoxTop("Subtaxa in the Database not recorded in a compilation");
-	print "<i>Our system includes insect names from Carpenter (1992), tetrapod names from Carroll (1988) and McKenna and Bell (1997), and marine animal names from Sepkoski (2002).</i></p>\n\n";
-	print "<p style=\"padding-left: 1em;\">\n";
+	$output .= printBoxTop("Subtaxa in the Database not recorded in a compilation");
+	$output .= "<i>Our system includes insect names from Carpenter (1992), tetrapod names from Carroll (1988) and McKenna and Bell (1997), and marine animal names from Sepkoski (2002).</i></p>\n\n";
+	$output .= "<p style=\"padding-left: 1em;\">\n";
 	for my $rank ( @ranks ) 	{
 		if ( $total{$rank} > 0 )	{
-			printf "%d of %d $plural{$rank} (%.1f%%)<br>\n",$total{$rank} - $compendium{$rank}, $total{$rank}, 100 * ( $total{$rank} - $compendium{$rank} ) / $total{$rank};
+			$output .= sprintf("%d of %d $plural{$rank} (%.1f%%)<br>\n",$total{$rank} - $compendium{$rank}, $total{$rank}, 100 * ( $total{$rank} - $compendium{$rank} ) / $total{$rank});
 			if ( $rank ne "genus" )	{
-				print "<br>\n";
+				$output .= "<br>\n";
 			}
 		}
 	}
 	if ( $incompilation == 0 )	{
-		print "The compilations don't record this group at all<br>\n";
+		$output .= "The compilations don't record this group at all<br>\n";
 	}
 	my $grade = $grades[int(10 * $compendium{'genus'} / $total{'genus'})];
-	printBoxBottom("Their",$grade);
+	$output .= printBoxBottom("Their",$grade);
 
-	print qq|<form method="POST" action="classic">
+	$output .= qq|<form method="POST" action="classic">
 <input type="hidden" name="action" value="startProcessSanityCheck">
 <center><p>Next taxon to check: <input type="text" name="taxon_name" value="" size="16"> excluding <input type="text" name="excluded_taxon" value="" size="16"> <input type="submit" value="check"></p></center>
 </form>
 |;
 
-	return;
+	return $output;
 }
 
 sub printBoxTop	{
 	my $headline = shift;
+        my $output = '';
 
-	print qq|<div class="displayPanel" align="left" style="margin-left: 1em; margin-right: 1em;">
+	$output .= qq|<div class="displayPanel" align="left" style="margin-left: 1em; margin-right: 1em;">
   <span class="displayPanelHeader">$headline</span>
   <div class="displayPanelContent small">
   <p style="padding-left: 1em;">
 |;
 
-	return;
+	return $output;
 }
 
 sub printBoxBottom	{
 	my $usthem = shift;
 	my $grade = shift;
+        my $output = '';
 
-	print "  <p style=\"padding-left: 1em;\">\n";
-	printf "<i>$usthem grade: $grade</i><br>";
+	$output .= "  <p style=\"padding-left: 1em;\">\n";
+	$output .= sprintf("<i>$usthem grade: $grade</i><br>");
 
-	print qq|  </p>
-  </div>
-</div>
-|;
+	$output .= qq|  </p> </div> </div> |;
 
-	return;
+	return $output;
 }
 
 sub printMissing	{
 	my $rank = shift;
 	my $tempref = shift;
 	my @temp = @{$tempref};
+        my $output = '';
+
 	if ( ! @temp )	{
 		return;
 	}
@@ -375,16 +377,18 @@ sub printMissing	{
 		if ( $#temp > 0 )	{
 			$noun = $plural{$rank};
 		}
-		printf "<span class=\"small\">[%d $category $noun missing data: ",$#temp + 1;
+		$output .= sprintf("<span class=\"small\">[%d $category $noun missing data: ",$#temp + 1);
 	} else	{
-		print "<span class=\"small\">[missing data: ";
+		$output .= "<span class=\"small\">[missing data: ";
 	}
 	@temp = sort @temp;
-	print $temp[0];
+	$output .= $temp[0];
 	for my $i ( 1..$#temp )	{
-		print ", " . $temp[$i];
+		$output .= ", " . $temp[$i];
 	}
-	print "]</span><br>\n";
+	$output .= "]</span><br>\n";
+
+        return $output;
 }
 
 1;

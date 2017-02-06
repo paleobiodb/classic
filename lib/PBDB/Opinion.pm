@@ -17,7 +17,7 @@ sub new {
 	my $class = shift;
     my $dbt = shift;
     my $opinion_no = shift;
-	my PBDB::Opinion $self = fields::new($class);
+    my PBDB::Opinion $self = fields::new($class);
     $self->{'dbt'}=$dbt;
 
     my ($sql,@results);
@@ -33,7 +33,7 @@ sub new {
         $self->{'author2last'} = $results[0]->{'author2last'};
         $self->{'pubyr'} = $results[0]->{'pubyr'};
     } else {
-        carp "Could not create opinion object with passed in opinion $opinion_no";
+        carp "Could not create opinion object with passed in opinion $opinion_no"; #printquestion
         return;
     }
 	return $self;
@@ -152,12 +152,12 @@ sub pubyr {
 #
 # For example, "belongs to Equidae according to J. D. Archibald 1998"
 sub formatAsHTML {
-	my PBDB::Opinion $self = shift;
+    my PBDB::Opinion $self = shift;
     my %options = @_;
 	my $row = $self->{'DBrow'};
     my $dbt = $self->{'dbt'};
 	
-    my $output = "";
+    my $output = '';
 
     if ($row->{'status'} =~ /synonym|replace|nomen|revalidated|misspell|subgroup/) {
         my $child = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'child_spelling_no'}});
@@ -287,7 +287,7 @@ sub displayOpinionForm {
 	#my @nonEditables; 	
 	
 	if ((!$dbt) || (!$hbo) || (! $s) || (! $q)) {
-		croak("PBDB::Opinion::displayOpinionForm had invalid arguments passed to it.");
+		croak("PBDB::Opinion::displayOpinionForm had invalid arguments passed to it."); #printquestion-No modification?jk
 		return;
 	}
 
@@ -708,7 +708,7 @@ sub displayOpinionForm {
 	$fields{limited} = 1;
     }
     
-    print $hbo->populateHTML("add_enter_opinion", \%fields);
+    return $hbo->populateHTML("add_enter_opinion", \%fields);
     
 }
 
@@ -726,14 +726,13 @@ sub submitOpinionForm {
     my @warnings = ();
 
 	if ((!$dbt) || (!$hbo) || (!$s) || (!$q)) {
-		croak("PBDB::Opinion::submitOpinionForm had invalid arguments passed to it");
+		croak("PBDB::Opinion::submitOpinionForm had invalid arguments passed to it"); #printquestion-croak writes to stderr or logfile already correct?
 		return;	
 	}
     
     unless ( $q->param('check_status') eq 'done' )
     {
-	print "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
-	return;
+	return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
     }
     
     my $dbh = $dbt->dbh;
@@ -1328,8 +1327,7 @@ sub submitOpinionForm {
 		# stick the errors in the CGI object for display.
 		my $message = $errors->errorMessage();
 
-		PBDB::Opinion::displayOpinionForm($dbt, $hbo, $s, $q, $message);
-		return;
+		return PBDB::Opinion::displayOpinionForm($dbt, $hbo, $s, $q, $message);
 	}
 
 
@@ -1516,7 +1514,7 @@ sub submitOpinionForm {
     $end_message .= $hbo->populateHTML('opinion_end_message',\%message_vals);
 
     # See PBDB::Taxon::displayTypeTaxonSelectForm for details
-    PBDB::Taxon::displayTypeTaxonSelectForm($dbt,$s,$fields{'type_taxon'},$fields{'child_no'},$childName,$childRank,$resultReferenceNumber,$end_message);
+    return PBDB::Taxon::displayTypeTaxonSelectForm($dbt,$s,$fields{'type_taxon'},$fields{'child_no'},$childName,$childRank,$resultReferenceNumber,$end_message);
 }
 
 # row is an opinion database row and must contain the following fields:
@@ -1654,6 +1652,7 @@ sub fixMassEstimates	{
 sub displayOpinionChoiceForm {
     my ($q, $s, $dbt, $hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     my $sepkoski;
     if ($q->param('taxon_no')) {
@@ -1665,11 +1664,11 @@ sub displayOpinionChoiceForm {
         my @results = @{$dbt->getData($sql)};
         
         my $t = PBDB::Taxon->new($dbt,$child_no);
-        print "<div align=\"center\">";
-        print "<p class=\"pageTitle\">Which opinion about ".$t->taxonNameHTML()." do you want to edit?</p>\n";
+        $output .= "<div align=\"center\">";
+        $output .= "<p class=\"pageTitle\">Which opinion about ".$t->taxonNameHTML()." do you want to edit?</p>\n";
         
-	    print qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
-        print qq|<div align="left"><ul>|;
+	$output .= qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
+        $output .= qq|<div align="left"><ul>|;
         foreach my $row (@results) {
             my $o = PBDB::Opinion->new($dbt,$row->{'opinion_no'});
             my ($opinion,$relation,$authority) = $o->formatAsHTML('return_array'=>1);
@@ -1678,14 +1677,14 @@ sub displayOpinionChoiceForm {
                 $opinion = "<b>".$opinion."</b>";
             }
             if ( $o->{'reference_no'} != 6930 )	{
-                print "<li>", makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=$row->{opinion_no}", "$opinion") . "$authority" . "</li>";
+                $output .= "<li>", makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=$row->{opinion_no}", "$opinion") . "$authority" . "</li>";
             } else	{
-                print qq|<li>$opinion $authority*</li>|;
+                $output .= qq|<li>$opinion $authority*</li>|;
                 $sepkoski = qq|<br>\n*Opinions from Sepkoski's Compendium cannot be edited.|;
             }
         }
-        print "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=-1", "Create a <b>new</b> opinion record") . "</li>";
-        print qq|</ul></div>\n|;
+        $output .= "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=-1", "Create a <b>new</b> opinion record") . "</li>";
+        $output .= qq|</ul></div>\n|;
     } else {
         my @where = ();
         my @errors = ();
@@ -1741,19 +1740,19 @@ sub displayOpinionChoiceForm {
             my @results = @{$dbt->getData($sql)};
             if (scalar(@results) == 0) {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No opinions were found</div>');
-                PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-                return;
+                $output .= PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo); #printquestion-not returned directly because $output may have been appended above. Check this.
+                return $output;
             }
-            print "<div align=\"center\">";
+            $output .= "<div align=\"center\">";
             if ($s->isDBMember())	{
-                print "<p class=\"pageTitle\">Select an opinion to edit</p>\n";
+                $output .= "<p class=\"pageTitle\">Select an opinion to edit</p>\n";
             } else	{
-                print "<p class=\"pageTitle\">Opinions from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
+                $output .= "<p class=\"pageTitle\">Opinions from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
             }
 
-            print qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
-            print qq|<div class="small" align="left">|;
-            print qq|<ul>|;
+            $output .= qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
+            $output .= qq|<div class="small" align="left">|;
+            $output .= qq|<ul>|;
             foreach my $row (@results) {
                 my $o = PBDB::Opinion->new($dbt,$row->{'opinion_no'});
                 my ($opinion,$relation,$authority) = $o->formatAsHTML('return_array'=>1);
@@ -1765,40 +1764,42 @@ sub displayOpinionChoiceForm {
                     $authority = "";
                 }
                 if ($s->isDBMember())	{
-                    print "<li>" . makeAnchor("displayOpinionForm", "opinion_no=$row->{opinion_no}", "$opinion") . " $authority";
+                    $output .= "<li>" . makeAnchor("displayOpinionForm", "opinion_no=$row->{opinion_no}", "$opinion") . " $authority";
                 } else	{
-                    print "<li>$opinion $authority</li>\n";
+                    $output .= "<li>$opinion $authority</li>\n";
                 }
             }
-            print "</ul>";
-            print "</div>";
-            print "</div>";
-            print "</div>";
+            $output .= "</ul>";
+            $output .= "</div>";
+            $output .= "</div>";
+            $output .= "</div>";
         } else {
             if (@errors) {
                 my $message = qq|<div class="small" style="margin-bottom: 1.5em;">\n\n<ul>\n|;
                 $message .= "<li class='medium'>$_</li>" foreach @errors;
                 $message .= "</ul>\n</div>\n<br>\n"; 
                 $q->param('errors' => $message);
-                PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-		return;
+                $output .= PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo); #printquestion
+		return $output;
             } else {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No search terms were entered</div>');
-                PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-		return;
+                $output .= PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo); #printquestion
+		return $output;
             }
         }
     } 
     
     if ($q->param("taxon_no")) {
-        print qq|<div class="verysmall" style="margin-left: 4em; text-align: left;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>The currently favored opinion is in <b>bold</b>.\n<br>\nCreate a new opinion if your author's name is not in the above list.<br>\nDo not select an old opinion unless it was entered incorrectly or incompletely.$sepkoski</p></div>\n|;
+        $output .= qq|<div class="verysmall" style="margin-left: 4em; text-align: left;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>The currently favored opinion is in <b>bold</b>.\n<br>\nCreate a new opinion if your author's name is not in the above list.<br>\nDo not select an old opinion unless it was entered incorrectly or incompletely.$sepkoski</p></div>\n|;
     } elsif ($q->param('reference_no') && $s->isDBMember())	{
-        print qq|<div class="tiny" style="padding-left: 8em; padding-bottom: 3em;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>|;
-        print qq|You may want to read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')">FAQ</a>.</p></div>\n|;
+        $output .= qq|<div class="tiny" style="padding-left: 8em; padding-bottom: 3em;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>|;
+        $output .= qq|You may want to read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')">FAQ</a>.</p></div>\n|;
     }
-    print "</form>\n";
-    print "</div>\n";
-    print "</div>\n";
+    $output .= "</form>\n";
+    $output .= "</div>\n";
+    $output .= "</div>\n";
+
+    return $output;
 }
 
 # Occasionally duplicate opinions will be created sort of due to user err.  User will enter
@@ -1846,6 +1847,7 @@ sub removeDuplicateOpinions {
 # JA 29.6 to 4.7.11 (intermittently)
 sub badNames	{
 	my ($q, $s, $dbt, $hbo) = @_;
+        my $output = '';
 
 	my $group = $q->param('taxon_name');
 	if ( $group =~ /[^A-Za-z ]/ )	{
@@ -1937,10 +1939,10 @@ sub badNames	{
 	$sql = "SELECT a.taxon_no,a.taxon_rank,a.taxon_name,a.type_taxon_no,a2.taxon_name parent,IF(ref_has_opinion='yes',r.author1last,o.author1last) auth1,IF(ref_has_opinion='yes',r.author2last,o.author2last) auth2,IF(ref_has_opinion='yes',r.otherauthors,o.otherauthors) others,IF(ref_has_opinion='yes',r.pubyr,o.pubyr) yr,IF(ref_has_opinion='yes',r.reference_no,o.reference_no) refno FROM authorities a,authorities a2,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND t.taxon_no=spelling_no AND t.taxon_no=child_no AND t.opinion_no=o.opinion_no AND a2.taxon_no=parent_no AND o.reference_no=r.reference_no AND a.taxon_no IN (".join(',',@bad_nos).") ORDER BY a.taxon_name";
         my @bad_info = @{$dbt->getData($sql)};
 
-	print "<center>\n<p class=\"pageTitle\">Bad names within $group</p>\n</center>\n\n";
-	print "<div class=\"displayPanel\" style=\"margin-left: auto; margin-right: auto; margin-bottom: 3em; width: 36em; padding-left: 1em; padding-bottom: 1em;\">\n";
+	$output .= "<center>\n<p class=\"pageTitle\">Bad names within $group</p>\n</center>\n\n";
+	$output .= "<div class=\"displayPanel\" style=\"margin-left: auto; margin-right: auto; margin-bottom: 3em; width: 36em; padding-left: 1em; padding-bottom: 1em;\">\n";
 	if ( $#bad_info > 3 )	{
-		printf "<p><i>There are %d bad names in total</i></p>\n\n",$#bad_info;
+		$output .= sprintf "<p><i>There are %d bad names in total</i></p>\n\n",$#bad_info;
 	}
 	for my $e ( @bad_info )	{
 		my $by = $e->{'auth1'}." ".$e->{'yr'};
@@ -1950,22 +1952,22 @@ sub badNames	{
 			$by = $e->{'auth1'}." and ".$e->{'auth2'}." ".$e->{'yr'};
 		}
 		$by =~ s/, jr.//gi;
-        # jpjenk: The following 3 lines are a mess. There are <div>'s and other oddities within the ref anchor!
+        #printquestion - The following 3 lines are a mess. There are <div>'s and other oddities within the ref anchor. This was an old issue that existed prior to print statement refactoring.
 		$by = "<a href=\"$WRITE_URL?a=displayReference&amp;reference_no=$e->{'refno'}\">" . $by;
-		print '<div class="small" style="margin-top: 1em; margin-left: 1em; text-indent: -1em;">&bull; '.$e->{'taxon_rank'}." ".$e->{'taxon_name'}."</div>\n\n";
-		print "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">currently assigned to ".$e->{'parent'}." based on $by</a></div>";
+		$output .= '<div class="small" style="margin-top: 1em; margin-left: 1em; text-indent: -1em;">&bull; '.$e->{'taxon_rank'}." ".$e->{'taxon_name'}."</div>\n\n";
+		$output .= "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">currently assigned to ".$e->{'parent'}." based on $by</a></div>";
 		if ( $parent_problem{$e->{'taxon_no'}} )	{
 			my $status = $parent_problem{$e->{'taxon_no'}}." ".$parent_parent{$e->{'taxon_no'}};
 			$status =~ s/(objective)/an $1/;
 			$status =~ s/(subjective)/a $1/;
 			$status =~ s/(invalid sub)/an $1/;
 			$status =~ s/(nomen [^ ]*)( .*)/a $1 belonging to $2/;
-			print "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">$e->{'parent'} is $status</a></div>";
+			$output .= "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">$e->{'parent'} is $status</a></div>";
 		}
 		elsif ( $e->{'type_taxon_no'} > 0 )	{
 			$sql = "SELECT taxon_rank,taxon_name FROM authorities WHERE taxon_no=".$e->{'type_taxon_no'};
         		my $type = ${$dbt->getData($sql)}[0];
-			print "<div class=\"verysmall\" style=\"padding-left: 1em;\">type $type->{'taxon_rank'} is $type->{'taxon_name'}</div>";
+			$output .= "<div class=\"verysmall\" style=\"padding-left: 1em;\">type $type->{'taxon_rank'} is $type->{'taxon_name'}</div>";
 		}
 		if ( $former{$e->{'taxon_no'}} )	{
 			my @f = @{$former{$e->{'taxon_no'}}};
@@ -1977,12 +1979,14 @@ sub badNames	{
 				$f[$#f] = "and ".$f[$#f];
 				$formers = join(', ',@f);
 			}
-			print "<div class=\"verysmall\" style=\"text-indent: -1em; padding-left: 2em;\">now empty, but formerly included $formers</div>\n";
+			$output .= "<div class=\"verysmall\" style=\"text-indent: -1em; padding-left: 2em;\">now empty, but formerly included $formers</div>\n";
 		}
-		print "\n";
+		$output .= "\n";
 	}
-	print "<br>\n<center>" . makeAnchor("badNameForm", "", "Search again") . "</center>\n"; #jpjenk: Correct way to use anchor function without parameters?
-	print "</div>\n\n";
+	$output .= "<br>\n<center>" . makeAnchor("badNameForm", "", "Search again") . "</center>\n"; #jpjenk: Correct way to use anchor function without parameters?
+	$output .= "</div>\n\n";
+
+        return $output;
 }
 
 

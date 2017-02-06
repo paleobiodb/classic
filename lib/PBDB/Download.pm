@@ -79,20 +79,21 @@ sub buildDownload {
     my ($q,$s,$hbo) = ($self->{'q'},$self->{'s'},$self->{'hbo'});
     my $dbt = $self->{'dbt'};
     my $dbh = $self->{'dbh'};
+    my $output = '';
 
     if ( $q->param('restore_defaults') )	{
         my $sql = "UPDATE person SET last_action=last_action,last_download=NULL";
         $dbh->do($sql);
         $q->param('error_message' => 'Your defaults have been restored');
         if ( $q->param('form_type') eq "full" )	{
-            PBDB::displayDownloadForm();
+            $output .= PBDB::displayDownloadForm();
         } else	{
-            PBDB::displayBasicDownloadForm();
+            $output .= PBDB::displayBasicDownloadForm();
         }
     }
 
     my $inputIsOK = $self->checkInput($q);
-    return unless $inputIsOK;
+    return unless $inputIsOK; #printquestion-correct? or should this be return $output unless...?
 
     geographyOptions($q);
 
@@ -177,11 +178,10 @@ sub buildDownload {
         my $errorString = "<li>" . join('<li>',@form_errors);
         $q->param('error_message' => $errorString );
         if ( $q->param('form_type') eq "full" )	{
-            PBDB::displayDownloadForm();
+            return PBDB::displayDownloadForm();
         } else	{
-            PBDB::displayBasicDownloadForm();
+            return PBDB::displayBasicDownloadForm();
         }
-        return;
     }
 
     # current limit for data set size that triggers the click through: 50 work
@@ -189,7 +189,7 @@ sub buildDownload {
     # figure is based on a poll of 12 major contributors taken at NAPC 23.6.09
     my $hourlimit = 0;
 
-    print "<div align=\"center\"><p class=\"pageTitle\">Download results</p></div>\n\n";
+    $output .= "<div align=\"center\"><p class=\"pageTitle\">Download results</p></div>\n\n";
     if ( $hours >= $hourlimit )	{
         my (%vars,@pb_authors,@au);
         push @pb_authors , "$initials{$_} $last{$_}" foreach @authnos;
@@ -243,25 +243,25 @@ sub buildDownload {
         $vars{'file_path'} = "$OUT_HTTP_DIR/$refsFile";
         $vars{'file_name'} = $refsFile;
         $vars{'cites'} = $cites . '</div>';
-        print $hbo->populateHTML('download_terms', \%vars);
+        $output .= $hbo->populateHTML('download_terms', \%vars);
     }
 
-    print qq|<div class="displayPanel" style="padding-top: 1em; padding-left: 1em; margin-left: 3em; margin-right: 3em; overflow: hidden;">|;
+    $output .= qq|<div class="displayPanel" style="padding-top: 1em; padding-left: 1em; margin-left: 3em; margin-right: 3em; overflow: hidden;">|;
 
-    print $self->retellOptions();
+    $output .= $self->retellOptions();
     if (@form_warnings) {
-        print '<div align="center">';
-        print Debug::printWarnings(\@form_warnings);
-        print '</div>';
+        $output .= '<div align="center">';
+        $output .= Debug::printWarnings(\@form_warnings);
+        $output .= '</div>';
     }
 
     # Tell what happened
-    print "<div align=\"center\">\n";
-    print '<p class="large darkList" style="width: 36em; text-align: left; padding: 2px; lmargin-bottom: 0.5em;">Output</p>';
-    print "<div style=\"text-align: left; width: 40em;\">\n";
+    $output .= "<div align=\"center\">\n";
+    $output .= '<p class="large darkList" style="width: 36em; text-align: left; padding: 2px; lmargin-bottom: 0.5em;">Output</p>';
+    $output .= "<div style=\"text-align: left; width: 40em;\">\n";
     if ( $mainCount > 0 )	{
         if ( $q->param("output_data") =~ /matrix/ ) {
-            print "$mainCount collections and $nameCount taxa were printed to <a href=\"$OUT_HTTP_DIR/$mainFile\">$mainFile</a><br>\n";
+            $output .= "$mainCount collections and $nameCount taxa were printed to <a href=\"$OUT_HTTP_DIR/$mainFile\">$mainFile</a><br>\n";
         }  else {
             my $things = ($q->param("output_data") =~ /occurrence/) 
                 ? "occurrences" : $q->param("output_data");
@@ -269,56 +269,56 @@ sub buildDownload {
                 if ( $things !~ /species/ )	{
                     $things =~ s/s$//;
                 }
-                print "$mainCount $things was printed to <a href=\"$OUT_HTTP_DIR/$mainFile\">$mainFile</a><br>\n";
+                $output .= "$mainCount $things was printed to <a href=\"$OUT_HTTP_DIR/$mainFile\">$mainFile</a><br>\n";
             } else	{
-                print "$mainCount $things were printed to <a href=\"$OUT_HTTP_DIR/$mainFile\">$mainFile</a><br>\n";
+                $output .= "$mainCount $things were printed to <a href=\"$OUT_HTTP_DIR/$mainFile\">$mainFile</a><br>\n";
             }
             if ( $q->param("output_data") =~ /conjunct/i ) {
-                print "$colls collections were printed to <a href=\"$OUT_HTTP_DIR/$collFile\">$collFile</a><br>\n";
+                $output .= "$colls collections were printed to <a href=\"$OUT_HTTP_DIR/$collFile\">$collFile</a><br>\n";
             }
         }
         if ( $q->param("output_data") =~ /occurrence/ ) {
             if ( $taxaCount == 1 )	{
-                print "1 taxonomic range was printed to <a href=\"$OUT_HTTP_DIR/$taxaFile\">$taxaFile</a><br>\n";
+                $output .= "1 taxonomic range was printed to <a href=\"$OUT_HTTP_DIR/$taxaFile\">$taxaFile</a><br>\n";
             } else	{
-                print "$taxaCount taxonomic ranges were printed to <a href=\"$OUT_HTTP_DIR/$taxaFile\">$taxaFile</a><br>\n";
+                $output .= "$taxaCount taxonomic ranges were printed to <a href=\"$OUT_HTTP_DIR/$taxaFile\">$taxaFile</a><br>\n";
             }
         } 
 	
         if ( $refsCount == 1 )	{
-            print "$refsCount reference was printed to <a href=\"$OUT_HTTP_DIR/$refsFile\">$refsFile</a><br>\n";
+            $output .= "$refsCount reference was printed to <a href=\"$OUT_HTTP_DIR/$refsFile\">$refsFile</a><br>\n";
         } else	{
-            print "$refsCount references were printed to <a href=\"$OUT_HTTP_DIR/$refsFile\">$refsFile</a><br>\n";
+            $output .= "$refsCount references were printed to <a href=\"$OUT_HTTP_DIR/$refsFile\">$refsFile</a><br>\n";
         }
 	
 	if ( $ris_count > 0 ) {
-	    print "$ris_count references were printed to <a href=\"$OUT_HTTP_DIR/$risFile\">$risFile</a><br>\n";
+	    $output .= "$ris_count references were printed to <a href=\"$OUT_HTTP_DIR/$risFile\">$risFile</a><br>\n";
 	    if ( @$bad_list ) {
-		print "<p>The following references could not be printed due to erroneous data:<ul>\n";
-		print "<li>$_</li>\n" foreach @$bad_list;
-		print "</ul></p>\n";
+		$output .= "<p>The following references could not be printed due to erroneous data:<ul>\n";
+		$output .= "<li>$_</li>\n" foreach @$bad_list;
+		$output .= "</ul></p>\n";
 	    }
 	}
         my $fileNames = $mainFile."/".$taxaFile."/".$refsFile."/".$risFile;
         if ( $q->param('time_scale') )    {
-            print "$scaleCount time intervals were printed to <a href=\"$OUT_HTTP_DIR/$scaleFile\">$scaleFile</a><br>\n";
+            $output .= "$scaleCount time intervals were printed to <a href=\"$OUT_HTTP_DIR/$scaleFile\">$scaleFile</a><br>\n";
             $fileNames .= "/".$scaleFile;
         }
-        print "</div>\n\n";
-        print "<p>You can also e-mail the files.<br>\n<nobr><form method=\"post\" action=$READ_URL>Address: <input type=\"hidden\" name=\"action\" value=\"emailDownloadFiles\"><input type=\"hidden\" name=\"filenames\" value=\"$fileNames\"><input name=\"email\" size=\"20\"> <input type=\"submit\" value=\"e-mail\"></form></nobr></p>\n\n";
+        $output .= "</div>\n\n";
+        $output .= "<p>You can also e-mail the files.<br>\n<nobr><form method=\"post\" action=$READ_URL>Address: <input type=\"hidden\" name=\"action\" value=\"emailDownloadFiles\"><input type=\"hidden\" name=\"filenames\" value=\"$fileNames\"><input name=\"email\" size=\"20\"> <input type=\"submit\" value=\"e-mail\"></form></nobr></p>\n\n";
     } else	{
-        print "</div>\n\n";
-        print "<p><i>No occurrences met the search criteria</i></p>";
+        $output .= "</div>\n\n";
+        $output .= "<p><i>No occurrences met the search criteria</i></p>";
     }
-    print qq|<p align="center" style="white-space: nowrap;"><a href="?action=displayDownloadForm">Do another download</a> |;
+    $output .= qq|<p align="center" style="white-space: nowrap;"><a href="?action=displayDownloadForm">Do another download</a> |;
     if ( $hours >= $hourlimit )	{
-        print qq| - <a href="#" onClick=\"document.getElementById('mainPanel').style.display='none'; document.getElementById('terms').style.display='inline';\">Show terms again</a>|;
+        $output .= qq| - <a href="#" onClick=\"document.getElementById('mainPanel').style.display='none'; document.getElementById('terms').style.display='inline';\">Show terms again</a>|;
     }
     #print qq|<a href="?action=PASTQueryForm">Analyze with PAST functions</a></p></div>|;
 
-    print "</div>\n\n</div>\n\n";
+    $output .= "</div>\n\n</div>\n\n";
     if ( $hours >= $hourlimit )	{
-        print "</div>\n\n";
+        $output .= "</div>\n\n";
     }
 
     # stash submitted form params so they can be recycled the next time the
@@ -346,6 +346,7 @@ sub buildDownload {
         $dbh->do($sql);
     }
 
+    return $output;
 }
 
 sub checkInput {
@@ -395,11 +396,10 @@ sub errors	{
     my $errorString = "<li>" . join('</li><li>',@$errors) . "</li>";
     $q->param( 'error_message' => $errorString );
     if ( $q->param('form_type') eq "full" )	{
-        PBDB::displayDownloadForm();
+        return PBDB::displayDownloadForm();
     } else	{
-        PBDB::displayBasicDownloadForm();
+        return PBDB::displayBasicDownloadForm();
     }
-    return;
 }
 
 # Prints out the options which the user selected in summary form.
@@ -782,6 +782,7 @@ sub getCountryString {
     my $self = shift;
     my $q = $self->{'q'};
     my $dbh = $self->{'dbh'};
+    my $output = '';
 
 
     if ( $#continents == $#checkedcontinents )	{
@@ -805,8 +806,7 @@ sub getCountryString {
     } else {     
         # Get the regions
         if ( ! open ( REGIONS, "$DATA_DIR/PBDB.regions" ) ) {
-            print "<font color='red'>Skipping regions.</font> Error message is $!<br><BR>\n";
-            return;
+            return "<font color='red'>Skipping regions.</font> Error message is $!<br><BR>\n";
         }
 
         my %REGIONS;
@@ -3991,6 +3991,7 @@ sub printScaleFile {
 sub emailDownloadFiles	{
 	my $self = shift;
 	my $q = $self->{'q'};
+        my $output = '';
 
 	my %headers = ('Subject'=> 'Paleobiology Database download files','From'=>'PaleoDB administrator');
 	$headers{'To'} = $q->param('email');
@@ -4020,10 +4021,12 @@ Content-Disposition: attachment; filename=$file
 |;
 		$body .= `cat $OUT_FILE_DIR/$file`;
 	}
-	print $mailer $body;
+	$output .= $mailer $body; #printquestion-how to return these two scalers as a string?
 	$mailer->close;
 
-	print "<center>\n<p class=\"pageTitle\">Download sent</p>\n\nYour download files have been mailed to:</p>\n\n<p><b>".$q->param('email')."</b></p></center>";
+	$output .= "<center>\n<p class=\"pageTitle\">Download sent</p>\n\nYour download files have been mailed to:</p>\n\n<p><b>".$q->param('email')."</b></p></center>";
+
+        return $output;
 }
 
 
@@ -4333,7 +4336,7 @@ sub dbg {
     my $self = shift;
     my $message = shift;
 
-    if ( $DEBUG && $message ) { print "<font color='green'>$message</font><br>\n"; }
+    if ( $DEBUG && $message ) { print "<font color='green'>$message</font><br>\n"; } #printquestion
 
     return $DEBUG;                    # Either way, return the current DEBUG value
 }

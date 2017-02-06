@@ -16,8 +16,7 @@ sub displayReviewForm	{
 
 	# enterers may not create pages (sorry)
 	if ( $s->get('enterer') ne $s->get('authorizer') )	{
-		print "<div align=\"center\">".PBDB::Debug::printWarnings("Only authorizers can edit review pages. Many apologies.")."</div>";
-		return;
+		return "<div align=\"center\">".PBDB::Debug::printWarnings("Only authorizers can edit review pages. Many apologies.")."</div>";
 	}
 
 	my %vars;
@@ -34,8 +33,7 @@ sub displayReviewForm	{
 			my $review = ${$dbt->getData($sql)}[0];
 			$vars{'released'} = "<i>This page was published on ".$review->{'released'}."</i>";
 		}
-		print $hbo->populateHTML("review_form", \%vars);
-		return;
+		return $hbo->populateHTML("review_form", \%vars);
 	}
 
 	# if this is a second trip to the function, display the review
@@ -46,8 +44,7 @@ sub displayReviewForm	{
 		# paranoia check (authors shouldn't be able to select a review
 		#  unless they own it)
 		if ( ! $review )	{
-			print "<div align=\"center\">".PBDB::Debug::printWarnings("You don't own this review page, so you can't edit it. Nothing personal.")."</div>";
-			return;
+			return "<div align=\"center\">".PBDB::Debug::printWarnings("You don't own this review page, so you can't edit it. Nothing personal.")."</div>";
 		}
 
 		$vars{$_} = $review->{$_} foreach ('review_no','personage','interval_no','region','taxon_no','title','text');
@@ -70,15 +67,13 @@ sub displayReviewForm	{
 		} else	{
 			$vars{'released'} = $publish_link;
 		}
-		print $hbo->populateHTML("review_form", \%vars);
-		return;
+		return $hbo->populateHTML("review_form", \%vars);
 	}
 	# second trip, but the user wants to create a new page
 	elsif ( $q->param('review_no') == - 1)	{
 		$vars{'add_edit'} = "Entry";
 		$vars{'released'} = $publish_link;
-		print $hbo->populateHTML("review_form", \%vars);
-		return;
+		return $hbo->populateHTML("review_form", \%vars);
 	}
 
 	my $sql = "SELECT r.review_no,official_no,title FROM reviews r,versions v WHERE r.review_no=v.review_no AND author_no=".$s->get('enterer_no')." AND latest='Y'";
@@ -88,14 +83,14 @@ sub displayReviewForm	{
 	if ( ! @reviews )	{
 		$vars{'add_edit'} = "Entry";
 		$vars{'released'} = $publish_link;
-		print $hbo->populateHTML("review_form", \%vars);
-		return;
+		return $hbo->populateHTML("review_form", \%vars);
 	}
 
 	# otherwise show choices
 	else	{
 	# this is incredibly lame, but inheritance of width=100% from div
 	#  surrounding whole page forces explicit width specification
+                my $output = '';
 		my $max;
 		for my $r ( @reviews )	{
 			if ( length($r->{'title'}) > $max )	{
@@ -103,8 +98,8 @@ sub displayReviewForm	{
 			}
 		}
 		my $width = sprintf("%.1fem",$max*0.55+10);
-		print "<center><p class=\"pageTitle\">Please select a review page to edit</p></center>\n\n";
-		print qq|
+		$output .= "<center><p class=\"pageTitle\">Please select a review page to edit</p></center>\n\n";
+		$output .= qq|
 <form name="chooseReview" method=post action="classic">
 <input type="hidden" name="a" value="displayReviewForm">
 <input type="hidden" name="review_no" value="">
@@ -115,19 +110,19 @@ sub displayReviewForm	{
 |;
 
 		for my $r ( @reviews )	{
-			print "<p style=\"text-indent: -2em; margin-left: 2em;\">&bull; <a href=# onClick=\"javascript: document.chooseReview.review_no.value='".$r->{'review_no'}."'; document.chooseReview.submit();\">$r->{'title'}</a>";
+			$output .= "<p style=\"text-indent: -2em; margin-left: 2em;\">&bull; <a href=# onClick=\"javascript: document.chooseReview.review_no.value='".$r->{'review_no'}."'; document.chooseReview.submit();\">$r->{'title'}</a>";
 			if ( $r->{'official_no'} > 0 )	{
-				print " (PaleoDB Review #$r->{'official_no'})";
+				$output .= " (PaleoDB Review #$r->{'official_no'})";
 			}
-			print "</p>\n";
+			$output .= "</p>\n";
 		}
-		print "<p>&bull; <a href=# onClick=\"javascript: document.chooseReview.review_no.value='-1'; document.chooseReview.submit();\"><i>Create a new review page</i></a>";
-		print "</p>\n";
+		$output .= "<p>&bull; <a href=# onClick=\"javascript: document.chooseReview.review_no.value='-1'; document.chooseReview.submit();\"><i>Create a new review page</i></a>";
+		$output .= "</p>\n";
 
-		print "\n</div>\n</div>\n</div>\n\n";
+		$output .= "\n</div>\n</div>\n</div>\n\n";
 	}
 
-	return;
+	return $output;
 
 }
 
@@ -153,8 +148,7 @@ sub processReviewForm	{
 	}
 
 	if ( $q->param('preview') =~ /y/i )	{
-		showReview($dbt,$q,$s,$hbo,$error);
-		return;
+		return showReview($dbt,$q,$s,$hbo,$error);
 	}
 
 	# need formatting checks on title, personage, and taxon
@@ -219,13 +213,14 @@ sub processReviewForm	{
 		}
 	}
 
-	showReview($dbt,$q,$s,$hbo,$error);
+	return showReview($dbt,$q,$s,$hbo,$error);
 
 }
 
 
 sub listReviews	{
 	my ($dbt,$q,$s,$hbo) = @_;
+        my $output = '';
 
 	my $sql = "SELECT first_name,last_name,institution,r.review_no,official_no,title FROM person,reviews r,versions v WHERE person_no=author_no AND r.review_no=v.review_no AND latest='Y' AND (author_no=".$s->get('enterer_no')." OR (released IS NOT NULL AND released<now()))";
 	if ( $s->get('enterer_no') == 0 )	{
@@ -234,26 +229,27 @@ sub listReviews	{
 	$sql .= " ORDER BY official_no";
 	my @reviews = @{$dbt->getData($sql)};
 
-	print "<center><p class=\"pageTitle\" style=\"margin-top: 2em;\">Paleobiology Database Reviews</p></center>\n\n";
+	$output .= "<center><p class=\"pageTitle\" style=\"margin-top: 2em;\">Paleobiology Database Reviews</p></center>\n\n";
 
-	print qq|
+	$output .= qq|
 <form name="chooseReview" method=post action="classic">
 <input type="hidden" name="a" value="showReview">
 <input type="hidden" name="review_no" value="">
 </form>
 |;
 
-	print "<div class=\"displayPanel\" style=\"width: 40em; margin-left: auto; margin-right: auto;\">\n\n";
-	print "<div class=\"displayPanelContent\">\n";
+	$output .= "<div class=\"displayPanel\" style=\"width: 40em; margin-left: auto; margin-right: auto;\">\n\n";
+	$output .= "<div class=\"displayPanelContent\">\n";
 	for my $r ( @reviews )	{
-		print "<p style=\"text-indent: -2em; margin-left: 2em;\">&bull; $r->{'first_name'} $r->{'last_name'}, <a href=# onClick=\"javascript: document.chooseReview.review_no.value='".$r->{'review_no'}."'; document.chooseReview.submit();\"><i>$r->{'title'}</i></a>";
+		$output .= "<p style=\"text-indent: -2em; margin-left: 2em;\">&bull; $r->{'first_name'} $r->{'last_name'}, <a href=# onClick=\"javascript: document.chooseReview.review_no.value='".$r->{'review_no'}."'; document.chooseReview.submit();\"><i>$r->{'title'}</i></a>";
 		if ( $r->{'official_no'} > 0 )	{
-			print " (Paleobiology Database Review #".$r->{'official_no'}.")";
+			$output .= " (Paleobiology Database Review #".$r->{'official_no'}.")";
 		}
-		print "</p>\n";
+		$output .= "</p>\n";
 	}
-	print "\n</div>\n</div>\n</div>\n\n";
+	$output .= "\n</div>\n</div>\n</div>\n\n";
 
+        return $output;
 }
 
 
@@ -262,6 +258,7 @@ sub showReview	{
 
 	my %keywords;
 	my @keyword_vars = ('personage','interval','region','taxon');
+        my $output = '';
 
 	# supply an edit button if the enterer is the author
 
@@ -286,7 +283,7 @@ sub showReview	{
 		$escaped =~ s/"/&quot;/g;
 		$q->param('text' => $escaped);
 
-		print "<form method=post name=redisplayForm>\n";
+		$output .= "<form method=post name=redisplayForm>\n";
 		$q->param('action' => 'displayReviewForm');
 		my $was_preview;
 		if ( $q->param('preview') =~ /y/i )	{
@@ -298,23 +295,23 @@ sub showReview	{
 		}
 		my @params = $q->param;
 		for my $p ( @params )	{
-			print "<input type=hidden name=$p value=\"".$q->param($p)."\">\n";
+			$output .= "<input type=hidden name=$p value=\"".$q->param($p)."\">\n";
 		}
-		print "</form>\n\n";
+		$output .= "</form>\n\n";
 
 		for my $k ( @keyword_vars )	{
 			$keywords{$k} = $q->param($k);
 		}
 
 		if ( $was_preview > 0 )	{
-			print "<center><p class=\"large\" style=\"margin-top: 2em; margin-bottom: -1em;\"><i>Here is your page preview. <a href=# onClick=\"javascript: document.redisplayForm.submit();\">Click here</a> to go back.</i></p></center>\n\n";
+			$output .= "<center><p class=\"large\" style=\"margin-top: 2em; margin-bottom: -1em;\"><i>Here is your page preview. <a href=# onClick=\"javascript: document.redisplayForm.submit();\">Click here</a> to go back.</i></p></center>\n\n";
 		}
 		# should be a submission results page
 		else	{
-			print "<center><p class=\"large\" style=\"margin-top: 2em; margin-bottom: -1em;\"><i>Your page was saved and looks like this. <a href=# onClick=\"javascript: document.redisplayForm.submit();\">Click here</a> to go back.</i></p></center>\n\n";
+			$output .= "<center><p class=\"large\" style=\"margin-top: 2em; margin-bottom: -1em;\"><i>Your page was saved and looks like this. <a href=# onClick=\"javascript: document.redisplayForm.submit();\">Click here</a> to go back.</i></p></center>\n\n";
 		}
 		if ( $error )	{
-			print "<center><p class=\"large\" style=\"margin-top: 2em; margin-bottom: -1em;\"><i>$error</i></p></center>\n\n";
+			$output .= "<center><p class=\"large\" style=\"margin-top: 2em; margin-bottom: -1em;\"><i>$error</i></p></center>\n\n";
 		}
 	}
 	# otherwise retrieve everything from the database
@@ -340,11 +337,11 @@ sub showReview	{
 		}
 	}
 
-	print "<center><p class=\"pageTitle\" style=\"margin-top: 2em; margin-bottom: 0em;\">$title</p>\n\n";
+	$output .= "<center><p class=\"pageTitle\" style=\"margin-top: 2em; margin-bottom: 0em;\">$title</p>\n\n";
 	if ( $no )	{
-		print "<p class=\"large\" style=\"margin-top: 0.5em; margin-bottom: 0em;\">Paleobiology Database Review #$no</p>\n";
+		$output .= "<p class=\"large\" style=\"margin-top: 0.5em; margin-bottom: 0em;\">Paleobiology Database Review #$no</p>\n";
 	}
-	print "<p>$author, $institution</p></center>\n\n<br>";
+	$output .= "<p>$author, $institution</p></center>\n\n<br>";
 
 	my @words;
 	for my $k ( @keyword_vars )	{
@@ -353,10 +350,10 @@ sub showReview	{
 		}
 	}
 	if ( $#words == 0 )	{
-		print "<center><p class=\"small\" style=\"margin-top: -2em;\">Keyword: $words[0]</p></center>\n\n";
+		$output .= "<center><p class=\"small\" style=\"margin-top: -2em;\">Keyword: $words[0]</p></center>\n\n";
 	} elsif ( $#words > 0 )	{
 		@words = sort @words;
-		print "<center><p class=\"small\" style=\"margin-top: -2em;\">Keywords: ".join(', ',@words)."</p></center>\n\n";
+		$output .= "<center><p class=\"small\" style=\"margin-top: -2em;\">Keywords: ".join(', ',@words)."</p></center>\n\n";
 	}
 
 	my $panelStart = qq|
@@ -419,11 +416,11 @@ sub showReview	{
 		if ( $goal ne "submit" )	{
 			$isthere = `ls $HTML_DIR$maplink`;
 			if ( $isthere !~ /[A-Za-z]\.[a-z]/ )	{
-				makeMap($dbt,$q,$s,$hbo,join('_',@tags));
+				$output .= makeMap($dbt,$q,$s,$hbo,join('_',@tags));
 				$isthere = `ls $HTML_DIR$maplink`;
 			}
 		} else	{
-			makeMap($dbt,$q,$s,$hbo,join('_',@tags));
+			$output .= makeMap($dbt,$q,$s,$hbo,join('_',@tags));
 			$isthere = `ls $HTML_DIR$maplink`;
 		}
 		if ( $isthere =~ /[A-Za-z]\.[a-z]/ )	{
@@ -491,12 +488,12 @@ sub showReview	{
 	$reflist = '<div style="margin-left: 2em;">'.$reflist.'</div>';
 	$text =~ s/\{\{reflist\}\}/$reflist/;
 
-	print $text;
+	$output .= $text;
 
 	# end the last major section
-	print "\n</div>\</div>\n\n";
+	$output .= "\n</div>\</div>\n\n";
 
-	print "<center><b>" . makeAnchor("listReviews", "", "See more PaleoDB review pages") . "</b></center>\n\n";
+	$output .= "<center><b>" . makeAnchor("listReviews", "", "See more PaleoDB review pages") . "</b></center>\n\n";
 
 }
 
@@ -569,6 +566,7 @@ sub insertImage	{
 
 sub makeMap	{
 	my ($dbt,$q,$s,$hbo,$maplink) = @_;
+        my $output = '';
 
 
 	# everything left must be cleaned up
@@ -667,7 +665,7 @@ sub makeMap	{
 	}
 
 	if ( @errors )	{
-		print "<center><p class=\"small\" style=\"margin-bottom: 2em;\">WARNING: ".join("; ",@errors)."</p></center>\n\n";
+		$output .= "<center><p class=\"small\" style=\"margin-bottom: 2em;\">WARNING: ".join("; ",@errors)."</p></center>\n\n";
 	}
 	my $m = PBDB::Map->new($q,$dbt,$s);
 	my ($map_html_path,$errors,$warnings) = $m->buildMap('dataSet'=>$colls);
@@ -676,7 +674,7 @@ sub makeMap	{
 	$maplink =~ s/ /_/g;
 	`cp -p $HTML_DIR/public/maps/pbdbmap$count.png $HTML_DIR/public/reviews/$maplink.png`;
 
-	return;
+	return $output;
 
 }
 

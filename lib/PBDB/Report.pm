@@ -61,49 +61,50 @@ sub reportDisplayHTML {
     my $self = shift;
     my $q = $self->{q};
     my $s = $self->{s};
+    my $output = '';
 
     # Print Title of Page
-	print "<center>\n";
-	print "<p class=\"pageTitle\">Paleobiology Database report";
+	$output .= "<center>\n";
+	$output .= "<p class=\"pageTitle\">Paleobiology Database report";
 	if ($q->param('taxon_name')){
-		print ": ".$q->param('taxon_name');
+		$output .= ": ".$q->param('taxon_name');
 	}
-	print "</p>\n";
+	$output .= "</p>\n";
 
     # Print Warnings
     my $msg = PBDB::Debug::printWarnings($self->{'warnings'});
-    if ($msg) { print $msg. "<br>"; }
+    if ($msg) { $output .= $msg. "<br>"; }
     
     # Print Header
     my $isDoubleArray = scalar @{$self->{'sortKeys2'}};
     my $totalKeyword = ($q->param('output') eq 'average occurrences') ? 'AVERAGE' : 'TOTAL';
     my $header1 = $q->param('searchfield1'); $header1 =~ s/\s+\([a-z ]+\)//i;
     my $header2 = $q->param('searchfield2'); $header2 =~ s/\s+\([a-z ]+\)//i;
-    print "<table border=0 class=dataTable cellspacing=0>";
+    $output .= "<table border=0 class=dataTable cellspacing=0>";
     if ($isDoubleArray) {
         my $numCols = scalar(@{$self->{'sortKeys2'}});
-        print "<tr><td class=dataTableTopULCorner>&nbsp;</td>";
-        print "<td class=dataTableTop colspan=$numCols align=center>$header2</td>";
-        print "<td>&nbsp;</td></tr>";
+        $output .= "<tr><td class=dataTableTopULCorner>&nbsp;</td>";
+        $output .= "<td class=dataTableTop colspan=$numCols align=center>$header2</td>";
+        $output .= "<td>&nbsp;</td></tr>";
     }
-    print "<tr>";
-    print "<td class=dataTableULCorner align=center>$header1</td>";
+    $output .= "<tr>";
+    $output .= "<td class=dataTableULCorner align=center>$header1</td>";
     if ($isDoubleArray) { 
         foreach my $key2 (@{$self->{'sortKeys2'}}) {
             my $cleankey2 = $key2;
             if ($key2 =~ /,[^ ]/)	{
                 $cleankey2 =~ s/,/, /g;
             }
-            print "<td class=dataTableColumn>$cleankey2</td>";
+            $output .= "<td class=dataTableColumn>$cleankey2</td>";
         }
-        print "<td class=dataTableColumnTotal>$totalKeyword</td>";
+        $output .= "<td class=dataTableColumnTotal>$totalKeyword</td>";
     } else {
-        print "<td class=dataTableColumn>".$q->param('output')."</td>";
+        $output .= "<td class=dataTableColumn>".$q->param('output')."</td>";
         if ($q->param('output') ne 'average occurrences') {
-            print "<td class=dataTableColumn>percent</td>";
+            $output .= "<td class=dataTableColumn>percent</td>";
         }
     }
-    print "</tr>\n";
+    $output .= "</tr>\n";
 
     # Print Table
     my $grandTotal = ($q->param('output') eq 'collections') ? $self->{'grandTotalCollections'} : $self->{'grandTotalOccurrences'};
@@ -112,38 +113,38 @@ sub reportDisplayHTML {
         if ($key1 =~ /,[^ ]/)	{
             $cleankey1 =~ s/,/, /g;
         }
-        print "<tr>";
-        print "<td class=dataTableRow>$cleankey1</td>";
+        $output .= "<tr>";
+        $output .= "<td class=dataTableRow>$cleankey1</td>";
         if ($isDoubleArray) { 
             foreach my $key2 (@{$self->{'sortKeys2'}}) {
-                print "<td class=dataTableCell align=right>".$self->{'dataTable'}{$key1}{$key2}."</td>";
+                $output .= "<td class=dataTableCell align=right>".$self->{'dataTable'}{$key1}{$key2}."</td>";
             }
-            print "<td class=dataTableCellTotal align=right>".$self->{'totals1'}{$key1}."</td>";
+            $output .= "<td class=dataTableCellTotal align=right>".$self->{'totals1'}{$key1}."</td>";
         } else {
-            print "<td class=dataTableCell align=right>".$self->{'dataTable'}{$key1}."</td>";
+            $output .= "<td class=dataTableCell align=right>".$self->{'dataTable'}{$key1}."</td>";
             if ($q->param('output') ne 'average occurrences') {
-                print "<td class=dataTableCell align=right>".sprintf("%.1f",$self->{'dataTable'}{$key1}*100/$grandTotal)."</td>";
+                $output .= "<td class=dataTableCell align=right>".sprintf("%.1f",$self->{'dataTable'}{$key1}*100/$grandTotal)."</td>";
             }
         }    
-        print "</tr>\n";
+        $output .= "</tr>\n";
     }    
 
     # Print Final Totals Line
     if ($isDoubleArray) { 
-        print "<tr><td class=dataTableRowTotal>$totalKeyword</td>";
+        $output .= "<tr><td class=dataTableRowTotal>$totalKeyword</td>";
         foreach my $key2 (@{$self->{'sortKeys2'}}) {
-            print "<td class=dataTableCellTotal align=right>".$self->{'totals2'}{$key2}."</td>";
+            $output .= "<td class=dataTableCellTotal align=right>".$self->{'totals2'}{$key2}."</td>";
         }
         if ($q->param('output') ne 'average occurrences') {
-            print "<td align=right class=dataTableCellTotal>$grandTotal</td>";
+            $output .= "<td align=right class=dataTableCellTotal>$grandTotal</td>";
         } else {
-            print "<td align=right class=dataTableCellTotal>".sprintf("%.1f",$self->{'grandTotalOccurrences'}/$self->{'grandTotalCollections'})."</td>";
+            $output .= "<td align=right class=dataTableCellTotal>".sprintf("%.1f",$self->{'grandTotalOccurrences'}/$self->{'grandTotalCollections'})."</td>";
         }
-        print "</tr>";
+        $output .= "</tr>";
     }
-    print "</table>\n";
+    $output .= "</table>\n";
 
-    print "<p>";
+    $output .= "<p>";
     #if ($q->param('output') ne 'collections') {
     #    if ($self->{'grandTotal1'} ne $self->{'grandTotalOccurrences'}) { 
     #        print "<b>".$self->{'grandTotal1'} . "</b> entries in "
@@ -153,10 +154,10 @@ sub reportDisplayHTML {
     #        print "<b>".$self->{'grandTotal1'} . "</b> entries in "
     #    }
     #}
-    print $self->{'grandTotalOccurrences'} . " occurrences and " if ($q->param('output') ne 'collections');
-    print "".$self->{'grandTotalCollections'} . " collections";
-    print ", ".sprintf("%.1f",$self->{'grandTotalOccurrences'}/$self->{'grandTotalCollections'}) . " occurrences per collection" if ($q->param('output') eq 'average occurrences');
-    print " were tabulated</p>";
+    $output .= $self->{'grandTotalOccurrences'} . " occurrences and " if ($q->param('output') ne 'collections');
+    $output .= "".$self->{'grandTotalCollections'} . " collections";
+    $output .= ", ".sprintf("%.1f",$self->{'grandTotalOccurrences'}/$self->{'grandTotalCollections'}) . " occurrences per collection" if ($q->param('output') eq 'average occurrences');
+    $output .= " were tabulated</p>";
 
     # Link to report
     my $authorizer = $s->get("authorizer");
@@ -164,9 +165,11 @@ sub reportDisplayHTML {
     $authorizer =~ s/(\s|\.)//g;
     my $reportFileName = $authorizer . "-report.csv";
 
-	print qq|<p>The report data have been saved as "<a href="$HOST_URL/public/reports/$reportFileName">$reportFileName</a>"</p>|;
-    print "</center>\n";
-    print "<p>&nbsp;</p>";
+	$output .= qq|<p>The report data have been saved as "<a href="$HOST_URL/public/reports/$reportFileName">$reportFileName</a>"</p>|;
+    $output .= "</center>\n";
+    $output .= "<p>&nbsp;</p>";
+
+    return $output;
 }
 
 ##
@@ -615,7 +618,7 @@ sub reportBuildDataTables {
 # returning the variable $sth, a statement handle to the data
 ##
 sub reportQueryDB{
-	my $self = shift;
+    my $self = shift;
     my $q = $self->{q};
     my $dbt = $self->{dbt};
     my $dbh = $dbt->dbh;
@@ -675,8 +678,7 @@ sub reportQueryDB{
     }
     $groupSQL =~ s/^,//;
     if ($q->param('taxon_name') =~ /[^\s\w, \t\n-:;]/) {
-        print "<div align=\"center\">".PBDB::Debug::printErrors(["Invalid taxon name"])."</div>";
-        return;
+        return "<div align=\"center\">".PBDB::Debug::printErrors(["Invalid taxon name"])."</div>";
     }
 	if (($q->param('output') eq "collections" && ($q->param('Sepkoski') eq "Yes" || $q->param('taxon_name'))) || 
         ($q->param('output') eq "occurrences") ||
@@ -823,7 +825,7 @@ sub getTranslationTable {
         %table = %{$pcontinents};
     } elsif ($param eq 'tectonic plate ID') {
         if ( ! open ( PLATES, "$DATA_DIR/plateidsv2.lst" ) ) {
-            print "<font color='red'>Skipping plates.</font> Error message is $!<br><br>\n";
+            print STDERR "ERROR: Skipping plates: $!\n";
         } else {
             <PLATES>;
 
@@ -866,7 +868,7 @@ sub getRegions	{
     my %regions;
 
 	if ( ! open REGIONS,"<$DATA_DIR/PBDB.regions" ) {
-		$self->htmlError ( "$0:Couldn't open $DATA_DIR/PBDB.regions<br>$!" );
+		print STDERR "$0:Couldn't open $DATA_DIR/PBDB.regions: $!\n";
 	}
 	while (<REGIONS>)	{
 		s/\n//;
@@ -897,13 +899,12 @@ sub getPaleocontinents	{
 }
 
 # This only shown for internal errors
-sub htmlError {
-	my $self = shift;
-    my $message = shift;
+# sub htmlError {
+#     my $self = shift;
+#     my $message = shift;
 
-    print $message;
-    exit 1;
-}
+#     return $message;
+# }
 
 
 # JA 10.6.08
@@ -915,6 +916,7 @@ sub findMostCommonTaxa	{
 	my $q = $self->{q};
 	my $s = $self->{s};
 	my $dbt = $self->{dbt};
+        my $output = '';
 
 	my @dataRows = @{$dataRowsRef};
 	my @collection_nos = map {$_->{'collection_no'}} @dataRows;
@@ -1061,28 +1063,28 @@ sub findMostCommonTaxa	{
 	} elsif ( $atrank eq "species" )	{
 		$plural = "species";
 	}
-	print "<center><p class=\"pageTitle\">The most common $plural in these collections</p></center>\n\n";
+	$output .= "<center><p class=\"pageTitle\">The most common $plural in these collections</p></center>\n\n";
 
-	print "<div class=\"displayPanel\" style=\"width: 50em; margin-left: 1em;\">\n";
-	print "<div class=\"displayPanelContent\">\n";
-	print "<table class=\"small\" style=\"margin-left: 1em; margin-top: 1em; margin-bottom: 1em;\">\n";
-	print "<tr align=\"center\"><td style=\"font-size: 1.15em;\">rank</td>";
+	$output .= "<div class=\"displayPanel\" style=\"width: 50em; margin-left: 1em;\">\n";
+	$output .= "<div class=\"displayPanelContent\">\n";
+	$output .= "<table class=\"small\" style=\"margin-left: 1em; margin-top: 1em; margin-bottom: 1em;\">\n";
+	$output .= "<tr align=\"center\"><td style=\"font-size: 1.15em;\">rank</td>";
 	print OUT "rank,";
-	print "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">class</td>";
+	$output .= "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">class</td>";
 	print OUT "class,";
 	if ( $atrank =~ /family|genus|species/ )	{
-		print "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">order</td>";
+		$output .= "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">order</td>";
 		print OUT "order,";
 	}
 	if ( $atrank =~ /genus|species/ )	{
-		print "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">family</td>";
+		$output .= "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">family</td>";
 		print OUT "family,";
 	}
-	print "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">$atrank</td>";
+	$output .= "<td align=\"left\" style=\"font-size: 1.15em; padding-left: 1em;\">$atrank</td>";
 	print OUT "$atrank,";
-	print "<td style=\"font-size: 1.15em;\">count</td>";
+	$output .= "<td style=\"font-size: 1.15em;\">count</td>";
 	print OUT "count,";
-	print "<td style=\"font-size: 1.15em;\">&nbsp;%</td></tr>\n";
+	$output .= "<td style=\"font-size: 1.15em;\">&nbsp;%</td></tr>\n";
 	print OUT "percent\n";
 	my $sum = 0;
 	for my $t ( @taxa )	{
@@ -1105,10 +1107,10 @@ sub findMostCommonTaxa	{
 			if ( $printed % 2 == 1 )	{
 				$class = qq|class="darkList"|;
 			}
-			print "<tr $class>\n";
-			print "<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">&nbsp;$printed</td>\n";
+			$output .= "<tr $class>\n";
+			$output .= "<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">&nbsp;$printed</td>\n";
 			for my $rank ( @ranks )	{
-				print "<td style=\"font-size: 0.9em; padding-left: 1em; padding-right: 1em;\">$parent{$n}{$rank}</td>\n";
+				$output .= "<td style=\"font-size: 0.9em; padding-left: 1em; padding-right: 1em;\">$parent{$n}{$rank}</td>\n";
 			}
 			my $linkname = $t;
 			if ( $t =~ /"/ )	{
@@ -1119,10 +1121,10 @@ sub findMostCommonTaxa	{
 			if ( $atrank =~ /genus|species/ )	{
 				$displayname = "<i>" . $t . "</i>";
 			}
-			print qq|<td style=\"padding-left: 1em; padding-right: 1em;\">| . makeAnchor("checkTaxonInfo", "taxon_name=$linkname&amp;is_real_user=1", "$displayname") . "</a></td>";
-			print "\n<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">&nbsp;&nbsp;$count{$t}</td>\n";
-			printf "<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">%.1f</td>\n",$count{$t}/$sum*100;
-			print "</tr>\n";
+			$output .= qq|<td style=\"padding-left: 1em; padding-right: 1em;\">| . makeAnchor("checkTaxonInfo", "taxon_name=$linkname&amp;is_real_user=1", "$displayname") . "</a></td>";
+			$output .= "\n<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">&nbsp;&nbsp;$count{$t}</td>\n";
+			$output .= sprintf "<td align=\"center\" style=\"padding-left: 1em; padding-right: 1em;\">%.1f</td>\n",$count{$t}/$sum*100;
+			$output .= "</tr>\n";
 		}
 		if ( $printed == $q->param('rows') )	{
 			last;
@@ -1146,26 +1148,28 @@ sub findMostCommonTaxa	{
 			printf OUT "%.2f\n",$count{$t}/$sum*100;
 		}
 	}
-	print "</table>\n\n";
-	print "</div>\n";
-	print "</div>\n";
+	$output .= "</table>\n\n";
+	$output .= "</div>\n";
+	$output .= "</div>\n";
 	if ( $printed == 1 )	{
 		$plural = $atrank;
 	}
-	printf "<center><p class=\"large\">In total there are $sum occurrences of %d $plural that come from $collections collections.</p></center>\n",$printed;
-	print "<center><p class=\"large\">You can <a href=\"/public/taxa/${filename}_taxa.csv\">download</a> a comma-delimited version of this table listing all of the $plural.</p>\n";
+	$output .= sprintf("<center><p class=\"large\">In total there are $sum occurrences of %d $plural that come from $collections collections.</p></center>\n",$printed);
+	$output .= "<center><p class=\"large\">You can <a href=\"/public/taxa/${filename}_taxa.csv\">download</a> a comma-delimited version of this table listing all of the $plural.</p>\n";
 	if ( $quoted > 0 )	{
-		print "<center><p class=\"small\">We have no formal taxonomic data for names in quotes, so they may be invalid.</p></center>\n";
+		$output .= "<center><p class=\"small\">We have no formal taxonomic data for names in quotes, so they may be invalid.</p></center>\n";
 	}
 	close OUT;
 
+        return $output;
 }
 
 # JA 23.10.10
 sub fastTaxonCount	{
 	my ($dbt,$q,$s,$hbo) = @_;
+        my $output = '';
 
-	print qq|
+	$output .= qq|
 <div align="center">
   <p class="pageTitle">Taxon counts</p>
 </div>
@@ -1237,7 +1241,7 @@ sub fastTaxonCount	{
 		$sql = "SELECT person_no FROM person WHERE reversed_name='".$q->param('enterer_reversed')."'";
 		$enterer = ${$dbt->getData($sql)}[0]->{person_no};
 	}
-	print "<p style=\"margin-left: 2em; text-indent: -0.5em;\">Your query was: <i>".join(', ',@qs).".</i>";
+	$output .= "<p style=\"margin-left: 2em; text-indent: -0.5em;\">Your query was: <i>".join(', ',@qs).".</i>";
 
 	my @tables = ("authorities a,$TAXA_TREE_CACHE t,$TAXA_TREE_CACHE t2");
 	my @and;
@@ -1350,13 +1354,13 @@ sub fastTaxonCount	{
 	}
 
 	if ( $errors )	{
-		print "</p>\n\n";
-		print "<div align=\"center\" style=\"padding-bottom: 1em;\">&bull; $errors</div>\n\n";
-		print "</div>\n\n";
-		print "<div align=\"center\">" . makeAnchor("fastTaxonCount", "", "Count more taxa") . "</div>\n\n";
-		return;
+		$output .= "</p>\n\n";
+		$output .= "<div align=\"center\" style=\"padding-bottom: 1em;\">&bull; $errors</div>\n\n";
+		$output .= "</div>\n\n";
+		$output .= "<div align=\"center\">" . makeAnchor("fastTaxonCount", "", "Count more taxa") . "</div>\n\n";
+		return $output;
 	}
-	print " The counts are:</p>\n\n";
+	$output .= " The counts are:</p>\n\n";
 
 
 	# a faster method could be used if queries were only ever by taxon name, but
@@ -1371,20 +1375,20 @@ sub fastTaxonCount	{
 	}
 	my %plural = ('order'=>'orders','family'=>'families','genus'=>'genera','species'=>'species' );
 	for my $r ( 'order','family','genus','species' )	{
-		print "<div style=\"margin-left: 2em; text-indent: -0.5em;\">\n";
+		$output .= "<div style=\"margin-left: 2em; text-indent: -0.5em;\">\n";
 		if ( $count{$r} > 0 )	{
 			my $name = $plural{$r};
 			if ( $count{$r} == 1 )	{
 				$name = $r;
 			}
-			print "<p>",$count{$r}," $name";
+			$output .= "<p>",$count{$r}," $name";
 			if ( $#{$list{$r}} <= 100 )	{
 				@{$list{$r}} = sort @{$list{$r}};
-				print " <span class=\"small\">(".join(', ',@{$list{$r}}).")</span>";
+				$output .= " <span class=\"small\">(".join(', ',@{$list{$r}}).")</span>";
 			}
-			print "</p>\n";
+			$output .= "</p>\n";
 		}
-		print "</div>\n\n";
+		$output .= "</div>\n\n";
 	}
 	my @empties;
 	for my $r ( 'order','family','genus' )	{
@@ -1408,11 +1412,13 @@ sub fastTaxonCount	{
 		if ( $#empties == 0 && $warning =~ / one / )	{
 			$warning =~ s/do not/does not/;
 		}
-		print $warning,"</div>\n\n";
+		$output .= $warning,"</div>\n\n";
 	}
 
-	print "</div>\n\n";
-	print "<div align=\"center\">" . makeAnchor("displayCountForm", "page=taxon_count_form", "Count more taxa</b>") . "</div>\n\n";
+	$output .= "</div>\n\n";
+	$output .= "<div align=\"center\">" . makeAnchor("displayCountForm", "page=taxon_count_form", "Count more taxa</b>") . "</div>\n\n";
+
+        return $output;
 }
 
 
@@ -1469,7 +1475,7 @@ sub museums	{
 		$vars{museum_list} .= qq|<td valign="top"><span class="mockLink" onClick="searchCollections('$code');">$collCount{$code}</span></td>\n|;
 		$vars{museum_list} .= "</tr>\n";
 	}
-	print $hbo->populateHTML("museum_form", \%vars);
+	return $hbo->populateHTML("museum_form", \%vars);
 }
 
 

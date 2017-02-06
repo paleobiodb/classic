@@ -24,8 +24,9 @@ use strict;
 # doesn't relate to other subroutines here, but has to go somewhere...
 sub getTaxonomyXML	{
 	my ($dbt,$q,$s,$hbo) = @_;
+        my $output .= '';
 
-	print "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" ?>\n";
+	$output .= "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" ?>\n";
 
 	# we'll do this with simple table hits instead of recycling
 	#  getTaxonomicNames or getTaxonomicOpinions because the allowed query
@@ -42,15 +43,15 @@ sub getTaxonomyXML	{
 	$searchString =~ s/\+/ /g;
 	$searchString =~ s/\*/%/g;
 	if ( $searchString !~ /^(|% )[0-9A-Za-z]/ || $searchString =~ /[^0-9A-Za-z %]/ )	{
-		print '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="The search string "'.$searchString.'" is formatted incorrectly" version="1.0">'."\n</results>\n";
+		$output .= '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="The search string "'.$searchString.'" is formatted incorrectly" version="1.0">'."\n</results>\n";
 		return;
 	}
 	if ( $searchString !~ /[A-Za-z]{3,}/ && $searchString =~ /[^0-9]/ )	{
-		print '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="The taxonomic name is too short" version="1.0">'."\n</results>\n";
+		$output .= '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="The taxonomic name is too short" version="1.0">'."\n</results>\n";
 		return;
 	}
 	if ( $searchString =~ /[0-9]/ && $searchString =~ /[^0-9]/ )	{
-		print '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="The record ID number includes some non-numerical characters" version="1.0">'."\n</results>\n";
+		$output .= '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="The record ID number includes some non-numerical characters" version="1.0">'."\n</results>\n";
 		return;
 	}
 
@@ -68,10 +69,10 @@ sub getTaxonomyXML	{
 	my @matches = @{$dbt->getData($sql)};
 	my $results = $#matches + 1;
 	if ( $results == 0 )	{
-		print '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="No names found" version="1.0">'."\n</results>\n";
+		$output .= '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="0" start="0" number_of_results_returned="0" error_message="No names found" version="1.0">'."\n</results>\n";
 		return;
 	}
-	print '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="' . $results . '" start="0" number_of_results_returned="' . $results . '" error_message="" version="1.0">' . "\n";
+	$output .= '<results id="' . $q->param('id') . '" name="' . $q->param('name') . '" total_number_of_results="' . $results . '" start="0" number_of_results_returned="' . $results . '" error_message="" version="1.0">' . "\n";
 	for my $m ( @matches )	{
 		# if a bad name's parent is not itself bad, replace it with
 		#  the grandparent
@@ -83,7 +84,7 @@ sub getTaxonomyXML	{
 				$m->{synonym_no} = $bad->{parent_no};
 			}
 		}
-		print "<result>\n";
+		$output .= "<result>\n";
 		$sql = "(SELECT status,a.taxon_no,spelling_no,synonym_no,taxon_name,taxon_rank,common_name,DATE_FORMAT(a.modified,'%Y-%m-%d %T') modified,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,a.comments FROM authorities a,$TAXA_TREE_CACHE t,refs r,opinions o WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND synonym_no=" . $m->{synonym_no} . " AND t.taxon_no!=" . $m->{taxon_no} . " AND t.opinion_no=o.opinion_no ORDER BY spelling_no,taxon_name) UNION (SELECT status,a.taxon_no,spelling_no,synonym_no,taxon_name,taxon_rank,common_name,DATE_FORMAT(a.modified,'%Y-%m-%d %T') modified,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,a.comments FROM authorities a,$TAXA_TREE_CACHE t,refs r,opinions o WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND t.taxon_no=" . $m->{taxon_no} . " AND t.opinion_no=o.opinion_no)";
 		my @variants = @{$dbt->getData($sql)};
 		# needed to recover references
@@ -122,29 +123,29 @@ sub getTaxonomyXML	{
 					last;
 				}
 			}
-			formatNameXML($q,$matched,$acno,@refs);
-			print "<accepted_name>\n";
+			$output .= formatNameXML($q,$matched,$acno,@refs);
+			$output .= "<accepted_name>\n";
 		}
 
 		# ACCEPTED NAME BLOCK
-		formatNameXML($q,$accepted,$acno,@refs);
+		$output .= formatNameXML($q,$accepted,$acno,@refs);
 
 		if ( $q->param('response') eq "full" )  	{
 			# CLASSIFICATION BLOCK
 			$sql = "SELECT a.taxon_no,taxon_rank,taxon_name FROM authorities a,$TAXA_TREE_CACHE t,$TAXA_LIST_CACHE l WHERE a.taxon_no=t.spelling_no and t.taxon_no=spelling_no AND a.taxon_no=parent_no AND taxon_rank IN ('kingdom','phylum','class','order','family') AND taxon_name NOT IN ('Therapsida','Cetacea','Avetheropoda') AND child_no=" . $accepted->{taxon_no} . " ORDER BY lft";
 			my @parents = @{$dbt->getData($sql)};
-			print "<classification>\n";
+			$output .= "<classification>\n";
 			for my $p ( @parents )	{
-				print "<taxon>\n<id>$p->{taxon_no}</id>\n";
-				print "<name>$p->{taxon_name}</name>\n";
+				$output .= "<taxon>\n<id>$p->{taxon_no}</id>\n";
+				$output .= "<name>$p->{taxon_name}</name>\n";
 				my @letts = split(//,$p->{taxon_rank});
 				$letts[0] =~ tr/[a-z]/[A-Z]/;
-				print "<rank>".join('',@letts)."</rank>\n";
-				print "<name_html>$p->{taxon_name}</name_html>\n";
-				print "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$p->{taxon_no}&amp;is_real_user=0</url>\n";
-				print "</taxon>\n";
+				$output .= "<rank>".join('',@letts)."</rank>\n";
+				$output .= "<name_html>$p->{taxon_name}</name_html>\n";
+				$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$p->{taxon_no}&amp;is_real_user=0</url>\n";
+				$output .= "</taxon>\n";
 			}
-			print "</classification>\n";
+			$output .= "</classification>\n";
 
 			# INFRASPECIES BLOCK
 			# only list accepted names of current subspecies
@@ -152,79 +153,81 @@ sub getTaxonomyXML	{
 				$sql = "SELECT a.taxon_no,spelling_no,taxon_name,taxon_rank,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,$TAXA_TREE_CACHE t,refs r,opinions o WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND t.taxon_no=synonym_no AND t.taxon_no=child_no AND t.opinion_no=o.opinion_no AND parent_no=" . $accepted->{taxon_no} . " AND taxon_rank='subspecies' ORDER BY spelling_no,taxon_name";
 				my @infras = @{$dbt->getData($sql)};
 				if ( @infras )	{
-					print "<infraspecies_for_this_species>\n";
+					$output .= "<infraspecies_for_this_species>\n";
 					for my $i ( @infras )	{
-						print "<infraspecies>\n";
-						print "<id>$i->{taxon_no}</id>\n";
-						print "<name>$i->{taxon_name}</name>\n";
+						$output .= "<infraspecies>\n";
+						$output .= "<id>$i->{taxon_no}</id>\n";
+						$output .= "<name>$i->{taxon_name}</name>\n";
 						my ($auth,$name_html) = formatAuthXML($i);
-						print "<name_html>$name_html</name_html>\n";
+						$output .= "<name_html>$name_html</name_html>\n";
 						my ($genus,$species,$infraspecies);
 						($genus,$species,$infraspecies) = split / /,$i->{taxon_name};
-						print "<genus>$genus</genus>\n";
-						print "<species>$species</species>\n";
-						print "<infraspecies_marker></infraspecies_marker>\n";
-						print "<infraspecies>$infraspecies</infraspecies>\n";
-						print "<author>$auth</author>\n";
-						print "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$i->{taxon_no}&amp;is_real_user=0</url>\n";
-						print "</infraspecies>\n";
+						$output .= "<genus>$genus</genus>\n";
+						$output .= "<species>$species</species>\n";
+						$output .= "<infraspecies_marker></infraspecies_marker>\n";
+						$output .= "<infraspecies>$infraspecies</infraspecies>\n";
+						$output .= "<author>$auth</author>\n";
+						$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$i->{taxon_no}&amp;is_real_user=0</url>\n";
+						$output .= "</infraspecies>\n";
 					}
-					print "</infraspecies_for_this_species>\n";
+					$output .= "</infraspecies_for_this_species>\n";
 				}
 			}
 
 			# SYNONYMS BLOCK
 			if ( $#variants > 0 )	{
-				print "<synonyms>\n";
+				$output .= "<synonyms>\n";
 				for my $v ( @variants )	{
 					if ( $v->{taxon_no} != $m->{synonym_no} )	{
-						print "<synonym>\n";
-						formatNameXML($q,$v,$acno,@refs);
-						print "</synonym>\n";
+						$output .= "<synonym>\n";
+						$output .= formatNameXML($q,$v,$acno,@refs);
+						$output .= "</synonym>\n";
 					}
 				}
-				print "</synonyms>\n";
+				$output .= "</synonyms>\n";
 			}
 
 			# COMMON NAMES BLOCK
 			if ( $accepted->{common_name} )	{
-				print "<common_names>\n<common_name>\n";
-				print "<name>".$accepted->{common_name}."</name>\n";
-				print "<language>English</language>\n";
-				print "<country>United States</country>\n";
-				print "</common_name>\n</common_names>\n";
+				$output .= "<common_names>\n<common_name>\n";
+				$output .= "<name>".$accepted->{common_name}."</name>\n";
+				$output .= "<language>English</language>\n";
+				$output .= "<country>United States</country>\n";
+				$output .= "</common_name>\n</common_names>\n";
 				# could include a real reference here, but it's
 				#  optional and overkill
-				print "<references>\n</references>\n";
+				$output .= "<references>\n</references>\n";
 			}
 		}
 
 		if ( $m->{taxon_no} != $m->{synonym_no} )	{
-			print "</accepted_name>\n";
+			$output .= "</accepted_name>\n";
 		}
-		print "</result>\n";
+		$output .= "</result>\n";
 	}
-	print "</results>";
-	return;
+	$output .= "</results>";
+
+	return $output;
 }
 
 sub formatNameXML	{
 
 	my ($q,$n,$acno,@refs) = @_;
+        my $output = '';
 
 	# id = our primary key number
-	print "<id>".$n->{taxon_no}."</id>\n";
-	print "<name>".$n->{taxon_name}."</name>\n";
+	$output .= "<id>".$n->{taxon_no}."</id>\n";
+	$output .= "<name>".$n->{taxon_name}."</name>\n";
 	my @letts = split(//,$n->{taxon_rank});
 	$letts[0] =~ tr/[a-z]/[A-Z]/;
-	print "<rank>".join('',@letts)."</rank>\n";
+	$output .= "<rank>".join('',@letts)."</rank>\n";
 	if ( $n->{taxon_no} == $acno )	{
-		print "<name_status>accepted name</name_status>\n";
+		$output .= "<name_status>accepted name</name_status>\n";
 	} else	{
-		print "<name_status>synonym</name_status>\n";
+		$output .= "<name_status>synonym</name_status>\n";
 	}
 	my ($auth,$name_html) = formatAuthXML($n);
-	print "<name_html>$name_html</name_html>\n";
+	$output .= "<name_html>$name_html</name_html>\n";
 	if ( $q->param('response') eq "full" )  	{
 		if ( $n->{taxon_rank} =~ /genus|species/ )	{
 			my ($genus,$species,$infraspecies);
@@ -234,36 +237,36 @@ sub formatNameXML	{
 				$genus = $n->{taxon_name};
 				$species = "";
 			}
-			print "<genus>".$genus."</genus>\n";
-			print "<species>".$species."</species>\n";
+			$output .= "<genus>".$genus."</genus>\n";
+			$output .= "<species>".$species."</species>\n";
 			if ( $infraspecies )	{
-				print "<infraspecies_marker>\n<infraspecies>".$species."</infraspecies>\n</infraspecies_marker>\n";
+				$output .= "<infraspecies_marker>\n<infraspecies>".$species."</infraspecies>\n</infraspecies_marker>\n";
 			}
 		}
-		print "<author>$auth</author>\n";
+		$output .= "<author>$auth</author>\n";
 		$n->{comments} =~ s/\& /&amp; /g;
-		print "<additional_comments>".$n->{comments}."</additional_comments>\n";
+		$output .= "<additional_comments>".$n->{comments}."</additional_comments>\n";
 	}
 	# call to taxon info using taxon_no
-	print "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$n->{taxon_no}&amp;is_real_user=0</url>\n";
+	$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$n->{taxon_no}&amp;is_real_user=0</url>\n";
 	if ( $q->param('response') ne "full" )  	{
-		print "<online_resource></online_resource>\n";
+		$output .= "<online_resource></online_resource>\n";
 	}
-	print "<source_database>The Paleobiology Database</source_database>\n";
-	print "<source_database_url>http://paleodb.org</source_database_url>\n";
+	$output .= "<source_database>The Paleobiology Database</source_database>\n";
+	$output .= "<source_database_url>http://paleodb.org</source_database_url>\n";
 	# another URL if URL went to a portal, not source_database
 	# REFERENCES BLOCK
 	# format is not constrained
 	if ( $q->param('response') eq "full" )  	{
-		print "<record_scrutiny_date>".$n->{modified}."</record_scrutiny_date>\n";
-		print "<online_resource></online_resource>\n";
-		print "<references>\n";
+		$output .= "<record_scrutiny_date>".$n->{modified}."</record_scrutiny_date>\n";
+		$output .= "<online_resource></online_resource>\n";
+		$output .= "<references>\n";
 		for my $r ( @refs )	{
 			if ( $r->{taxon_no} == $n->{taxon_no} )	{
 				$r->{reftitle} =~ s/\&/&amp;/g;
 				$r->{pubtitle} =~ s/\&/&amp;/g;
 				$r->{pubvol} =~ s/\&/&amp;/g;
-				print "<reference>\n";
+				$output .= "<reference>\n";
 				my $auth = $r->{author1init} . " " . $r->{author1last};
 				if ( $r->{otherauthors} ) { $auth .= " <i>et al.</i>"; }
 				elsif ( $r->{author2last} ) { $auth .= " and " . $r->{author2init} . " " . $r->{author2last} }
@@ -272,17 +275,17 @@ sub formatNameXML	{
 				if ( $r->{pubvol} && $r->{firstpage} ) { $source .= ":" . $r->{firstpage}; }
 				elsif ( $r->{firstpage} ) { $source .= ", pp. " . $r->{firstpage}; }
 				if ( $r->{lastpage} ) { $source .= "-" . $r->{lastpage}; }
-				print "<author>$auth</author>\n";
-				print "<year>$r->{pubyr}</year>\n";
-				print "<title>$r->{reftitle}</title>\n";
-				print "<source>$source</source>\n";
-				print "</reference>\n";
+				$output .= "<author>$auth</author>\n";
+				$output .= "<year>$r->{pubyr}</year>\n";
+				$output .= "<title>$r->{reftitle}</title>\n";
+				$output .= "<source>$source</source>\n";
+				$output .= "</reference>\n";
 			}
 		}
-		print "</references>\n";
+		$output .= "</references>\n";
 	}
 
-	return;
+	return $output;
 }
 
 sub formatAuthXML	{
@@ -326,6 +329,7 @@ sub displayITISDownload {
     my ($dbt,$q,$s) = @_;
     my $dbh = $dbt->dbh;
     my @errors = ();
+    my $output = '';
 
     # First do some processing on the $q (CGI) object and after getting out
     # the parameters.  Store the parameters in the %options hash and pass that in
@@ -362,14 +366,14 @@ sub displayITISDownload {
 
 
     if (@errors) {
-        displayErrors(@errors);
-        print "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Please try again</a></h5></div><br>";
-        return;
+        $output .= displayErrors(@errors);
+        $output .= "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Please try again</a></h5></div><br>";
+        return $output;
     }
 
-    print "<div align=\"center\"><p class=\"pageTitle\">Taxonomy download results</p></div>";
+    $output .= "<div align=\"center\"><p class=\"pageTitle\">Taxonomy download results</p></div>";
 
-    print '<div align="center">
+    $output .= '<div align="center">
         <table border=0 width=600><tr><td>
         <p class="darkList" class="verylarge" style="padding-left: 0.5em; padding-top: 0.3em; padding-bottom: 0.3em; margin-bottom: 0em;">Output data</p>';
 
@@ -434,7 +438,7 @@ sub displayITISDownload {
     }
     close FH_AL;
     $taxon_author_count = "No" if ($taxon_author_count == 0);
-    print "<p>$taxon_author_count taxon authors names were printed</p>";
+    $output .= "<p>$taxon_author_count taxon authors names were printed</p>";
 
     
     open FH_TU, ">$filesystem_dir/taxonomic_units.dat"
@@ -482,7 +486,7 @@ sub displayITISDownload {
     close FH_TU;
     my $taxon_count = scalar(@names); 
     $taxon_count = "No" if ($taxon_count == 0);
-    print "<p>$taxon_count taxononomic units were printed</p>";
+    $output .= "<p>$taxon_count taxononomic units were printed</p>";
 
     open FH_SL, ">$filesystem_dir/synonym_links.dat";
     my $synonym_count = 0;
@@ -502,7 +506,7 @@ sub displayITISDownload {
     }
     close FH_SL;
     $synonym_count = "No" if ($synonym_count == 0);
-    print "<p>$synonym_count synonym links were printed</p>";
+    $output .= "<p>$synonym_count synonym links were printed</p>";
     
     my @references = keys %references; 
     open FH_P, ">$filesystem_dir/publications.dat";
@@ -543,7 +547,7 @@ sub displayITISDownload {
     }     
     close FH_P;
     $ref_count = "No" if ($ref_count == 0);
-    print "</p>$ref_count publications were printed</p>";
+    $output .= "</p>$ref_count publications were printed</p>";
     
     my ($opinions,$opinion_file_message) = getTaxonomicOpinions($dbt,$http_dir,\%people,\%options); 
     my @opinions = @$opinions;
@@ -565,9 +569,9 @@ sub displayITISDownload {
     close FH_RL;
     $ref_link_count = "No" if ($ref_link_count == 0);
     if ($opinion_file_message =~ /no search criteria/) {
-        print "<p>No reference links could be downloaded because no search criteria related to \"Taxonomic opinions\" were entered</p>";
+        $output .= "<p>No reference links could be downloaded because no search criteria related to \"Taxonomic opinions\" were entered</p>";
     } else {
-        print "<p>$ref_link_count reference links were printed</p>";
+        $output .= "<p>$ref_link_count reference links were printed</p>";
     }
    
    
@@ -593,7 +597,7 @@ sub displayITISDownload {
     }
     close FH_C;
     $comment_count = "No" if ($comment_count == 0);
-    print "<p>$comment_count comments and comment links were printed</p>";
+    $output .= "<p>$comment_count comments and comment links were printed</p>";
 
     open FH_CL, ">$filesystem_dir/tu_comments_links.dat";
     # Note that our comments aren't denormalized so the comment_id key
@@ -619,7 +623,7 @@ sub displayITISDownload {
 
    #  0    1    2     3     4    5     6     7     8
    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =localtime(time);
-   my $date = sprintf("%d%02d%02d",($year+1900),$mon,$mday);   
+   my $date = sprintf("%d%02d%02d",($year+1900),$mon,$mday);
 
     my $dirname = ($s->isDBMember()) ? $s->{'enterer'} : "guest_".$date."_".$$;
     $dirname =~ s/[^a-zA-Z0-9_\/]//g;
@@ -634,8 +638,8 @@ sub displayITISDownload {
     #print "$cmd -- $ot -- <BR>";
 
 
-    print "<div align=\"center\"><h5><a href='/public/taxa_downloads/$dirname.tar.gz'>Download file</a> - <a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Do another download</a></h5></div><br>";
-    print "</td></tr></table></div>";
+    $output .= "<div align=\"center\"><h5><a href='/public/taxa_downloads/$dirname.tar.gz'>Download file</a> - <a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Do another download</a></h5></div><br>";
+    $output .= "</td></tr></table></div>";
     #print "<a href='/paleodb/data/JSepkoski/taxonomic_units.dat'>taxonomic units</a><BR>";
     #print "<a href='/paleodb/data/JSepkoski/publications.dat'>publications</a><BR>";
     #print "<a href='/paleodb/data/JSepkoski/reference_links.dat'>reference links</a><BR>";
@@ -645,6 +649,8 @@ sub displayITISDownload {
     #print "<a href='/paleodb/data/JSepkoski/synonym_links.dat'>synonym_links</a><BR>";
 
     cleanOldGuestFiles();
+
+    return $output;
 }
 
 
@@ -663,6 +669,7 @@ sub displayPBDBDownload {
     my ($dbt,$q,$s) = @_;
     my $dbh = $dbt->dbh;
     my @errors = ();
+    my $output = '';
 
     my %options = $q->Vars();
     if ($options{'taxon_name'}) {
@@ -705,14 +712,14 @@ sub displayPBDBDownload {
     }); 
 
     if (@errors) {
-        displayErrors(@errors);
-        print "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Please try again</a></h5></div><br>";
+        $output .= displayErrors(@errors);
+        $output .= "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Please try again</a></h5></div><br>";
         return;
     }
 
-    print "<div align=\"center\"><p class=\"pageTitle\">Taxonomy download results</p></div>";
+    $output .= "<div align=\"center\"><p class=\"pageTitle\">Taxonomy download results</p></div>";
     
-    print '<div align="center">
+    $output .= '<div align="center">
         <table border="0" width="600"><tr><td>
         <p class="darkList" class="verylarge" style="padding-left: 0.5em; padding-top: 0.3em; padding-bottom: 0.3em; margin-bottom: 0em;">Output files</p>';
 
@@ -757,7 +764,7 @@ sub displayPBDBDownload {
 	$pages{$o->{reference_no}}{$o->{pages}} = 1;
     }
     close FH_OP;
-    print $opinion_file_message;
+    $output .= $opinion_file_message;
 
     # If the user selects an option to get taxonomic names used by the downloaded opinions
     # then make a list of additional taxa to downlod
@@ -830,7 +837,7 @@ sub displayPBDBDownload {
         }
     }
     close FH_IT;
-    print $taxon_file_message;
+    $output .= $taxon_file_message;
 
 
     my @references = keys %references; 
@@ -882,27 +889,29 @@ sub displayPBDBDownload {
         }
         my $ref_link = $http_dir."/references.csv";
 	my $ris_link = $http_dir."/references_ris.txt";
-        print "<p>$ref_count references were printed to <a href=\"$ref_link\">references.csv</a></p>\n";
-	print "<p>$ris_ref_count references were printed to <a href=\"$ris_link\">references_ris.txt</a></p>\n";
+        $output .= "<p>$ref_count references were printed to <a href=\"$ref_link\">references.csv</a></p>\n";
+	$output .= "<p>$ris_ref_count references were printed to <a href=\"$ris_link\">references_ris.txt</a></p>\n";
 	
 	if ( @ris_bad_list )
 	{
-	    print "<p>The following references could not be printed due to erroneous data:<ul>\n";
-	    print "<li>$_</li>\n" foreach @ris_bad_list;
-	    print "</ul></p>\n";
+	    $output .= "<p>The following references could not be printed due to erroneous data:<ul>\n";
+	    $output .= "<li>$_</li>\n" foreach @ris_bad_list;
+	    $output .= "</ul></p>\n";
 	}
     } else {
-        print "<p>No references were printed</p>";
+        $output .= "<p>No references were printed</p>";
     }
 
 
-print '</td></tr></table></div>';
-  print "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Do another download</a></h5></div><br>";
+$output .= '</td></tr></table></div>';
+  $output .= "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Do another download</a></h5></div><br>";
     
     close FH_REF;
     close FH_RIS;
 
     cleanOldGuestFiles();
+
+    return $output;
 }
 
 
@@ -1342,14 +1351,18 @@ sub cleanOldGuestFiles {
 }
 
 sub displayErrors {
+    $output = '';
+
     if (scalar(@_)) { 
         my $plural = (scalar(@_) > 1) ? "s" : "";
-        print "<br><div align=center><table width=600 border=0>" .
+        $output .= "<br><div align=center><table width=600 border=0>" .
               "<tr><td class=darkList><font size='+1'><b> Error$plural</b></font></td></tr>" .
               "<tr><td>";
-        print "<li class='medium'>$_</li>" for (@_);
-        print "</td></tr></table></div><br>";
+        $output .= "<li class='medium'>$_</li>" for (@_);
+        $output .= "</td></tr></table></div><br>";
     } 
+
+    return $output;
 }
 
 1;

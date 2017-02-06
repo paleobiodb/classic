@@ -14,8 +14,9 @@ $TypoChecker::edit_distance = 3;
 # start the process to get to the reclassify occurrences page
 # modelled after startAddEditOccurrences
 sub searchOccurrenceMisspellingForm {
-	my ($dbt,$q,$s,$hbo,$message,$no_header) = @_;
+    my ($dbt,$q,$s,$hbo,$message,$no_header) = @_;
     my $dbh = $dbt->dbh;
+    $output = '';
 
 
     my %vars = $q->Vars();
@@ -29,13 +30,15 @@ sub searchOccurrenceMisspellingForm {
 
 
     # Spit out the HTML
-    print PBDB::Person::makeAuthEntJavascript($dbt);
-    print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
     my $html = $hbo->populateHTML('search_occurrences_form',\%vars);
     if ($no_header) {
         $html =~ s/forms\[0\]/forms[1]/g;
     }
-    print $html;
+    $output .= $html;
+
+    return $output;
 }
 
 #TODO? filter out where taxon_no is 0 bc of homonym
@@ -127,8 +130,9 @@ sub getNameData {
 # We will want to get occurrences that fall outside the filter, and we'll have to do a separate query at a later date
 # Also, much of the filtering options can't be applied until we get a list of suggesstions
 sub occurrenceMisspellingForm {
-	my ($dbt,$q,$s,$hbo) = @_;
+    my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     my $show_detail = $q->param('show_detail');
 
@@ -195,20 +199,20 @@ sub occurrenceMisspellingForm {
     my $limit = (int($q->param("limit"))) ? int($q->param('limit')) : 15;
     my $name_count = scalar(@names);
     if (@names) {
-        print '<div align="center">';
+        $output .= '<div align="center">';
         if ($show_detail eq 'typos') {
-            print '<p class="pageTitle">Possibly misspelled occurrences</p>';
+            $output .= '<p class="pageTitle">Possibly misspelled occurrences</p>';
         } elsif ($show_detail eq 'unclassified') {
-            print '<p class="pageTitle">Possibly misspelled/unclassified occurrences</p>';
+            $output .= '<p class="pageTitle">Possibly misspelled/unclassified occurrences</p>';
         } else {
-            print '<p class="pageTitle">Possibly misspelled/partially classified occurrences</p>';
+            $output .= '<p class="pageTitle">Possibly misspelled/partially classified occurrences</p>';
         }
-        print "</div>\n\n";
-        print qq|<form action="$WRITE_URL" method="POST">|;
-        print '<input type="hidden" name="action" value="submitOccurrenceMisspelling">';
+        $output .= "</div>\n\n";
+        $output .= qq|<form action="$WRITE_URL" method="POST">|;
+        $output .= '<input type="hidden" name="action" value="submitOccurrenceMisspelling">';
         my $page_no = (int($q->param('page_no'))) ? int($q->param('page_no')) : 0;
-        print '<input type="hidden" name="page_no" value="'.($page_no+1).'">';
-        print '<table cellpadding="2" cellspacing="0" width="100%">';
+        $output .= '<input type="hidden" name="page_no" value="'.($page_no+1).'">';
+        $output .= '<table cellpadding="2" cellspacing="0" width="100%">';
         my $class = '';
         my $skip_unclassified = 0;
         my $skip_genus_classified = 0;
@@ -323,16 +327,16 @@ sub occurrenceMisspellingForm {
                 $row .= "<tr $class><td>Collections: none</td></tr>";
             }
             $displayed_results++;
-            print $row;
+            $output .= $row;
         }
-        print '</table>';
+        $output .= '</table>';
         if ($displayed_results == 0 && $page_no == 0) {
             my $message = "<div align=\"center\"><p class=\"pageTitle\">No results to display, please search again</p></div>";
-            print "</form>";
-            searchOccurrenceMisspellingForm($dbt,$q,$s,$hbo,$message,1);
-            return;
+            $output .= "</form>";
+            $output .= searchOccurrenceMisspellingForm($dbt,$q,$s,$hbo,$message,1);
+            return $output;
         } else {
-            print '<br><br><input type="submit" name="submit" value="Fix misspellings">';
+            $output .= '<br><br><input type="submit" name="submit" value="Fix misspellings">';
         }
         my $upper_limit = $offset+$limit;
         my $skip_count = ($skip_unclassified+$skip_genus_classified+$skip_other);
@@ -346,7 +350,7 @@ sub occurrenceMisspellingForm {
             if ($displayed_results < $limit) {
                 $upper = ($page_no*$limit+$displayed_results);
             }
-            print "<p class=\"pageTitle\"> Here are rows $lower to $upper";
+            $output .= "<p class=\"pageTitle\"> Here are rows $lower to $upper";
         }
         my %v = $q->Vars();
         $v{'offset'} = ($offset+$limit+$skip_count);
@@ -375,24 +379,26 @@ sub occurrenceMisspellingForm {
                     $saved_search .= "<input type=\"hidden\" name=\"$f\" value=\"$v{$f}\">\n";
                 }
             }
-            print $saved_search;
-            print " - <input type=\"submit\" name=\"submit\" value=\"Get next $limit\">";
+            $output .= $saved_search;
+            $output .= " - <input type=\"submit\" name=\"submit\" value=\"Get next $limit\">";
             push @notes, "Any changes made on this page and previous pages will be carried over when you click \"Get next 15,\" but will not be committed to the database until you click \"Fix misspellings.\"";
         }
-        print "</p>";
-        print '</div>';
+        $output .= "</p>";
+        $output .= '</div>';
 
         push @notes, 'If only a genus name is listed in the suggestions, the genus name will be changed but the species left the same. Bolded taxon names are names that exist in both the the occurrences and authority tables. Bolded collection names have occurrences which you have permission to edit, while unbolded names won\'t be changed. Suggestions are generated from existing occurrences and authorities records, so if you see a typo there you can click the name to see the source of the suggestion and track down the authorizer. Suggestions without radio buttons have no records which you have permission to edit.';
         if (@notes) {
-            print '<div align="left"><div class=small>'.
+            $output .= '<div align="left"><div class=small>'.
                 join("<br><br>",@notes).
                 '</div></div>'
         }
-        print '</form><br><br>';
+        $output .= '</form><br><br>';
     } else {
             my $message = "<div align=\"center\"><p class=\"pageTitle\">No results to display, please search again</p></div>";
             searchOccurrenceMisspellingForm($dbt,$q,$s,$hbo,$message);
     }
+
+    return $output;
 }
 
 #
@@ -400,11 +406,12 @@ sub occurrenceMisspellingForm {
 # then we have to feed right back into the form though
 #
 sub submitOccurrenceMisspelling {
-	my ($dbt,$q,$s,$hbo) = @_;
+    my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     if ($q->param('submit') =~ /get next/i) {
-        occurrenceMisspellingForm($dbt,$q,$s,$hbo);
+        $output .= occurrenceMisspellingForm($dbt,$q,$s,$hbo);
     } else {
         my @exec_list = $q->param('execute_list');
         my $authorizer_no = $s->get('authorizer_no');
@@ -415,10 +422,10 @@ sub submitOccurrenceMisspelling {
         push @permission_list, $authorizer_no;
         my $authorizer_list = join(",",@permission_list);
         
-        print "<div align=\"center\"><p class=\"pageTitle\">Spellings corrected</p></div>";
+        $output .= "<div align=\"center\"><p class=\"pageTitle\">Spellings corrected</p></div>";
 
-        print "<div align=\"center\">";
-        print "<div><ul style=\"text-align: left\">";
+        $output .= "<div align=\"center\">";
+        $output .= "<div><ul style=\"text-align: left\">";
         my $count = 0;
         foreach my $i (@exec_list) {
             my $old_name = $q->param("old_taxon_name_$i");
@@ -500,17 +507,19 @@ sub submitOccurrenceMisspelling {
                     }
                 }
                 my $s = ($mod_count == 1) ? "" : "s";
-                print "<li>$mod_count record$s of '$old_name' changed to '$new_actual_name'<br>";
+                $output .= "<li>$mod_count record$s of '$old_name' changed to '$new_actual_name'<br>";
             }
         }
 
-        print "</ul></div>";
+        $output .= "</ul></div>";
         if (!$count) {
-            print "<p class=\"pageTitle\">No changes were made</p>";
+            $output .= "<p class=\"pageTitle\">No changes were made</p>";
         }
-        print "</div>";
-        print "<div align=\"center\">" . makeAnchor("searchOccurrenceMisspellingForm", "Search for more misspellings") . "</div>";
+        $output .= "</div>";
+        $output .= "<div align=\"center\">" . makeAnchor("searchOccurrenceMisspellingForm", "Search for more misspellings") . "</div>";
     }
+
+    return $output;
 }
 
 

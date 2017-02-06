@@ -21,6 +21,7 @@ use PBDB::Constants qw($READ_URL $WRITE_URL makeAnchor);
 sub displayStrata {
     my ($q,$s,$dbt,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     # Gets teh datas
     my %options = $q->Vars();
@@ -62,8 +63,7 @@ sub displayStrata {
         # is always passed, but just if it does, let user supply missing options
         $conflict_found = checkConflict($dataRows,$q);
         if ($conflict_found) {
-            displayStrataChoice($q, $conflict_found, $dataRows);
-            return;    
+            return displayStrataChoice($q, $conflict_found, $dataRows);
         }
     }    
 
@@ -141,7 +141,7 @@ sub displayStrata {
     $in_strata_type .= ", Group" if ($is_group);
     $in_strata_type =~ s/^, //g;
    
-    print qq|<div align="center"><p class="pageTitle">|;
+    $output .= qq|<div align="center"><p class="pageTitle">|;
     my $name = ucfirst($q->param('group_formation_member'));
     if ($name =~ /^(lower part|upper part|lower|middle|upper|bottom|top|medium|base|basal|uppermost)(\s+to\s+(lower part|upper part|lower|middle|upper|bottom|top|medium|base|basal|uppermost))*$/i) {
         if ($is_member) {
@@ -168,9 +168,9 @@ sub displayStrata {
         }
     }
     $name =~ s/ (formation|group|member|fm\.|gp\.|mbr\.|grp\.)$//ig;
-    print encode_entities($name)." ".$in_strata_type."</p>";
+    $output .= encode_entities($name)." ".$in_strata_type."</p>";
 
-    print qq|<div align="left" style="text-align: left">
+    $output .= qq|<div align="left" style="text-align: left">
 <div align="left" class="displayPanel" style="padding-bottom: 1em;">
 <span class="displayPanelHeader">Geology</span>
 <div class="displayPanelContent small">
@@ -189,7 +189,7 @@ sub displayStrata {
             }
             $html =~ s/, $//;
             $html .= '</p>';
-            print $html;
+            $output .= $html;
         }
     }
     if ($is_member) {
@@ -203,7 +203,7 @@ sub displayStrata {
             }
             $html =~ s/, $//;
             $html .= '</p>';
-            print $html;
+            $output .= $html;
         }
     }
 
@@ -226,7 +226,7 @@ sub displayStrata {
         }
         $html =~ s/, $//g;
         $html .= "</p>\n";
-        print $html;
+        $output .= $html;
     }
 
     if ($is_formation) {
@@ -250,7 +250,7 @@ sub displayStrata {
         }
         $html =~ s/, $//g;
         $html .= "</p>\n";
-        print $html;
+        $output .= $html;
     } 
 
     # Display lithologies present
@@ -275,7 +275,7 @@ sub displayStrata {
         $html .= "<i>unknown</i>";
     }
     $html .= "</p>\n";
-    print $html;
+    $output .= $html;
 
     # Display environments present
     my @env_list = $hbo->getList('environment',1);
@@ -296,17 +296,17 @@ sub displayStrata {
         $html .= "<i>unknown</i>";
     }
     $html .= "</p>\n</div>\n\n</div>\n\n";
-    print $html;
+    $output .= $html;
 
     # Display age range/Show what collections are in it 
     # Set this q parameter so processCollectionsSearch (called from doCollections) builds correct SQL query
-    print PBDB::TaxonInfo::doCollections($dbt, $s, $dataRows, '' ,'', '','for_strata_module');
+    $output .= PBDB::TaxonInfo::doCollections($dbt, $s, $dataRows, '' ,'', '','for_strata_module');
 #    print PBDB::TaxonInfo::doCollections($q, $dbt, $s, '', '', "for_strata_module");
 
-    print "<p>&nbsp;</p>";
-    print "</div>";
+    $output .= "<p>&nbsp;</p>";
+    $output .= "</div>";
 
-	return;
+	return $output;
 }
 
 ###
@@ -377,6 +377,7 @@ sub displayStrataChoice {
     my $dataRows = shift;
     my %formation_links = ();
     my %group_links = ();
+    my $output = '';
 
     foreach my $row (@{$dataRows}) {
         if ($q->param('formation')) {
@@ -394,45 +395,47 @@ sub displayStrataChoice {
     }    
 
     dbg("In display strata choice for reason: $conflict_reason");
-    print "<center>";
+    $output .= "<center>";
     my $count = 0;
     if ($conflict_reason eq "different groups") {
-        print "The ".$q->param('group_formation_member')." formation belongs to multiple groups.  Please select the one you want: <p>";
+        $output .= "The ".$q->param('group_formation_member')." formation belongs to multiple groups.  Please select the one you want: <p>";
         foreach my $grp (keys %group_links) {
-            print " - " if ($count++) != 0;
+            $output .= " - " if ($count++) != 0;
             my $escaped = uri_escape_utf8($grp // '');
             my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
-            print makeAnchor("displayStrata", "geological_group=$escaped&group_formation_member=$escaped2", "$grp");
+            $output .= makeAnchor("displayStrata", "geological_group=$escaped&group_formation_member=$escaped2", "$grp");
         }          
-        print "</p>";
+        $output .= "</p>";
     } elsif ($conflict_reason eq "different formations") {
-        print "The ".$q->param('group_formation_member')." member belongs to multiple formations.  Please select the one you want: <p>";
+        $output .= "The ".$q->param('group_formation_member')." member belongs to multiple formations.  Please select the one you want: <p>";
         foreach my $fm (sort keys %formation_links) {
-            print " - " if ($count++) != 0;
+            $output .= " - " if ($count++) != 0;
             my $escaped = uri_escape_utf8($fm // '');
             my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
-            print makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped2", "$fm ");
+            $output .= makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped2", "$fm ");
         }          
-        print "</p>";
+        $output .= "</p>";
     } elsif ($conflict_reason eq "different lines") {
-        print "The term ".$q->param('group_formation_member')." is ambiguous and belongs to multiple formations or groups.  Please select the one you want: <p>";
+        $output .= "The term ".$q->param('group_formation_member')." is ambiguous and belongs to multiple formations or groups.  Please select the one you want: <p>";
         foreach my $fm (sort keys %formation_links) {
-            print " - " if ($count++) != 0;
+            $output .= " - " if ($count++) != 0;
             my $escaped = uri_escape_utf8($fm // '');
             my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
-            print makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped2", "$fm (formation) ");
+            $output .= makeAnchor("displayStrata", "formation=$escaped&group_formation_member=$escaped2", "$fm (formation) ");
         }          
         foreach my $grp (sort keys %group_links) {
-            print " - " if ($count++) != 0;
+            $output .= " - " if ($count++) != 0;
             my $escaped = uri_escape_utf8($grp // '');
             my $escaped2 = uri_escape_utf8($q->param('group_formation_member') // '');
-            print makeAnchor("displayStrata", "&geological_group=$escaped&group_formation_member=$escaped2", "$grp (group)<br> ");
+            $output .= makeAnchor("displayStrata", "&geological_group=$escaped&group_formation_member=$escaped2", "$grp (group)<br> ");
         }          
-        print "</p>";
+        $output .= "</p>";
     }
-    print "</center>";
+    $output .= "</center>";
 
-    print "<p>&nbsp;</p>";
+    $output .= "<p>&nbsp;</p>";
+
+    return $output;
 }
 
 #
@@ -442,6 +445,7 @@ sub displayStrataChoice {
 sub displaySearchStrataForm {
     my ($q,$s,$dbt,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
    
     my $vars = $q->Vars();
     $vars->{'enterer_me'} = $s->get("enterer_reversed");
@@ -456,9 +460,11 @@ sub displaySearchStrataForm {
     # Show the "search collections" form
 
     # Set the Enterer
-    print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-    print PBDB::Person::makeAuthEntJavascript($dbt);
-    print $hbo->populateHTML('search_collections_form',$vars)
+    $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= $hbo->populateHTML('search_collections_form',$vars)
+
+    return $output;
 }
    
 #
@@ -469,6 +475,7 @@ sub displaySearchStrataForm {
 sub displaySearchStrataResults {
     my ($q,$s,$dbt,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
 
     my $limit = $q->param('limit') || 30;
     $limit = $limit*2; # two columns
@@ -580,53 +587,53 @@ sub displaySearchStrataResults {
     my $ofRows = scalar(@tableRows);
     if ($ofRows > 1 || ($ofRows == 1 && !$last_formation && !$last_group)) {
         # Display header link that says which collections we're currently viewing
-        print "<center>";
-        print "<p class=\"pageTitle\">Your search produced $ofRows matches</p>\n";
+        $output .= "<center>";
+        $output .= "<p class=\"pageTitle\">Your search produced $ofRows matches</p>\n";
         if ($ofRows > $limit) {
-            print "<p>Here are";
+            $output .= "<p>Here are";
             if ($rowOffset > 0) {
-                print " rows ".($rowOffset+1)." to ";
+                $output .= " rows ".($rowOffset+1)." to ";
                 my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-                print $printRows;
-                print "</p>\n";
+                $output .= $printRows;
+                $output .= "</p>\n";
             } else {
-                print " the first ";
+                $output .= " the first ";
                 my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-                print $printRows;
-                print " rows</p>\n";
+                $output .= $printRows;
+                $output .= " rows</p>\n";
             }
         }
-        print "</center>\n";
-        print "<br>\n";
-        print qq|<table width="100%" border="0" cellpadding="4" cellspacing="0" style="padding-left: 1em; padding-right: 1em;">\n|;
+        $output .= "</center>\n";
+        $output .= "<br>\n";
+        $output .= qq|<table width="100%" border="0" cellpadding="4" cellspacing="0" style="padding-left: 1em; padding-right: 1em;">\n|;
 
         # print columns header
-        print '<tr><th align="left" nowrap>Group/formation name</th>';
+        $output .= '<tr><th align="left" nowrap>Group/formation name</th>';
         if ($rowOffset + $limit/2 < $ofRows) { 
-            print '<th align="left" nowrap>Group/formation name</th>';
+            $output .= '<th align="left" nowrap>Group/formation name</th>';
         }    
-        print '</tr>';
+        $output .= '</tr>';
    
-        # print each of the rows generated above
+        # $output .= each of the rows generated above
         for(my $i=$rowOffset;$i<$ofRows && $i < $rowOffset+$limit/2;$i++) {
             # should it be a dark row, or a light row?  Alternate them...
             if ( $i % 2 == 0 ) {
-                print "<tr class=\"darkList\">";
+                $output .= "<tr class=\"darkList\">";
             } else {
-                print "<tr>";
+                $output .= "<tr>";
             }
-            print "<td>$tableRows[$i]</td>"; # $$$ wide character France, rows 61 to 120
+            $output .= "<td>$tableRows[$i]</td>"; # $$$ wide character France, rows 61 to 120
             if ($i+$limit/2 < $ofRows) {
-                print "<td>".$tableRows[$i+$limit/2]."</td>";
+                $output .= "<td>".$tableRows[$i+$limit/2]."</td>";
             } else {
-                print "<td>&nbsp;</td>";
+                $output .= "<td>&nbsp;</td>";
             }
-            print "</tr>\n";
+            $output .= "</tr>\n";
         }
  
-        print "</table>\n";
+        $output .= "</table>\n";
     } elsif ($ofRows == 1 ) { # if only one row to display, cut to next page in chain
-        print "<center>\n<p class=\"pageTitle\">Your search produced exactly one match</p></center>";
+        $output .= "<center>\n<p class=\"pageTitle\">Your search produced exactly one match</p></center>";
         my $highest = ($last_group) ? $last_group : $last_formation;
         # my $my_q = new CGI({
         #                  'group_formation_member'=>$highest,
@@ -638,17 +645,17 @@ sub displaySearchStrataResults {
 	$q->param(geological_group => $last_group);
 	$q->param(formation => $last_formation);
 	$q->param(member => '');
-	displayStrata($q, $s, $dbt, $hbo);
-        return;
+	$output .= displayStrata($q, $s, $dbt, $hbo);
+        return $output;
     } else {
-        print "<center>\n<p class=\"pageTitle\">Your search produced no matches</p>";
-        print "<p>Please try again with fewer or different search terms.</p>\n</center>\n";
+        $output .= "<center>\n<p class=\"pageTitle\">Your search produced no matches</p>";
+        $output .= "<p>Please try again with fewer or different search terms.</p>\n</center>\n";
     }
  
     ###
     # Display the footer links
     ###
-    print "<center><p>";
+    $output .= "<center><p>";
  
     # this q2  var is necessary because the processCollectionSearch
     # method alters the CGI object's internals above, and deletes some fields
@@ -672,14 +679,14 @@ sub displaySearchStrataResults {
         } else {
             $numLeft = "the next " . $limit;
         }
-        print "<a href='$READ_URL?$getString'><b>Get $numLeft units</b></a> - "; #jpjenk: what do we do here?
+        $output .= "<a href='$READ_URL?$getString'><b>Get $numLeft units</b></a> - "; #printquestion-this is not formatted correctly with a makeanchor
     }
-    print makeAnchor("displaySearchStrataForm", "", "<b>Search again</b>");
+    $output .= makeAnchor("displaySearchStrataForm", "", "<b>Search again</b>");
 
-    print "</center></p>";
+    $output .= "</center></p>";
     # End footer links
-}
-   
 
+    return $output;
+}
 
 1;

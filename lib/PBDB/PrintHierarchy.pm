@@ -33,13 +33,14 @@ sub classificationForm	{
 		$refno{'error_message'} .= ( ! $ref_list ) ? "<br>Please search again</i></p>" : "</i></p>\n";
 		$refno{'ref_list'} = $ref_list;
 	}
-	print $hbo->populateHTML('classify_form',\%refno);
+	return $hbo->populateHTML('classify_form',\%refno);
 }
 
 # JA 27.2.12
 # complete rewrite of most of this module
 sub classify	{
 	my ($dbt,$hbo,$s,$q) = @_;
+        my $output = '';
 
 	my $taxon_no = $q->param('taxon_no');
 	my $reference_no = $q->param('reference_no');
@@ -52,24 +53,16 @@ sub classify	{
 	if ( $q->param('citation') )	{
 		my ($auth,$year) = split / /,$q->param('citation');
 		if ( $year < 1700 || $year > 2100 )	{
-			# print $hbo->stdIncludes($PAGE_TOP);
-			classificationForm($hbo, $s, 'The publication year is misformatted');
-			# print $hbo->stdIncludes($PAGE_BOTTOM);
-			# exit;
-			return;
+			return classificationForm($hbo, $s, 'The publication year is misformatted');
 		}
 		my $sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,pubyr,reftitle,pubtitle,pubvol,firstpage,lastpage FROM refs WHERE author1last='$auth' AND pubyr=$year ORDER BY author1last DESC,author2last DESC,pubyr DESC";
 		my @refs = @{$dbt->getData($sql)};
 		if ( $#refs == 0 )	{
 			$reference_no = $refs[0]->{'reference_no'};
 		} elsif ( $#refs > 0 )	{
-			# print $hbo->stdIncludes($PAGE_TOP);
 			my @ref_list;
 			push @ref_list , "<p class=\"verysmall\" style=\"margin-left: 2em; margin-right: 0.5em; text-indent: -1em; text-align: left; margin-bottom: -0.8em;\">".PBDB::Reference::formatLongRef($_)." (ref ".$_->{'reference_no'}.")</p>\n" foreach @refs;
-			classificationForm($hbo, $s, 'The following matches were found',join('',@ref_list)."<div style=\"height: 1em;\"></div>");
-			# print $hbo->stdIncludes($PAGE_BOTTOM);
-			# exit;
-			return;
+			return classificationForm($hbo, $s, 'The following matches were found',join('',@ref_list)."<div style=\"height: 1em;\"></div>");
 		}
 	}
 	my $fields = "t.taxon_no,taxon_name,taxon_rank,common_name,extant,status,IF (ref_is_authority='YES',r.author1last,a.author1last) author1last,IF (ref_is_authority='YES',r.author2last,a.author2last) author2last,IF (ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF (ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,lft,rgt";
@@ -83,10 +76,8 @@ sub classify	{
 		my @opinions = @{$dbt->getData($sql)};
 		if ( ! @opinions )	{
 			# print $hbo->stdIncludes($PAGE_TOP);
-			classificationForm($hbo, $s, 'No newly expressed taxonomic opinions are tied to this reference');
+			return classificationForm($hbo, $s, 'No newly expressed taxonomic opinions are tied to this reference');
 			# print $hbo->stdIncludes($PAGE_BOTTOM);
-			# exit;
-			return;
 		}
 		my %isChild;
 		$isChild{$_->{'child_spelling_no'}}++ foreach @opinions;
@@ -126,10 +117,9 @@ sub classify	{
 	if ( ! $taxon_no && ! @taxa )	{
 		if ( ! $q->param('boxes_only') )	{
 			# print $hbo->stdIncludes($PAGE_TOP);
-			classificationForm($hbo, $s, 'Nothing matched the search term');
+			return classificationForm($hbo, $s, 'Nothing matched the search term');
 			# print $hbo->stdIncludes($PAGE_BOTTOM);
 		}
-		# exit;
 		return;
 	}
 
@@ -140,13 +130,12 @@ sub classify	{
 		if ( $range->{'lft'} + 1 == $range->{'rgt'} )	{
 			if ( ! $q->param('boxes_only') )	{
 				# print $hbo->stdIncludes($PAGE_TOP);
-				classificationForm($hbo, $s, 'Nothing is classified within this taxon');
+				return classificationForm($hbo, $s, 'Nothing is classified within this taxon');
 				# print $hbo->stdIncludes($PAGE_BOTTOM);
 			}
 			return;
 		} elsif ( $range->{rgt} - $range->{lft} > 1000000 ) {
-		    print "<p><i>A full classification of the subtaxa is too large to display here</i></p>\n";
-		    return;
+		    return "<p><i>A full classification of the subtaxa is too large to display here</i></p>\n";
 		}
 
 		$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no AND t.taxon_no=t.spelling_no AND lft>=".$range->{'lft'}." AND rgt<=".$range->{'rgt'}." ORDER BY lft";
@@ -195,12 +184,12 @@ sub classify	{
 	# 	open OUT, ">$HTML_DIR/public/classification/classification.csv";
 	# 	print OUT "taxon_rank,taxon_name,author,common_name,status,extant\n";
 	# }
-	print $hbo->populateHTML('js_classification');
+	$output .= $hbo->populateHTML('js_classification');
 	if ( ! $q->param('boxes_only') )	{
-		print "<center><p class=\"pageTitle\">Classification of $title</p></center>\n\n";
+		$output .= "<center><p class=\"pageTitle\">Classification of $title</p></center>\n\n";
 	}
 
-	print "<div class=\"verysmall\" style=\"width: 50em; margin-left: auto; margin-right: auto;\">\n\n";
+	$output .= "<div class=\"verysmall\" style=\"width: 50em; margin-left: auto; margin-right: auto;\">\n\n";
 	
 	# Create an object to keep track of taxon counts across recursive invocations of
 	# &traverse. 
@@ -239,19 +228,19 @@ sub classify	{
 	    printBox( $counts, $p, 1 );
 	}
 	
-	print "\n</div>\n\n";
+	$output .= "\n</div>\n\n";
 	
 	if ( ! $q->param('boxes_only') )	{
-		print qq|<form method="POST" action="$READ_URL" name="doDownloadTaxonomy">
+		$output .= qq|<form method="POST" action="$READ_URL" name="doDownloadTaxonomy">
 <input type="hidden" name="action" value="displayDownloadTaxonomyResults">
 |;
  		if ( $taxon_no ) {
-			print qq|<input type="hidden" name="taxon_no" value="$taxon_no">|;
+			$output .= qq|<input type="hidden" name="taxon_no" value="$taxon_no">|;
 		}
 		if ( $reference_no ) {
-			print qq|<input type="hidden" name="reference_no" value="$reference_no">|;
+			$output .= qq|<input type="hidden" name="reference_no" value="$reference_no">|;
 		}
-		print "</form>\n"; 
+		$output .= "</form>\n"; 
 		# print '<center><p class="tiny" style="padding-bottom: 3em;">';
 		# print '<a href="/public/classification/classification.csv">Download</a></b> this list of taxonomic names';
 		# print ' - <a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download</a> authority and opinion data for these taxa';
@@ -296,6 +285,7 @@ sub traverse {
 
 sub printBox {
     my ($counts, $taxon, $depth) = @_;
+    my $output = '';
     
     my $taxon_no = $taxon->{taxon_no};
     my @nos;
@@ -323,24 +313,20 @@ sub printBox {
     }
     my $class = ( $depth <= $counts->{shown_depth} ) ? 'shownClassBox' : 'hiddenClassBox';
     my $style = ( $depth == 1 ) ? ' style="border-left: 0px; margin-bottom: 0.8em; "' : '';
-    print qq|  <div id="t$taxon_no" id="classBox" class="$class"$style>
-|;
+    $output .= qq|  <div id="t$taxon_no" id="classBox" class="$class"$style> |;
     my $firstMargin = ( $depth <= $counts->{shown_depth} ) ? "0em" : "0em";
     if ( $list )	{
-	print qq|    <div id="n$taxon_no" class="classTaxon" style="margin-bottom: $firstMargin;" onClick="showChildren('$taxon_no','$list');">|;
+	$output .= qq|    <div id="n$taxon_no" class="classTaxon" style="margin-bottom: $firstMargin;" onClick="showChildren('$taxon_no','$list');">|;
     } else	{
-	print qq|    <div id="n$taxon_no" class="classTaxon">|;
+	$output .= qq|    <div id="n$taxon_no" class="classTaxon">|;
     }
-    print "$name</div>\n";
+    $output .= "$name</div>\n";
     if ( $depth == 1 ) { # && $list && $#{$counts->{valids}{$taxon_no}} > 0 && $counts->{max_depth} > $counts->{shown_depth} )	{
-	print qq|    <div id="hot$taxon_no" class="classHotCorner" style="font-size: 0.7em;"><span onClick="showAll('hot$taxon_no');">show all</span></div>
-|;
+	$output .= qq|    <div id="hot$taxon_no" class="classHotCorner" style="font-size: 0.7em;"><span onClick="showAll('hot$taxon_no');">show all</span></div>|;
     } elsif ( $depth > 1 && $depth < $counts->{shown_depth} && $list )	{
-	print qq|    <div id="hot$taxon_no" class="classHotCorner" style="font-size: 0.7em;"><span onClick="hideChildren('$taxon_no','$list');">hide</span></div>
-|;
+	$output .= qq|    <div id="hot$taxon_no" class="classHotCorner" style="font-size: 0.7em;"><span onClick="hideChildren('$taxon_no','$list');">hide</span></div>|;
     } elsif ( $depth > 1 && $list )	{
-	print qq|    <div id="hot$taxon_no" class="classHotCorner"><span onClick="showChildren('$taxon_no','$list');">+</span></div>
-|;
+	$output .= qq|    <div id="hot$taxon_no" class="classHotCorner"><span onClick="showChildren('$taxon_no','$list');">+</span></div>|;
     }
 
     foreach my $t ( @{$counts->{valids}{$taxon_no}} )
@@ -350,8 +336,7 @@ sub printBox {
     
     if ( $counts->{invalids}{$taxon_no} )	{
 	my $class = ( $depth + 1 <= $counts->{shown_depth} ) ? 'shownClassBox' : 'hiddenClassBox';
-	print qq|  <div id="t${taxon_no}bad" class="$class">
-|;
+	$output .= qq|  <div id="t${taxon_no}bad" class="$class">|;
 	@{$counts->{invalids}{$taxon_no}} = sort { $a->{'taxon_name'} cmp $b->{'taxon_name'} } @{$counts->{invalids}{$taxon_no}};
 	# for my $t ( @{$counts->{invalids}{$taxon_no}} )	{
 	# 	my $extant = ( $taxon->{'extant'} !~ /y/i ) ? "no" : "yes";
@@ -360,10 +345,10 @@ sub printBox {
 	my @badList;
 	push @badList , PBDB::TaxonInfo::italicize($_)." ".PBDB::TaxonInfo::formatShortAuthor($_)." [".$_->{'status'}."]" foreach @{$counts->{invalids}{$taxon_no}};
 	my $marginTop = ( $list ) ? "0.5em" : "0.5em;";
-	print "Invalid names: ".join(', ',@badList)."</div>\n";
+	$output .= "Invalid names: ".join(', ',@badList)."</div>\n";
     }
-    print "  </div>\n";
-    return;
+    $output .= "  </div>\n";
+    return $output;
 }
 
 
