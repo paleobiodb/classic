@@ -92,11 +92,18 @@ sub buildDownload {
         }
     }
 
-    my $inputIsOK = $self->checkInput($q);
-    return unless $inputIsOK; #printquestion-correct? or should this be return $output unless...?
+    my @errors = $self->checkInput($q);
 
+    if ( @errors ) # printquestion (MM)
+    {
+	my $errorString = "<li>" . join('</li><li>',@$errors) . "</li>";
+	my %vars = { error_message => $errorString };
+
+	return $hbo->populateHTML('download_form',\%vars);
+    }
+    
     geographyOptions($q);
-
+    
     my ($lumpedResults,$allResults) = $self->queryDatabase();
 
     my (%onhour,%onref,%byauth,%first,%last,%initials,%first_plus);
@@ -383,11 +390,13 @@ sub checkInput {
         push @errors , "You must select a 'Download only the following' value if you want to use this option";
     }
     
-    if ( @errors )	{
-        errors($q,\@errors);
-        return 0;
-    }
-    return 1;
+    # if ( @errors )	{
+    #     errors($q,\@errors);
+    #     return 0;
+    # }
+    # return 1;
+
+    return @errors;
 }
 
 # pulled out for reuse by queryDatabase JA 31.5.12
@@ -4021,7 +4030,7 @@ Content-Disposition: attachment; filename=$file
 |;
 		$body .= `cat $OUT_FILE_DIR/$file`;
 	}
-	$output .= $mailer $body; #printquestion-how to return these two scalers as a string?
+	print $mailer $body; # we are printing to a process, not to a web page
 	$mailer->close;
 
 	$output .= "<center>\n<p class=\"pageTitle\">Download sent</p>\n\nYour download files have been mailed to:</p>\n\n<p><b>".$q->param('email')."</b></p></center>";
@@ -4335,9 +4344,11 @@ sub getTaxonString {
 sub dbg {
     my $self = shift;
     my $message = shift;
+    
+    # if ( $DEBUG && $message ) { print "<font color='green'>$message</font><br>\n"; } #printquestion (MM)
 
-    if ( $DEBUG && $message ) { print "<font color='green'>$message</font><br>\n"; } #printquestion
-
+    if ( $DEBUG && $message ) { print STDERR "DEBUG: $message\n"; }
+    
     return $DEBUG;                    # Either way, return the current DEBUG value
 }
 

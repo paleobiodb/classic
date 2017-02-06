@@ -462,7 +462,7 @@ sub displaySearchStrataForm {
     # Set the Enterer
     $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
     $output .= PBDB::Person::makeAuthEntJavascript($dbt);
-    $output .= $hbo->populateHTML('search_collections_form',$vars)
+    $output .= $hbo->populateHTML('search_collections_form',$vars);
 
     return $output;
 }
@@ -679,7 +679,8 @@ sub displaySearchStrataResults {
         } else {
             $numLeft = "the next " . $limit;
         }
-        $output .= "<a href='$READ_URL?$getString'><b>Get $numLeft units</b></a> - "; #printquestion-this is not formatted correctly with a makeanchor
+        $output .= makeATag('displaySearchStrataResults', $getString) . "<b>Get $numLeft units</b></a> - ";
+	#printquestion (MM) replaced <a...> with call to makeATag() with appropriate action.
     }
     $output .= makeAnchor("displaySearchStrataForm", "", "<b>Search again</b>");
 

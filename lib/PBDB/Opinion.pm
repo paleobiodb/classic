@@ -33,7 +33,8 @@ sub new {
         $self->{'author2last'} = $results[0]->{'author2last'};
         $self->{'pubyr'} = $results[0]->{'pubyr'};
     } else {
-        carp "Could not create opinion object with passed in opinion $opinion_no"; #printquestion
+        print STDERR "ERROR: Could not create opinion object with passed in opinion $opinion_no\n";
+	#printquestion (MM)
         return;
     }
 	return $self;
@@ -286,11 +287,12 @@ sub displayOpinionForm {
     # Don't do anymore, anyone can edit
 	#my @nonEditables; 	
 	
-	if ((!$dbt) || (!$hbo) || (! $s) || (! $q)) {
-		croak("PBDB::Opinion::displayOpinionForm had invalid arguments passed to it."); #printquestion-No modification?jk
-		return;
-	}
-
+    if ((!$dbt) || (!$hbo) || (! $s) || (! $q)) {
+	print STDERR "ERROR: PBDB::Opinion::displayOpinionForm had invalid arguments passed to it.\n";
+	#printquestion (MM)
+	return;
+    }
+    
     # Simple variable assignments
     my $isNewEntry = ($q->param('opinion_no') > 0) ? 0 : 1;
     my $reSubmission = ($error_message) ? 1 : 0;
@@ -724,11 +726,12 @@ sub submitOpinionForm {
 	my %rankToNum = %PBDB::Taxon::rankToNum;
   
     my @warnings = ();
-
-	if ((!$dbt) || (!$hbo) || (!$s) || (!$q)) {
-		croak("PBDB::Opinion::submitOpinionForm had invalid arguments passed to it"); #printquestion-croak writes to stderr or logfile already correct?
-		return;	
-	}
+    
+    if ((!$dbt) || (!$hbo) || (!$s) || (!$q)) {
+	print STDERR "ERROR: PBDB::Opinion::submitOpinionForm had invalid arguments passed to it\n";
+	#printquestion (MM)
+	return;	
+    }
     
     unless ( $q->param('check_status') eq 'done' )
     {
@@ -1740,8 +1743,9 @@ sub displayOpinionChoiceForm {
             my @results = @{$dbt->getData($sql)};
             if (scalar(@results) == 0) {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No opinions were found</div>');
-                $output .= PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo); #printquestion-not returned directly because $output may have been appended above. Check this.
-                return $output;
+                return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+		#printquestion (MM) above output is not relevant if no
+		#opinions were actually found
             }
             $output .= "<div align=\"center\">";
             if ($s->isDBMember())	{
@@ -1779,12 +1783,12 @@ sub displayOpinionChoiceForm {
                 $message .= "<li class='medium'>$_</li>" foreach @errors;
                 $message .= "</ul>\n</div>\n<br>\n"; 
                 $q->param('errors' => $message);
-                $output .= PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo); #printquestion
-		return $output;
+                return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+		#printquestion (MM) above output is not relevant if errors occurred
             } else {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No search terms were entered</div>');
-                $output .= PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo); #printquestion
-		return $output;
+                return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+		#printquestion (MM) above output is not relevant if errors occurred
             }
         }
     } 
@@ -1952,8 +1956,8 @@ sub badNames	{
 			$by = $e->{'auth1'}." and ".$e->{'auth2'}." ".$e->{'yr'};
 		}
 		$by =~ s/, jr.//gi;
-        #printquestion - The following 3 lines are a mess. There are <div>'s and other oddities within the ref anchor. This was an old issue that existed prior to print statement refactoring.
-		$by = "<a href=\"$WRITE_URL?a=displayReference&amp;reference_no=$e->{'refno'}\">" . $by;
+        #printquestion (MM) replaced <a...> with a call to makeATag()
+		$by = makeATag('displayReference', "reference_no=$e->{'refno'}") . $by;
 		$output .= '<div class="small" style="margin-top: 1em; margin-left: 1em; text-indent: -1em;">&bull; '.$e->{'taxon_rank'}." ".$e->{'taxon_name'}."</div>\n\n";
 		$output .= "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">currently assigned to ".$e->{'parent'}." based on $by</a></div>";
 		if ( $parent_problem{$e->{'taxon_no'}} )	{

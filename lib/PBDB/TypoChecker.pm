@@ -16,7 +16,7 @@ $TypoChecker::edit_distance = 3;
 sub searchOccurrenceMisspellingForm {
     my ($dbt,$q,$s,$hbo,$message,$no_header) = @_;
     my $dbh = $dbt->dbh;
-    $output = '';
+    my $output = '';
 
 
     my %vars = $q->Vars();

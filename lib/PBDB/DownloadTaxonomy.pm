@@ -1351,7 +1351,7 @@ sub cleanOldGuestFiles {
 }
 
 sub displayErrors {
-    $output = '';
+    my $output = '';
 
     if (scalar(@_)) { 
         my $plural = (scalar(@_) > 1) ? "s" : "";

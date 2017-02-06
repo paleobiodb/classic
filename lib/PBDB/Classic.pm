@@ -457,9 +457,10 @@ sub menu	{
     my ($q, $s, $dbt, $hbo, $message) = @_;
     
     my ($package, $filename, $line) = caller;
-    
-	my %vars;
-	$vars{'message'} = $message;
+
+    my $output = '';
+    my %vars;
+    $vars{'message'} = $message;
     
 	# Clear Queue?  This is highest priority
 	if ( $q->param("clear") ) {
@@ -483,26 +484,26 @@ sub menu	{
 	}
 
 	if ($s->isDBMember()) {
-		print $hbo->stdIncludes($PAGE_TOP);
+		$output = $hbo->stdIncludes($PAGE_TOP);
 		unless ( $s->get('role') =~ /authorizer|enterer/ )
 		{
 			$vars{'limited'} = 1;
 		}
-		print $hbo->populateHTML('menu',\%vars);
-		print $hbo->stdIncludes($PAGE_BOTTOM);
+		$output .= $hbo->populateHTML('menu',\%vars);
+		$output .= $hbo->stdIncludes($PAGE_BOTTOM);
 	} else	{
         	# if ($q->param('user') eq 'Contributor') {
 		# 	login( "Please log in first.","menu" );
 		# } else	{
 		# 	menu($q, $s, $dbt, $hbo);
 		# }
-	    print $hbo->stdIncludes($PAGE_TOP);
-	    print $hbo->populateHTML('menu', \%vars);
-	    print $hbo->stdIncludes($PAGE_BOTTOM);
+	    $output = $hbo->stdIncludes($PAGE_TOP);
+	    $output .= $hbo->populateHTML('menu', \%vars);
+	    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 	}
+
+    return $output;
 }
-
-
 
 
 # well, displays the home page
@@ -714,7 +715,6 @@ sub displayDownloadForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-
 	my %vars = $q->Vars();
 	$vars{'authorizer_me'} = $s->get("authorizer_reversed");
 	$vars{'enterer_me'} = $s->get("authorizer_reversed");
@@ -743,10 +743,12 @@ sub displayDownloadForm {
 		$vars{'row_class_1b'} = '';
 	}
 
-	print $hbo->stdIncludes($PAGE_TOP);
-	print PBDB::Person::makeAuthEntJavascript($dbt);
-	print $hbo->populateHTML('download_form',\%vars);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= $hbo->populateHTML('download_form',\%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 
@@ -754,7 +756,6 @@ sub displayDownloadGenerator {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-
 	my %vars = $q->Vars();
 	$vars{'authorizer_me'} = $s->get("authorizer_reversed");
 	$vars{'enterer_me'} = $s->get("authorizer_reversed");
@@ -784,17 +785,19 @@ sub displayDownloadGenerator {
 		$vars{'row_class_1b'} = '';
 	}
 
-	print $hbo->stdIncludes($PAGE_TOP);
-	print PBDB::Person::makeAuthEntJavascript($dbt);
-	print $hbo->populateSimple('download_generator',\%vars);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= $hbo->populateSimple('download_generator',\%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 
 sub displayBasicDownloadForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
-    
+
 	my %vars = $q->Vars();
 	my $last;
 	if ( $s->get('enterer_no') > 0 )	{
@@ -804,10 +807,13 @@ sub displayBasicDownloadForm {
 			my ($k,$v) = split qr{=},$p;
 			$vars{$k} = $v;
 		}
-	}
-	print $hbo->stdIncludes($PAGE_TOP );
-	print $hbo->populateHTML('basic_download_form',\%vars);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+	    }
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP );
+    $output .= $hbo->populateHTML('basic_download_form',\%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub displayDownloadResults {
@@ -816,25 +822,29 @@ sub displayDownloadResults {
     
     logRequest($s,$q);
 
-	print $hbo->stdIncludes( $PAGE_TOP );
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    
+    my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
+    $output .= $m->buildDownload( );
+    
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-	my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
-	$m->buildDownload( );
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
+
 
 sub emailDownloadFiles	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes( $PAGE_TOP );
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    
+    my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
+    $output .= $m->emailDownloadFiles();
+    
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-	my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
-	$m->emailDownloadFiles();
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
-
+    return $output;
 }
 
 # JA 28.7.08
@@ -859,10 +869,13 @@ sub displayDownloadMeasurementsResults	{
     
 	return if PBDB::PBDBUtil::checkForBot();
     
-	logRequest($s,$q);
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Measurement::displayDownloadMeasurementsResults($q,$s,$dbt,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    logRequest($s,$q);
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Measurement::displayDownloadMeasurementsResults($q,$s,$dbt,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub displayDownloadTaxonomyForm {
@@ -873,10 +886,12 @@ sub displayDownloadTaxonomyForm {
     my %vars = $q->Vars();
     $vars{'authorizer_me'} = $s->get('authorizer_reversed');
 
-    print $hbo->stdIncludes($PAGE_TOP);
-    print PBDB::Person::makeAuthEntJavascript($dbt);
-    print $hbo->populateHTML('download_taxonomy_form',\%vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= $hbo->populateHTML('download_taxonomy_form',\%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }       
 
 sub getTaxonomyXML {
@@ -886,7 +901,7 @@ sub getTaxonomyXML {
     return if PBDB::PBDBUtil::checkForBot();
     logRequest($s,$q);
     
-    PBDB::DownloadTaxonomy::getTaxonomyXML($dbt,$q,$s,$hbo);
+    return PBDB::DownloadTaxonomy::getTaxonomyXML($dbt,$q,$s,$hbo);
 }
 
 sub displayDownloadTaxonomyResults {
@@ -896,23 +911,27 @@ sub displayDownloadTaxonomyResults {
     return if PBDB::PBDBUtil::checkForBot();
     
     logRequest($s,$q);
-    print $hbo->stdIncludes( $PAGE_TOP );
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
     if ($q->param('output_data') =~ /ITIS/i) {
-        PBDB::DownloadTaxonomy::displayITISDownload($dbt,$q,$s);
+        $output .= PBDB::DownloadTaxonomy::displayITISDownload($dbt,$q,$s);
     } else { 
-        PBDB::DownloadTaxonomy::displayPBDBDownload($dbt,$q,$s);
+        $output .= PBDB::DownloadTaxonomy::displayPBDBDownload($dbt,$q,$s);
     }
                                               
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }  
 
 sub displayReportForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes( $PAGE_TOP );
-	print $hbo->populateHTML('report_form');
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output =$hbo->stdIncludes( $PAGE_TOP );
+    $output .= $hbo->populateHTML('report_form');
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub displayReportResults {
@@ -920,13 +939,14 @@ sub displayReportResults {
     my ($q, $s, $dbt, $hbo) = @_;
     
     logRequest($s,$q);
-
-	print $hbo->stdIncludes( $PAGE_TOP );
-
-	my $r = PBDB::Report->new($dbt,$q,$s);
-	$r->PBDB::Report::buildReport();
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    
+    my $r = PBDB::Report->new($dbt,$q,$s);
+    $output .= $r->PBDB::Report::buildReport();
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 sub displayMostCommonTaxa	{
@@ -934,41 +954,43 @@ sub displayMostCommonTaxa	{
     my ($q, $s, $dbt, $hbo, $dataRowsRef) = @_;
     
     # my $dataRowsRef = shift;
-	require PBDB::Report;
+    
+    logRequest($s,$q);
+    
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    
+    my $r = PBDB::Report->new($dbt,$q,$s);
+    $output .= $r->findMostCommonTaxa($dataRowsRef);
+    
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-	logRequest($s,$q);
-
-	print $hbo->stdIncludes( $PAGE_TOP );
-
-	my $r = PBDB::Report->new($dbt,$q,$s);
-	$r->findMostCommonTaxa($dataRowsRef);
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 sub displayCountForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes( $PAGE_TOP );
-	print PBDB::Person::makeAuthEntJavascript($dbt);
-	print $hbo->populateHTML('taxon_count_form');
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= $hbo->populateHTML('taxon_count_form');
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub fastTaxonCount	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	return if PBDB::PBDBUtil::checkForBot();
-	logRequest($s,$q);
+    return if PBDB::PBDBUtil::checkForBot();
+    logRequest($s,$q);
+    
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::Report::fastTaxonCount($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-	print $hbo->stdIncludes( $PAGE_TOP );
-
-	require PBDB::Report;
-	PBDB::Report::fastTaxonCount($dbt,$q,$s,$hbo);
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 
@@ -976,16 +998,15 @@ sub countNames	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	require PBDB::Report;
+    logRequest($s,$q);
+    
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    
+    my $r = PBDB::Report->new($dbt,$q,$s);
+    $output .= $r->countNames();
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-	logRequest($s,$q);
-
-	print $hbo->stdIncludes( $PAGE_TOP );
-
-	my $r = PBDB::Report->new($dbt,$q,$s);
-	$r->countNames();
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 # sub displayCurveForm {
@@ -1216,8 +1237,7 @@ sub quickSearch	{
 	# if basicCollectionSearch finds any match it should exit somehow before
 	#   this point, so try a common name search as a desperation measure
 		if ( $qs !~ /[^A-Za-z' ]/ )	{
-			PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
-			return;
+			return basicTaxonInfo($q,$s,$dbt,$hbo);
 		}
 	}
 	else	{
@@ -1226,8 +1246,7 @@ sub quickSearch	{
 	# case 3: string is formatted correctly and matches at least one name,
 	#  so search taxa only
 		if ( $t->{'c'} > 0 )	{
-			PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
-			return;
+			return basicTaxonInfo($q,$s,$dbt,$hbo);
 		}
 	# case 4: search is formatted correctly but does not directly match
 	#  any name, so first try collections and then try taxa again (which
@@ -1235,9 +1254,8 @@ sub quickSearch	{
 		else	{
 			my $found = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
 			return if $found == 1;
-			PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
-			return;
-		}
+			return basicTaxonInfo($q,$s,$dbt,$hbo);
+		    }
 	}
 
 	# if we don't have any idea what they're driving at, send them home
@@ -1245,12 +1263,11 @@ sub quickSearch	{
 	#  and no error message is returned by anything else, which is only
 	#  ever likely to happen if basicTaxonInfo isn't called
     
-	print $hbo->stdIncludes( $PAGE_TOP );
-	menu($q, $s, $dbt, $hbo, '<center>Your search failed to recover any data records</center>');
-	print $hbo->stdIncludes( $PAGE_BOTTOM );
-
-	return;
-
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= menu($q, $s, $dbt, $hbo, '<center>Your search failed to recover any data records</center>');
+    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+    
+    return $output;
 }
 
 
@@ -1272,18 +1289,18 @@ sub displaySearchCollsForAdd	{
 	if ( ! $reference_no ) {
 		# Come back here... requeue our option
 		$s->enqueue_action("displaySearchCollsForAdd");
-		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>");
-		return;
+		return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>");
 	}
 
 	# Some prefilled variables like lat/lng/time term
 	my %pref = $s->getPreferences();
 	
 	# Spit out the HTML
-	print $hbo->stdIncludes( $PAGE_TOP );
-	print $hbo->populateHTML('search_collections_for_add_form' , \%pref);
-	print $hbo->stdIncludes( $PAGE_BOTTOM );
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= $hbo->populateHTML('search_collections_for_add_form' , \%pref);
+    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
 
+    return $output;
 }
 
 
@@ -1330,13 +1347,16 @@ sub displaySearchColls {
 		$vars{'limit'} = 20;
 	}
 
-	# Spit out the HTML
-	print $hbo->stdIncludes($PAGE_TOP);
-	print PBDB::Person::makeAuthEntJavascript($dbt);
-	$vars{'page_title'} = "Collection search form";
-	# print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-	print $hbo->populateHTML('search_collections_form', \%vars);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    # Spit out the HTML
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+    $vars{'page_title'} = "Collection search form";
+    # print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
+    $output .= $hbo->populateHTML('search_collections_form', \%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub basicCollectionSearch	{
@@ -3021,8 +3041,12 @@ sub displayTaxonInfoResults {
 sub basicTaxonInfo	{
     
     my ($q, $s, $dbt, $hbo) = @_;
-    
-	PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
+
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 ## END Taxon Info Stuff
