@@ -103,7 +103,7 @@ sub dbg {
     my $message = shift;
     my $level = shift || 1;
     if ( $Debug::DEBUG && $Debug::DEBUG >= $level && $message ) {
-        print "<font color='green'>$message</font><br>\n"; 
+        print STDERR "DEBUG: $message\n"; 
     }
     return $Debug::DEBUG;
 }

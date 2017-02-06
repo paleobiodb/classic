@@ -821,150 +821,150 @@ sub checkDuplicates {
 #       $vals			values from form (as above)
 #
 ##			
-sub checkNearMatch {
-    my ($self,$table_name,$primary_key_name,$hbo,$q,$matchlimit,$where_term);
+# sub checkNearMatch {
+#     my ($self,$table_name,$primary_key_name,$hbo,$q,$matchlimit,$where_term);
 
-    my $dbh = $self->dbh;
+#     my $dbh = $self->dbh;
 
-    my %vars = $q->Vars();
-    my $what_to_do = $vars{'what_to_do'};
+#     my %vars = $q->Vars();
+#     my $what_to_do = $vars{'what_to_do'};
 
-    my @fields = keys %vars;
-    my @vals = values %vars;
+#     my @fields = keys %vars;
+#     my @vals = values %vars;
 
-    if ($what_to_do) {
-        if($what_to_do eq 'Continue'){
-            return 0;
-        } else{
-            print PBDB::Debug::printWarnings(["Record addition canceled"]);
-            return 1;
-        }
-    } else {
-        my $sql = "SELECT * FROM $table_name WHERE $where_term";
-        dbg("checkNearMatch SQL:$sql<br>");
+#     if ($what_to_do) {
+#         if($what_to_do eq 'Continue'){
+#             return 0;
+#         } else{
+#             print PBDB::Debug::printWarnings(["Record addition canceled"]);
+#             return 1;
+#         }
+#     } else {
+#         my $sql = "SELECT * FROM $table_name WHERE $where_term";
+#         dbg("checkNearMatch SQL:$sql<br>");
 
-        my @rows = @{$self->getData($sql)};
+#         my @rows = @{$self->getData($sql)};
 
-        # Look for matches in the returned rows
-        my @complaints;
-        foreach my $row (@rows) {
-            my $fieldMatches;
-            for ( my $i=0; $i<$#fields; $i++ ) {
-                my $v = $vals[$i];
-                if ( $fields[$i] !~ /^authorizer|^enterer|^modifier|^created$|^modified$|comments|^release_date$|^upload$/) {
-                    if ( $v eq $row->{$fields[$i]} && $v ne "")	{
-                        $fieldMatches++;
-                    }
-                }
-            }
-            if ($fieldMatches >= $matchlimit)	{
-                push @complaints,$row;
-            }
-        }
+#         # Look for matches in the returned rows
+#         my @complaints;
+#         foreach my $row (@rows) {
+#             my $fieldMatches;
+#             for ( my $i=0; $i<$#fields; $i++ ) {
+#                 my $v = $vals[$i];
+#                 if ( $fields[$i] !~ /^authorizer|^enterer|^modifier|^created$|^modified$|comments|^release_date$|^upload$/) {
+#                     if ( $v eq $row->{$fields[$i]} && $v ne "")	{
+#                         $fieldMatches++;
+#                     }
+#                 }
+#             }
+#             if ($fieldMatches >= $matchlimit)	{
+#                 push @complaints,$row;
+#             }
+#         }
 
-        if (@complaints)	{
-            # Print out the possible matches
-            my $warning = "Your new record may duplicate one of the following old ones.";
-            print "<CENTER><H3><FONT COLOR='red'>Warning:</FONT> $warning</H3></CENTER>\n";                                                                         
-            print "<table><tr><td>\n";
-            # Figure out what fields to show
-            my @display = ();
-            # Be more narrowminded if this is a coll
-            if ($table_name eq "refs")	{
-                @display = ("reference_no","author1last","author2last","otherauthors","pubyr","reftitle","pubtitle","pubvol","pubno");
-            } elsif ($table_name eq "collections")	{
-                @display = ("collection_no", "collection_name", "country", "state","formation", "period_max");
-            } else {
-                @display = $self->getTableColumns($table_name);
-            }
+#         if (@complaints)	{
+#             # Print out the possible matches
+#             my $warning = "Your new record may duplicate one of the following old ones.";
+#             print "<CENTER><H3><FONT COLOR='red'>Warning:</FONT> $warning</H3></CENTER>\n";                                                                         
+#             print "<table><tr><td>\n";
+#             # Figure out what fields to show
+#             my @display = ();
+#             # Be more narrowminded if this is a coll
+#             if ($table_name eq "refs")	{
+#                 @display = ("reference_no","author1last","author2last","otherauthors","pubyr","reftitle","pubtitle","pubvol","pubno");
+#             } elsif ($table_name eq "collections")	{
+#                 @display = ("collection_no", "collection_name", "country", "state","formation", "period_max");
+#             } else {
+#                 @display = $self->getTableColumns($table_name);
+#             }
 
-            foreach my $row (@complaints) {
-                # Do some cleanup if this is a ref
-                if ($table_name eq "refs")	{
-                    # If otherauthors is filled in, we do an et al.
-                    if ($row->{'otherauthors'} )	{
-                        $row->{'author1last'} .= " et al.";
-                        $row->{'author2init'} = '';
-                        $row->{'author2last'} = '';
-                        $row->{'otherauthors'} = '';
-                    }
-                    # If there is a second author...
-                    elsif ( $row->{'author2last'} )	{
-                        $row->{'author1last'} .= " and ";
-                    }
-                }
-                my @rowData;
-                for my $d (@display)	{
-                    push @rowData,$row->{$d};
-                }
-                if ($table_name eq "refs")	{
-                    print $hbo->populateHTML('reference_display_row', \@rowData, \@display);
-                }
-                elsif($table_name eq "opinions"){
-                    my $sql="SELECT taxon_name FROM authorities WHERE taxon_no=".
-                            $row->{parent_no};
-                    my @results = @{$self->getData($sql)};
-                    print "<table><tr>";
-                    print "<td>$row->{status} $results[0]->{taxon_name}: ".
-                          "$row->{author1last} $row->{pubyr} ";
+#             foreach my $row (@complaints) {
+#                 # Do some cleanup if this is a ref
+#                 if ($table_name eq "refs")	{
+#                     # If otherauthors is filled in, we do an et al.
+#                     if ($row->{'otherauthors'} )	{
+#                         $row->{'author1last'} .= " et al.";
+#                         $row->{'author2init'} = '';
+#                         $row->{'author2last'} = '';
+#                         $row->{'otherauthors'} = '';
+#                     }
+#                     # If there is a second author...
+#                     elsif ( $row->{'author2last'} )	{
+#                         $row->{'author1last'} .= " and ";
+#                     }
+#                 }
+#                 my @rowData;
+#                 for my $d (@display)	{
+#                     push @rowData,$row->{$d};
+#                 }
+#                 if ($table_name eq "refs")	{
+#                     print $hbo->populateHTML('reference_display_row', \@rowData, \@display);
+#                 }
+#                 elsif($table_name eq "opinions"){
+#                     my $sql="SELECT taxon_name FROM authorities WHERE taxon_no=".
+#                             $row->{parent_no};
+#                     my @results = @{$self->getData($sql)};
+#                     print "<table><tr>";
+#                     print "<td>$row->{status} $results[0]->{taxon_name}: ".
+#                           "$row->{author1last} $row->{pubyr} ";
 
-                    $sql="SELECT p1.name as name1, p2.name as name2, ".
-                            "p3.name as name3 ".
-                            "FROM person as p1, person as p2, person as p3 WHERE ".
-                            "p1.person_no=$row->{authorizer_no} ".
-                            "AND p2.person_no=$row->{enterer_no} ".
-                            "AND p3.person_no=$row->{modifier_no}";
-                    @results = @{$self->getData($sql)};
+#                     $sql="SELECT p1.name as name1, p2.name as name2, ".
+#                             "p3.name as name3 ".
+#                             "FROM person as p1, person as p2, person as p3 WHERE ".
+#                             "p1.person_no=$row->{authorizer_no} ".
+#                             "AND p2.person_no=$row->{enterer_no} ".
+#                             "AND p3.person_no=$row->{modifier_no}";
+#                     @results = @{$self->getData($sql)};
 
-                    print "<font class=\"tiny\">[".
-                          "$results[0]->{name1}/$results[0]->{name2}/".
-                          "$results[0]->{name3}]".
-                          "</font></td>";
-                    print "</tr></table>";
-                }
-                elsif($table_name eq "authorities"){
-                    print "<table><tr>";
-                    print "<td> $row->{taxon_name}: $row->{author1last} $row->{pubyr} ";
+#                     print "<font class=\"tiny\">[".
+#                           "$results[0]->{name1}/$results[0]->{name2}/".
+#                           "$results[0]->{name3}]".
+#                           "</font></td>";
+#                     print "</tr></table>";
+#                 }
+#                 elsif($table_name eq "authorities"){
+#                     print "<table><tr>";
+#                     print "<td> $row->{taxon_name}: $row->{author1last} $row->{pubyr} ";
 
-                    my $sql="SELECT p1.name as name1, p2.name as name2, ".
-                            "p3.name as name3 ".
-                            "FROM person as p1, person as p2, person as p3 WHERE ".
-                            "p1.person_no=$row->{authorizer_no} ".
-                            "AND p2.person_no=$row->{enterer_no} ".
-                            "AND p3.person_no=$row->{modifier_no}";
-                    my @results = @{$self->getData($sql)};
+#                     my $sql="SELECT p1.name as name1, p2.name as name2, ".
+#                             "p3.name as name3 ".
+#                             "FROM person as p1, person as p2, person as p3 WHERE ".
+#                             "p1.person_no=$row->{authorizer_no} ".
+#                             "AND p2.person_no=$row->{enterer_no} ".
+#                             "AND p3.person_no=$row->{modifier_no}";
+#                     my @results = @{$self->getData($sql)};
 
-                    print "<font class=\"tiny\">[".
-                          "$results[0]->{name1}/$results[0]->{name2}/".
-                          "$results[0]->{name3}]".
-                          "</font></td>";
-                    print "</tr></table>";
-                }
-            }
-            print "</td></tr></table>\n";
-        }
+#                     print "<font class=\"tiny\">[".
+#                           "$results[0]->{name1}/$results[0]->{name2}/".
+#                           "$results[0]->{name3}]".
+#                           "</font></td>";
+#                     print "</tr></table>";
+#                 }
+#             }
+#             print "</td></tr></table>\n";
+#         }
 
-        if(@complaints){
-            print "<center><p><b>What would you like to do?</b></p></center>";
-            print "<form method=POST action=\"classic\">";
+#         if(@complaints){
+#             print "<center><p><b>What would you like to do?</b></p></center>";
+#             print "<form method=POST action=\"classic\">";
            
             
            
-            print "<center><input type=submit name=\"what_to_do\" value=\"Cancel\"> ";
-            print "<input type=submit name=\"what_to_do\" value=\"Continue\"></center>";
-            print "</form>";
-            if($table_name eq "refs"){
-                print qq|<p><a href="brigde.pl?action=displaySearchRefs&type=add"><b>Add another reference</b></a></p></center><br>\n|; #jpjenk: what to do with bridge.pl
-            }
-            # we don't want control to return to insertRecord() (which called this
-            # method and will insert the record after control returns to it after
-            # calling this method, thus potentially creating a duplicate record if
-            # the user chooses to continue.
-            # Terminate this server session, and wait for user's response.
-            return;
-        }
-    }
-}
+#             print "<center><input type=submit name=\"what_to_do\" value=\"Cancel\"> ";
+#             print "<input type=submit name=\"what_to_do\" value=\"Continue\"></center>";
+#             print "</form>";
+#             if($table_name eq "refs"){
+#                 print qq|<p><a href="brigde.pl?action=displaySearchRefs&type=add"><b>Add another reference</b></a></p></center><br>\n|; #jpjenk: what to do with bridge.pl
+#             }
+#             # we don't want control to return to insertRecord() (which called this
+#             # method and will insert the record after control returns to it after
+#             # calling this method, thus potentially creating a duplicate record if
+#             # the user chooses to continue.
+#             # Terminate this server session, and wait for user's response.
+#             return;
+#         }
+#     }
+# }
 
 
 # logEvent ( fields )

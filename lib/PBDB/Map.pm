@@ -692,6 +692,7 @@ sub readPlateIDs {
     my $self = shift;
     if ( ! open IDS,"<$DATA_DIR/plateidsv2.lst" ) {
         $self->htmlError ( "Couldn't open [$DATA_DIR/plateidsv2.lst]: $!" );
+	return;
     }
 
 
@@ -920,6 +921,7 @@ sub mapGetRotations	{
     if (!@ALL_ROT) {
 	    if ( ! open ROT,"<$DATA_DIR/master01c.rot" ) {
 		    $self->htmlError ( "Couldn't open [$DATA_DIR/master01c.rot]: $!" );
+		    return;
 	    }
 	    while (<ROT>)	{
 		    s/\n//;
@@ -2909,8 +2911,8 @@ sub htmlError {
     my $self = shift;
     my $message = shift;
 
-    print $message;
-    exit 1;
+    print STDERR $message;
+    return;
 }
 
 

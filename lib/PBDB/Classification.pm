@@ -103,7 +103,7 @@ sub get_classification_hash{
         $child_no = PBDB::TaxonInfo::getSeniorSynonym($dbt,$child_no,$restrict_to_reference_no);
         # prime the pump 
         my $parent_row = PBDB::TaxonInfo::getMostRecentClassification($dbt,$child_no,{'reference_no'=>$restrict_to_reference_no});
-        if ($DEBUG) { print "Start:".Dumper($parent_row)."<br>"; }
+        if ($DEBUG) { print STDERR "Start:".Dumper($parent_row)."<br>"; }
         my $status = $parent_row->{'status'};
         $child_no = $parent_row->{'parent_no'};
         #if ($child_no == 14505) {
@@ -128,7 +128,7 @@ sub get_classification_hash{
 
             # Belongs to should always point to original combination
             $parent_row = PBDB::TaxonInfo::getMostRecentClassification($dbt,$child_no,{'reference_no'=>$restrict_to_reference_no});
-            if ($DEBUG) { print "Loop:".Dumper($parent_row)."<br>"; }
+            if ($DEBUG) { print STDERR "Loop:".Dumper($parent_row)."<br>"; }
        
             # No parent was found. This means we're at end of classification, althought
             # we don't break out of the loop till the end of adding the node since we
@@ -157,16 +157,16 @@ sub get_classification_hash{
                 $link->{'taxon_rank'} = $taxon_rank;
                 $link->{'taxon_spelling_no'} = $child_spelling_no;
                 $link->{'next_link'} = $link_cache{$parent_no};
-                if ($DEBUG) { print "Found cache for $parent_no:".Dumper($link)."<br>";}
+                if ($DEBUG) { print STDERR "Found cache for $parent_no:".Dumper($link)."<br>";}
                 last;
             # populate this link, then set the link to be the next_link, climbing one up the tree
             } else {
                 # Synonyms are tricky: We don't add the child (junior?) synonym onto the chain, only the parent
                 # Thus the child synonyms get their node values replace by the parent, with the old child data being
                 # saved into a "synonyms" field (an array of nodes)
-                if ($DEBUG) { print "Traverse $parent_no:".Dumper($link)."<br>";}
+                if ($DEBUG) { print STDERR "Traverse $parent_no:".Dumper($link)."<br>";}
                 if ($status =~ /^(?:replaced|subjective|objective|invalid)/o) {
-                    if ($DEBUG) { print "Synonym node<br>";}
+                    if ($DEBUG) { print STDERR "Synonym node<br>";}
                     my %node = (
                         'taxon_no'=>$child_no,
                         'taxon_name'=>$taxon_name,
@@ -176,7 +176,7 @@ sub get_classification_hash{
                     push @{$link->{'synonyms'}}, \%node;
                     $link_cache{$child_no} = $link;
                 } else {
-                    if ($DEBUG) { print "Reg. node<br>";}
+                    if ($DEBUG) { print STDERR "Reg. node<br>";}
                     if (exists $rank_hash{$taxon_rank} || $ranks[0] eq 'parent' || $ranks[0] eq 'all') {
                         my $next_link = {};
                         $link->{'taxon_no'} = $child_no;
@@ -184,7 +184,7 @@ sub get_classification_hash{
                         $link->{'taxon_rank'} = $taxon_rank;
                         $link->{'taxon_spelling_no'} = $child_spelling_no;
                         $link->{'next_link'}=$next_link;
-                        if ($DEBUG) { print Dumper($link)."<br>";}
+                        if ($DEBUG) { print STDERR Dumper($link)."<br>";}
                         $link_cache{$child_no} = $link;
                         $link = $next_link;
                     }
@@ -205,9 +205,6 @@ sub get_classification_hash{
             $child_no = $parent_no;
         }
     }
-
-    #print "</center><pre>link cache\n".Dumper(\%link_cache);
-    #print "\n\nlink head\n".Dumper(\%link_head).'</pre><center>';
 
     # flatten the linked list before passing it back, either into:
     #  return_type is numbers : comma separated taxon_nos, in order
@@ -233,8 +230,6 @@ sub get_classification_hash{
             }
         } else {
             while (%$link) {
-                #if ($count++ > 5) { print "link: ".Dumper($link)."<br>"}
-                #if ($count++ > 12) { last; }
                 # Loop prevention by marking where we've been
                 if (exists $visits{$link->{'taxon_no'}}) { 
                     last; 
@@ -293,8 +288,7 @@ sub new_search_recurse {
         foreach my $child (@results){
 			# Don't revisit same child. Avoids loops in data structure, and speeds things up
             if (exists $passed->{$child->{'child_no'}}) {
-                #print "already visited $child->{child_no}<br>";
-                next;    
+		next;    
             }
             # (the taxon_nos in %$passed will always be original combinations since orig. combs always have all the belongs to links)
             my $parent_row = PBDB::TaxonInfo::getMostRecentClassification($dbt, $child->{'child_no'});
@@ -462,17 +456,17 @@ sub getChildrenRecurse {
         }
     }
 
-    if (0) {
-    print "synonyms for $node->{taxon_name}:";
-    print "$_->{taxon_name} " for (@{$node->{'synonyms'}}); 
-    print "\n<br>";
-    print "spellings for $node->{taxon_name}:";
-    print "$_->{taxon_name} " for (@{$node->{'spellings'}}); 
-    print "\n<br>";
-    print "children for $node->{taxon_name}:";
-    print "$_->{taxon_name} " for (@{$node->{'children'}}); 
-    print "\n<br>";
-    }
+    # if (0) {
+    # print "synonyms for $node->{taxon_name}:";
+    # print "$_->{taxon_name} " for (@{$node->{'synonyms'}}); 
+    # print "\n<br>";
+    # print "spellings for $node->{taxon_name}:";
+    # print "$_->{taxon_name} " for (@{$node->{'spellings'}}); 
+    # print "\n<br>";
+    # print "children for $node->{taxon_name}:";
+    # print "$_->{taxon_name} " for (@{$node->{'children'}}); 
+    # print "\n<br>";
+    # }
 }
 
 sub createNode {

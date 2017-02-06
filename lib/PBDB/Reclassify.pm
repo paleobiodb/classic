@@ -17,11 +17,14 @@ sub startReclassifyOccurrences	{
         my $dbh = $dbt->dbh;
         my $output = '';
 
-	if (!$s->isDBMember()) {
-	    # have to be logged in
-		$s->enqueue_action("startReclassifyOccurrences", $q);
-		PBDB::displayLoginPage( "Please log in first." ); #printquestion-not how we do this now, should never get here.
-	} elsif ( $q->param("collection_no") )	{
+	# if (!$s->isDBMember()) {
+	#     # have to be logged in
+	# 	$s->enqueue_action("startReclassifyOccurrences", $q);
+	# 	PBDB::displayLoginPage( "Please log in first." ); 
+	#     }
+	#printquestion (MM) yes, this should be taken care of in Classic.pm
+	
+	if ( $q->param("collection_no") )	{
         # if they have the collection number, they'll immediately go to the
         #  reclassify page
 		displayOccurrenceReclassify($q,$s,$dbt,$hbo);

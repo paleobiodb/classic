@@ -203,8 +203,8 @@ sub printIntervalsJava  {
         }
     }
     $intervals =~ s/, $//;
-                                                                                                                                                             
-print <<EOF;
+    
+    my $output = <<END_HEADER;
 <script language="JavaScript" type="text/javascript">
 <!-- Begin
 function intervalNames() {
@@ -237,7 +237,8 @@ function checkIntervalNames(require_field) {
             return true;
         }
     } 
-EOF
+END_HEADER
+    
     for my $i (1..2) {
         my $check = "    if(";
         for my $row ( @results) {
@@ -262,9 +263,10 @@ EOF
         $check .= ") {\n";
         $check .= "        badname$i += \"YES\";\n";
         $check .= "    }\n";
-        print $check;
+        $output .= $check;
     }
-print <<EOF;
+    
+    $output .= <<END_FOOTER;
                                                                                                                                                              
     if ( badname1 != "" || badname2 != "" ) {
         alertmessage = "WARNING!\\n";
@@ -293,8 +295,9 @@ print <<EOF;
 }
 // END -->
 </script>
-EOF
-    return;
+END_FOOTER
+    
+    return $output;
 }
 
 sub stripTags {

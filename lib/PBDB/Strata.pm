@@ -679,7 +679,8 @@ sub displaySearchStrataResults {
         } else {
             $numLeft = "the next " . $limit;
         }
-        $output .= "<a href='$READ_URL?$getString'><b>Get $numLeft units</b></a> - "; #printquestion-this is not formatted correctly with a makeanchor
+        $output .= makeATag('displaySearchStrataResults', $getString) . "<b>Get $numLeft units</b></a> - ";
+	#printquestion (MM) replaced <a...> with call to makeATag() with appropriate action.
     }
     $output .= makeAnchor("displaySearchStrataForm", "", "<b>Search again</b>");
 

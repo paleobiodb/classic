@@ -348,201 +348,227 @@ sub coalescePages {
 
 # This shows the actual references.
 sub displayRefResults {
-	my ($dbt,$q,$s,$hbo) = @_;
-
-	my $type = $q->param('type');
-
-	# use_primary is true if the user has clicked on the "Current reference" link at
-	# the top or bottom of the page.  Basically, don't bother doing a complicated 
-	# query if we don't have to.
-	my ($data,$query_description,$alternatives) = ([],'','');
-	unless ( $q->param('use_primary') )	{
-		($data,$query_description,$alternatives) = getReferences($dbt,$q,$s,$hbo);
-	} 
-	my @data;
-	if ( $data )	{
-		@data  = @$data;
+    my ($dbt,$q,$s,$hbo) = @_;
+    
+    my $type = $q->param('type');
+    my $output = '';
+    
+    # use_primary is true if the user has clicked on the "Current reference" link at
+    # the top or bottom of the page.  Basically, don't bother doing a complicated 
+    # query if we don't have to.
+    my ($data,$query_description,$alternatives) = ([],'','');
+    unless ( $q->param('use_primary') )	{
+	($data,$query_description,$alternatives) = getReferences($dbt,$q,$s,$hbo);
+    } 
+    my @data;
+    if ( $data )	{
+	@data  = @$data;
+    }
+    
+    if ( (scalar(@data) == 1 && $type ne 'add') || $q->param('use_primary') || $q->param('use_last') )	{
+	# # Do the action, don't show results...
+	
+	# # Set the reference_no
+	# unless ( $q->param('use_primary') || $q->param('type') =~ /view|edit/ )	{
+	# 	$s->setReferenceNo( $data[0]->{'reference_no'});
+	# 	Dancer::redirect "/classic/dequeue";
+	# 	return;
+	# }
+	
+	# # QUEUE
+	# my %queue = $s->dequeue();
+	# my $action = $queue{'action'};
+	
+	# # Get all query params that may have been stuck on the queue
+	# # back into the query object:
+	# foreach my $key (keys %queue) {
+	# 	$q->param($key => $queue{$key});
+	# }
+	
+	# # if there's an action, go straight back to it without showing the ref
+	# if ($action)	{
+	#     PBDB::execAction($action);
+	# } elsif 
+	if ($q->param('type') eq 'edit')
+	{  
+	    $q->param("reference_no"=>$data[0]->{'reference_no'});
+	    return PBDB::ReferenceEntry::displayReferenceForm($dbt,$q,$s,$hbo);
+	} elsif ($q->param('type') eq 'select') {  
+	    return PBDB::menu($q, $s, $dbt, $hbo);
+	} else {
+	    # otherwise, display a page showing the ref JA 10.6.02
+	    return displayReference($dbt,$q,$s,$hbo,$data[0],$alternatives);
 	}
-
-	if ( (scalar(@data) == 1 && $type ne 'add') || $q->param('use_primary') || $q->param('use_last') )	{
-		# Do the action, don't show results...
-
-		# Set the reference_no
-		unless ( $q->param('use_primary') || $q->param('type') =~ /view|edit/ )	{
-			$s->setReferenceNo( $data[0]->{'reference_no'});
-			print "REDIRECTING\n";
-			Dancer::redirect "/classic/dequeue";
-			return;
-		}
-
-		# QUEUE
-		my %queue = $s->dequeue();
-		my $action = $queue{'action'};
-
-		# Get all query params that may have been stuck on the queue
-		# back into the query object:
-		foreach my $key (keys %queue) {
-			$q->param($key => $queue{$key});
-		}
-		
-		# if there's an action, go straight back to it without showing the ref
-		if ($action)	{
-		    PBDB::execAction($action);
-		} elsif ($q->param('type') eq 'edit') {  
-			$q->param("reference_no"=>$data[0]->{'reference_no'});
-			print $hbo->stdIncludes($PAGE_TOP);
-			PBDB::ReferenceEntry::displayReferenceForm($dbt,$q,$s,$hbo);
-			print $hbo->stdIncludes($PAGE_BOTTOM);
-		} elsif ($q->param('type') eq 'select') {  
-			PBDB::menu($q, $s, $dbt, $hbo);
-        	} else {
-			# otherwise, display a page showing the ref JA 10.6.02
-			print $hbo->stdIncludes($PAGE_TOP);
-			displayReference($dbt,$q,$s,$hbo,$data[0],$alternatives);
-			print $hbo->stdIncludes($PAGE_BOTTOM);
-		}
-		return;		# Out of here!
-	} elsif ( scalar(@data) > 0 ) {
-        # Needs to be > 0 for add -- case where its 1 is handled above explicitly
-	    print $hbo->stdIncludes( $PAGE_TOP);
-        # Print the sub header
-        my $offset = (int($q->param('refsSeen')) || 0);
-        my $limit = 30;
-        print "<div align=\"center\"><p class=\"pageTitle\" style=\"margin-bottom: 1em;\">$query_description matched ";
-        if (scalar(@data) > 1 && scalar(@data) > $limit) {
-            print scalar(@data)." references</p>\n\n";
-            print "<p class=\"medium\">Here are ";
-            if ($offset == 0)	{
-                print "the first $limit";
-            } elsif ($offset + $limit > scalar(@data)) {
-                print "the remaining ".(scalar(@data)-$offset)." references";
-            } else	{
-                print "references ",($offset + 1), " through ".($offset + $limit);
-            }
-            print "</p>\n\n";
-        } elsif ( scalar(@data) == 1) {
-            print "exactly one reference</p>";
-        } else	{
-            print scalar(@data)." references</p>\n";
-        }
-        print "</div>\n";
-#        if ($type eq 'add') {
-#            print "If the reference is not already in the system press \"Add reference.\"<br><br>";
+    } 
+    
+    elsif ( scalar(@data) > 0 )
+    {
+	# Needs to be > 0 for add -- case where its 1 is handled above explicitly
+	# Print the sub header
+	my $offset = (int($q->param('refsSeen')) || 0);
+	my $limit = 30;
+	$output .= "<div align=\"center\"><p class=\"pageTitle\" style=\"margin-bottom: 1em;\">$query_description matched ";
+	if (scalar(@data) > 1 && scalar(@data) > $limit) {
+	    $output .= scalar(@data)." references</p>\n\n";
+	    $output .= "<p class=\"medium\">Here are ";
+	    if ($offset == 0)	{
+		$output .= "the first $limit";
+	    } elsif ($offset + $limit > scalar(@data)) {
+		$output .= "the remaining ".(scalar(@data)-$offset)." references";
+	    } else	{
+		$output .= "references ",($offset + 1), " through ".($offset + $limit);
+	    }
+	    $output .= "</p>\n\n";
+	} elsif ( scalar(@data) == 1) {
+	    $output .= "exactly one reference</p>";
+	} else	{
+	    $output .= scalar(@data)." references</p>\n";
+	}
+	$output .= "</div>\n";
+	#        if ($type eq 'add') {
+#            $output .= "If the reference is not already in the system press \"Add reference.\"<br><br>";
 #        } elsif ($type eq 'edit') {
-#            print "Click the reference number to edit the reference<br><br>";
+#            $output .= "Click the reference number to edit the reference<br><br>";
 #        } elsif ($type eq 'select') {
-#            print "Click the reference number to select the reference<br><br>";
+#            $output .= "Click the reference number to select the reference<br><br>";
 #        } else {
 #        }
 
 		# Print the references found
-        print "<div style=\"margin: 1.5em; margin-bottom: 1em; padding: 1em; border: 1px solid #E0E0E0;\">\n";
-		print "<table border=0 cellpadding=5 cellspacing=0>\n";
-
-        # my $exec_url = ($type =~ /view/) ? "" : $WRITE_URL;
-
-		# Only print the last 30 rows that were found JA 26.7.02
-         my $dark;
-        for(my $i=$offset;$i < $offset + 30 && $i < scalar(@data); $i++) {
-            my $row = $data[$i];
-            if ( ($offset - $i) % 2 == 0 ) {
-                print "<tr class=\"darkList\">";
-                $dark++;
-            } else {
-                print "<tr>";
-                $dark = "";
-            }
-            print "<td valign=\"top\">";
-            if ($s->isDBMember()) {
-                if ($type eq 'add') {
-                    print makeAnchor("displayReferenceForm", "reference_no=$row->{reference_no}", $row->{reference_no});
-                } elsif ($type eq 'edit') {
-                    print makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=edit", $row->{reference_no});
-                } elsif ($type eq 'view') {
-                    print makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "</br>";
-                } else {
-                    print makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=select", $row->{reference_no}) . "<br>";
-                }
-            } else {
-                print makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no});
-            }
-            print "</td>";
-            my $formatted_reference = formatLongRef($row);
-            print "<td>".$formatted_reference;
-            if ( $type eq 'view' && $s->isDBMember() ) {
-                print " <small>";
-		print makeAnchor("displayRefResults", "type=select&reference_no=$row->{reference_no}", "select") . " - ";
-		print makeAnchor("displayRefResults", "type=edit&reference_no=$row->{reference_no}", "edit") . "</small>";
-            }
-            my $reference_summary = getReferenceLinkSummary($dbt,$s,$row->{'reference_no'});
-            print "<br><small>$reference_summary</small></td>";
-            print "</tr>";
+	$output .= "<div style=\"margin: 1.5em; margin-bottom: 1em; padding: 1em; border: 1px solid #E0E0E0;\">\n";
+	$output .= "<table border=0 cellpadding=5 cellspacing=0>\n";
+	    
+	# my $exec_url = ($type =~ /view/) ? "" : $WRITE_URL;
+	    
+	# Only print the last 30 rows that were found JA 26.7.02
+	my $dark;
+	for (my $i=$offset;$i < $offset + 30 && $i < scalar(@data); $i++)
+	{
+	    my $row = $data[$i];
+	    if ( ($offset - $i) % 2 == 0 )
+	    {
+		$output .= "<tr class=\"darkList\">";
+		$dark++;
+	    }
+	    else
+	    {
+		$output .= "<tr>";
+		$dark = "";
+	    }
+	    $output .= "<td valign=\"top\">";
+	    if ($s->isDBMember())
+	    {
+		if ($type eq 'add')
+		{
+		    $output .= makeAnchor("displayReferenceForm", "reference_no=$row->{reference_no}", $row->{reference_no});
 		}
-		print "</table>\n";
-		if ( $alternatives )	{
-			if ( ! $dark )	{
-				print "<div style=\"border-top: 1px solid #E0E0E0; margin-top: 0.5em; \"></div>\n";
-			}
-			print "<div class=\"small\" style=\"margin-left: 6em; margin-right: 4em; margin-top: 0.5em; margin-bottom: -0.5em; text-align: left; text-indent: -1em;\">Other possible matches include $alternatives.</div>\n\n";
+		elsif ($type eq 'edit')
+		{
+		    $output .= makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=edit", $row->{reference_no});
 		}
-		print "</div>";
-
-
-        # Now print links at bottom
-        print  "<center><p>";
-        if ($offset + 30 < scalar(@data)) {
-            my %vars = $q->Vars();
-            $vars{'refsSeen'} += 30;
-            my $ref_params = "";
-            foreach my $k (sort keys %vars) {
-                $ref_params .= "&$k=$vars{$k}";
-            }
-            $ref_params=~ s/^&//;
-            print makeAnchor("displayRefResults", "$ref_params", "Display the next 30 references");
-        } 
-
-        my $authname = $s->get('authorizer');
-        $authname =~ s/\. //;
-        printRefsCSV(\@data,$authname);
-        # print qq|<a href="/public/references/${authname}_refs.csv">Download all the references</a> -\n|;
-	    # print makeAnchor("displaySearchRefs", "type=$type", "Change search parameters");
-	    print "</p></center><br>\n";
-        
-        if ($type eq 'add') {
-            print "<div align=\"center\">";
-            print "<form method=\"POST\" action=\"$WRITE_URL\">";
-            print "<input type=\"hidden\" name=\"action\" value=\"displayReferenceForm\">";
-            foreach my $f ("name","year","reftitle","project_name") {
-                print "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">";
-            }
-            print "<input type=submit value=\"Add reference\"></center>";
-            print "</form>";
-            print "</div>";
-        }
-	} else	{ # 0 Refs found
-		print $hbo->stdIncludes( $PAGE_TOP);
-		if ($q->param('type') eq 'add')	{
-			$q->param('reference_no'=>'');
-			PBDB::ReferenceEntry::displayReferenceForm($dbt,$q,$s,$hbo);
-			return;
-		} else	{
-			my $error = "<p class=\"small\" style=\"margin-left: 8em; margin-right: 8em;\">";
-			if ( $query_description )	{
-				$query_description =~ s/ $//;
-				$error .= "<center>Nothing matches $query_description: ";
-				if ( $alternatives )	{
-					$alternatives =~ s/ and / or /;
-					$error .= " if you didn't mean $alternatives, ";
-				}
-				$error .= "please try again</center></p>\n\n";
-			} else	{
-				$error .= "<center>Please enter at least one search term</center></p>\n";
-			}
-			displaySearchRefs($dbt,$q,$s,$hbo,$error);
+		elsif ($type eq 'view')
+		{
+		    $output .= makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "</br>";
 		}
+		else
+		{
+		    $output .= makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=select", $row->{reference_no}) . "<br>";
+		}
+	    }
+	    else
+	    {
+		$output .= makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no});
+	    }
+	    $output .= "</td>";
+	    my $formatted_reference = formatLongRef($row);
+	    $output .= "<td>".$formatted_reference;
+	    if ( $type eq 'view' && $s->isDBMember() )
+	    {
+		$output .= " <small>";
+		$output .= makeAnchor("displayRefResults", "type=select&reference_no=$row->{reference_no}", "select") . " - ";
+		$output .= makeAnchor("displayRefResults", "type=edit&reference_no=$row->{reference_no}", "edit") . "</small>";
+	    }
+	    my $reference_summary = getReferenceLinkSummary($dbt,$s,$row->{'reference_no'});
+	    $output .= "<br><small>$reference_summary</small></td>";
+	    $output .= "</tr>";
 	}
-
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+	$output .= "</table>\n";
+	if ( $alternatives )
+	{
+	    if ( ! $dark )
+	    {
+		$output .= "<div style=\"border-top: 1px solid #E0E0E0; margin-top: 0.5em; \"></div>\n";
+	    }
+	    $output .= "<div class=\"small\" style=\"margin-left: 6em; margin-right: 4em; margin-top: 0.5em; margin-bottom: -0.5em; text-align: left; text-indent: -1em;\">Other possible matches include $alternatives.</div>\n\n";
+	}
+	$output .= "</div>";
+	    
+	    
+	# Now print links at bottom
+	$output .=  "<center><p>";
+	if ($offset + 30 < scalar(@data))
+	{
+	    my %vars = $q->Vars();
+	    $vars{'refsSeen'} += 30;
+	    my $ref_params = "";
+	    foreach my $k (sort keys %vars)
+	    {
+		$ref_params .= "&$k=$vars{$k}";
+	    }
+	    $ref_params=~ s/^&//;
+	    $output .= makeAnchor("displayRefResults", "$ref_params", "Display the next 30 references");
+	} 
+	    
+	my $authname = $s->get('authorizer');
+	$authname =~ s/\. //;
+	# printRefsCSV(\@data,$authname);
+	# $output .= qq|<a href="/public/references/${authname}_refs.csv">Download all the references</a> -\n|;
+	# $output .= makeAnchor("displaySearchRefs", "type=$type", "Change search parameters");
+	$output .= "</p></center><br>\n";
+	    
+	if ($type eq 'add')
+	{
+	    $output .= "<div align=\"center\">";
+	    $output .= "<form method=\"POST\" action=\"$WRITE_URL\">";
+	    $output .= "<input type=\"hidden\" name=\"action\" value=\"displayReferenceForm\">";
+	    foreach my $f ("name","year","reftitle","project_name")
+	    {
+		$output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">";
+	    }
+	    $output .= "<input type=submit value=\"Add reference\"></center>";
+	    $output .= "</form>";
+	    $output .= "</div>";
+	}
+	
+	return $output;
+    }
+    else
+    {				# 0 Refs found
+	if ($q->param('type') eq 'add')
+	{
+	    $q->param('reference_no'=>'');
+	    return PBDB::ReferenceEntry::displayReferenceForm($dbt,$q,$s,$hbo);
+	}
+	
+	my $error = "<p class=\"small\" style=\"margin-left: 8em; margin-right: 8em;\">";
+	if ( $query_description )
+	{
+	    $query_description =~ s/ $//;
+	    $error .= "<center>Nothing matches $query_description: ";
+	    if ( $alternatives )
+	    {
+		$alternatives =~ s/ and / or /;
+		$error .= " if you didn't mean $alternatives, ";
+	    }
+	    $error .= "please try again</center></p>\n\n";
+	}
+	else
+	{
+	    $error .= "<center>Please enter at least one search term</center></p>\n";
+	}
+	
+	return displaySearchRefs($dbt,$q,$s,$hbo,$error);
+    }
 }
 
 sub displayReference {
@@ -554,8 +580,7 @@ sub displayReference {
     } 
 
     if (!$ref) {
-        $hbo->htmlError("Valid reference not supplied"); 
-        return;
+        return "<h2>Valid reference not supplied</h2>\n";
     }
     my $reference_no = $ref->{'reference_no'};
 
@@ -806,12 +831,10 @@ sub getMeasuredTaxa	{
 # JA: Poling completely fucked this up and I restored it from backup 13.4.04
 # $Message tells them why they are here
 sub displaySearchRefs {
-	my ($dbt,$q,$s,$hbo,$message) = @_;
+    my ($dbt,$q,$s,$hbo,$message) = @_;
 	
 	my $type = $q->param("type");
-
-	my $html = "";
-
+	
 	# Prepend the message and the type
 
 	my $vars = {'message'=>$message,'type'=>$type};
@@ -837,8 +860,7 @@ sub displaySearchRefs {
 		# $vars->{'add'} .= "<input type='submit' name='add' value='Add'>\n";
 	}
 
-	print PBDB::Person::makeAuthEntJavascript($dbt);
-	print $hbo->populateHTML("search_refs_form", $vars);
+    return PBDB::Person::makeAuthEntJavascript($dbt) . $hbo->populateHTML("search_refs_form", $vars);
 }
 
 # JA 23.2.02
@@ -1139,9 +1161,10 @@ sub getReferencesXML {
     my $dataRowsSize = scalar(@data);
 
     my $g = XML::Generator->new(escape=>'always',conformance=>'strict',empty=>'args',pretty=>2);
-
-    print "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
-    print "<references total=\"$dataRowsSize\">\n";
+    my $output = '';
+    
+    $output .= "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
+    $output .= "<references total=\"$dataRowsSize\">\n";
     foreach my $row (@data) {
         my $an = PBDB::AuthorNames->new($row);
         my $authors = $an->toString();
@@ -1152,7 +1175,7 @@ sub getReferencesXML {
         }
 
         # left out: authorizer/enterer, basis, language, doi, comments, project_name
-        print $g->reference(
+        $output .= $g->reference(
             $g->reference_no($row->{reference_no}),
             $g->authors($authors),
             $g->year($row->{pubyr}),
@@ -1163,9 +1186,11 @@ sub getReferencesXML {
             $g->pages($pages),
             $g->publication_type($row->{publication_type})
         );
-        print "\n";
+        $output .= "\n";
     }
-    print "</references>";
+    $output .= "</references>";
+    
+    return $output;
 }
    
 sub printRefsCSV {
@@ -1189,7 +1214,7 @@ sub printRefsCSV {
         if ($csv->combine(@row))	{
             print REFOUTPUT $csv->string(),"\n";
         } else {
-            print "ERR";
+            # print "ERR";
         }
     }
     close REFOUTPUT;
@@ -1198,8 +1223,9 @@ sub printRefsCSV {
 
 # JA 17-18.3.09
 sub getTitleWordOdds	{
-	my ($dbt,$q,$s,$hbo) = @_;
-
+    my ($dbt,$q,$s,$hbo) = @_;
+	
+	my $output = '';
 	my @tables= ("refs r");
 	my @where = ("(language IN ('English') OR language IS NULL) AND reftitle!='' AND reftitle IS NOT NULL");
 
@@ -1227,7 +1253,7 @@ sub getTitleWordOdds	{
 		}
 	}
 
-	print "<p class=\"pageTitle\" style=\"margin-left: 16em; margin-bottom: 1.5em;\">Paper title analytical results</p>\n\n";
+	$output .= "<p class=\"pageTitle\" style=\"margin-left: 16em; margin-bottom: 1.5em;\">Paper title analytical results</p>\n\n";
 
 	# oy vey
 	if ( $q->param('title Palaeontologische Zeitschrift') )	{
@@ -1437,11 +1463,10 @@ sub getTitleWordOdds	{
 	my @journals = keys %jbuzz;
 
 	if ( ! @refnos )	{
-		print "<p style=\"margin-bottom: 3em;\">Not enough papers fall in the categories you selected to compute the odds. Please <a href=\"?page=word_odds_form\">try again</a>.</p>\n";
-		return;
+		return "<p style=\"margin-bottom: 3em;\">Not enough papers fall in the categories you selected to compute the odds. Please <a href=\"?page=word_odds_form\">try again</a>.</p>\n";
 	}
 
-	print "<div style=\"margin-left: 0em;\">\n\n";
+	$output .= "<div style=\"margin-left: 0em;\">\n\n";
 	my $title = "Words giving the best odds";
 	my $title2 = "Journals averaging the highest odds";
 	my $title3 = "Paper titles averaging the highest odds";
@@ -1468,10 +1493,10 @@ sub getTitleWordOdds	{
 
 	sub printWords		{
 		my $sort = shift;
-		print "<div class=\"displayPanel\" style=\"float: left; clear: left; width: 26em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
-		print "<span class=\"displayPanelHeader\">$title</span>\n";
-		print "<div class=\"displayPanelContent\">\n";
-		my $output = 0;
+		$output .= "<div class=\"displayPanel\" style=\"float: left; clear: left; width: 26em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
+		$output .= "<span class=\"displayPanelHeader\">$title</span>\n";
+		$output .= "<div class=\"displayPanelContent\">\n";
+		my $out = 0;
 		my $lastodds = "";
 		for my $i ( 0..$#allwords )	{
 			# the threshold makes a big difference!
@@ -1482,22 +1507,22 @@ sub getTitleWordOdds	{
 				} elsif ( $odds <= 1 && $lastodds > 1 && $lastodds && $sort ne "equal" )	{
 					last;
 				} elsif ( ( $odds < 0.5 || $odds > 2 ) && $sort eq "equal" )	{
-					if ( $output == 0 )	{
-						print "<p class=\"small\"><i>No common words have a small effect on publication odds.</i></p>\n\n";
+					if ( $out == 0 )	{
+						$output .= "<p class=\"small\"><i>No common words have a small effect on publication odds.</i></p>\n\n";
 					}
 					last;
-				} elsif ( $odds > 1 && $output == 0 && $sort eq "worst" )	{
-					print "<p class=\"small\"><i>No common words decrease the publication odds.</i></p>\n\n";
+				} elsif ( $odds > 1 && $out == 0 && $sort eq "worst" )	{
+					$output .= "<p class=\"small\"><i>No common words decrease the publication odds.</i></p>\n\n";
 					last;
-				} elsif ( $output == 0 )	{
-					print "<table>\n";
-					print "<tr><td>Rank</td>\n";
-					print "<td style=\"padding-left: 2em;\">Word</td>\n";
-					print "<td><nobr>Odds ratio</nobr></td>\n";
-					print "<td>Uses</td></tr>\n";
+				} elsif ( $out == 0 )	{
+					$output .= "<table>\n";
+					$output .= "<tr><td>Rank</td>\n";
+					$output .= "<td style=\"padding-left: 2em;\">Word</td>\n";
+					$output .= "<td><nobr>Odds ratio</nobr></td>\n";
+					$output .= "<td>Uses</td></tr>\n";
 				}
-				$output++;
-				print "<tr><td align=\"center\">$output</td>\n";
+				$out++;
+				$output .= "<tr><td align=\"center\">$out</td>\n";
 				my $w = $allwords[$i];
 				if ( $iscap{$allwords[$i]} )	{
 					$w = $cap{$w};
@@ -1505,40 +1530,40 @@ sub getTitleWordOdds	{
 				if ( $isplural{$w} )	{
 					$w =~ s/s$/\(s\)/;
 				}
-				print "<td style=\"padding-left: 2em;\">$w</td>\n";
-				printf "<td align=\"center\">%.2f</td>\n",$odds;
-				printf "<td align=\"center\">%.0f</td>\n",$infreq{$allwords[$i]} * $inrefs + $allfreq{$allwords[$i]} * $nallrefs;
-				print "</tr>\n";
-				if ( $output == 30 )	{
+				$output .= "<td style=\"padding-left: 2em;\">$w</td>\n";
+				$output .= sprintf "<td align=\"center\">%.2f</td>\n",$odds;
+				$output .= sprintf "<td align=\"center\">%.0f</td>\n",$infreq{$allwords[$i]} * $inrefs + $allfreq{$allwords[$i]} * $nallrefs;
+				$output .= "</tr>\n";
+				if ( $out == 30 )	{
 					last;
 				}
 				$lastodds = $odds;
 			}
 		}
-		print "</table>\n</div>\n</div>\n\n";
-		if ( $output > 0 )	{
-			print "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 23em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
-			print "<span class=\"displayPanelHeader\">$title2</span>\n";
-			print "<div class=\"displayPanelContent\">\n";
-			print "<table>\n";
-			print "<tr><td>Rank</td>\n";
-			print "<td>Journal</td>\n";
-			print "<td><nobr>Mean odds</nobr></td>\n";
-			for my $i ( 0..$output-1 )	{
+		$output .= "</table>\n</div>\n</div>\n\n";
+		if ( $out > 0 )	{
+			$output .= "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 23em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
+			$output .= "<span class=\"displayPanelHeader\">$title2</span>\n";
+			$output .= "<div class=\"displayPanelContent\">\n";
+			$output .= "<table>\n";
+			$output .= "<tr><td>Rank</td>\n";
+			$output .= "<td>Journal</td>\n";
+			$output .= "<td><nobr>Mean odds</nobr></td>\n";
+			for my $i ( 0..$out-1 )	{
 				if ( ! $journals[$i] )	{
 					last;
 				}
-				print "<tr>\n";
-				printf "<td align=\"center\" valign=\"top\">%d</td>\n",$i + 1;
-				print "<td class=\"verysmall\" style=\"padding-left: 0.5em; text-indent: -0.5em;\">$journals[$i]</td>\n";
-				printf "<td align=\"center\" valign=\"top\">%.2f</td>\n",exp( $jbuzz{$journals[$i]} );
-				print "</tr>\n";
+				$output .= "<tr>\n";
+				$output .= sprintf "<td align=\"center\" valign=\"top\">%d</td>\n",$i + 1;
+				$output .= "<td class=\"verysmall\" style=\"padding-left: 0.5em; text-indent: -0.5em;\">$journals[$i]</td>\n";
+				$output .= sprintf "<td align=\"center\" valign=\"top\">%.2f</td>\n",exp( $jbuzz{$journals[$i]} );
+				$output .= "</tr>\n";
 			}
-			print "</table></div>\n</div>\n\n";
+			$output .= "</table></div>\n</div>\n\n";
 
-			print "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 50em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
-			print "<span class=\"displayPanelHeader\">$title3</span>\n";
-			print "<div class=\"displayPanelContent\">\n";
+			$output .= "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 50em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
+			$output .= "<span class=\"displayPanelHeader\">$title3</span>\n";
+			$output .= "<div class=\"displayPanelContent\">\n";
 			my @reflist;
 			for my $i ( 0..9 )	{
 				push @reflist , $refnos[$i];
@@ -1547,21 +1572,23 @@ sub getTitleWordOdds	{
 			my %refdata;
 			$refdata{$_->{'reference_no'}} = $_ foreach @{$dbt->getData($sql)};
 			for my $i ( 0..9 )	{
-				printf "<p class=\"verysmall\" style=\"margin-left: 1em; text-indent: -0.5em; padding-bottom: -1em;\">\n%d&nbsp;&nbsp;",$i + 1;
-				print formatLongRef($refdata{$reflist[$i]});
-				printf " [average odds based on %d keywords: %.2f]\n",$#{$refwords{$reflist[$i]}} + 1,exp( $refbuzz{$reflist[$i]} );
-				print "</p>\n";
+				$output .= sprintf "<p class=\"verysmall\" style=\"margin-left: 1em; text-indent: -0.5em; padding-bottom: -1em;\">\n%d&nbsp;&nbsp;",$i + 1;
+				$output .= formatLongRef($refdata{$reflist[$i]});
+				$output .= sprintf " [average odds based on %d keywords: %.2f]\n",$#{$refwords{$reflist[$i]}} + 1,exp( $refbuzz{$reflist[$i]} );
+				$output .= "</p>\n";
 			}
-			print "</div>\n</div>\n\n";
+			$output .= "</div>\n</div>\n\n";
 		}
 	}
-	print "</div>\n\n";
+	$output .= "</div>\n\n";
 
-	print qq|
+	$output .= qq|
 <div class="verysmall" style="clear: left; margin-left: 3em; margin-right: 5em; padding-bottom: 3em; text-indent: -0.5em;">
 The odds ratio compares the percentage of paper titles within the journals or other categories you selected that include a given word to the same percentage for all other papers. If the "best odds" papers did not appear in a journal you selected, then maybe they should have. If only a few words are shown, then only those words are frequent and have the appropriate odds (respectively greater than 1, less than 1, or between 0.5 and 2). <a href=\"?page=word_odds_form\">Try again</a> if you want to procrastinate even more.
 </div>
 |;
+	
+	return $output;
 }
 
 1;

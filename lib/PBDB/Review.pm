@@ -14,7 +14,7 @@ use strict;
 sub displayReviewForm	{
 	my ($dbt,$q,$s,$hbo) = @_;
         my $output = '';
-
+ 
 	# enterers may not create pages (sorry)
 	if ( $s->get('enterer') ne $s->get('authorizer') )	{
 		return "<div align=\"center\">".PBDB::Debug::printWarnings("Only authorizers can edit review pages. Many apologies.")."</div>";
@@ -91,7 +91,6 @@ sub displayReviewForm	{
 	else	{
 	# this is incredibly lame, but inheritance of width=100% from div
 	#  surrounding whole page forces explicit width specification
-                my $output = '';
 		my $max;
 		for my $r ( @reviews )	{
 			if ( length($r->{'title'}) > $max )	{
