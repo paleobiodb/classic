@@ -34,17 +34,14 @@ sub displayUploadPage {
     
     unless ($s->isDBMember())
     {
-	login( "Please log in first.");
-	return;
+	return login( "Please log in first.");
     }
     
     # Then produce the upload page.
     
     my ($vars) = { page_title => "Upload a nexus file" };
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_upload', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $hbo->populateHTML('nexus_upload', $vars);
 }
 
 
@@ -167,7 +164,7 @@ sub processUpload {
     # confirm that the data was uploaded properly, and can add any publication
     # references). 
     
-    print $q->redirect( -uri => "?a=editNexusFile&nexusfile_no=$nexusfile_no");
+    return Dancer::redirect "/classic/editNexusFile?nexusfile_no=$nexusfile_no";
 }
 
 
@@ -179,15 +176,7 @@ sub uploadError {
     
     my ($vars) = { page_title => "Upload a nexus file", error_message => $message, %$oldvalues };
     
-    print $q->header(-type => "text/html", 
-                     -Cache_Control=>'no-cache',
-                     -expires =>"now" );
-    
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_upload', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-    
-    return;
+    return $hbo->populateHTML('nexus_upload', $vars);
 }
 
 
@@ -352,9 +341,7 @@ sub viewFile {
     
     # Now generate the editing page.
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_view', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $hbo->populateHTML('nexus_view', $vars);
 }
 
 
@@ -537,9 +524,7 @@ sub editFile {
     
     # Now generate the editing page.
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_edit', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $hbo->populateHTML('nexus_edit', $vars);
 }
 
 
@@ -555,11 +540,7 @@ sub editError {
 #                     -Cache_Control=>'no-cache',
 #                     -expires =>"now" );
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_edit', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-    
-    return;
+    return $hbo->populateHTML('nexus_edit', $vars);
 }
 
 
@@ -583,7 +564,7 @@ sub processEdit {
     
     unless ( $nexusfile_no > 0 )
     {
-	print $q->redirect( -uri => "?");
+	return Dancer::Redirect("/classic/editNexusFile");
     }
     
     # Check that we have permission to edit the file.  If not, redirect to the
@@ -592,8 +573,7 @@ sub processEdit {
     unless ( $s->get('superuser') or
 	     PBDB::Nexusfile::checkWritePermission($dbt, $nexusfile_no, $s->get('authorizer_no')) )
     {
-	print $q->redirect( -uri => "?a=viewNexusFile&nexusfile_no=$nexusfile_no&noperm=1");
-	return;
+	return Dancer::redirect("/classic/viewNexusFile?&nexusfile_no=$nexusfile_no&noperm=1");
     }
     
     # Are we adding a new reference?  If so, display the reference-selection
@@ -606,8 +586,7 @@ sub processEdit {
         #              -Cache_Control=>'no-cache',
         #              -expires =>"now" );
 	$s->enqueue_action("editNexusFile", "nexusfile_no=$nexusfile_no&add_ref=1");
-	PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "Select a reference to associate with the nexus file:");
-	return;
+	return PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "Select a reference to associate with the nexus file:");
     }
     
     # Are we deleting an existing reference?  If so, do it and redisplay the
@@ -616,8 +595,7 @@ sub processEdit {
     elsif ( my $reference_no = $q->param('deleteReference') )
     {
 	PBDB::Nexusfile::deleteReference($dbt, $nexusfile_no, $reference_no);
-	print $q->redirect( -uri => "?a=editNexusFile&nexusfile_no=$nexusfile_no");
-	return;
+	return Dancer::redirect "/classic/editNexusFile?nexusfile_no=$nexusfile_no";
     }
     
     # Are we moving an existing reference?  If so, do it and redisplay the
@@ -626,8 +604,7 @@ sub processEdit {
     elsif ( my $reference_no = $q->param('moveReference') )
     {
 	PBDB::Nexusfile::moveReference($dbt, $nexusfile_no, $reference_no);
-	print $q->redirect( -uri => "?a=editNexusFile&nexusfile_no=$nexusfile_no");
-	return;
+	return Dancer::redirect "/classic/editNexusFile?nexusfile_no=$nexusfile_no";
     }
     
     # Are we rescanning the file contents for taxonomic names?
@@ -636,8 +613,7 @@ sub processEdit {
     {
 	my $data = PBDB::Nexusfile::getFileData($dbt, $nexusfile_no);
 	PBDB::Nexusfile::generateTaxa($dbt, $nexusfile_no, $data) if $data;
-	print $q->redirect( -uri => "$READ_URL?a=editNexusFile&nexusfile_no=$nexusfile_no");
-	return;
+	return Dancer::redirect "/classic/editNexusFile?nexusfile_no=$nexusfile_no";
     }
     
     # Are we deleting the entire nexus file?  If so, do it and redirect to the
@@ -646,8 +622,7 @@ sub processEdit {
     elsif ( $q->param('deleteNexusFile') )
     {
 	PBDB::Nexusfile::deleteFile($dbt, $nexusfile_no);
-	print $q->redirect( -uri => "$READ_URL");
-	return;
+	return Dancer::redirect "/classic";
     }
     
     # Are we saving a new version of the notes?  If so, do that and redirect
@@ -665,16 +640,14 @@ sub processEdit {
 	}
 	
 	PBDB::Nexusfile::setFileInfo($dbt, $nexusfile_no, { notes => $notes, filename => $filename });
-	print $q->redirect( -uri => "$READ_URL");
-	return;
+	return Dancer::redirect "/classic";
     }
     
     # Otherwise, just redirect to the main menu.
     
     else
     {
-	print $q->redirect( -uri => "$READ_URL");
-	return;
+	return Dancer::redirect "/classic";
     }
 }
 
@@ -739,9 +712,7 @@ sub displaySearchPage {
 		   reference_no => scalar($q->param('reference_no')),
 		 };
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_search', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $hbo->populateHTML('nexus_search', $vars);
 }
 
 
@@ -836,10 +807,7 @@ sub processSearch {
 	         search_results => $search_output,
 	         %$values };
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_search_results', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-
+    return $hbo->populateHTML('nexus_search_results', $vars);
 }
 
 
@@ -880,11 +848,7 @@ sub searchError {
 		   current_ref => $s->get("reference_no"),
 		   enterer_me => $s->get('enterer_reversed'), %$oldvalues };
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('nexus_search', $vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-    
-    return;
+    return $hbo->populateHTML('nexus_search', $vars);
 }
 
 
@@ -1006,9 +970,7 @@ sub sendFile {
     
     # Otherewise, send out the specified file.
     
-    print $q->header(-type => "text/plain", -charset => 'utf-8' );
-    print encode_utf8(PBDB::Nexusfile::getFileData($dbt, $nf->{nexusfile_no}));
-    return;
+    return PBDB::Nexusfile::getFileData($dbt, $nf->{nexusfile_no});
 }
 
 
@@ -1117,12 +1079,11 @@ sub findError {
 	$body = '';
     }
     
-    print $q->header(-status => $message);
-    print "<html><head><title>$message</title><body>\n";
-    print "<h1>$message</h1>\n";
-    print "<h2>$body</h2>\n";
-    print "</body></html>\n";
-    return;
+    my $output = "<h1>$message</h1>\n";
+    $output .= "<h2>$body</h2>\n";
+    $output .= "</body></html>\n";
+    
+    return $output;
 }
 
 

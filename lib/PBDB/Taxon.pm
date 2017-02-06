@@ -502,7 +502,7 @@ sub displayAuthorityForm {
 	if ($isNewEntry) {
 		$html =~ s/<input type="input" name="taxon_name" value="(.*?)">/$1<input type="hidden" name="taxon_name" value="$1">/;
 	}
-    print $html;
+    return $html;
 }
 
 
@@ -523,19 +523,20 @@ sub submitAuthorityForm {
     my ($dbt,$hbo,$s,$q) = @_;
     
     my $dbh = $dbt->dbh;
+    my $output = '';
 
 	if ((!$dbt) || (!$hbo) || (!$s) || (!$q)) {
 		carp("PBDB::Taxon::submitAuthorityForm had invalid arguments passed to it.");
-		return;	
-	}
+		
+		return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
+	    }
 	
 	my $errors = PBDB::Errors->new();
     my @warnings = ();
     
     unless ( $q->param('check_status') eq 'done' )
     {
-	print "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
-	return;
+	return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
     }
     
     # Simple variable assignments
@@ -547,7 +548,7 @@ sub submitAuthorityForm {
         $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
         if (!$t) {
             carp "Could not create taxon object in submitAuthorityForm for taxon_no ".$q->param('taxon_no');
-            return;
+	    return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
         }
     }
 
@@ -930,8 +931,7 @@ sub submitAuthorityForm {
 	if ($errors->count() > 0) {
         # If there's an error message, then we know it's the second time through
 		my $message = $errors->errorMessage();
-		displayAuthorityForm($dbt,$hbo, $s, $q, $message);
-		return;
+		return displayAuthorityForm($dbt,$hbo, $s, $q, $message);
 	}
 
 	# Replace the reference with the current reference if need be
@@ -1019,9 +1019,9 @@ sub submitAuthorityForm {
 	} else {
 		$enterupdate = 'updated in'	
 	}
-	print "<CENTER>";
+    $output .= "<CENTER>";
 	if (!$status) {
-		print "<DIV class=\"warning\">Error inserting/updating authority record.  Please start over and try again.</DIV>";	
+		$output .= "<DIV class=\"warning\">Error inserting/updating authority record.  Please start over and try again.</DIV>";	
 	} else {
 	
         my $end_message;
@@ -1087,13 +1087,15 @@ sub submitAuthorityForm {
         $end_message .= "<li$style>" . makeAnchor("classify", "reference_no=$resultReferenceNumber", "Print this reference's classification") . "</li>";
         $end_message .= "</ul></td></tr></table></div>";
 
-        processSpecimenMeasurement($dbt,$s,$resultTaxonNumber,$resultReferenceNumber,\%fields);
+        $output .= processSpecimenMeasurement($dbt,$s,$resultTaxonNumber,$resultReferenceNumber,\%fields);
 
-        displayTypeTaxonSelectForm($dbt,$s,$fields{'type_taxon'},$resultTaxonNumber,$fields{'taxon_name'},$fields{'taxon_rank'},$resultReferenceNumber,$end_message);
+        $output .= displayTypeTaxonSelectForm($dbt,$s,$fields{'type_taxon'},$resultTaxonNumber,$fields{'taxon_name'},$fields{'taxon_rank'},$resultReferenceNumber,$end_message);
 	}
 	
-	print "<BR>";
-	print "</CENTER>";
+	$output .= "<BR>";
+	$output .= "</CENTER>";
+    
+    return $output;
 }
 
 # JA 15-18.5.11

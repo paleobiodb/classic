@@ -78,7 +78,7 @@ sub getReadRows {
 	
 	foreach $required ( @requiredFields ) {
 		if ( ! $requiredResults{$required} ) { 
-			$self->htmlError ( "Improperly formed SQL.  Must have field [$required]" );
+		    print STDERR "Improperly formed SQL.  Must have field [$required]\n";
 		}
 	}
 
@@ -349,12 +349,12 @@ sub getModifierList {
 # And give options to add and delete from the list
 sub displayPermissionListForm {
     my ($dbt,$q,$s,$hbo) = @_;
-
+    my $output = '';
+    
     # First make sure they're logged in
     my $authorizer_no = int($s->get('authorizer_no'));
     if (!$authorizer_no) {
-        print "<div class=\"errorMessage\">ERROR: you must be logged in to view this page</div>";
-        return;
+        return "<div class=\"errorMessage\">ERROR: you must be logged in to view this page</div>";
     }
 
 
@@ -368,8 +368,8 @@ sub displayPermissionListForm {
     my $working_group_names =  ['','decapod','divergence','GCP','marine invertebrate','micropaleontology','PACED','paleobotany','taphonomy','vertebrate'];
     my $working_group_select = $hbo->htmlSelect('working_group',$working_group_names,$working_group_values);
 
-    print qq|<div align="center">|;
-    print qq|<p class="pageTitle" style="padding-top: 0.5em; padding-bottom: 0.5em;">Editing permission list</p>\n\n|;
+    $output .= qq|<div align="center">|;
+    $output .= qq|<p class="pageTitle" style="padding-top: 0.5em; padding-bottom: 0.5em;">Editing permission list</p>\n\n|;
    
     # Form for designating heir:
     my $sql = "SELECT p2.name heir FROM person p1 LEFT JOIN person p2 ON p1.heir_no=p2.person_no WHERE p1.person_no=$authorizer_no";
@@ -378,15 +378,15 @@ sub displayPermissionListForm {
     if (@results) {
         $heir_reversed = PBDB::Person::reverseName($results[0]->{'heir'});
     }
-    print qq|<div class="displayPanel" align="left">\n|;
-    print qq|<span class="displayPanelHeader medium">Designated heir</span>\n|;
-    print qq|<div class="displayPanelContent" align="center">\n|;
-    print qq|<form method="POST" action="$WRITE_URL">|;
-    print qq|<input type="hidden" name="action" value="submitHeir">|;
-    print qq|<table cellpadding=0 cellspacing=3>|;
-    print qq|<tr><td>Designate who will manage your data <br>if you leave the database: </td><td><input type="text" name="heir_reversed" value="$heir_reversed" onKeyUp="doComplete(event,this,authorizerNames())"> <input type="submit" name="submit_heir" value="Go"></td></tr>|;
-    print qq|</table>|;
-    print qq|</form>|;
+    $output .= qq|<div class="displayPanel" align="left">\n|;
+    $output .= qq|<span class="displayPanelHeader medium">Designated heir</span>\n|;
+    $output .= qq|<div class="displayPanelContent" align="center">\n|;
+    $output .= qq|<form method="POST" action="$WRITE_URL">|;
+    $output .= qq|<input type="hidden" name="action" value="submitHeir">|;
+    $output .= qq|<table cellpadding=0 cellspacing=3>|;
+    $output .= qq|<tr><td>Designate who will manage your data <br>if you leave the database: </td><td><input type="text" name="heir_reversed" value="$heir_reversed" onKeyUp="doComplete(event,this,authorizerNames())"> <input type="submit" name="submit_heir" value="Go"></td></tr>|;
+    $output .= qq|</table>|;
+    $output .= qq|</form>|;
 
 
 
@@ -397,7 +397,7 @@ sub displayPermissionListForm {
                             return names;
                         } 
                         </SCRIPT>|;
-    print $javaScript;    
+    $output .= $javaScript;    
 
     my @persons = ($authorizer_no);
 
@@ -427,70 +427,71 @@ sub displayPermissionListForm {
             $owner2 = $person.$epithet." data";
         }
         # Form for adding people to permission list
-        print qq|</div>\n</div>\n\n<div class="displayPanel" align="left">\n|;
-        print qq|<span class="displayPanelHeader medium">Permitted modifiers</span>\n|;
-        print qq|<div class="displayPanelContent" align="center">\n|;
-        print qq|<form method="POST" action="$WRITE_URL">|;
-        print qq|<input type="hidden" name="action" value="submitPermissionList">|;
-        print qq|<input type="hidden" name="submit_type" value="add">|;
-        print qq|<input type="hidden" name="action_for" value="$person_no">|;
-        print qq|<table cellpadding=0 cellspacing=3>|;
-        print qq|<tr><td>Add an authorizer to $owner1: </td><td><input type="text" name="authorizer_reversed" onKeyUp="doComplete(event,this,authorizerNames())"> <input type="submit" name="submit_authorizer" value="Go"></td></tr>|;
-        print qq|<tr><td> ... <i> or </i> add all authorizers from a working group: </td><td>$working_group_select <input type="submit" name="submit_working_group" value="Go"></td></tr>|;
-        print qq|</table>|;
-        print qq|</form>|;
+        $output .= qq|</div>\n</div>\n\n<div class="displayPanel" align="left">\n|;
+        $output .= qq|<span class="displayPanelHeader medium">Permitted modifiers</span>\n|;
+        $output .= qq|<div class="displayPanelContent" align="center">\n|;
+        $output .= qq|<form method="POST" action="$WRITE_URL">|;
+        $output .= qq|<input type="hidden" name="action" value="submitPermissionList">|;
+        $output .= qq|<input type="hidden" name="submit_type" value="add">|;
+        $output .= qq|<input type="hidden" name="action_for" value="$person_no">|;
+        $output .= qq|<table cellpadding=0 cellspacing=3>|;
+        $output .= qq|<tr><td>Add an authorizer to $owner1: </td><td><input type="text" name="authorizer_reversed" onKeyUp="doComplete(event,this,authorizerNames())"> <input type="submit" name="submit_authorizer" value="Go"></td></tr>|;
+        $output .= qq|<tr><td> ... <i> or </i> add all authorizers from a working group: </td><td>$working_group_select <input type="submit" name="submit_working_group" value="Go"></td></tr>|;
+        $output .= qq|</table>|;
+        $output .= qq|</form>|;
 
-        print qq|<form method="POST" action="$WRITE_URL">|;
-        print qq|<input type="hidden" name="action" value="submitPermissionList">|;
-        print qq|<input type="hidden" name="action_for" value="$person_no">|;
-        print qq|<input type="hidden" name="submit_type" value="delete">|;
-        print qq|<table cellpadding=0 cellspacing=2>|;
-        print qq|<tr><td colspan=2 align="center">The following people may edit $owner2:</td></tr>|;
-        print qq|<tr><td colspan=2 align="center">&nbsp;</td></tr>|;
+        $output .= qq|<form method="POST" action="$WRITE_URL">|;
+        $output .= qq|<input type="hidden" name="action" value="submitPermissionList">|;
+        $output .= qq|<input type="hidden" name="action_for" value="$person_no">|;
+        $output .= qq|<input type="hidden" name="submit_type" value="delete">|;
+        $output .= qq|<table cellpadding=0 cellspacing=2>|;
+        $output .= qq|<tr><td colspan=2 align="center">The following people may edit $owner2:</td></tr>|;
+        $output .= qq|<tr><td colspan=2 align="center">&nbsp;</td></tr>|;
         if (@results) {
             my $midpoint = int((scalar(@results) + 1)/2); # have two columns
             for(my $i=0;$i<$midpoint;$i++) {
                 my $row1 = $results[$i];
                 my $row2 = $results[$i+$midpoint];
-                print qq|<tr><td><input type="checkbox" name="modifier_no" value="$row1->{modifier_no}"> $row1->{modifier_name}</td>|;
+                $output .= qq|<tr><td><input type="checkbox" name="modifier_no" value="$row1->{modifier_no}"> $row1->{modifier_name}</td>|;
                 if ($row2) {
-                    print qq|<td><input type="checkbox" name="modifier_no" value="$row2->{modifier_no}"> $row2->{modifier_name}</td>|;
+                    $output .= qq|<td><input type="checkbox" name="modifier_no" value="$row2->{modifier_no}"> $row2->{modifier_name}</td>|;
                 }
-                print qq|</tr>|;
+                $output .= qq|</tr>|;
             }
-            print qq|<tr><td colspan=2 align="center">&nbsp;</td></tr>|;
-            print qq|<tr><td colspan=2 align="center"><input type="submit" name="submit" value="Delete checked"> &nbsp;&nbsp;</td></tr>|;
+            $output .= qq|<tr><td colspan=2 align="center">&nbsp;</td></tr>|;
+            $output .= qq|<tr><td colspan=2 align="center"><input type="submit" name="submit" value="Delete checked"> &nbsp;&nbsp;</td></tr>|;
         } else {
-            print "<tr><td><i>No one else may currently edit $owner2</i></td></tr>";
+            $output .= "<tr><td><i>No one else may currently edit $owner2</i></td></tr>";
         }
-        print qq|</table></form>|;
+        $output .= qq|</table></form>|;
     }
     # print the people who have put this person on their permission list,
     #  just so they know JA 28.8.06
     $sql = "SELECT p.name authorizer_name, pm.authorizer_no FROM person p, permissions pm WHERE p.person_no=pm.authorizer_no AND pm.modifier_no=$authorizer_no ORDER BY p.last_name, p.first_name";
     @results = @{$dbt->getData($sql)};
     if (@results) {
-        print qq|</div>\n</div>\n\n<div class="displayPanel" align="left">\n|;
-        print qq|<span class="displayPanelHeader medium">Permitted authorizers</span>\n|;
-        print qq|<div class="displayPanelContent" align="center">\n|;
-        print qq|<p>The following people have allowed you to edit their data:</p>\n|;
-        print qq|<table cellpadding=0 cellspacing=2 style="padding-bottom: 1em;">|;
+        $output .= qq|</div>\n</div>\n\n<div class="displayPanel" align="left">\n|;
+        $output .= qq|<span class="displayPanelHeader medium">Permitted authorizers</span>\n|;
+        $output .= qq|<div class="displayPanelContent" align="center">\n|;
+        $output .= qq|<p>The following people have allowed you to edit their data:</p>\n|;
+        $output .= qq|<table cellpadding=0 cellspacing=2 style="padding-bottom: 1em;">|;
         my $midpoint = int((scalar(@results) + 1)/2); # have two columns
         for(my $i=0;$i<$midpoint;$i++) {
             my $row1 = $results[$i];
             my $row2 = $results[$i+$midpoint];
-            print "<tr><td style=\"padding-right: 2em;\">$row1->{authorizer_name}</td>\n";
+            $output .= "<tr><td style=\"padding-right: 2em;\">$row1->{authorizer_name}</td>\n";
             if ($row2) {
-                print "<td>$row2->{authorizer_name}</td>\n";
+                $output .= "<td>$row2->{authorizer_name}</td>\n";
             }
-            print "</tr>\n";
+            $output .= "</tr>\n";
         }
-        print qq|</table>\n|;
+        $output .= qq|</table>\n|;
     }
-    print qq|</div>\n|;
-    print qq|</div>\n|;
-    print qq|</div>\n|;
-
+    $output .= qq|</div>\n|;
+    $output .= qq|</div>\n|;
+    $output .= qq|</div>\n|;
+    
+    return $output;
 }   
 
 # This handles form submission from displayPermissionListForm
@@ -502,8 +503,7 @@ sub submitPermissionList {
     # First make sure they're logged in
     my $authorizer_no = int($s->get('authorizer_no'));
     if (!$authorizer_no) {
-        print "<div class=\"errorMessage\">ERROR: you must be logged in to view this page</div>";
-        return;
+        return "<div class=\"errorMessage\">ERROR: you must be logged in to view this page</div>";
     }
 
     my $action_for = $q->param('action_for');
@@ -518,8 +518,7 @@ sub submitPermissionList {
     }  
 
     if (!$can_set_list_for{$action_for}) {
-        print "<div class=\"errorMessage\">ERROR: can't set the permission list for that person</div>";
-        return;
+        return "<div class=\"errorMessage\">ERROR: can't set the permission list for that person</div>";
     }
     
 
@@ -564,7 +563,7 @@ sub submitPermissionList {
 
     }
 
-    displayPermissionListForm($dbt,$q,$s,$hbo);
+    return displayPermissionListForm($dbt,$q,$s,$hbo);
 }   
 
 # This handles form submission from displayPermissionListForm
@@ -573,11 +572,12 @@ sub submitPermissionList {
 sub submitHeir {
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
+    
     # First make sure they're logged in
     my $authorizer_no = int($s->get('authorizer_no'));
     if (!$authorizer_no) {
-        print "<div class=\"errorMessage\">ERROR: you must be logged in to do this</div>";
-        return;
+        return "<div class=\"errorMessage\">ERROR: you must be logged in to do this</div>";
     }
 
     # reverse the name if it's reversed, but don't if it's in standard order
@@ -596,12 +596,12 @@ sub submitHeir {
             my $return = $dbh->do($sql);
             if ($return) {
                 my ($last,$init) = split(/,/,$q->param('heir_reversed'));
-                print "<div class=\"warning\">Your future data manager has been set to $init $last</div>";
+                $output .= "<div class=\"warning\">Your future data manager has been set to $init $last</div>";
             } else {
-                print "<div class=\"errorMessage\">ERROR: could update database, please submit a bug report</div>";
+                $output .= "<div class=\"errorMessage\">ERROR: could update database, please submit a bug report</div>";
             }
         } else {
-            print "<div class=\"errorMessage\">ERROR: could not set your future data manager, ".$q->param("heir_reversed"). " not found in the database</div>";
+            $output .= "<div class=\"errorMessage\">ERROR: could not set your future data manager, ".$q->param("heir_reversed"). " not found in the database</div>";
         }
     } else {
         # Note: the IGNORE just causes mysql to not throw an error when inserting a dupe
@@ -609,23 +609,25 @@ sub submitHeir {
         dbg("Updating heir: ".$sql);
         my $return = $dbh->do($sql);
         if ($return) {
-            print "<div class=\"warning\">Your future data manager has been set to no one</div>";
+            $output .= "<div class=\"warning\">Your future data manager has been set to no one</div>";
         } else {
-            print "<div class=\"errorMessage\">ERROR: could not update database, please submit a bug report</div>";
+            $output .= "<div class=\"errorMessage\">ERROR: could not update database, please submit a bug report</div>";
         }
     }
 
-    displayPermissionListForm($dbt,$q,$s,$hbo);
+    $output .= displayPermissionListForm($dbt,$q,$s,$hbo);
+    
+    return $output;
 }   
 
 
-# This only shown for internal errors
-sub htmlError {
-	my $self = shift;
-    my $message = shift;
+# # This only shown for internal errors
+# sub htmlError {
+# 	my $self = shift;
+#     my $message = shift;
 
-    print $message;
-    exit 1;
-}
+#     print $message;
+#     exit 1;
+# }
 
 1;

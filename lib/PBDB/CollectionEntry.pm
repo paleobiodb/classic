@@ -75,8 +75,7 @@ sub displayCollectionForm {
     if ($isNewEntry) {
         if (!$session_ref) {
             $s->enqueue_action('displayColectionForm', $q);
-            PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-            return;
+            return PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
         }  
     }
 
@@ -152,8 +151,7 @@ sub displayCollectionForm {
         $can_modify->{$s->get('authorizer_no')} = 1;
         unless ($can_modify->{$row{'authorizer_no'}} || $s->isSuperUser) {
             my $authorizer = PBDB::Person::getPersonName($dbt,$row{'authorizer_no'});
-            $output .= "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
-            return;
+            return "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
         }
 
         # translate the release date field to populate the pulldown
@@ -223,7 +221,7 @@ sub displayCollectionForm {
     $ref = PBDB::Reference::getReference($dbt,$vars{'reference_no'});
     $formatted_primary = PBDB::Reference::formatLongRef($ref);
 
-	$output .= PBDB::PBDBUtil::printIntervalsJava($dbt);
+    $output .= PBDB::PBDBUtil::printIntervalsJava($dbt);
 
     if ($isNewEntry) {
         $vars{'page_title'} =  "Collection entry form";

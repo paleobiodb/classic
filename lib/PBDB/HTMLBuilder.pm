@@ -504,18 +504,18 @@ sub substituteVars {
 
 
 # Debug;
-sub printMsg {
-    my $tag = shift;
-    my $node = shift;
-    my $msg = (shift || "Adding");
-    my $j = $node;
-    $j = $j->{'parent'} if ($msg =~ /ending/i);
-    while($j = $j->{'parent'}) {
-        last if $j->{'type'} eq 'root';
-        print "\t";
-    }
-    print "$msg node for $tag($node->{type}:$node->{name}) to parent ($node->{parent}{type}:$node->{parent}{name})\n";
-}
+# sub printMsg {
+#     my $tag = shift;
+#     my $node = shift;
+#     my $msg = (shift || "Adding");
+#     my $j = $node;
+#     $j = $j->{'parent'} if ($msg =~ /ending/i);
+#     while($j = $j->{'parent'}) {
+#         last if $j->{'type'} eq 'root';
+#         print "\t";
+#     }
+#     print "$msg node for $tag($node->{type}:$node->{name}) to parent ($node->{parent}{type}:$node->{parent}{name})\n";
+# }
 
 
 # Handles writing of the parsed template handled by parseTemplate
@@ -814,16 +814,16 @@ sub htmlBox {
     return $html;
 }
 
-# This only shown for internal errors
-sub htmlError {
-    my ($self,$message) = @_;
+# # This only shown for internal errors
+# sub htmlError {
+#     my ($self,$message) = @_;
 
-	# print $q->header( -type => "text/html" );
-    print $self->stdIncludes("std_page_top");
-	print $message;
-    print $self->stdIncludes("std_page_bottom");
-	return;
-}
+# 	# print $q->header( -type => "text/html" );
+#     print $self->stdIncludes("std_page_top");
+# 	print $message;
+#     print $self->stdIncludes("std_page_bottom");
+# 	return;
+# }
 
 # This is a wrapper to put the goodies into the standard page bottom
 # or top.  Pass it the name of a template such as "std_page_top" and 

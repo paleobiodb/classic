@@ -36,33 +36,31 @@ sub searchForm {
 	shift @ranks;
 	my $rank_select = "<select name=\"taxon_rank\"><option>".join('</option><option>',@ranks)."</option></select>\n";
 	$rank_select =~ s/>species</ selected>species</;
-	print $hbo->populateHTML('search_taxoninfo_form' , [$page_title,'',$rank_select], ['page_title','page_subtitle','taxon_rank_select']);
+	return $hbo->populateHTML('search_taxoninfo_form' , [$page_title,'',$rank_select], ['page_title','page_subtitle','taxon_rank_select']);
 }
 
 # This is the front end for displayTaxonInfoResults - always use this instead if you want to 
 # call from another script.  Can pass it a taxon_no or a taxon_name
 sub checkTaxonInfo {
-	my $q = shift;
-	my $s = shift;
-	my $dbt = shift;
-	my $hbo = shift;
-	my $dbh = $dbt->dbh;
+    my ($q, $s, $dbt, $hbo) = @_;
 
+    my $dbh = $dbt->dbh;
+    my $output = '';
+    
 	if ( ! $q->param('taxon_name') && ! $q->param('museum') && $q->param('search_again') )	{
 		my $name = $q->param('search_again');
 		$q->param('taxon_name' => $name);
 	}
 
     if (!$q->param("taxon_no") && !$q->param("taxon_name") && !$q->param("common_name") && !$q->param("author") && !$q->param("pubyr") && !$q->param("museum")) {
-        searchForm($hbo, $q, 1); # param for not printing header with form
-        return;
+        return searchForm($hbo, $q, 1); # param for not printing header with form
     }
 
     if ($q->param('taxon_no')) {
         # If we have is a taxon_no, use that:
-        displayTaxonInfoResults($dbt,$s,$q,$hbo);
+        return displayTaxonInfoResults($dbt,$s,$q,$hbo);
     } elsif (!$q->param('taxon_name') && !($q->param('common_name')) && !($q->param('pubyr')) && !$q->param('author') && !$q->param('museum')) {
-        searchForm($hbo,$q);
+        return searchForm($hbo,$q);
     } else {
         my @results;
         if ( $q->param('museum') )	{
@@ -101,8 +99,7 @@ sub checkTaxonInfo {
             @results = @{$dbt->getData($sql)};
             # still might bomb if author and/or pubyr were submitted
             if ( ! @results )	{
-                searchForm($hbo, $q, 1); # param for not printing header with form
-		return;
+                return searchForm($hbo, $q, 1); # param for not printing header with form
             }
         } else	{
             my $temp = $q->param('taxon_name');
@@ -138,26 +135,28 @@ sub checkTaxonInfo {
                 #    $taxon_name .= " $species";
                 #}    
                 #$q->param('taxon_name'=>$taxon_name);
-                displayTaxonInfoResults($dbt,$s,$q,$hbo);
+                return displayTaxonInfoResults($dbt,$s,$q,$hbo);
             } else {
                 # If nothing, print out an error message
-                searchForm($hbo, $q, 1); # param for not printing header with form
+                my $output = searchForm($hbo, $q, 1); # param for not printing header with form
                 if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
 		    my $link = makeURL('submitTaxonSearch', "goal=authority&amp;taxon_name=".$q->param('taxon_name'));
-                    print "<center><p><a href=\"$link\"><b>Add taxonomic information</b></a></center>";
-                }
-            }
+                    $output .= "<center><p><a href=\"$link\"><b>Add taxonomic information</b></a></center>";
+		}
+		return $output;
+             }
         } elsif(scalar @results < 1 && ! $q->param('taxon_name'))	{
-            searchForm($hbo, $q, 1); # param for not printing header with form
+            my $output = searchForm($hbo, $q, 1); # param for not printing header with form
             if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
 		my $link = makeURL('submitTaxonSearch', "goal=authority&amp;taxon_name=".$q->param('taxon_name'));
-                print "<center><p><a href=\"$link\"><b>Add taxonomic information</b></a></center>";
+                $output .= "<center><p><a href=\"$link\"><b>Add taxonomic information</b></a></center>";
             }
+	    return $output;
         } elsif(scalar @results == 1)	{
             $q->param('taxon_no'=>$results[0]->{'taxon_no'});
-            displayTaxonInfoResults($dbt,$s,$q,$hbo);
+            return displayTaxonInfoResults($dbt,$s,$q,$hbo);
         } else	{
-            listTaxonChoices($dbt,$hbo,\@results);
+            return listTaxonChoices($dbt,$hbo,\@results);
         }
     }
 }
@@ -172,7 +171,8 @@ sub displayTaxonInfoResults {
     my ($dbt,$s,$q,$hbo) = @_;
 
     my $dbh = $dbt->dbh;
-
+    my $output = '';
+    
     my $taxon_no = int($q->param('taxon_no'));
     
     if ( $taxon_no =~ /^(\d+)[^\d]/ )
@@ -198,8 +198,7 @@ sub displayTaxonInfoResults {
         my $row = ${$dbt->getData($sql)}[0];
         my $c = $row->{'c'};
         if ($c < 1) {
-            print "<div align=\"center\">".PBDB::Debug::printErrors(["taxon number $taxon_no doesn't exist in the database"])."</div>";
-            return;
+            return "<div align=\"center\">taxon number $taxon_no doesn't exist in the database</div>\n";
         }
         my $orig_taxon_no = getOriginalCombination($dbt,$taxon_no);
         $taxon_no = getSeniorSynonym($dbt,$orig_taxon_no);
@@ -240,7 +239,7 @@ sub displayTaxonInfoResults {
         }
 	} 
 
-    print "<div>\n";
+    $output .= "<div>\n";
     my @modules_to_display = (1,2,3,4,5,6,7,8);
     if ( ! $not_bot )	{
         @modules_to_display = (1,2);
@@ -271,7 +270,7 @@ sub displayTaxonInfoResults {
         }
     }
 
-    print '
+    $output .= '
 <script src="/JavaScripts/common.js" language="JavaScript" type="text/javascript"></script>
 
 <div align="center">
@@ -305,7 +304,7 @@ sub displayTaxonInfoResults {
         ($htmlCOF,$htmlClassification) = displayTaxonClassification($dbt, $taxon_no, $taxon_name, $is_real_user);
     }
 
-    print qq|
+    $output .= qq|
 <div align="center" style="margin-bottom: -1.5em;">
 <p class="pageTitle" style="white-space: nowrap; margin-bottom: 0em;">$display_name</p>
 <p class="medium">$htmlCOF</p>
@@ -315,7 +314,7 @@ sub displayTaxonInfoResults {
 |;
 
     
-    print '<script language="JavaScript" type="text/javascript">
+    $output .= '<script language="JavaScript" type="text/javascript">
     hideTabText(2);
     hideTabText(3);
     hideTabText(4);
@@ -332,8 +331,8 @@ sub displayTaxonInfoResults {
 
 	# classification
 	if($modules{1}) {
-        print '<center>';
-        print '<div id="panel1" class="panel">';
+        $output .= '<center>';
+        $output .= '<div id="panel1" class="panel">';
         my $width = "52em;";
         if ( $htmlBasicInfo =~ /No taxon/ )	{
             $width = "44em;";
@@ -351,7 +350,7 @@ sub displayTaxonInfoResults {
 
 		$email =~ s/\@/\' \+ \'\@\' \+ \'/;
 
-		print qq|<div align="center" class="small" style="margin-left: 1em; margin-top: 1em;">
+		$output .= qq|<div align="center" class="small" style="margin-left: 1em; margin-top: 1em;">
 <div style="width: $width;">
 <div class="displayPanel" style="margin-bottom: 3em; padding-left: 1em; padding-top: -1em; padding-bottom: 1.5em; text-align: left;">
 <span class="displayPanelHeader">Discussion</span>
@@ -360,7 +359,7 @@ sub displayTaxonInfoResults {
 |;
 
 		if ( $discussant ne "" )	{
-			print qq|<script language="JavaScript" type="text/javascript">
+			$output .= qq|<script language="JavaScript" type="text/javascript">
     <!-- Begin
     window.onload = showMailto;
     function showMailto( )      {
@@ -373,123 +372,123 @@ sub displayTaxonInfoResults {
 |;
 
 		}
-		print "</div></div></div></div>\n";
+		$output .= "</div></div></div></div>\n";
 	}
 
-        print qq|<div align="center" class="small" style="margin-left: 1em; margin-top: 1em;">
+        $output .= qq|<div align="center" class="small" style="margin-left: 1em; margin-top: 1em;">
 <div style="width: $width;">
 <div class="displayPanel" style="margin-top: -1em; margin-bottom: 2em; padding-left: 1em; text-align: left;">
 <span class="displayPanelHeader">Taxonomy</span>
 <div align="left" class="small displayPanelContent" style="padding-left: 1em; padding-bottom: 1em;">
 |;
-	print $htmlBasicInfo;
-	print "</div>\n</div>\n\n";
+	$output .= $htmlBasicInfo;
+	$output .= "</div>\n</div>\n\n";
 
         my $entered_name = $q->param('entered_name') || $q->param('taxon_name') || $taxon_name;
         my $entered_no = $q->param('entered_no') || $q->param('taxon_no');
-        print "<p>";
-        print "<div>";
-        print "<center>";
+        $output .= "<p>";
+        $output .= "<div>";
+        $output .= "<center>";
 
-        print displayRelatedTaxa($dbt, $taxon_no, $spelling_no, $taxon_name,$is_real_user);
-	print "</center>\n";
+        $output .= displayRelatedTaxa($dbt, $taxon_no, $spelling_no, $taxon_name,$is_real_user);
+	$output .= "</center>\n";
         if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
             # Entered Taxon
             if ($entered_no) {
-                print makeATag("displayAuthorityForm", "taxon_no=$entered_no");
-                print "<b>Edit taxonomic data for $entered_name</b></a> - ";
+                $output .= makeATag("displayAuthorityForm", "taxon_no=$entered_no");
+                $output .= "<b>Edit taxonomic data for $entered_name</b></a> - ";
             } else {
-                print makeATag("submitTaxonSearch", "goal=authority&amp;taxon_no=-1&amp;taxon_name=$entered_name");
-                print "<b>Enter taxonomic data for $entered_name</b></a> - ";
+                $output .= makeATag("submitTaxonSearch", "goal=authority&amp;taxon_no=-1&amp;taxon_name=$entered_name");
+                $output .= "<b>Enter taxonomic data for $entered_name</b></a> - ";
             }
 
             if ($entered_no) {
-                print makeATag("displayOpinionChoiceForm", "taxon_no=$entered_no");
-		print "<b>Edit taxonomic opinions about $entered_name</b></a> -<br> ";
-                print makeATag("startPopulateEcologyForm", "taxon_no=$taxon_no");
-		print "<b>Add/edit ecological/taphonomic data</b></a> - ";
+                $output .= makeATag("displayOpinionChoiceForm", "taxon_no=$entered_no");
+		$output .= "<b>Edit taxonomic opinions about $entered_name</b></a> -<br> ";
+                $output .= makeATag("startPopulateEcologyForm", "taxon_no=$taxon_no");
+		$output .= "<b>Add/edit ecological/taphonomic data</b></a> - ";
             }
         }
 
-        print "</div>\n";
-        print "</p>";
-        print "</div>\n</div>\n</div>\n\n";
-        print '</center>';
+        $output .= "</div>\n";
+        $output .= "</p>";
+        $output .= "</div>\n</div>\n</div>\n\n";
+        $output .= '</center>';
 	}
 
 	# synonymy
 	if($modules{2}) {
-        print '<center>';
-        print qq|<div id="panel2" class="panel";">
+        $output .= '<center>';
+        $output .= qq|<div id="panel2" class="panel";">
 <div align="center" class="small"">
 |;
 	if ( $htmlSynonyms )	{
-		print qq|<div class="displayPanel" style="margin-bottom: 2em; padding-top: -1em; width: 42em; text-align: left;">
+		$output .= qq|<div class="displayPanel" style="margin-bottom: 2em; padding-top: -1em; width: 42em; text-align: left;">
 <span class="displayPanelHeader">Synonyms</span>
 <div align="center" class="small displayPanelContent">
 |;
-		print $htmlSynonyms;
-		print "</div>\n</div>\n";
+		$output .= $htmlSynonyms;
+		$output .= "</div>\n</div>\n";
 	}
-    	print displaySynonymyList($dbt, $taxon_no);
+    	$output .= displaySynonymyList($dbt, $taxon_no);
         if ( $taxon_no )	{
-            print "<p>Is something missing? <a href=\"$READ_URL?page=join_us\">Join the Paleobiology Database</a> and enter the data</p>\n";
+            $output .= "<p>Is something missing? <a href=\"$READ_URL?page=join_us\">Join the Paleobiology Database</a> and enter the data</p>\n";
         } else	{
-            print "<p>Please <a href=\"$READ_URL?page=join_us\">join the Paleobiology Database</a> and enter some data</p>\n";
+            $output .= "<p>Please <a href=\"$READ_URL?page=join_us\">join the Paleobiology Database</a> and enter some data</p>\n";
         }
-        print "</div>\n</div>\n</div>\n";
-        print '</center>';
+        $output .= "</div>\n</div>\n</div>\n";
+        $output .= '</center>';
 	}
 
 	if ($modules{3}) {
-        print '<center>';
-        print '<div id="panel3" class="panel">';
-        print '<div align="center">';
-        print $htmlClassification;
-        print "</div>\n</div>\n\n";
+        $output .= '<center>';
+        $output .= '<div id="panel3" class="panel">';
+        $output .= '<div align="center">';
+        $output .= $htmlClassification;
+        $output .= "</div>\n</div>\n\n";
 	}
 
     if ($modules{4}) {
-        print '<div id="panel4" class="panel">';
-        print '<div align="center" class="small">';
+        $output .= '<div id="panel4" class="panel">';
+        $output .= '<div align="center" class="small">';
         if ($is_real_user) {
     	    # doCladograms($dbt, $hbo, $q, $s, $taxon_no, $spelling_no, $taxon_name);
         } else {
-            print qq|<form method="POST" action="">|;
+            $output .= qq|<form method="POST" action="">|;
             foreach my $f ($q->param()) {
-                print "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
+                $output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
             }
-            print "<input type=\"hidden\" name=\"show_panel\" value=\"4\">\n";
-            print "<input type=\"submit\" name=\"submit\" value=\"Show relationships\">";
-            print "</form>\n";
+            $output .= "<input type=\"hidden\" name=\"show_panel\" value=\"4\">\n";
+            $output .= "<input type=\"submit\" name=\"submit\" value=\"Show relationships\">";
+            $output .= "</form>\n";
         }
-        print "</div>\n";
-        print "</div>\n";
-        print '</center>';
+        $output .= "</div>\n";
+        $output .= "</div>\n";
+        $output .= '</center>';
     }
     
     if ($modules{5}) {
-        print '<center>';
-        print '<div id="panel5" class="panel">';
-        print '<div align="center" class="small" "style="margin-top: -2em;">';
-        print displayDiagnoses($dbt,$taxon_no);
+        $output .= '<center>';
+        $output .= '<div id="panel5" class="panel">';
+        $output .= '<div align="center" class="small" "style="margin-top: -2em;">';
+        $output .= displayDiagnoses($dbt,$taxon_no);
         unless ($quick) {
-            print displayMeasurements($dbt,$taxon_no,$taxon_name,$in_list);
+            $output .= displayMeasurements($dbt,$taxon_no,$taxon_name,$in_list);
         }
-        print "</div>\n";
-        print "</div>\n";
-        print '</center>';
+        $output .= "</div>\n";
+        $output .= "</div>\n";
+        $output .= '</center>';
     }
     if ($modules{6}) {
-        print '<center>';
-        print '<div id="panel6" class="panel">';
-        print '<div align="center" clas="small">';
+        $output .= '<center>';
+        $output .= '<div id="panel6" class="panel">';
+        $output .= '<div align="center" clas="small">';
         unless ($quick) {
-            print displayEcology($dbt,$taxon_no,$in_list);
+            $output .= displayEcology($dbt,$taxon_no,$in_list);
         }
-        print "</div>\n";
-        print "</div>\n";
-        print '</center>';
+        $output .= "</div>\n";
+        $output .= "</div>\n";
+        $output .= '</center>';
     }
    
     my $collectionsSet;
@@ -498,9 +497,9 @@ sub displayTaxonInfoResults {
     }
 
     if ($modules{7}) {
-        print '<center>';
-        print '<div id="panel7" class="panel">';
-        print '<div align="center" style="margin-top: -1em;">';
+        $output .= '<center>';
+        $output .= '<div id="panel7" class="panel">';
+        $output .= '<div align="center" style="margin-top: -1em;">';
 
         # if ($is_real_user) {
 	#     eval {
@@ -508,49 +507,50 @@ sub displayTaxonInfoResults {
 	#     };
 	#     if ( @$ )
 	#     {
-	# 	print "<center><p>The map could not be displayed, because an error occurred.</p></center>\n";
+	# 	$output .= "<center><p>The map could not be displayed, because an error occurred.</p></center>\n";
 	#     }
         # } else {
-        #     print qq|<form method="POST" action="">|;
+        #     $output .= qq|<form method="POST" action="">|;
         #     foreach my $f ($q->param()) {
-        #         print "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
+        #         $output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
         #     }
-        #     print "<input type=\"hidden\" name=\"show_panel\" value=\"7\">\n";
-        #     print "<input type=\"submit\" name=\"submit\" value=\"Show map\">";
-        #     print "</form>\n";
+        #     $output .= "<input type=\"hidden\" name=\"show_panel\" value=\"7\">\n";
+        #     $output .= "<input type=\"submit\" name=\"submit\" value=\"Show map\">";
+        #     $output .= "</form>\n";
         # }
-        print "</div>\n";
-        print "</div>\n";
-        print '</center>';
+        $output .= "</div>\n";
+        $output .= "</div>\n";
+        $output .= '</center>';
     }
 	# collections
     if ($modules{8}) {
-        print '<center>';
-        print '<div id="panel8" class="panel">';
+        $output .= '<center>';
+        $output .= '<div id="panel8" class="panel">';
         if ($is_real_user) {
-		    print doCollections($dbt, $s, $collectionsSet, $display_name, $taxon_no, $in_list, '', $is_real_user, $type_locality);
+		    $output .= doCollections($dbt, $s, $collectionsSet, $display_name, $taxon_no, $in_list, '', $is_real_user, $type_locality);
         } else {
-            print '<div align="center">';
-            print qq|<form method="POST" action="">|;
+            $output .= '<div align="center">';
+            $output .= qq|<form method="POST" action="">|;
             foreach my $f ($q->param()) {
-                print "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
+                $output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
             }
-            print "<input type=\"hidden\" name=\"show_panel\" value=\"8\">\n";
-            print "<input type=\"submit\" name=\"submit\" value=\"Show age range and collections\">";
-            print "</form>\n";
-            print "</div>\n";
+            $output .= "<input type=\"hidden\" name=\"show_panel\" value=\"8\">\n";
+            $output .= "<input type=\"submit\" name=\"submit\" value=\"Show age range and collections\">";
+            $output .= "</form>\n";
+            $output .= "</div>\n";
         }
-        print "</div>\n";
-        print '</center>';
+        $output .= "</div>\n";
+        $output .= '</center>';
     }
 
     if ( ! $q->param('show_panel') )	{
-        print "<script language=\"JavaScript\" type=\"text/javascript\">switchToPanel(1,8);</script>\n";
+        $output .= "<script language=\"JavaScript\" type=\"text/javascript\">switchToPanel(1,8);</script>\n";
     } else	{
-        print "<script language=\"JavaScript\" type=\"text/javascript\">switchToPanel(".$q->param('show_panel').",8);</script>\n";
+        $output .= "<script language=\"JavaScript\" type=\"text/javascript\">switchToPanel(".$q->param('show_panel').",8);</script>\n";
     }
-    print "</div>"; # Ends div class="small" declared at start
+    $output .= "</div>"; # Ends div class="small" declared at start
 
+    return $output;
 }
 
 # used only by displayTaxonInfoResults
@@ -584,6 +584,7 @@ sub getCollectionsSet {
 sub doCladograms {
     my ($dbt,$hbo,$q,$s,$taxon_no,$spelling_no,$taxon_name) = @_;
 
+    my $output = '';    
     my $parent_no;
     my $stepsup = 1;
     if ( $taxon_no < 1 && $taxon_name =~ / / )	{
@@ -597,7 +598,7 @@ sub doCladograms {
 
     my $html;
     my @cladograms;
-    print qq|<div class="displayPanel" align="left" style="width: 52em; margin-top: 0em; padding-top: 0em;">
+    $output .= qq|<div class="displayPanel" align="left" style="width: 52em; margin-top: 0em; padding-top: 0em;">
     <span class="displayPanelHeader" class="large">Classification of relatives</span>
 |;
     if ( $parent_no )	{
@@ -605,13 +606,13 @@ sub doCladograms {
     # print a classification of the grandparent and its children down
     #  three (or two) taxonomic levels (one below the focal taxon's)
     # JA 23-24.11.08
-	print "<div class=\"displayPanelContent\">\n<div align=\"center\" class=\"medium\" style=\"padding-bottom: 1em;\"><i>\n\n";
+	$output .= "<div class=\"displayPanelContent\">\n<div align=\"center\" class=\"medium\" style=\"padding-bottom: 1em;\"><i>\n\n";
         $q->param('parent_no' => $parent_no);
         $q->param('boxes_only' => 'YES');
         my $subtaxa = PBDB::PrintHierarchy::classify($dbt,$hbo,$s,$q);
 	if ( $subtaxa == 0 )	{
 	}
-	print "</div></div>\n\n";
+	$output .= "</div></div>\n\n";
 
         my $sql = "SELECT t2.taxon_no FROM $TAXA_TREE_CACHE t1, $TAXA_TREE_CACHE t2 WHERE t1.taxon_no IN ($taxon_no) AND t2.synonym_no=t1.synonym_no";
         my @results = @{$dbt->getData($sql)};
@@ -623,30 +624,30 @@ sub doCladograms {
     	@cladograms = @{$dbt->getData($sql)};
 
     } else	{
-        print "<div class=\"displayPanelContent\">\n<div align=\"center\" class=\"medium\"><i>No data on relationships are available</i></div></div>";
+        $output .= "<div class=\"displayPanelContent\">\n<div align=\"center\" class=\"medium\"><i>No data on relationships are available</i></div></div>";
     }
 
-    print "</div>\n\n";
+    $output .= "</div>\n\n";
 
-        print qq|<div class="displayPanel" align="left" style="width: 52em; margin-top: 2em; padding-bottom: 1em;">
+    $output .= qq|<div class="displayPanel" align="left" style="width: 52em; margin-top: 2em; padding-bottom: 1em;">
     <span class="displayPanelHeader" class="large">Cladograms</span>
         <div class="displayPanelContent">
 |;
     if (@cladograms) {
-        print "<div align=\"center\" style=\"margin-top: 1em;\">";
+        $output .= "<div align=\"center\" style=\"margin-top: 1em;\">";
         foreach my $row (@cladograms) {
             my $cladogram_no = $row->{cladogram_no};
             my ($pngname, $caption, $taxon_name) = Cladogram::drawCladogram($dbt,$cladogram_no);
             if ($pngname) {
-                print qq|<img src="/public/cladograms/$pngname"><br>$caption<br><br>|;
+                $output .= qq|<img src="/public/cladograms/$pngname"><br>$caption<br><br>|;
             }
         }
-        print "</div>";
+        $output .= "</div>";
     } else {
-          print "<div align=\"center\"><i>No cladograms are available</i></div>\n\n";
+          $output .= "<div align=\"center\"><i>No cladograms are available</i></div>\n\n";
     }
-    print "</div>\n</div>\n\n";
-
+    $output .= "</div>\n</div>\n\n";
+    return $output;
 } 
 
 
@@ -654,9 +655,10 @@ sub doCladograms {
 sub doCollections{
     my ($dbt,$s,$colls,$display_name,$taxon_no,$in_list,$age_range_format,$is_real_user,$type_locality) = @_;
     my $dbh = $dbt->dbh;
+    my $output = '';
     
     if (!@$colls) {
-        print qq|<div align="center">
+        return qq|<div align="center">
 <div class="displayPanel" align="left" style="width: 36em; margin-top: 0em; padding-bottom: 1em;">
 <span class="displayPanelHeader" class="large">Collections</span>
 <div class="displayPanelContent">
@@ -665,15 +667,13 @@ sub doCollections{
 </div>
 </div>
 |;
-        return;
     }
-
+    
     my @intervals = intervalData($dbt,$colls);
     my %interval_hash;
     $interval_hash{$_->{'interval_no'}} = $_ foreach @intervals;
     my ($lb,$ub,$max_no,$minfirst,$min_no) = getAgeRange($dbt,$colls);
 
-    my $output = "";
     my $range = "";
     # simplified this because the users will understand the basic range,
     #  and it clutters the form JA 28.8.06
@@ -778,17 +778,17 @@ sub doCollections{
         $range = ":".$range;
     }
 
-    print qq|<div class="displayPanel" style="margin-top: 0em;">
+    $output .= qq|<div class="displayPanel" style="margin-top: 0em;">
 <div class="displayPanelContent">
 |;
 
     if ($age_range_format eq 'for_strata_module') {
-        print qq|Age range$range<br>
+        $output .= qq|Age range$range<br>
 </div>
 </div>
 |;
     } else {
-        print "<div class=\"small\" style=\"margin-left: 2em; width: 90%; border-bottom: 1px solid lightgray;\"><p>Age range$range</p></div>\n";
+        $output .= "<div class=\"small\" style=\"margin-left: 2em; width: 90%; border-bottom: 1px solid lightgray;\"><p>Age range$range</p></div>\n";
     }
 
     
@@ -1009,7 +1009,7 @@ sub doCollections{
 </div>
 |;
 
-	return $output;
+    return $output;
 }
 
 # JA 23.9.11
@@ -2853,17 +2853,18 @@ sub displaySynonymyList	{
 # JA 10.1.09
 sub beginFirstAppearance	{
 	my ($hbo,$q,$error_message) = @_;
-	print $hbo->populateHTML('first_appearance_form', [$error_message], ['error_message']);
-	if ( $error_message )	{
-		return;
-	}
+	return $hbo->populateHTML('first_appearance_form', [$error_message], ['error_message']);
+	# if ( $error_message )	{
+	# 	return;
+	# }
 }
 
 # JA 10-13.1.09
 sub displayFirstAppearance	{
-	my ($q,$s,$dbt,$hbo) = @_;
+    my ($q,$s,$dbt,$hbo) = @_;
 
-	$|=1;
+    # $|=1;
+    my $output = '';
 	my ($sql,$field,$name);
 	if ( $q->param('taxon_name') )	{
 		if ( $q->param('taxon_name') !~ /^[A-Z][a-z]*(| )[a-z]*$/ )	{
@@ -2924,8 +2925,8 @@ sub displayFirstAppearance	{
 		my $error_message = "$name $authors includes no classified subtaxa.";
 		beginFirstAppearance($hbo,$q,$error_message);
 	}
-
-	print $hbo->stdIncludes($PAGE_TOP);
+	
+	# print $hbo->stdIncludes($PAGE_TOP);
 
 	# MAIN TABLE HITS
 
@@ -3066,16 +3067,16 @@ sub displayFirstAppearance	{
 	}
 	my $ncoll = scalar(@$colls);
 
-	print "<div style=\"text-align: center\"><p class=\"medium pageTitle\">First appearance data for $name $authors</p></div>\n";
-	print "<div class=\"small\" style=\"padding-left: 2em; padding-right: 2em;  padding-bottom: 4em;\">\n";
+	$output .= "<div style=\"text-align: center\"><p class=\"medium pageTitle\">First appearance data for $name $authors</p></div>\n";
+	$output .= "<div class=\"small\" style=\"padding-left: 2em; padding-right: 2em;  padding-bottom: 4em;\">\n";
 
 	if ( $#nos == 1 )	{
-		print "<p class=\"small\">Warning: a different but smaller taxon in the system has the name $name.</p>";
+		$output .= "<p class=\"small\">Warning: a different but smaller taxon in the system has the name $name.</p>";
 	} elsif ( $#nos > 1 )	{
-		print "<p class=\"small\">Warning: $#nos smaller taxa in the system have the name $name.</p>";
+		$output .= "<p class=\"small\">Warning: $#nos smaller taxa in the system have the name $name.</p>";
 	}
 
-	print "<div class=\"displayPanel\">\n<span class=\"displayPanelHeader\" style=\"font-size: 1.2em;\">Basic data</span>\n<div class=\"displayPanelContents\">\n";
+	$output .= "<div class=\"displayPanel\">\n<span class=\"displayPanelHeader\" style=\"font-size: 1.2em;\">Basic data</span>\n<div class=\"displayPanelContents\">\n";
 
 	# CROWN GROUP CALCULATION
 
@@ -3089,20 +3090,20 @@ sub displayFirstAppearance	{
 					$paramlist .= "&amp;".$p."=".$q->param($p);
 				}
 			}
-			print "<p>The crown group of $name is <a href=\"$$$?taxon_name=$crown$paramlist\">$crown</a> (click to compute its first appearance)</p>\n";
+			$output .= "<p>The crown group of $name is <a href=\"$$$?taxon_name=$crown$paramlist\">$crown</a> (click to compute its first appearance)</p>\n";
 		} elsif ( ! $crown )	{
 			my $exclude = "";
 			if ( $q->param('exclude') )	{
 				$exclude = " other than the ones you excluded";
 			}
-			print "<p><i>$name has no subtaxa marked in our system as extant$exclude, so its crown group cannot be determined</i></p>\n";
+			$output .= "<p><i>$name has no subtaxa marked in our system as extant$exclude, so its crown group cannot be determined</i></p>\n";
 		} else	{
 			$crown =~ s/(,)([A-Z][a-z ]*)$/ and $2/;
 			$crown =~ s/,/, /g;
-			print "<p style=\"padding-left: 1em; text-indent: -1em;\"><i>$name is the immediate parent of the extant $crown, so it is itself a crown group</i></p>\n";
+			$output .= "<p style=\"padding-left: 1em; text-indent: -1em;\"><i>$name is the immediate parent of the extant $crown, so it is itself a crown group</i></p>\n";
 		}
 	} else	{
-		print "<p><i>$name is entirely extinct, so it has no crown group</i></p>\n";
+		$output .= "<p><i>$name is entirely extinct, so it has no crown group</i></p>\n";
 	}
 
 	# AGE RANGE/CONFIDENCE INTERVAL CALCULATION
@@ -3180,37 +3181,37 @@ sub displayFirstAppearance	{
 		my $c = $options{'country'};
 		$c =~ s/:/, /g;
 		$c =~ s/(, )([A-Za-z ]*)$/ and $2/;
-		print "<p>Continents: $c</p>\n";
+		$output .= "<p>Continents: $c</p>\n";
 	}
 
-	printf "<p>Maximum first appearance date: bottom of $first_interval_base (%.1f Ma)</p>\n",$lb;
-	printf "<p>Minimum first appearance date: top of $first_interval_top (%.1f Ma)</p>\n",$minfirst;
+	$output .= sprintf "<p>Maximum first appearance date: bottom of $first_interval_base (%.1f Ma)</p>\n",$lb;
+	$output .= sprintf "<p>Minimum first appearance date: top of $first_interval_top (%.1f Ma)</p>\n",$minfirst;
 	if ( $extant eq "no" )	{
-		printf "<p>Minimum last appearance date: top of $last_interval (%.1f Ma)</p>\n",$ub;
+		$output .= sprintf "<p>Minimum last appearance date: top of $last_interval (%.1f Ma)</p>\n",$ub;
 	}
-	print "<p>Total number of collections: $ncoll</p>\n";
-	printf "<p>Collections per Myr between %.1f and %.1f Ma: %.2f</p>\n",$lb,$lb - $agerange,$ncoll / $agerange;
+	$output .= "<p>Total number of collections: $ncoll</p>\n";
+	$output .= sprintf "<p>Collections per Myr between %.1f and %.1f Ma: %.2f</p>\n",$lb,$lb - $agerange,$ncoll / $agerange;
 	if ( $ncoll > 1 )	{
-		printf "<p>Average gap between collections: %.2f Myr</p>\n",$agerange / ( $ncoll - 1 );
-		printf "<p>Gap between two oldest collections: %.2f Myr</p>\n",$ages[0] - $ages[1];
+		$output .= sprintf "<p>Average gap between collections: %.2f Myr</p>\n",$agerange / ( $ncoll - 1 );
+		$output .= sprintf "<p>Gap between two oldest collections: %.2f Myr</p>\n",$ages[0] - $ages[1];
 	}
 
-	print "</div>\n</div>\n\n";
+	$output .= "</div>\n</div>\n\n";
 
 	# begin more-than-one collection calculations
 	if ( $ncoll > 1 )	{
-	print "<div class=\"displayPanel\" style=\"margin-top: 2em;\">\n<span class=\"displayPanelHeader\" style=\"font-size: 1.2em;\">Confidence intervals on the first appearance</span>\n<div class=\"displayPanelContents\">\n";
+	$output .= "<div class=\"displayPanel\" style=\"margin-top: 2em;\">\n<span class=\"displayPanelHeader\" style=\"font-size: 1.2em;\">Confidence intervals on the first appearance</span>\n<div class=\"displayPanelContents\">\n";
 
-	print "<div style=\"margin-left: 1em;\">\n";
+	$output .= "<div style=\"margin-left: 1em;\">\n";
 
-	printf "<p style=\"text-indent: -1em;\">Based on assuming continuous sampling (Strauss and Sadler 1987, 1989): 50%% = %.2f Ma, 90%% = %.2f Ma, 95%% = %.2f Ma, and 99%% = %.2f Ma<br>\n",Strauss(0.50),Strauss(0.90),Strauss(0.95),Strauss(0.99);
+	$output .= sprintf "<p style=\"text-indent: -1em;\">Based on assuming continuous sampling (Strauss and Sadler 1987, 1989): 50%% = %.2f Ma, 90%% = %.2f Ma, 95%% = %.2f Ma, and 99%% = %.2f Ma<br>\n",Strauss(0.50),Strauss(0.90),Strauss(0.95),Strauss(0.99);
 
-	printf "<p style=\"text-indent: -1em;\">Based on percentiles of gap sizes (Marshall 1994): 50%% = %s, 90%% = %s, 95%% = %s, and 99%% = %s<br>\n",percentile(0.50),percentile(0.90),percentile(0.95),percentile(0.99);
+	$output .= sprintf "<p style=\"text-indent: -1em;\">Based on percentiles of gap sizes (Marshall 1994): 50%% = %s, 90%% = %s, 95%% = %s, and 99%% = %s<br>\n",percentile(0.50),percentile(0.90),percentile(0.95),percentile(0.99);
 
-	printf "<p style=\"text-indent: -1em;\">Based on the oldest gap (Solow 2003): 50%% = %.2f Ma, 90%% = %.2f Ma, 95%% = %.2f Ma, and 99%% = %.2f Ma<br>\n",Solow(0.50),Solow(0.90),Solow(0.95),Solow(0.99);
+	$output .= sprintf "<p style=\"text-indent: -1em;\">Based on the oldest gap (Solow 2003): 50%% = %.2f Ma, 90%% = %.2f Ma, 95%% = %.2f Ma, and 99%% = %.2f Ma<br>\n",Solow(0.50),Solow(0.90),Solow(0.95),Solow(0.99);
 
-	print "<div id=\"note_link\" class=\"small\" style=\"margin-bottom: 1em; padding-left: 1em;\"><span class=\"mockLink\" onClick=\"document.getElementById('CI_note').style.display='inline'; document.getElementById('note_link').style.display='none';\"> > <i>Important: please read the explanatory notes.</span></i></div>\n";
-	print qq|<div id="CI_note" style="display: none;"><div class="small" style="margin-left: 1em; margin-right: 2em; background-color: ghostwhite;">
+	$output .= "<div id=\"note_link\" class=\"small\" style=\"margin-bottom: 1em; padding-left: 1em;\"><span class=\"mockLink\" onClick=\"document.getElementById('CI_note').style.display='inline'; document.getElementById('note_link').style.display='none';\"> > <i>Important: please read the explanatory notes.</span></i></div>\n";
+	$output .= qq|<div id="CI_note" style="display: none;"><div class="small" style="margin-left: 1em; margin-right: 2em; background-color: ghostwhite;">
 <p style="margin-top: 0em;">All three confidence interval (CI) methods assume that there are no errors in identification, classification, temporal correlation, or time scale calibration. Our database is founded on published literature that often contains such errors, and we are not always able to correct them although (for example) we standardize taxonomy using synonymy tables. Our sampling of the literature is also variably complete, and it may not include all published early occurrences.</p>
 <p>The first CI two methods also assume that distribution of gap sizes does not change through time. The Strauss and Sadler method assumes more specifically that the gaps are randomly placed in time, so they follow a Dirichlet distribution. The percentile-based estimates assume nothing about the underlying distribution. They are computed by rank-ordering the N observed gaps and taking the average of the two gaps that span the percentile matching the appropriate CI (see Marshall 1994). These are gaps k and k + 1 where k < (1 - CI) N < k + 1. So, if there are 100 gaps then the 95% CI matches the 5th longest.</p>
 <p style="margin-bottom: 0em;">Intuitively, it might seem that percentiles underestimate the CIs when sample sizes are small. Marshall (1994) therefore proposed generating CIs on top of the nonparametric CIs. The CIs on CIs express the chance that 1 to k gaps are longer than 1 - CI' of all possible gaps, CI and CI' potentially being different (say, 50% and 5%). However, possible gaps are not of interest: one wants to know about a single real gap in the fossil record. The chance that 1 to k gaps are longer than this record is just k/N, the original CI. Therefore, CIs based on Marshall's method are not reported here.</p>
@@ -3261,13 +3262,13 @@ sub displayFirstAppearance	{
 			$size = "large";
 		}
 		if ( $t > 3.291 )	{
-			printf "<p style=\"padding-left: 1em; text-indent: -1em;\">WARNING: there is a very significant $direction rank-order correlation of %.3f between time in Myr and gap size, so the continuous sampling- and percentile-based confidence interval estimates are far too small (try setting a higher minimum age)</p>\n",$r;
+			$output .= sprintf "<p style=\"padding-left: 1em; text-indent: -1em;\">WARNING: there is a very significant $direction rank-order correlation of %.3f between time in Myr and gap size, so the continuous sampling- and percentile-based confidence interval estimates are far too small (try setting a higher minimum age)</p>\n",$r;
 	# and the p < 0.01 values range from 2.576 to 3.169
 		} elsif ( $t > 2.576 )	{
-			printf "<p style=\"padding-left: 1em; text-indent: -1em;\">WARNING: there is a significant $direction rank-order correlation of %.3f between time in Myr and gap size, so the continuous sampling- and percentile-based confidence interval estimates are too small (try setting a higher minimum age)</p>\n",$r;
+			$output .= sprintf "<p style=\"padding-left: 1em; text-indent: -1em;\">WARNING: there is a significant $direction rank-order correlation of %.3f between time in Myr and gap size, so the continuous sampling- and percentile-based confidence interval estimates are too small (try setting a higher minimum age)</p>\n",$r;
 	# and the p < 0.05 values range from 1.960 to 2.228
 		} elsif ( $t > 1.960 )	{
-			printf "<p style=\"padding-left: 1em; text-indent: -1em;\">WARNING: there is a $direction rank-order correlation of %.3f between time in Myr and gap size, so the continuous sampling- and percentile-based confidence interval estimates are probably too small (try setting a higher minimum age)</p>\n",$r;
+			$output .= sprintf "<p style=\"padding-left: 1em; text-indent: -1em;\">WARNING: there is a $direction rank-order correlation of %.3f between time in Myr and gap size, so the continuous sampling- and percentile-based confidence interval estimates are probably too small (try setting a higher minimum age)</p>\n",$r;
 		}
 	}
 
@@ -3329,13 +3330,13 @@ sub displayFirstAppearance	{
 			#printf "$k %.3f<br>",$posterior;
 		}
 	}
-	print "</div>\n</div>\n\n";
+	$output .= "</div>\n</div>\n\n";
 
 	} # end more-than-one collection calculations
 
 	# COLLECTION DATA OUTPUT
 
-	print "<div class=\"displayPanel\" style=\"margin-top: 2em;\">\n<span class=\"displayPanelHeader\" style=\"font-size: 1.2em;\">First occurrence details</span>\n<div class=\"displayPanelContents\">\n";
+	$output .= "<div class=\"displayPanel\" style=\"margin-top: 2em;\">\n<span class=\"displayPanelHeader\" style=\"font-size: 1.2em;\">First occurrence details</span>\n<div class=\"displayPanelContents\">\n";
 
 	# getCollections won't return multiple occurrences per collection, so...
 	my @collnos;
@@ -3358,7 +3359,7 @@ sub displayFirstAppearance	{
 	# print data to output file JA 17.1.09
 	my $name = ($s->get("enterer")) ? $s->get("enterer") : "Guest";
 	my $filename = PBDB::PBDBUtil::getFilename($name) . "-appearances.txt";;
-	print "<p><a href=\"/public/downloads/$filename\">Download the full data set</a></p>\n\n";
+	$output .= "<p><a href=\"/public/downloads/$filename\">Download the full data set</a></p>\n\n";
 	open OUT , ">$HTML_DIR/public/downloads/$filename";
 	@$colls = sort { $b->{'midpoint Ma'} <=> $a->{'midpoint Ma'} || $b->{'maximum Ma'} <=> $a->{'maximum Ma'} || $b->{'minimum Ma'} <=> $a->{'minimum Ma'} || $a->{'country'} cmp $b->{'country'} || $a->{'state'} cmp $b->{'state'} || $a->{'formation'} cmp $b->{'formation'} || $a->{'collection_name'} cmp $b->{'collection_name'} } @$colls;
 	splice @$fields , 0 , 2 , ('maximum Ma','minimum Ma','midpoint Ma','randomized Ma','randomized gap','taxa');
@@ -3434,29 +3435,29 @@ sub displayFirstAppearance	{
 				push @includes , $o->{'taxon_name'};
 			}
 		}
-		print "<p style=\"padding-left: 1em; text-indent: -1em;\">The collection documenting the first appearance is ";
-		print makeAnchor("basicCollectionSearch", "collection_no=$firsts[0]{collection_no}", $firsts[0]{collection_name});
-		print " ($agerange $firsts[0]{formation} of $firsts[0]{country}: includes ".join(', ',@includes).")</p>\n";
+		$output .= "<p style=\"padding-left: 1em; text-indent: -1em;\">The collection documenting the first appearance is ";
+		$output .= makeAnchor("basicCollectionSearch", "collection_no=$firsts[0]{collection_no}", $firsts[0]{collection_name});
+		$output .= " ($agerange $firsts[0]{formation} of $firsts[0]{country}: includes ".join(', ',@includes).")</p>\n";
 	} else	{
 		@firsts = sort { $a->{'collection_name'} cmp $b->{'collection_name'} } @firsts;
-		print "<p class=\"large\" style=\"margin-bottom: -1em;\">Collections including first appearances</p>\n";
-		print "<table cellpadding=\"0\" cellspacing=\"0\" style=\"padding: 1.5em;\">\n";
+		$output .= "<p class=\"large\" style=\"margin-bottom: -1em;\">Collections including first appearances</p>\n";
+		$output .= "<table cellpadding=\"0\" cellspacing=\"0\" style=\"padding: 1.5em;\">\n";
 		my @fields = ('collection_no','collection_name','country','formation');
-		print "<tr valign=\"top\">\n";
+		$output .= "<tr valign=\"top\">\n";
 		for my $f ( @fields )	{
 			my $fn = $f;
 			$fn =~ s/^[a-z]/\U$&/;
 			$fn =~  s/_/ /g;
 			$fn =~ s/ no$//;
-			print "<td><div style=\"padding: 0.5em;\">$fn</div></td>\n";
+			$output .= "<td><div style=\"padding: 0.5em;\">$fn</div></td>\n";
 		}
-		print "<td style=\"padding: 0.5em;\">Age (Ma)</td>\n";
-		print "</tr>\n";
+		$output .= "<td style=\"padding: 0.5em;\">Age (Ma)</td>\n";
+		$output .= "</tr>\n";
 		my $i;
 		for my $coll ( @firsts )	{
 			$i++;
 			my $classes = (($#firsts > 1) && ($i/2 > int($i/2))) ? qq|"small darkList"| : qq|"small"|;
-			print "<tr valign=\"top\" class=$classes style=\"padding: 3.5em;\">\n";
+			$output .= "<tr valign=\"top\" class=$classes style=\"padding: 3.5em;\">\n";
 			my $collno = $coll->{'collection_no'};
 			$coll->{'collection_no'} = "&nbsp;&nbsp;" .
 			    makeAnchor("basicCollectionSearch", "collection_no=$coll->{collection_no}", $coll->{collection_no});
@@ -3467,29 +3468,29 @@ sub displayFirstAppearance	{
 				$coll->{'formation'} = "-";
 			}
 			for my $f ( @fields )	{
-				print "<td style=\"padding: 0.5em;\">$coll->{$f}</td>\n";
+				$output .= "<td style=\"padding: 0.5em;\">$coll->{$f}</td>\n";
 			}
-			printf "<td style=\"padding: 0.5em;\">%.1f to %.1f</td>\n",$interval_hash{$coll->{'max_interval_no'}}->{'base_age'},$interval_hash{$coll->{'max_interval_no'}}->{'top_age'};
-			print "</tr>\n";
+			$output .= sprintf "<td style=\"padding: 0.5em;\">%.1f to %.1f</td>\n",$interval_hash{$coll->{'max_interval_no'}}->{'base_age'},$interval_hash{$coll->{'max_interval_no'}}->{'top_age'};
+			$output .= "</tr>\n";
 			my @includes = ();
 			for my $o ( @occs )	{
 				if ( $o->{'collection_no'} == $collno && ( $ids{$o->{'occurrence_no'}} == 1 || $o->{'reid_no'} > 0 ) )	{
 					push @includes , $o->{'taxon_name'};
 				}
 			}
-			print "<tr valign=\"top\" class=$classes><td></td><td style=\"padding-bottom: 0.5em;\" colspan=\"6\">includes ".join(', ',@includes)."</td></tr>\n";
+			$output .= "<tr valign=\"top\" class=$classes><td></td><td style=\"padding-bottom: 0.5em;\" colspan=\"6\">includes ".join(', ',@includes)."</td></tr>\n";
 		}
-		print "</table>\n\n";
+		$output .= "</table>\n\n";
 	}
-	print "</div>\n</div>\n";
+	$output .= "</div>\n</div>\n";
 
-	print "<div style=\"padding-left: 6em;\">";
-	print makeAnchor("beginFirstAppearance", "", "Search again") . " - ";
-	print makeAnchor("displayTaxonInfoResults", "taxon_no=$nos[0]{taxon_no}", "See more details about $name") . "</div>\n";
-	print "</div>\n";
+	$output .= "<div style=\"padding-left: 6em;\">";
+	$output .= makeAnchor("beginFirstAppearance", "", "Search again") . " - ";
+	$output .= makeAnchor("displayTaxonInfoResults", "taxon_no=$nos[0]{taxon_no}", "See more details about $name") . "</div>\n";
+	$output .= "</div>\n";
 
-	print $hbo->stdIncludes($PAGE_BOTTOM);
-	return;
+        # print $hbo->stdIncludes($PAGE_BOTTOM);
+	return $output;
 }
 
 # JA 13.1.09
@@ -3558,8 +3559,9 @@ sub findCrown	{
 # JA 3-5.11.09
 sub basicTaxonInfo	{
 
-	my ($q,$s,$dbt,$hbo) = @_;
+    my ($q,$s,$dbt,$hbo) = @_;
 
+    my $output = '';
 	my ($is_real_user,$not_bot) = (1,1);
 	if (! $q->request_method() eq 'POST' && ! $q->param('is_real_user') && ! $s->isDBMember()) {
 		$is_real_user = 0;
@@ -3577,8 +3579,7 @@ sub basicTaxonInfo	{
 	if ( $q->param('match') =~ /all|random/i )	{
 		my @taxon_nos = @{getMatchingSubtaxa($dbt,$q,$s,$hbo)};
 		if ( scalar @taxon_nos > 1 )	{
-			listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
-			return;
+			return listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		}
 	}
 
@@ -3606,7 +3607,7 @@ sub basicTaxonInfo	{
 		if ( scalar @taxon_nos == 1 )	{
 			$taxon_no = getSeniorSynonym($dbt,$taxon_nos[0]); 
 		} elsif ( scalar @taxon_nos > 1 )	{
-			listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
+			$output .= listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		} else	{
 			$error = "<center>Nothing matching your search is in the database. Please try again.</center>";
 			$taxon_name = "Failed search!";
@@ -3694,13 +3695,12 @@ sub basicTaxonInfo	{
 			$taxon_no = getSeniorSynonym($dbt,$taxon_nos[0]); 
 		}
 		elsif ( scalar @taxon_nos > 1 )	{
-			listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
+		    $output .= listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		}
 	} else	{ # this should never happen
-		print $hbo->stdIncludes($PAGE_TOP);
-		print "<p>You must enter a taxon name.</p>\n\n";
-		print $hbo->stdIncludes($PAGE_BOTTOM);
-		return;
+	    # print $hbo->stdIncludes($PAGE_TOP);
+	    return "<p>You must enter a taxon name.</p>\n\n";
+	    # print $hbo->stdIncludes($PAGE_BOTTOM);
 	}
 
 	# PAGE TITLE ETC.
@@ -3745,7 +3745,7 @@ sub basicTaxonInfo	{
 	} else	{
 		$page_title->{'title'} .= $taxon_name;
 	}
-	print $hbo->stdIncludes($PAGE_TOP,$page_title);
+	# print $hbo->stdIncludes($PAGE_TOP,$page_title);
 
 	my $taxon = getMostRecentSpelling($dbt,$taxon_no);
 	if ( $taxon->{'taxon_no'} != $taxon_no )	{
@@ -3781,7 +3781,7 @@ sub basicTaxonInfo	{
 		}
 	}
 
-        print qq|<div align="center" class="medium" style="margin-left: 1em; margin-top: 3em;">
+        $output .= qq|<div align="center" class="medium" style="margin-left: 1em; margin-top: 3em;">
 <div class="displayPanel" style="margin-top: -1em; margin-bottom: 2em; text-align: left; width: 54em;">
 <span class="displayPanelHeader">$header</span>
 <div align="left" class="small displayPanelContent" style="padding-left: 1em; padding-bottom: 1em;">
@@ -3802,13 +3802,13 @@ sub basicTaxonInfo	{
 			}
 		    }
 		    if ( @parent_links )	{
-			print "<p class=\"small\" style=\"margin-top: -0.25em; margin-bottom: 0.75em; margin-left: 1em;\">".join(' - ',@parent_links)."</p>\n\n";
+			$output .= "<p class=\"small\" style=\"margin-top: -0.25em; margin-bottom: 0.75em; margin-left: 1em;\">".join(' - ',@parent_links)."</p>\n\n";
 		    }
 		}
 	}
 
 	if ( $error )	{
-		print "<p class=\"medium\"><i>$error</i></p>\n\n";
+		$output .= "<p class=\"medium\"><i>$error</i></p>\n\n";
 	}
 
 	# VERBAL DISCUSSION
@@ -3822,10 +3822,10 @@ sub basicTaxonInfo	{
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;
 		$auth->{'email'} =~ s/\@/\' \+ \'\@\' \+ \'/;
-		print qq|<p style="margin-bottom: -0.5em; font-size: 1.0em;">$discussion</p>
+		$output .= qq|<p style="margin-bottom: -0.5em; font-size: 1.0em;">$discussion</p>
 |;
 		if ( $auth->{discussant} ne "" )	{
-			print qq|<script language="JavaScript" type="text/javascript">
+			$output .= qq|<script language="JavaScript" type="text/javascript">
     <!-- Begin
     window.onload = showMailto;
     function showMailto( )	{
@@ -3857,20 +3857,20 @@ sub basicTaxonInfo	{
 				push @distinct_auths , $syn;
 			}
 		}
-		print "<div style=\"clear: both;\"></div>\n\n";
+		$output .= "<div style=\"clear: both;\"></div>\n\n";
 
 		my $noun = "spelling";
 		if ( $auth->{'taxon_rank'} =~ /species/ )	{
 			$noun = "combination";
 		}
 		if ( $#spelling_refs == 0 )	{
-			print "<p>Alternative $noun: ".italicize($spelling_refs[0])."</p>\n\n";
+			$output .= "<p>Alternative $noun: ".italicize($spelling_refs[0])."</p>\n\n";
 #			push @spellings , $spelling_refs[0]->{'taxon_no'};
 		} elsif ( $#spelling_refs > 0 )	{
-			print "<p $indent>Alternative ".$noun."s: ";
+			$output .= "<p $indent>Alternative ".$noun."s: ";
 			my @spelling_names;
 			push @spelling_names , italicize($_) foreach @spelling_refs;
-			print join(', ',@spelling_names)."</p>\n\n";
+			$output .= join(', ',@spelling_names)."</p>\n\n";
 		}
 		my ($synonyms,$nomens,$otherbads);
 		for my $s ( @syn_refs )	{
@@ -3889,16 +3889,16 @@ sub basicTaxonInfo	{
 			}
 		}
 		if ( $#syn_refs == 0 )	{
-			print "<p>Synonym: ".italicize($syn_refs[0])." ".formatShortAuthor($syn_refs[0]).$syn_refs[0]->{'note'}."</p>\n\n";
+			$output .= "<p>Synonym: ".italicize($syn_refs[0])." ".formatShortAuthor($syn_refs[0]).$syn_refs[0]->{'note'}."</p>\n\n";
 		} elsif ( $#syn_refs == 0 )	{
-			print "<p>Indeterminate subtaxon: ".italicize($syn_refs[0])." ".formatShortAuthor($syn_refs[0]).$syn_refs[0]->{'note'}."</p>\n\n";
+			$output .= "<p>Indeterminate subtaxon: ".italicize($syn_refs[0])." ".formatShortAuthor($syn_refs[0]).$syn_refs[0]->{'note'}."</p>\n\n";
 		} elsif ( $#syn_refs == 0 )	{
-			print "<p>Invalid subtaxon: ".italicize($syn_refs[0])." ".formatShortAuthor($syn_refs[0]).$syn_refs[0]->{'note'}."</p>\n\n";
+			$output .= "<p>Invalid subtaxon: ".italicize($syn_refs[0])." ".formatShortAuthor($syn_refs[0]).$syn_refs[0]->{'note'}."</p>\n\n";
 		} elsif ( $#syn_refs > 0 )	{
 			if ( $nomens + $otherbads == 0 )	{
-				print "<p $indent>Synonyms: ";
+				$output .= "<p $indent>Synonyms: ";
 			} else	{
-				print "<p $indent>Invalid subtaxa: ";
+				$output .= "<p $indent>Invalid subtaxa: ";
 			}
 			my $list;
 			for my $s ( @syn_refs )	{
@@ -3906,14 +3906,14 @@ sub basicTaxonInfo	{
 			}
 			$list =~ s/  ,/,/;
 			$list =~ s/, $//;
-			print "$list<p>\n\n";
+			$output .= "$list<p>\n\n";
 		}
 	}
 
 	# FULL AUTHORITY REFERENCE
 
 	if ( $auth->{'ref_is_authority'} =~ /y/i )	{
-		print "<p $indent>Full reference: ".PBDB::Reference::formatLongRef($auth)."</p>\n\n";
+		$output .= "<p $indent>Full reference: ".PBDB::Reference::formatLongRef($auth)."</p>\n\n";
 	}
 
 	# PARENT SECTION
@@ -3924,26 +3924,26 @@ sub basicTaxonInfo	{
 		my $parent = ${$dbt->getData($sql)}[0];
 		if ( $parent )	{
 			my $belongs = ( $auth->{'taxon_rank'} =~ /species/ ) ? "Belongs to" : "Parent taxon:";
-			print "<p style=\"clear: left;\">$belongs ";
-			print makeAnchor("basicTaxonInfo", "taxon_no=$parent->{taxon_no}", italicize($parent));
+			$output .= "<p style=\"clear: left;\">$belongs ";
+			$output .= makeAnchor("basicTaxonInfo", "taxon_no=$parent->{taxon_no}", italicize($parent));
 			$sql = "SELECT r.reference_no,$authorfields2 FROM $TAXA_TREE_CACHE t,opinions o,refs r WHERE r.reference_no=o.reference_no AND t.opinion_no=o.opinion_no AND t.taxon_no=$taxon_no";
 			my $ref = ${$dbt->getData($sql)}[0];
-			print " according to ".PBDB::Reference::formatShortRef($ref,'link_id'=>1);
-			print "</p>\n\n";
+			$output .= " according to ".PBDB::Reference::formatShortRef($ref,'link_id'=>1);
+			$output .= "</p>\n\n";
 			if ( $is_real_user > 0 )	{
 				$sql =  "SELECT r.reference_no,r.author1last,r.author2last,r.otherauthors,r.pubyr FROM opinions o,$TAXA_TREE_CACHE t,refs r WHERE child_no=taxon_no AND synonym_no=$taxon_no AND o.reference_no=r.reference_no AND o.reference_no!=".$ref->{'reference_no'}." GROUP BY r.reference_no ORDER BY r.author1last,r.author2last,r.pubyr";
 				my @refs = @{$dbt->getData($sql)};
 				if ( @refs )	{
-					print "<p $indent>See also ";
+					$output .= "<p $indent>See also ";
 					my @formatted;
 					for my $r ( @refs )	{
 						push @formatted , PBDB::Reference::formatShortRef($r,'link_id'=>1);
 					}
 					my $lastref = pop @formatted;
 					if ( @formatted )	{
-						print join(', ',@formatted)." and ";
+						$output .= join(', ',@formatted)." and ";
 					}
-					print "$lastref</p>\n\n";
+					$output .= "$lastref</p>\n\n";
 				}
 			}
 			#push @sisters , $_ ? $_->{'taxon_no'} != $taxon_no : "" foreach @{PBDB::TaxaCache::getChildren($dbt,$parent->{'taxon_no'},'immediate_children')};
@@ -3961,19 +3961,19 @@ sub basicTaxonInfo	{
 
 		if ( @sisters )	{
 			if ( $#sisters == 0 )	{
-				print "<p style=\"clear: left;\">Sister taxon: ";
-				print makeAnchor("basicTaxonInfo", "taxon_no=$sisters[0]{taxon_no}", italicize($sisters[0]));
+				$output .= "<p style=\"clear: left;\">Sister taxon: ";
+				$output .= makeAnchor("basicTaxonInfo", "taxon_no=$sisters[0]{taxon_no}", italicize($sisters[0]));
 			} else	{
-				print "<p style=\"margin-left: 1em;\"><span style=\"margin-left: -1em; text-indent: -0.5em;\">Sister taxa: ";
+				$output .= "<p style=\"margin-left: 1em;\"><span style=\"margin-left: -1em; text-indent: -0.5em;\">Sister taxa: ";
 				my $list;
 				$list .= makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", italicize($_)) . ", " foreach @sisters;
 				$list =~ s/, $//;
-				print $list;
+				$output .= $list;
 			}
 		} else	{
-			print "<p style=\"clear: left;\">Sister taxa: <i>none</i>";
+			$output .= "<p style=\"clear: left;\">Sister taxa: <i>none</i>";
 		}
-		print "</p>\n\n";
+		$output .= "</p>\n\n";
 	}
 
 	# CHILDREN SECTION
@@ -3981,7 +3981,7 @@ sub basicTaxonInfo	{
 	if ( $taxon_no )	{
 		my @child_refs = @{PBDB::TaxaCache::getChildren($dbt,$taxon_no,'immediate_children')};
 		if ( @child_refs || $auth->{'taxon_rank'} !~ /species/ )	{
-			print "<p style=\"margin-left: 1em;\"><span style=\"margin-left: -1em; text-indent: -0.5em;\">Subtaxa: ";
+			$output .= "<p style=\"margin-left: 1em;\"><span style=\"margin-left: -1em; text-indent: -0.5em;\">Subtaxa: ";
 			if ( @child_refs )	{
 				my @child_nos;
 				push @child_nos , $_->{'taxon_no'} foreach @child_refs;
@@ -3990,15 +3990,15 @@ sub basicTaxonInfo	{
 				my $list;
 				$list .= makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", italicize($_)) . " " foreach @child_names;
 				$list =~ s/, $//;
-				print $list;
-				print "</span></p>\n\n";
-				print qq|<p><a href=# onClick="javascript: document.doViewClassification.submit()">View classification</a></span></p>\n\n|;
-				print "\n<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
-				print '<input type="hidden" name="action" value="classify">';
-				print '<input type="hidden" name="taxon_no" value="'.$taxon_no.'">';
-				print "</form>\n";
+				$output .= $list;
+				$output .= "</span></p>\n\n";
+				$output .= qq|<p><a href=# onClick="javascript: document.doViewClassification.submit()">View classification</a></span></p>\n\n|;
+				$output .= "\n<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
+				$output .= '<input type="hidden" name="action" value="classify">';
+				$output .= '<input type="hidden" name="taxon_no" value="'.$taxon_no.'">';
+				$output .= "</form>\n";
 			} else	{
-				print "<i>none</i></span></p>\n\n";
+				$output .= "<i>none</i></span></p>\n\n";
 			}
 		}
 	}
@@ -4014,19 +4014,19 @@ sub basicTaxonInfo	{
 			}
 			if ($auth->{'taxon_rank'} =~ /species/) {
 				if ( $#distinct_auths == 0 )	{
-					print "<p $indent>Type specimen: $typeInfo</p>\n\n";
+					$output .= "<p $indent>Type specimen: $typeInfo</p>\n\n";
 			# additional info for junior synonyms
 				} else	{
-					print "<p $indent>Type specimens:\n</p>\n<ul style=\"margin-top: -0.5em;\">";
-						print "<li><i>$auth->{'taxon_name'}</i>: ".$typeInfo."</li>\n";
+					$output .= "<p $indent>Type specimens:\n</p>\n<ul style=\"margin-top: -0.5em;\">";
+						$output .= "<li><i>$auth->{'taxon_name'}</i>: ".$typeInfo."</li>\n";
 					for my $i ( 1..$#distinct_auths )	{
 						my ($synTypeInfo,$synTypeLocality) = printTypeInfo($dbt,join(',',@spellings),$distinct_auths[$i],1,'basicTaxonInfo');
-						print "<li><i>$distinct_auths[$i]->{'taxon_name'}</i>: ".$synTypeInfo."</li>\n";
+						$output .= "<li><i>$distinct_auths[$i]->{'taxon_name'}</i>: ".$synTypeInfo."</li>\n";
 					}
-					print "</ul>\n";
+					$output .= "</ul>\n";
 				}
 			} else	{
-				print "<p $indent>Type: $typeInfo</p>\n\n";
+				$output .= "<p $indent>Type: $typeInfo</p>\n\n";
 			}
 		}
 	}
@@ -4038,18 +4038,18 @@ sub basicTaxonInfo	{
 		my $ecotaphVals = $eco_hash->{$taxon_no};
 
 		if ( $ecotaphVals )	{
-			print "<p>Ecology:";
+			$output .= "<p>Ecology:";
 			# it's really annoying how often this gets printed
 			$ecotaphVals->{'locomotion'} =~ s/actively mobile//;
 			for my $e ( 'locomotion','life_habit','diet1' )	{
 				if ( $ecotaphVals->{$e} )	{
-					print " ".$ecotaphVals->{$e};
+					$output .= " ".$ecotaphVals->{$e};
 				}
 			}
 			if ( $ecotaphVals->{'diet1'} && $ecotaphVals->{'diet2'} )	{
-				print "-".$ecotaphVals->{'diet2'};
+				$output .= "-".$ecotaphVals->{'diet2'};
 			}
-			print "</p>\n\n";
+			$output .= "</p>\n\n";
 		}
 	}
 
@@ -4067,8 +4067,8 @@ sub basicTaxonInfo	{
 			my $ss = PBDB::TaxonInfo::getSeniorSynonym($dbt,$orig);
 			my @m = PBDB::Measurement::getMassEstimates($dbt,$ss,$p_table,'skip area');
 			if ( @{$m[1]} )	{
-				print "<p $indent>Average measurements (in mm): ".join(', ',@{$m[1]});
-				print "</p>\n\n";
+				$output .= "<p $indent>Average measurements (in mm): ".join(', ',@{$m[1]});
+				$output .= "</p>\n\n";
 			}
 			if ( $m[5] && $m[6] )	{
 				my @eqns = @{$m[3]};
@@ -4083,8 +4083,8 @@ sub basicTaxonInfo	{
 				if ( $#eqns > 1 )	{
 					$eqns[$_] .= "," foreach ( 0..$#eqns-1 );
 				}
-				print "<p $indent>Estimated body mass: ".formatMass( exp( $m[5]/$m[6] ) )." based on ".join(' ',@eqns);
-				print "</p>\n\n";
+				$output .= "<p $indent>Estimated body mass: ".formatMass( exp( $m[5]/$m[6] ) )." based on ".join(' ',@eqns);
+				$output .= "</p>\n\n";
 			}
 		}
 	}
@@ -4142,19 +4142,19 @@ sub basicTaxonInfo	{
 			$base{$i->{'own'}} = $i->{'base'};
 		}
 
-		print "<p>Distribution:";
+		$output .= "<p>Distribution:";
 		if ( $#occs == 0 && $occs[0]->{'c'} == 1 )	{
 			my $o = $occs[0];
-			print qq| found only at |;
-			print makeATag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
+			$output .= qq| found only at |;
+			$output .= makeATag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
 			if ( $typeLocality == 0 )	{
 				my $place = ( $o->{'country'} =~ /United States|Canada/ ) ? $o->{'state'} : $o->{'country'};
 				$place =~ s/United King/the United King/;
 				my $time = ( $period{$o->{'max_interval_no'}} =~ /Paleogene|Neogene/ ) ? $epoch{$o->{'max_interval_no'}} : $period{$o->{'max_interval_no'}};
 				$time .= ( $period{$o->{'min_interval_no'}} =~ /Paleogene|Neogene/ ) ? " to ".$epoch{$o->{'min_interval_no'}} : "";
-				print qq| ($time of $place)|;
+				$output .= qq| ($time of $place)|;
 			}
-			print "</p>\n\n";
+			$output .= "</p>\n\n";
 		} elsif ( @occs )	{
 			my ($ctotal,$ototal,%bycountry,%bystate);
 			for my $o ( @occs )	{
@@ -4189,11 +4189,11 @@ sub basicTaxonInfo	{
 				}
 			}
 			@intervals = sort { $base{$a} <=> $base{$b} } @intervals;
-			print "</p>\n\n";
-			print "<div style=\"margin-left: 2em;\">\n";
+			$output .= "</p>\n\n";
+			$output .= "<div style=\"margin-left: 2em;\">\n";
 			my $printed;
 			for my $i ( @intervals )	{
-				print "<p $indent>&bull; $i of ";
+				$output .= "<p $indent>&bull; $i of ";
 				my @countries = keys %{$bycountry{$i}};
 				@countries = sort @countries;
 				my $list;
@@ -4236,22 +4236,22 @@ sub basicTaxonInfo	{
 					$list .= "), ";
 				}
 				$list =~ s/, $//;
-				print "$list</p>\n";
+				$output .= "$list</p>\n";
 			}
 			if ( $ctotal > 1 && $ctotal < $ototal )	{
-				print "<p>Total: $ctotal collections including $ototal occurrences</p>\n\n";
+				$output .= "<p>Total: $ctotal collections including $ototal occurrences</p>\n\n";
 			} elsif ( $ctotal > 1 && $ctotal == $ototal )	{
-				print "<p>Total: $ctotal collections each including a single occurrence</p>\n\n";
+				$output .= "<p>Total: $ctotal collections each including a single occurrence</p>\n\n";
 			}
-			print "</div>\n\n";
+			$output .= "</div>\n\n";
 		# don't print anything for really big groups, users shouldn't
 		#  expect to see occurrences anyway JA 13.7.12
 		} elsif ( $auth->{'rgt'} - $auth->{'lft'} >= 20000 )	{
 		} else	{
 			if ( $auth->{'taxon_name'} )	{
-				print " <i>there are no occurrences of $auth->{'taxon_name'} in the database</i></p>\n\n";
+				$output .= " <i>there are no occurrences of $auth->{'taxon_name'} in the database</i></p>\n\n";
 			} else	{
-				print "</p>\n\n<p><i>There is no taxonomic or distributional information about '$taxon_name' in the database</i></p>\n\n";
+				$output .= "</p>\n\n<p><i>There is no taxonomic or distributional information about '$taxon_name' in the database</i></p>\n\n";
 			}
 		}
 
@@ -4267,7 +4267,7 @@ sub basicTaxonInfo	{
 # 			close PNG;
 # 			chmod 0664, "$GIF_DIR/taxon".$taxon_string.".png";
 
-# 			print qq|
+# 			$output .= qq|
 # <script language="Javascript" type="text/javascript">
 # <!--
 
@@ -4313,36 +4313,38 @@ sub basicTaxonInfo	{
 
 	if ( $is_real_user > 0 && ( @occs || $taxon_no ) )	{
 		if ( $taxon_no && $SQL_DB eq "pbdb" )	{
-			print "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
+			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 		} elsif ( $SQL_DB eq "pbdb" )	{
-			print "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
+			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 		}
 		if ( $s->isDBMember() && $taxon_no && $s->get('role') =~ /authorizer|student|technician/ )	{
-			print "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
-			print "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
+			$output .= "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
+			$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
 		}
 	}
-	print "</div>\n</div>\n\n";
+	$output .= "</div>\n</div>\n\n";
 
-	print qq|
+	$output .= qq|
 <form method="POST" action="" onSubmit="return checkName(1,'search_again');">
 <input type="hidden" name="action" value="basicTaxonInfo">
 |;
 	if ( $taxon_no )	{
-		print qq|<input type="hidden" name="last_taxon" value="$taxon_no">
+		$output .= qq|<input type="hidden" name="last_taxon" value="$taxon_no">
 |;
 	}
-# print qq|
+# $output .= qq|
 # <span class="small">
 # <input type="text" name="search_again" value="Search again" size="24" onFocus="textClear(search_again);" onBlur="textRestore(search_again);" style="font-size: 1.0em;">
 # </span>
 # </form>
 # |;
 
-	print "<br>\n\n";
-	print "</div>\n\n";
+	$output .= "<br>\n\n";
+	$output .= "</div>\n\n";
 
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    # print $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 
@@ -4432,32 +4434,32 @@ sub getMatchingSubtaxa	{
 		$q->param('taxon_no' => $trefs[$x]->{taxon_no});
 		# infinite loops are bad
 		$q->param('match' => '');
-		basicTaxonInfo($q,$s,$dbt,$hbo);
-		return;
+		return basicTaxonInfo($q,$s,$dbt,$hbo);
 	}
 }
 
 # calved off from checkTaxonInfo JA 8.4.12
 sub listTaxonChoices	{
 
-	my ($dbt,$hbo,$data,$numbersOnly) = @_;
-	my @results;
-
+    my ($dbt,$hbo,$data,$numbersOnly) = @_;
+    my @results;
+    my $output = '';
+    
 	if ( $numbersOnly == 0 )	{
 		@results = @{$data};
 	} else	{
-		print $hbo->stdIncludes($PAGE_TOP);
+		# print $hbo->stdIncludes($PAGE_TOP);
 		my $sql = "SELECT a.*,IF (ref_is_authority='YES',r.author1last,a.author1last) author1last,IF (ref_is_authority='YES',r.author2last,a.author2last) author2last,IF (ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF (ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,refs r WHERE a.reference_no=r.reference_no AND taxon_no IN (".join(',',@{$data}).")";
 		@results = @{$dbt->getData($sql)};
 	}
 	@results = sort { $a->{taxon_name} cmp $b->{taxon_name} } @results;
-	print "<div align=\"center\"><p class=\"pageTitle\" style=\"margin-bottom: 0.5em;\">Please select a taxonomic name</p>\n";
+	$output .= "<div align=\"center\"><p class=\"pageTitle\" style=\"margin-bottom: 0.5em;\">Please select a taxonomic name</p>\n";
 	if ( scalar @results >= 10 )	{
-		print "<p class=\"small\">The total number of matches is ".scalar @results."</p>\n";
+		$output .= "<p class=\"small\">The total number of matches is ".scalar @results."</p>\n";
 	} else	{
-		print "<br>\n";
+		$output .= "<br>\n";
 	}
-	print qq|<div class="displayPanel" align="center" style="width: 36em; padding-top: 1.5em;">
+	$output .= qq|<div class="displayPanel" align="center" style="width: 36em; padding-top: 1.5em;">
 <div class="displayPanelContent">
 <table>
 <tr>
@@ -4470,21 +4472,22 @@ sub listTaxonChoices	{
 			$classes = ($i/2 == int($i/2)) ? qq|"small darkList"| : "small";
 		}
 		# the width term games browsers
-		print qq|<td class=$classes style="width: 1em; padding: 0.25em; padding-left: 1em; padding-right: 1em; white-space: nowrap;">&bull; |;
-		print makeAnchorWithAttrs("basicTaxonInfo", "taxon_no=$results[$i]->{taxon_no}", 'style="color: black;"', $authorityLine) . "</td>";
-		print "</tr>\n<tr>";
+		$output .= qq|<td class=$classes style="width: 1em; padding: 0.25em; padding-left: 1em; padding-right: 1em; white-space: nowrap;">&bull; |;
+		$output .= makeAnchorWithAttrs("basicTaxonInfo", "taxon_no=$results[$i]->{taxon_no}", 'style="color: black;"', $authorityLine) . "</td>";
+		$output .= "</tr>\n<tr>";
 	}
-	print qq|</tr>
+	$output .= qq|</tr>
 <tr><td align="center" colspan=3><br>
 </td></tr></table></div>
 </div>
 </div>
 |;
 	if ( $numbersOnly > 0 )	{
-		print $hbo->stdIncludes($PAGE_TOP);
+		# print $hbo->stdIncludes($PAGE_TOP);
 		return;
 	}
 
+    return $output;
 }
 
 # JA 3.11.09

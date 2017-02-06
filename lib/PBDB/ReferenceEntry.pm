@@ -409,8 +409,8 @@ sub displayReferenceForm {
 	} else	{
 		$vars{"page_title"} = "Reference number $reference_no";
 	}
-	print $hbo->populateHTML('js_reference_checkform');
-	print $hbo->populateHTML("enter_ref_form", \%vars);
+
+    return $hbo->populateHTML('js_reference_checkform') . $hbo->populateHTML("enter_ref_form", \%vars);
 }
 
 #  * Will either add or edit a reference in the database
@@ -418,13 +418,13 @@ sub processReferenceForm {
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
     my $reference_no = int($q->param('reference_no'));
+    my $output = '';
     
     my $isNewEntry = ($reference_no > 0) ? 0 : 1;
     
     unless ( $q->param('check_status') eq 'done' )
     {
-	print "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
-	return;
+	return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
     }
     
     my @child_nos = ();
@@ -464,13 +464,13 @@ sub processReferenceForm {
     my $fraud = checkFraud($q);
     if ($fraud) {
         if ($fraud eq 'Gupta') {
-            print qq|<center><p class="medium"><font color='red'>WARNING: Data published by V. J. Gupta have been called into question by Talent et al. 1990, Webster et al. 1991, Webster et al. 1993, and Talent 1995. Please press the back button, copy the comment below to the reference title, and resubmit.  Do NOT enter
+            $output .= qq|<center><p class="medium"><font color='red'>WARNING: Data published by V. J. Gupta have been called into question by Talent et al. 1990, Webster et al. 1991, Webster et al. 1993, and Talent 1995. Please press the back button, copy the comment below to the reference title, and resubmit.  Do NOT enter
 any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('authorizer').qq| FOR DETAILS"|;
-            print "</font></p></center>\n";
+            $output .= "</font></p></center>\n";
         } else {
-            print qq|<center><p class="medium"><font color='red'>WARNING: Data published by M. M. Imam have been called into question by <a href='http://www.up.ac.za/organizations/societies/psana/Plagiarism_in_Palaeontology-A_New_Threat_Within_The_Scientific_Community.pdf'>J. Aguirre 2004</a>. Please press the back button, copy the comment below to the reference title, and resubmit.  Do NOT enter any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('authorizer').qq| FOR DETAILS"|;
+            $output .= qq|<center><p class="medium"><font color='red'>WARNING: Data published by M. M. Imam have been called into question by <a href='http://www.up.ac.za/organizations/societies/psana/Plagiarism_in_Palaeontology-A_New_Threat_Within_The_Scientific_Community.pdf'>J. Aguirre 2004</a>. Please press the back button, copy the comment below to the reference title, and resubmit.  Do NOT enter any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('authorizer').qq| FOR DETAILS"|;
         }
-        return;
+        return $output;
     }
     
     # Suppress fields that do not match publication type
@@ -491,7 +491,7 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
 
     if ($dupe) {
         $reference_no = $dupe;
-        print "<div align=\"center\">".PBDB::Debug::printWarnings("This reference was not entered since it is a duplicate of reference $reference_no")."</div>";
+        $output .= "<div align=\"center\">".PBDB::Debug::printWarnings("This reference was not entered since it is a duplicate of reference $reference_no")."</div>";
     } elsif ($matches) {
         # Nothing to do, page generation and form processing handled
         # in the checkNearMatch function
@@ -508,7 +508,7 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
     if ($dupe) {
         $verb = "";
     }
-    print "<center><p class=\"pageTitle\">Reference number $reference_no $verb</p></center>";
+    $output .= "<center><p class=\"pageTitle\">Reference number $reference_no $verb</p></center>";
 
     # Set the reference_no
     if ($reference_no) {
@@ -519,14 +519,14 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
         # print a list of all the things the user should now do, with links to
         #  popup windows JA 28.7.06
         my $box_header = ($dupe || !$isNewEntry) ? "Full reference" : "New reference";
-        print "<div class=\"displayPanel\" align=\"left\" style=\"margin: 1em;\"><span class=\"displayPanelHeader\">$box_header</span><table><tr><td valign=top>$formatted_ref <small>" . makeAnchor("displayRefResults", "type=edit&reference_no=$reference_no", "edit") . "</small></td></tr></table></span></div>";
+        $output .= "<div class=\"displayPanel\" align=\"left\" style=\"margin: 1em;\"><span class=\"displayPanelHeader\">$box_header</span><table><tr><td valign=top>$formatted_ref <small>" . makeAnchor("displayRefResults", "type=edit&reference_no=$reference_no", "edit") . "</small></td></tr></table></span></div>";
         
-	print qq|</center>
+	$output .= qq|</center>
         <div class="displayPanel" align="left" style="margin: 1em;">
         <span class="displayPanelHeader">Please enter all the data</span>
         <div class="displayPanelContent large">
 |;
-	print qq|
+	$output .= qq|
         <ul class="small" style="text-align: left;">
             <li>Add or edit all the <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayAuthorityTaxonSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">taxonomic names</a>, especially if they are new or newly combined
             <li>Add or edit all the new or second-hand <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayOpinionSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">taxonomic opinions</a> about classification or synonymy
@@ -538,17 +538,19 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
             <li>Add <a href="#" onClick="popup = window.open('$WRITE_URL?a=startStartEcologyTaphonomySearch', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">ecological/taphonomic data</a>, <a href="#" onClick="popup = window.open('$WRITE_URL?a=displaySpecimenSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">specimen measurements</a>, and <a href="#" onClick="popup = window.open('$WRITE_URL?a=startImage', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">images</a>
         <ul>
 |; #jpjenk-question: onClick handling
-	print "</div>\n";
+	$output .= "</div>\n";
 	
-	print qq|
+	$output .= qq|
 <form method="POST" action="$WRITE_URL">
 <input type="hidden" name="action" value="displayRefResults">
 <input type="hidden" name="reference_no" value="$reference_no">
 <input type="submit" value="Use this reference">
 </form>
 |;	
-	print "</div>\n</center>\n";
+	$output .= "</div>\n</center>\n";
     }
+    
+    return $output;
 }
 
 sub checkFraud {

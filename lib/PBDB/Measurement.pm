@@ -466,11 +466,10 @@ sub displayDownloadMeasurementsResults  {
 	my ($q,$s,$dbt,$hbo) = @_;
 	my $dbh = $dbt->dbh;
 
-	if ( ! $q->param('taxon_name') ) 	{
-		my $errorMessage = '<center><p class="medium"><i>You must enter the name of a taxonomic group.</i></p></center>';
-		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		displayDownloadMeasurementsForm($errorMessage);
-		return;
+	if ( ! $q->param('taxon_name') )
+ 	{
+	    my $errorMessage = '<center><p class="medium"><i>You must enter the name of a taxonomic group.</i></p></center>';
+	    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 	}
 
 	# who needs Text::CSV_XS? JA 18.6.12
@@ -516,11 +515,10 @@ sub displayDownloadMeasurementsResults  {
 	#  assuming the larger taxon is the legitimate one
 	my $sql = "SELECT t.taxon_no,lft,rgt,rgt-lft width FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND (taxon_name IN ('".$names."') OR common_name IN ('".$names."')) ORDER BY width DESC";
 	my @parents = @{$dbt->getData($sql)};
-	if ( ! @parents ) 	{
-		my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('taxon_name').' is not in our database. Please try another name.</i></p></center>';
-		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		displayDownloadMeasurementsForm($errorMessage);
-		return;
+	if ( ! @parents ) 
+	{
+	    my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('taxon_name').' is not in our database. Please try another name.</i></p></center>';
+	    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 	}
 
 	# same for "exclude" taxon JA 8.9.11
@@ -529,11 +527,10 @@ sub displayDownloadMeasurementsResults  {
 	if ( $q->param('exclude') )	{
 		$sql = "SELECT t.taxon_no,lft,rgt,rgt-lft width FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND (taxon_name='".$q->param('exclude')."' OR common_name ='".$q->param('exclude')."') ORDER BY width DESC LIMIT 1"; 
 		my $exclude = ${$dbt->getData($sql)}[0];
-		if ( ! $exclude ) 	{
-			my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('exclude').' is not in our database. Please try another name.</i></p></center>';
-			print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-			displayDownloadMeasurementsForm($errorMessage);
-			return;
+		if ( ! $exclude )
+		{
+		    my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('exclude').' is not in our database. Please try another name.</i></p></center>';
+		    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 		}
 		$exclude_clause = "AND (lft<$exclude->{'lft'} OR rgt>$exclude->{'rgt'})";
 	}
@@ -582,11 +579,10 @@ sub displayDownloadMeasurementsResults  {
 	}
 
 	my @taxa = @{$dbt->getData($sql)};
-	if ( ! @taxa ) 	{
-		my $errorMessage = '<center><p class="medium"><i>We have no measurement data for species belonging to '.$q->param('taxon_name').'. Please try another taxon.</i></p></center>';
-		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		displayDownloadMeasurementsForm($errorMessage);
-		return;
+	if ( ! @taxa ) 	
+	{
+	    my $errorMessage = '<center><p class="medium"><i>We have no measurement data for species belonging to '.$q->param('taxon_name').'. Please try another taxon.</i></p></center>';
+	    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 	}
 
 	# get the life habits so some categories can be excluded
@@ -607,11 +603,10 @@ sub displayDownloadMeasurementsResults  {
 				push @with_habits , $t;
 			}
 		}
-		if ( ! @with_habits ) 	{
-			my $errorMessage = '<center><p class="medium"><i>We have no measurement data for species in the selected life habit categories. Adding more categories might help.</i></p></center>';
-			print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-			displayDownloadMeasurementsForm($errorMessage);
-			return;
+		if ( ! @with_habits )
+		{
+		    my $errorMessage = '<center><p class="medium"><i>We have no measurement data for species in the selected life habit categories. Adding more categories might help.</i></p></center>';
+		    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 		}
 		@taxa = @with_habits;
 	}
@@ -678,11 +673,10 @@ sub displayDownloadMeasurementsResults  {
 	}
 
 	my @measurements = getMeasurements($dbt,\%options);
-	if ( ! @measurements ) 	{
-		my $errorMessage = '<center><p class="medium"><i>We have data records for this taxon but your options exclude them. Try broadening your search criteria.</i></p></center>';
-		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		displayDownloadMeasurementsForm($errorMessage);
-		return;
+	if ( ! @measurements )
+ 	{
+	    my $errorMessage = '<center><p class="medium"><i>We have data records for this taxon but your options exclude them. Try broadening your search criteria.</i></p></center>';
+	    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 	}
 
 	# step 3: save measurements of species found in a subset of collections
@@ -777,11 +771,10 @@ sub displayDownloadMeasurementsResults  {
 			$sql1 .= "AND occurrence_no NOT IN (".join(',',keys %temp).")";
 		}
 		push @with_occs , @{$dbt->getData($sql1.$sql2)};
-		if ( ! @with_occs )	{
-			my $errorMessage = '<center><p class="medium"><i>None of the collections include data for '.$q->param('taxon_name').'. Please try another name or broaden your search criteria.</i></p></center>';
-			print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-			displayDownloadMeasurementsForm($errorMessage);
-			return;
+		if ( ! @with_occs )
+		{
+		    my $errorMessage = '<center><p class="medium"><i>None of the collections include data for '.$q->param('taxon_name').'. Please try another name or broaden your search criteria.</i></p></center>';
+		    return displayDownloadMeasurementsForm($errorMessage);
 		}
 		my %avail;
 		$avail{$_->{'taxon_no'}}++ foreach @with_occs;
@@ -1357,51 +1350,53 @@ sub displayDownloadMeasurementsResults  {
 	}
 	close OUT;
 
-	if ( $rows < 1 )	{
-		my $errorMessage = '<center><p class="medium"><i>None of the collections include data for '.$q->param('taxon_name').'. Please try another name or broaden your search criteria.</i></p></center>';
-		print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-		displayDownloadMeasurementsForm($errorMessage);
-		return;
+	if ( $rows < 1 )
+	{
+	    my $errorMessage = '<center><p class="medium"><i>None of the collections include data for '.$q->param('taxon_name').'. Please try another name or broaden your search criteria.</i></p></center>';
+	    return PBDB::displayDownloadMeasurementsForm($errorMessage);
 	}
-	print "<div style=\"margin-left: 10em; margin-bottom: 5em; width: 35em;\">\n\n";
-	print "<p class=\"pageTitle\" style=\"margin-left: 8em;\">Download results</p>\n";
-	print "<p class=\"darkList\" style=\"width: 30em; padding: 0.1em; padding-left: 3em;\">Summary</p>\n";
-	print "<div style=\"margin-left: 3em;\">\n\n";
-	print "<p style=\"width: 26em; margin-left: 1em; text-indent: -1em;\">Search: taxon = ",$q->param('taxon_name');
+	
+	my $output = '';
+	
+	$output .= "<div style=\"margin-left: 10em; margin-bottom: 5em; width: 35em;\">\n\n";
+	$output .= "<p class=\"pageTitle\" style=\"margin-left: 8em;\">Download results</p>\n";
+	$output .= "<p class=\"darkList\" style=\"width: 30em; padding: 0.1em; padding-left: 3em;\">Summary</p>\n";
+	$output .= "<div style=\"margin-left: 3em;\">\n\n";
+	$output .= "<p style=\"width: 26em; margin-left: 1em; text-indent: -1em;\">Search: taxon = ",$q->param('taxon_name');
 	if ( $q->param('collection_names') )	{
-		print "; collection = ",$q->param('collection_names');
+		$output .= "; collection = ",$q->param('collection_names');
 	}
 	if ( $countries )	{
 		if ( $continent_list =~ /, / )	{
-			print "; continents = ",$continent_list;
+			$output .= "; continents = ",$continent_list;
 		} else	{
-			print "; continent = ",$continent_list;
+			$output .= "; continent = ",$continent_list;
 		}
 	}
 	if ( $q->param('max_interval') )	{
-		print "; interval = ",$q->param('max_interval');
+		$output .= "; interval = ",$q->param('max_interval');
 	}
 	if ( $q->param('min_interval') )	{
-		print " to ",$q->param('min_interval');
+		$output .= " to ",$q->param('min_interval');
 	}
 	if ( $q->param('group_formation_member') )	{
-		print "; strat unit = ",$q->param('group_formation_member');
+		$output .= "; strat unit = ",$q->param('group_formation_member');
 	}
-	print "</p>\n";
+	$output .= "</p>\n";
 	my @temp = keys %records;
 	if ( $#temp == 0 )	{
-		printf "<p>%d kind of body part</p>\n",$#temp+1;
+		$output .= sprintf "<p>%d kind of body part</p>\n",$#temp+1;
 	} else	{
-		printf "<p>%d kinds of body parts</p>\n",$#temp+1;
+		$output .= sprintf "<p>%d kinds of body parts</p>\n",$#temp+1;
 	}
 	my @temp = keys %printed_parts;
-	printf "<p>%d species</p>\n",$#temp+1;
+	$output .= sprintf "<p>%d species</p>\n",$#temp+1;
 	if ( $rows == 1 )	{
-		print "<p>$rows data record</p>\n";
+		$output .= "<p>$rows data record</p>\n";
 	} else	{
-		print "<p>$rows data records</p>\n";
+		$output .= "<p>$rows data records</p>\n";
 	}
-	print qq|<div>Output data files:
+	$output .= qq|<div>Output data files:
 	<div style="margin-top: 0.5em; margin-left: 1em;"><a href="$OUT_HTTP_DIR/$outfile">$outfile</a><br>
 	<a href="$OUT_HTTP_DIR/$outfile2">$outfile2</a><br>
 	<a href="$OUT_HTTP_DIR/$outfile3">$outfile3</a>
@@ -1409,41 +1404,42 @@ sub displayDownloadMeasurementsResults  {
 	</div>
 |;
 
-	print "<p style=\"margin-left: 1em; text-indent: -1em;\">Authorizers: ";
+	$output .= "<p style=\"margin-left: 1em; text-indent: -1em;\">Authorizers: ";
 	my (@names,@bits) = (keys %total_authorized,());
 	@names = sort { $total_authorized{$b} <=> $total_authorized{$a} } @names;
 	push @bits , "$_ ($total_authorized{$_}&nbsp;records)" foreach @names;
 	$_ =~ s/\(1&nbsp;records\)/(1&nbsp;record)/ foreach @bits;
 	$_ =~ s/([A-Z]\.) /$1&nbsp;/ foreach @bits;
-	print join(', ',@bits);
-	print "</p>\n";
+	$output .= join(', ',@bits);
+	$output .= "</p>\n";
 
-	print "<p style=\"margin-left: 1em; text-indent: -1em;\">Enterers: ";
+	$output .= "<p style=\"margin-left: 1em; text-indent: -1em;\">Enterers: ";
 	(@names,@bits) = (keys %total_entered,());
 	@names = sort { $total_entered{$b} <=> $total_entered{$a} } @names;
 	push @bits , "$_ ($total_entered{$_}&nbsp;records)" foreach @names;
 	$_ =~ s/\(1&nbsp;records\)/(1&nbsp;record)/ foreach @bits;
 	$_ =~ s/([A-Z]\.) /$1&nbsp;/ foreach @bits;
-	print join(', ',@bits);
-	print "</p>\n";
-	print "</p>\n";
+	$output .= join(', ',@bits);
+	$output .= "</p>\n";
+	$output .= "</p>\n";
 
-	print "</div>\n\n";
-	print "<p class=\"darkList\" style=\"width: 30em; margin-top: 3em; padding: 0.1em; padding-left: 3em;\">Data totals for each body part</p>\n";
-	print "<table cellpadding=\"4\" style=\"margin-left: 6em;\">\n";
-	print "<tr><td align=\"center\">part</td><td>species</td><td>specimens</td></tr>\n";
+	$output .= "</div>\n\n";
+	$output .= "<p class=\"darkList\" style=\"width: 30em; margin-top: 3em; padding: 0.1em; padding-left: 3em;\">Data totals for each body part</p>\n";
+	$output .= "<table cellpadding=\"4\" style=\"margin-left: 6em;\">\n";
+	$output .= "<tr><td align=\"center\">part</td><td>species</td><td>specimens</td></tr>\n";
 	for my $part ( @part_list )	{
 		if ( $records{$part} )	{
 			my $printed_part = $part;
 			if ( $part eq "" )	{
 				$printed_part = "unknown";
 			}
-			print "<tr><td style=\"padding-left: 1em;\">$printed_part</td> <td align=\"center\">$records{$part}</td> <td align=\"center\">$specimens{$part}</td></tr>\n";
+			$output .= "<tr><td style=\"padding-left: 1em;\">$printed_part</td> <td align=\"center\">$records{$part}</td> <td align=\"center\">$specimens{$part}</td></tr>\n";
 		}
 	}
-	print "</table>\n";
-	print "</div>\n";
-
+	$output .= "</table>\n";
+	$output .= "</div>\n";
+	
+	return $output;
 }   
 
 

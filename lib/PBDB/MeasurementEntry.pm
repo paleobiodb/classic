@@ -23,10 +23,11 @@ my @measurement_fields=('average','median','min','max','error','error_unit');
 sub submitSpecimenSearch {
     my  ($dbt,$hbo,$q,$s) = @_;
     my $dbh = $dbt->dbh;
-
+    my $output = '';
+    
     if ( ! $q->param('taxon_name') && ! $q->param('comment') && ! int($q->param('collection_no')) ) {
-        push my @error , "You must enter a taxonomic name, comment, or collection number";
-        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
+        my %vars = { errors => "You must enter a taxonomic name, comment, or collection number" };
+	return $hbo->populateHTML('search_specimen_form', \%vars);
     }
     
     # Grab the data from the database, filtering by either taxon_name and/or collection_no
@@ -99,8 +100,8 @@ sub submitSpecimenSearch {
     }
 
     if (scalar(@results) == 0 && $q->param('collection_no')) {
-        push my @error , "Occurrences of this taxon could not be found";
-        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
+	my %vars = { errors => "Occurrences of this taxon could not be found" };
+	return $hbo->populateHTML('search_specimen_form', \%vars);
     } elsif (scalar(@results) == 1 && $q->param('collection_no')) {
         $q->param('occurrence_no'=>$results[0]->{'occurrence_no'});
         displaySpecimenList($dbt,$hbo,$q,$s);
@@ -108,8 +109,8 @@ sub submitSpecimenSearch {
         $q->param('taxon_no'=>$results_taxa_only[0]->{'taxon_no'});
         displaySpecimenList($dbt,$hbo,$q,$s);
     } elsif (scalar(@results) == 0 && scalar(@results_taxa_only) == 0) {
-        push my @error , "Occurrences or taxa matching these search terms could not be found";
-        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
+        my %vars = { errors => "Occurrences or taxa matching these search terms could not be found" };
+	return $hbo->populateHTML('search_specimen_form', \%vars);
     } else {
         my ($things,$collection_header,$knownUnknown) = ('occurrences and names','Collection','unknown');
         if( $q->param('get_occurrences') =~ /^no/i )	{
@@ -117,7 +118,7 @@ sub submitSpecimenSearch {
             $collection_header = "";
             $knownUnknown = "";
         }
-        print qq|
+        $output .= qq|
         <center><p class="pageTitle" style="font-size: 1.2em;">Matching $things</p></center>
         <form method="POST\" action="$READ_URL">
         <input type="hidden\" name="action" value="displaySpecimenList">
@@ -172,18 +173,18 @@ sub submitSpecimenSearch {
             if ($last_collection_no != $row->{'collection_no'}) {
                 $class = ($class eq '') ? $class='class="darkList"' : '';
             }
-            print "<tr $class><td><span class=\"small\"><nobr>" . makeAnchor("displaySpecimenList", "occurrence_no=$row->{occurrence_no}", "$taxon_name") . " $comments</nobr></span></td>";
+            $output .= "<tr $class><td><span class=\"small\"><nobr>" . makeAnchor("displaySpecimenList", "occurrence_no=$row->{occurrence_no}", "$taxon_name") . " $comments</nobr></span></td>";
             if ($last_collection_no != $row->{'collection_no'}) {
                 $last_collection_no = $row->{'collection_no'};
                 my $interval = $row->{max};
                 if ( $row->{min} )	{
                     $interval .= " - ".$row->{min};
                 }
-                print "<td><span class=\"small\" style=\"margin-right: 1em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$row->{collection_no}", "$row->{collection_name}") . "</span><br><span class=\"verysmall\">$row->{collection_no}: $interval, $row->{place}</span></td>";
+                $output .= "<td><span class=\"small\" style=\"margin-right: 1em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$row->{collection_no}", "$row->{collection_name}") . "</span><br><span class=\"verysmall\">$row->{collection_no}: $interval, $row->{place}</span></td>";
             } else {
-                print "<td></td>";
+                $output .= "<td></td>";
             }
-            print "<td align=\"center\">$specimens</td></tr>";
+            $output .= "<td align=\"center\">$specimens</td></tr>";
         }
         foreach my $row (@results_taxa_only) {
             $class = ($class eq '') ? $class='class="darkList"' : '';
@@ -196,15 +197,16 @@ sub submitSpecimenSearch {
             } else {
                 $taxon_name = $row->{'taxon_name'}." indet.";
             }
-            print "<tr $class><td>" . makeAnchor("displaySpecimenList", "taxon_no=$row->{taxon_no}", "$taxon_name") . "</td><td>$knownUnknown</td><td align=\"center\">$specimens</td></tr>";
+            $output .= "<tr $class><td>" . makeAnchor("displaySpecimenList", "taxon_no=$row->{taxon_no}", "$taxon_name") . "</td><td>$knownUnknown</td><td align=\"center\">$specimens</td></tr>";
 
         }
-        print qq|</table>
+        $output .= qq|</table>
 </div>
 </form>
 |;
     }
-
+    
+    return $output;
 }
 
 #
@@ -215,21 +217,22 @@ sub submitSpecimenSearch {
 sub displaySpecimenList {
     my ($dbt,$hbo,$q,$s,$called_from,$more_links) = @_;
 
+    my $output = '';
+    
     # We need a taxon_no passed in, cause taxon_name is ambiguous
 	if ( ! $q->param('occurrence_no') && ! $q->param('taxon_no')) {
-		push my @error , "There is no occurrence or classification of this taxon";
-		print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
-		return;
+	    my %vars = { errors => "There is no occurrence or classification of this taxon" };
+	    return $hbo->populateHTML('search_specimen_form', \%vars);
 	}
-
+    
     my (@results,$taxon_name,$extant,$collection);
     if ($q->param('occurrence_no')) {
         @results = getMeasurements($dbt,$q->param('occurrence_no'));
         my $sql = "SELECT collection_no,genus_name,species_name,occurrence_no FROM occurrences WHERE occurrence_no=".int($q->param("occurrence_no"));
         my $row = ${$dbt->getData($sql)}[0];
         if (!$row) {
-            print "An error has occurred, could not find occurrence in database";
-            return;
+	    my %vars = { errors => "An error has occurred, could not find occurrence in database" };
+	    return $hbo->populateHTML('search_specimen_form', \%vars);
         }
         $collection = "(collection $row->{collection_no})";
         my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
@@ -264,31 +267,31 @@ sub displaySpecimenList {
         $extant = $taxon->{'extant'};
     }
     
-    print qq|<center><div class="pageTitle" style="padding-top: 0.5em;"><span class="verysmall">$taxon_name $collection</span></div></center>
+    $output .= qq|<center><div class="pageTitle" style="padding-top: 0.5em;"><span class="verysmall">$taxon_name $collection</span></div></center>
 <center>
 <div class="displayPanel verysmall" align="center" style="width: 40em; margin-top: 1em; padding-top: 1em;">
   $more_links
   <div class="displayPanelContent">
 |;
     
-    print "<form name=\"specimenList\" method=\"POST\" action=\"$WRITE_URL\">\n";
-    print "<input type=hidden name=\"action\" value=\"populateMeasurementForm\">\n";
-    print <<HIDDEN_FIELDS;
+    $output .= "<form name=\"specimenList\" method=\"POST\" action=\"$WRITE_URL\">\n";
+    $output .= "<input type=hidden name=\"action\" value=\"populateMeasurementForm\">\n";
+    $output .= <<HIDDEN_FIELDS;
 <input type=hidden name="delete_specimen_no" value="">
 <input type=hidden name="delete_specimen_id" value="">
 HIDDEN_FIELDS
     
     if ($q->param('types_only')) {
-        print "<input type=hidden name=\"types_only\" value=\"".$q->param('types_only')."\">";
+        $output .= "<input type=hidden name=\"types_only\" value=\"".$q->param('types_only')."\">";
     }
     if ($q->param('occurrence_no')) {
-        print "<input type=hidden name=\"occurrence_no\" value=\"".$q->param('occurrence_no')."\">";
+        $output .= "<input type=hidden name=\"occurrence_no\" value=\"".$q->param('occurrence_no')."\">";
     } else {
-        print "<input type=hidden name=\"taxon_no\" value=\"".$q->param('taxon_no')."\">";
+        $output .= "<input type=hidden name=\"taxon_no\" value=\"".$q->param('taxon_no')."\">";
     }
     # default value
-    print "<input type=hidden name=\"specimen_no\" value=\"-2\">";
-    print <<END_SCRIPT;
+    $output .= "<input type=hidden name=\"specimen_no\" value=\"-2\">";
+    $output .= <<END_SCRIPT;
 
 <script language="JavaScript" type="text/javascript">
 <!--
@@ -320,7 +323,7 @@ END_SCRIPT
     
     if ( $s->{error_msg} )
     {
-	print qq{<div class="warningBox"><p>$s->{error_msg}</p></div>\n};
+	$output .= qq{<div class="warningBox"><p>$s->{error_msg}</p></div>\n};
     }
     
     # now create a table of choices
@@ -351,24 +354,24 @@ END_SCRIPT
 
     if ($specimen_count == 0)	{
         if ($q->param('occurrence_no')) {
-            print "<p class=\"small\">There are no measurements for this occurrence yet</p>\n";
+            $output .= "<p class=\"small\">There are no measurements for this occurrence yet</p>\n";
         } else {
-            print "<p class=\"small\">There are no measurements for $taxon_name yet</p>\n";
+            $output .= "<p class=\"small\">There are no measurements for $taxon_name yet</p>\n";
         }
     }
 
-    print "<table style=\"margin-top: 0em;\">\n";
+    $output .= "<table style=\"margin-top: 0em;\">\n";
 
     # always give them an option to create a new measurement as well
     if ( $q->param('occurrence_no') )	{
             my $occurrence_no = $q->param('occurrence_no');
-            print "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=-1", "&#149;") . "</span></td>";
+            $output .= "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=-1", "&#149;") . "</span></td>";
         } else	{
             my $taxon_no = $q->param('taxon_no');
-            print "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=-1", "&#149;") . "</span></td>";
+            $output .= "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=-1", "&#149;") . "</span></td>";
         }
-    print "<td colspan=\"6\">&nbsp;Add one new record (full form)</i></td></tr>\n";
-    print qq|<tr><td align="center" valign="top"><a href="javascript:submitForm('')"><div class="measurementBullet" style="position: relative; margin-top: -0.1em;">&#149;</div></td>|;
+    $output .= "<td colspan=\"6\">&nbsp;Add one new record (full form)</i></td></tr>\n";
+    $output .= qq|<tr><td align="center" valign="top"><a href="javascript:submitForm('')"><div class="measurementBullet" style="position: relative; margin-top: -0.1em;">&#149;</div></td>|;
 
     # anyone working on a large paper will enter the same type and source value
     #  almost every time, so grab the last one
@@ -398,7 +401,7 @@ END_SCRIPT
 
     # likewise, the same number of parts per taxon or occurrence may be
     #  entered every time
-    print "<td colspan=\"6\" valign=\"top\">&nbsp;Add <input type=\"text\" name=\"specimens_measured\" value=\"$old_records\" size=3>new records</i><br>";
+    $output .= "<td colspan=\"6\" valign=\"top\">&nbsp;Add <input type=\"text\" name=\"specimens_measured\" value=\"$old_records\" size=3>new records</i><br>";
 
     $checked{'length'} = ( ! %checked ) ? "checked" : $checked{'length'};
     my $defaults = $last_entries[0];
@@ -406,7 +409,7 @@ END_SCRIPT
     $selected{$defaults->{'measurement_source'}} = "selected";
     $part_value = 'value="'.join(', ',@part_values).'"';
 
-    print qq|
+    $output .= qq|
   <div style=\"padding-left: 2em; padding-bottom: 1em;\">
   default specimen #: <input name="default_no" size="26" value="$id"><br>
   default side and sex:
@@ -436,10 +439,10 @@ END_SCRIPT
   <input type="checkbox" name="diameter" $checked{'diameter'}> diameter<br>
 |;
     if ( $extant =~ /y/i )	{
-      print qq|
+      $output .= qq|
   <input type="checkbox" name="mass" style="margin-left: 2em;" $checked{'mass'}> mass\n|;
     }
-    print qq|
+    $output .= qq|
   <input type="checkbox" name="d13C" style="margin-left: 2em;" $checked{'d13C'} > &delta;<sup>13</sup>C
   <input type="checkbox" name="d18O" style="margin-left: 2em;" $checked{'d18O'}> &delta;<sup>18</sup>O<br>
   default type:
@@ -469,7 +472,7 @@ END_SCRIPT
 
 
     if ($specimen_count > 0) {
-print qq|<center>
+$output .= qq|<center>
 <div class="displayPanel verysmall" align="center" style="width: 40em; margin-top: 2em; padding-top: 1em; padding-bottom: 1em;">
 <table class="verysmall" cellspacing="4">
 <tr><td></td><td colspan="5" class="verylarge" style="padding-bottom: 0.5em;">Existing measurements</td></tr>
@@ -477,21 +480,21 @@ print qq|<center>
 <th></th>
 |;
         if ( $specimen_ids > 0 )	{
-            print "<th align=\"left\">specimen #</th>";
+            $output .= "<th align=\"left\">specimen #</th>";
         } elsif ( $sexes > 0 )	{
-            print "<th align=\"left\">sex</th>";
+            $output .= "<th align=\"left\">sex</th>";
         }
-        print "<th align=\"left\">part</th>" if (%parts);
-        print "<th>count</th>";
+        $output .= "<th align=\"left\">part</th>" if (%parts);
+        $output .= "<th>count</th>";
         foreach my $type (@measurement_types) {
             if ($types{$type}) {
-                print "<th>$type</th>";
+                $output .= "<th>$type</th>";
             }
         }
         if ( $q->param('occurrence_no') == 0 )	{
-            print "<th>reference</th>";
+            $output .= "<th>reference</th>";
         }
-        print "</tr>\n";
+        $output .= "</tr>\n";
     }
 
     my $types_only;
@@ -506,51 +509,51 @@ print qq|<center>
         my $row = $specimens{$specimen_no};
 	my $id = $row->{specimen_id} // '';
 	$specimen_no //= 0;
-        print "<tr>\n";
+        $output .= "<tr>\n";
         if ( $q->param('occurrence_no') )
 	{
 	    my $occurrence_no = $q->param('occurrence_no') || 0;
-            print qq|<td align="center">|;
-	    print qq|<a onClick="deleteMeasurement('$id', $specimen_no)">delete</a>&nbsp;|;
-	    print makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=$specimen_no", "edit") . "</td>";
+            $output .= qq|<td align="center">|;
+	    $output .= qq|<a onClick="deleteMeasurement('$id', $specimen_no)">delete</a>&nbsp;|;
+	    $output .= makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=$specimen_no", "edit") . "</td>";
         } else	{
 	    my $taxon_no = $q->param('taxon_no') || 0;
-            print qq|<td align="center">|;
-	    print qq|<a onClick="deleteMeasurement('$id', $specimen_no)">delete</a>&nbsp;|;
-	    print makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=$specimen_no", "edit") . "</td>";
+            $output .= qq|<td align="center">|;
+	    $output .= qq|<a onClick="deleteMeasurement('$id', $specimen_no)">delete</a>&nbsp;|;
+	    $output .= makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=$specimen_no", "edit") . "</td>";
         }
         if ( $specimen_ids > 0 || $sexes > 0 )	{
-            print qq|<td>$row->{specimen_id}</td>|;
+            $output .= qq|<td>$row->{specimen_id}</td>|;
         }
-        print qq|<td align="left">$row->{specimen_part}</td>| if (%parts);
-        print qq|<td align="center">$row->{specimens_measured}</td>|;
+        $output .= qq|<td align="left">$row->{specimen_part}</td>| if (%parts);
+        $output .= qq|<td align="center">$row->{specimens_measured}</td>|;
         foreach my $type (@measurement_types) {
             if ($types{$type}) {
-                print "<td align=\"center\">$row->{$type}</td>";
+                $output .= "<td align=\"center\">$row->{$type}</td>";
             }
         }
         my $auth = PBDB::Reference::formatShortRef($row);
         $auth =~ s/ and / & /;
-        print "<td>$auth</td>\n";
-        print "</tr>";
+        $output .= "<td>$auth</td>\n";
+        $output .= "</tr>";
     }
     if ($specimen_count > 0) {
-        print "</table>\n</div>\n</center>\n";
+        $output .= "</table>\n</div>\n</center>\n";
     }
-if ( $called_from eq "processMeasurementForm" )	{
-	return;
-}
-
+    
+    return $output;
 }
 
 sub populateMeasurementForm {
     my ($dbt,$hbo,$q,$s) = @_;
     my $dbh = $dbt->dbh;
 
+    my $output = '';
+    
     # We need a taxon_no passed in, cause taxon_name is ambiguous
     if ( ! $q->param('occurrence_no') && ! $q->param('taxon_no')) {
-        return;
-    }   
+        return displaySpecimenList($dbt,$hbo,$q,$s);
+    }
     
 	# get the taxon's name
     my ($taxon_name,$old_field,$old_no,$collection,$extant);
@@ -570,9 +573,10 @@ sub populateMeasurementForm {
         $collection = "($row->{'collection_name'})";
 
         if (!$row || !$taxon_name || !$collection) {
-            push my @error , "The occurrence of this taxon could not be found";
-            print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
-            return;
+	    return displaySpecimenList($dbt,$hbo,$q,$s);
+            # push my @error , "The occurrence of this taxon could not be found";
+            # print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
+            # return;
         }
     } else {
         $old_field = "taxon_no";
@@ -663,7 +667,7 @@ sub populateMeasurementForm {
 
 	        push @fields,('reference','occurrence_no','taxon_no','reference_no','specimen_no','taxon_name','collection','types_only');
 	        push @values,(PBDB::Reference::formatLongRef($ref),int($q->param('occurrence_no')),int($q->param('taxon_no')),$s->get('reference_no'),'-1',$taxon_name,$collection,int($q->param('types_only')));
-	        print $hbo->populateHTML('specimen_measurement_form_general', \@values, \@fields);
+	        return $hbo->populateHTML('specimen_measurement_form_general', \@values, \@fields);
             } elsif ($q->param('specimen_no') == -2) {
                 if ( $q->param('length') )	{
                     push @fields,'length_position';
@@ -710,8 +714,7 @@ sub populateMeasurementForm {
                 }
                 push @fields,('column_names','table_rows');
                 push @values,($column_names,$table_rows);
-	        my $html = $hbo->populateHTML('specimen_measurement_form_individual', \@values, \@fields);
-                print $html;
+	        return $hbo->populateHTML('specimen_measurement_form_individual', \@values, \@fields);
             }
         }
     } elsif ($q->param('specimen_no') > 0) {
@@ -818,7 +821,7 @@ sub populateMeasurementForm {
         # some additional fields not from the form row
 	    push (@fields, 'reference','occurrence_no','taxon_no','reference_no','specimen_no','taxon_name','collection','types_only');
 	    push (@values, sprintf("%s",PBDB::Reference::formatLongRef($ref)),int($q->param('occurrence_no')),int($q->param('taxon_no')),int($row->{'reference_no'}),$row->{'specimen_no'},$taxon_name,$collection,int($q->param('types_only')));
-	    print $hbo->populateHTML('specimen_measurement_form_general', \@values, \@fields);
+	    return $hbo->populateHTML('specimen_measurement_form_general', \@values, \@fields);
     }
 
 }
@@ -826,12 +829,13 @@ sub populateMeasurementForm {
 sub processMeasurementForm	{
     my ($dbt,$hbo,$q,$s) = @_;
     my $dbh = $dbt->dbh;
-
+    my $output = '';
+    
     # We need a taxon_no passed in, cause taxon_name is ambiguous
     if ( ! $q->param('occurrence_no') && ! $q->param('taxon_no')) {
-        push my @error , "There is no matching taxon or occurrence";
-        print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
-        return;
+        # push my @error , "";
+        return "<center><p>There is no matching taxon or occurrence</p></center>\n";
+        # return;
     }
 
     my $taxon_no = $q->param('taxon_no');
@@ -858,9 +862,7 @@ sub processMeasurementForm	{
         $collection = " in collection $row->{'collection_no'}";
 
         if (!$row || !$taxon_name || !$collection) {
-            push my @error , "The occurrence of this taxon could not be found";
-            print "<center><p>".PBDB::Debug::printWarnings(\@error)."</p></center>\n";
-            return;
+            return "<center><p>The occurrence of this taxon could not be found</p></center>\n";
         }
     } else {
         my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>int($q->param('taxon_no'))});
@@ -1068,7 +1070,7 @@ sub processMeasurementForm	{
                 }
 
             } else {
-                print "Error updating database table row, please contact support";
+                return "<center><p>Error updating database table row, please contact support</p></center>";
             }
         } else {
             # Set the reference_no
@@ -1116,7 +1118,7 @@ sub processMeasurementForm	{
 
                 $inserted_row_count++;
             } else {
-                print "Error inserting database table row, please contact support";
+                return "<center><p>Error inserting database table row, please contact support</p></center>";
             }
         }
         if ($specimen_no) {
@@ -1125,16 +1127,16 @@ sub processMeasurementForm	{
     }
 
     if ( $updated_row_count > 0 )	{
-        #print "<center><p class=\"pageTitle\">$taxon_name$collection (revised data)</p></center>\n";
+        #$output .= "<center><p class=\"pageTitle\">$taxon_name$collection (revised data)</p></center>\n";
     } elsif ( $inserted_row_count > 0 )	{
-        #print "<center><p class=\"pageTitle\">$taxon_name$collection (new data)</p></center>\n";
+        #$output .= "<center><p class=\"pageTitle\">$taxon_name$collection (new data)</p></center>\n";
     }
 
     if ( $q->param('switch_occ') > 0 || $q->param('switch_coll') > 0 )	{
         if ( $newcoll )	{
-            print "<div style=\"width: 32em; margin-left: auto; margin-right: auto; text-indent: -1em;\"><p class=\"verysmall\">The data record you updated has been switched successfully to $newcoll. You can search for it by clicking the 'another collection' link.</p></div>\n";
+            $output .= "<div style=\"width: 32em; margin-left: auto; margin-right: auto; text-indent: -1em;\"><p class=\"verysmall\">The data record you updated has been switched successfully to $newcoll. You can search for it by clicking the 'another collection' link.</p></div>\n";
         } elsif ( $badcoll )	{
-            print "<div style=\"width: 32em; margin-left: auto; margin-right: auto; text-indent: -1em;\"><p class=\"verysmall\">The data record was not switched because $taxon_name is not present in $badcoll. Try entering a different collection number.</p></div>\n";
+            $output .= "<div style=\"width: 32em; margin-left: auto; margin-right: auto; text-indent: -1em;\"><p class=\"verysmall\">The data record was not switched because $taxon_name is not present in $badcoll. Try entering a different collection number.</p></div>\n";
         }
     }
 
@@ -1149,13 +1151,15 @@ sub processMeasurementForm	{
 		my ($temp,$collection_no) = split / /,$collection;
 		$collection_no =~ s/\)//;
 	}
-	print qq|
+	$output .= qq|
 </table>
 </div>
 </div>
 </center>
 |;
 
+    return $output;
+    
     # a block of code here that used to cache body mass estimates was removed
     #  by JA 4.6.13
     # it wasn't needed because nothing in the system actually used the values

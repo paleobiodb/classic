@@ -851,8 +851,8 @@ sub displayPreferencesPage {
 		}
 	}
 
-	# Show the preferences entry page
-	print $hbo->populateHTML('preferences', \@rowData, \@fieldNames);
+    # Show the preferences entry page
+    return $hbo->populateHTML('preferences', \@rowData, \@fieldNames);
 }
 
 # Get the current preferences JA 25.6.02
@@ -934,7 +934,7 @@ sub setPreferences	{
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh_r = $dbt->dbh;
 
-	print qq|<center><p class="large">Your current preferences</center>
+    my $output = qq|<center><p class="large">Your current preferences</center>
 <table align=center cellpadding=4 width="80%">
 <tr><td>Displayed sections</td><td>Prefilled values</td></tr>
 |;
@@ -965,15 +965,15 @@ sub setPreferences	{
 		$q->param(lngdeg => $q->param("lngdeg") . " " . $q->param("lngdir") );
 	}
 
-	print "<tr><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
+	$output .= "<tr><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
 	for my $f (@{$shownFormParts})	{
 		my $cleanName = $f;
 		$cleanName =~ s/_/ /g;
  		if ( $q->param($f) )	{
  			$pref_sql .= " -:- " . $f;
-			print "<i>Show</i> $cleanName<br>\n";
+			$output .= "<i>Show</i> $cleanName<br>\n";
  		} else	{
-			print "<i>Do not show</i> $cleanName<br>\n";
+			$output .= "<i>Do not show</i> $cleanName<br>\n";
 		}
 	}
 	# Are any comments stored?
@@ -985,31 +985,31 @@ sub setPreferences	{
 		}
 	}
 
-	print "</td>\n<td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
+	$output .= "</td>\n<td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
 	for my $i (0..$#{$setFieldNames})	{
 		my $f = ${$setFieldNames}[$i];
 		if ($f =~ /^geogcomments$/)	{
-			print "</td></tr>\n<tr><td align=\"left\" colspan=3>\n";
+			$output .= "</td></tr>\n<tr><td align=\"left\" colspan=3>\n";
 			if ($commentsStored)	{
-				print "<p class='medium'>Comment fields</p>\n";
+				$output .= "<p class='medium'>Comment fields</p>\n";
  			}
  		}
 		elsif ($f =~ /mapsize/)	{
-			print qq|</td></tr>
+			$output .= qq|</td></tr>
 <tr><td valign="top">Map view</td></tr>
 <tr><td valign="top" class="verysmall">
 |;
 		}
 		elsif ($f =~ /(formation)|(coastlinecolor)/)	{
-			print "</td><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
+			$output .= "</td><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
 		}
  		if ( $q->param($f) && $f !~ /^eml/ && $f !~ /^l..dir$/)	{
 			my @letts = split //,${$cleanSetFieldNames}{$f};
 			$letts[0] =~ tr/[a-z]/[A-Z]/;
-			print join '',@letts , " = <i>" . $q->param($f) . "</i><br>\n";
+			$output .= join '',@letts , " = <i>" . $q->param($f) . "</i><br>\n";
  		}
 	}
-	print "</td></tr></table>\n";
+	$output .= "</td></tr></table>\n";
 	$pref_sql =~ s/^ -:- //;
 
     my $enterer_no = $s->get('enterer_no');
@@ -1017,12 +1017,14 @@ sub setPreferences	{
      	my $sql = "UPDATE person SET preferences=".$dbh_r->quote($pref_sql)." WHERE person_no=$enterer_no";
         my $result = $dbh_r->do($sql);
 
-	    print "<p>\n<center>" . makeAnchor("displayPreferencesPage", "", "Edit these preferences") . "</center>\n";
+	    $output .= "<p>\n<center>" . makeAnchor("displayPreferencesPage", "", "Edit these preferences") . "</center>\n";
     	my %continue = $s->dequeue();
 	    if($continue{action}){
-		    print "<center><p>\n" . makeAnchor("$continue{action}", "", "<b>Continue</b>") . "<p></center>\n";
+		    $output .= "<center><p>\n" . makeAnchor("$continue{action}", "", "<b>Continue</b>") . "<p></center>\n";
 	    }
     }
+    
+    return $output;
 }
 
 1;

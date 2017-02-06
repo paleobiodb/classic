@@ -74,7 +74,7 @@ sub personForm	{
 			$q->param('action' => 'addPerson');
 		}
 	}
-	print $hbo->stdIncludes($PAGE_TOP);
+	
 	if ( $person )	{
 		for my $field ( keys %$person )	{
 			push @fields , $field;
@@ -92,9 +92,7 @@ sub personForm	{
 	}
 	push @values , join('","',map { $_->{'name'} } @{$dbt->getData("SELECT * FROM person")});
 	push @fields , "names";
-	print $hbo->populateHTML('person',\@values,\@fields);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
-	return;
+	return $hbo->populateHTML('person',\@values,\@fields);
 }
 
 # replaces old admin.pl code JA 22.3.13
@@ -106,7 +104,7 @@ sub addPerson	{
 	$dbt->dbh->do($sql);
 	my $no = ${$dbt->getData("SELECT MAX(person_no) AS no FROM person")}[0]->{no};
 	$dbt->dbh->do("UPDATE person SET created=now(),modified=now() WHERE person_no=$no");
-	PBDB::menu($q->param('first_name')." ".$q->param('last_name')."'s record has been added");
+	return PBDB::menu($q->param('first_name')." ".$q->param('last_name')."'s record has been added");
 }
 
 # replaces old admin.pl code JA 22.3.13
@@ -119,7 +117,7 @@ sub editPerson	{
 	my $sql = "UPDATE person SET last_action=last_action,modified=now(),".join(',',@$fields)." WHERE person_no=".$q->param('person_no');
 	$sql =~ s/'NULL'/NULL/g;
 	$dbt->dbh->do($sql);
-	PBDB::menu($q->param('first_name')." ".$q->param('last_name')."'s record has been updated");
+	return PBDB::menu($q->param('first_name')." ".$q->param('last_name')."'s record has been updated");
 }
 
 sub checkPersonData	{
@@ -355,7 +353,7 @@ sub showAuthorizers {
     $html .= "\n</td><td valign=\"top\" width=\"50%\">\n";
     $html .= formatAuthorizerTable(\@secondhalf);
     $html .= "\n</td></tr></table>\n\n";
-
+    return $html
 }
 
 sub formatAuthorizerTable	{
@@ -533,7 +531,7 @@ sub publications	{
 	$vars{'publications'} = formatPublications($s,\@pubs);
 	$vars{'other_publications'} = formatPublications($s,\@other_pubs);
 	$vars{'panel'} = ( $q->param('other_pub_no') > 0 ) ? "2" : "1";
-	print $hbo->populateHTML('publications', \%vars);
+	return $hbo->populateHTML('publications', \%vars);
 }
 
 sub formatPublications	{
@@ -601,7 +599,6 @@ sub formatPublications	{
 
 sub publicationForm	{
     my ($q,$dbt,$hbo) = @_;
-    print $hbo->stdIncludes($PAGE_TOP);
     my $pub;
     if ( $q->param('pub_no') )	{
         $pub = ${$dbt->getData("SELECT * FROM pubs WHERE pub_no=".$q->param('pub_no'))}[0];
@@ -620,8 +617,7 @@ sub publicationForm	{
         $vars{'authors'} = join(', ',@authors);
     }
     $vars{'new_entry'} = $q->param('new_entry');
-    print $hbo->populateHTML('publication_form', \%vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $hbo->populateHTML('publication_form', \%vars);
 }
 
 sub editPublication	{
@@ -657,7 +653,7 @@ sub editPublication	{
         push @values , "'".join(',',@lasts)."'";
 	 $dbt->dbh->do("INSERT INTO other_pubs(".join(',',@fields).") VALUES (".join(',',@values).")");
     }
-    PBDB::publications();
+    return PBDB::publications();
 }
 
 
