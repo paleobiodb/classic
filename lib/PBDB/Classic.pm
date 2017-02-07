@@ -1496,15 +1496,12 @@ sub displayCollResults {
 	my $displayRows = scalar(@dataRows);	# get number of rows to display
 
 	if ( $type eq 'occurrence_table' && @dataRows) {
-		my @colls = map {$_->{$COLLECTION_NO}} @dataRows;
-		displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
-		return;
+	    my @colls = map {$_->{$COLLECTION_NO}} @dataRows;
+	    return displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
 	} elsif ( $type eq 'count_occurrences' && @dataRows) {
-		PBDB::Collection::countOccurrences($dbt,$hbo,\@dataRows,$occRows);
-		return;
+	    return PBDB::Collection::countOccurrences($dbt,$hbo,\@dataRows,$occRows);
 	} elsif ( $type eq 'most_common' && @dataRows) {
-		displayMostCommonTaxa(\@dataRows);
-		return;
+	    return displayMostCommonTaxa(\@dataRows);
 	} elsif ( $displayRows > 1  || ($displayRows == 1 && $type eq "add")) {
 		# go right to the chase with ReIDs if a taxon_rank was specified
 		if ($q->param('taxon_name') && ($q->param('type') eq "reid" ||
@@ -1515,57 +1512,56 @@ sub displayCollResults {
 				push(@colls , $row->{$COLLECTION_NO});
 			}
 			if ($q->param('type') eq 'reid')	{
-				displayOccsForReID($q, $s, $dbt, $hbo, \@colls);
+			    return displayOccsForReID($q, $s, $dbt, $hbo, \@colls);
 			} else	{
-				PBDB::Reclassify::displayOccurrenceReclassify($q,$s,$dbt,$hbo,\@colls);
+			    return displayOccurrenceReclassify($q,$s,$dbt,$hbo,\@colls);
 			}
-			return;
-		}
+		    }
 
 		$output .= $hbo->stdIncludes( $PAGE_TOP );
-
-        # Display header link that says which collections we're currently viewing
-        if (@$warnings) {
-            $output .= "<div align=\"center\">".PBDB::Debug::printWarnings($warnings)."</div>";
-        }
-
-        $output .= "<center>";
-        if ($ofRows > 1) {
-		$output .= "<p class=\"pageTitle\">There are $ofRows matches\n";
-		if ($ofRows > $limit) {
+		
+		# Display header link that says which collections we're currently viewing
+		if (@$warnings) {
+		    $output .= "<div align=\"center\">".PBDB::Debug::printWarnings($warnings)."</div>";
+		}
+		
+		$output .= "<center>";
+		if ($ofRows > 1) {
+		    $output .= "<p class=\"pageTitle\">There are $ofRows matches\n";
+		    if ($ofRows > $limit) {
 			$output .= " - here are";
 			if ($rowOffset > 0) {
-				$output .= " rows ".($rowOffset+1)." to ";
-				my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-				$output .= $printRows;
+			    $output .= " rows ".($rowOffset+1)." to ";
+			    my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
+			    $output .= $printRows;
 			} else {
-				$output .= " the first ";
-				my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-				$output .= $printRows;
-				$output .= " rows";
+			    $output .= " the first ";
+			    my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
+			    $output .= $printRows;
+			    $output .= " rows";
 			}
+		    }
+		    $output .= "</p>\n";
+		} elsif ( $ofRows == 1 ) {
+		    $output .= "<p class=\"pageTitle\">There is exactly one match</p>\n";
+		} else	{
+		    $output .= "<p class=\"pageTitle\">There are no matches</p>\n";
 		}
-		$output .= "</p>\n";
-	} elsif ( $ofRows == 1 ) {
-		$output .= "<p class=\"pageTitle\">There is exactly one match</p>\n";
-	} else	{
-		$output .= "<p class=\"pageTitle\">There are no matches</p>\n";
-	}
-	$output .= "</center>\n";
-
-	$output .= qq|<div class="displayPanel" style="margin-left: auto; margin-right: auto; padding: 0.5em; padding-left: 1em;">
+		$output .= "</center>\n";
+		
+		$output .= qq|<div class="displayPanel" style="margin-left: auto; margin-right: auto; padding: 0.5em; padding-left: 1em;">
 	<table class="small" border="0" cellpadding="4" cellspacing="0">|;
 
-	# print columns header
-	$output .= qq|<tr>
+		# print columns header
+		$output .= qq|<tr>
 <th>Collection</th>
 <th align=left>Authorizer</th>
 <th align=left nowrap>Collection name</th>
 <th align=left>Reference</th>
 |;
-	$output .= "<th align=left>Distance</th>\n" if ($type eq 'add');
-	$output .= "</tr>\n\n";
- 
+		$output .= "<th align=left>Distance</th>\n" if ($type eq 'add');
+		$output .= "</tr>\n\n";
+		
         # Make non-editable links not highlighted  
         my ($p,%is_modifier_for); 
         if ($type eq 'edit') { 
@@ -1802,190 +1798,190 @@ sub displayCollResults {
 } # end sub displayCollResults
 
 
-sub getOccurrencesXML {
+# sub getOccurrencesXML {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    require PBDB::Download;
-    require XML::Generator;
-    logRequest($s,$q);
+#     require PBDB::Download;
+#     require XML::Generator;
+#     logRequest($s,$q);
 
-    my $rowOffset = $q->param('rowOffset') || 0;
-    my $limit = $q->param('limit') ? $q->param('limit') : '';
+#     my $rowOffset = $q->param('rowOffset') || 0;
+#     my $limit = $q->param('limit') ? $q->param('limit') : '';
 
-    # limit passed to permissions module
-    my $perm_limit = ($limit) ? $limit + $rowOffset : 100000000;
+#     # limit passed to permissions module
+#     my $perm_limit = ($limit) ? $limit + $rowOffset : 100000000;
 
-    $q->param('max_interval_name'=>$q->param("max_interval"));
-    $q->param('min_interval_name'=>$q->param("min_interval"));
-    $q->param('collections_coords'=>'YES');
-    $q->param('collections_coords_format'=>'decimal');
-    if ($q->param('xml_format') =~ /points/i) { 
-        $q->param('output_data'=>'collections');
-    } else {
-        $q->param('sp'=>'YES');
-        $q->param('indet'=>'YES');
-        $q->param('collections_collection_name'=>'YES');
-        $q->param('collections_collection_environment'=>'YES');
-        $q->param('collections_pres_mode'=>'YES');
-        $q->param('collections_reference_no'=>'YES');
-        $q->param('collections_country'=>'YES');
-        $q->param('collections_state'=>'YES');
-        $q->param('collections_geological_group'=>'YES');
-        $q->param('collections_formation'=>'YES');
-        $q->param('collections_member'=>'YES');
-        $q->param('collections_ma_max'=>'YES');
-        $q->param('collections_ma_min'=>'YES');
-        $q->param('collections_max_interval_no'=>'YES');
-        $q->param('collections_min_interval_no'=>'YES');
-        $q->param('collections_paleocoords'=>'YES');
-        $q->param('collections_paleocoords_format'=>'decimal');
-        $q->param('occurrences_occurrence_no'=>'YES');
-        $q->param('occurrences_subgenus_name'=>'YES');
-        $q->param('occurrences_species_name'=>'YES');
-        $q->param('occurrences_plant_organ'=>'YES');
-        $q->param('occurrences_plant_organ2'=>'YES');
-        $q->param('occurrences_stratcomments'=>'YES');
-        $q->param('occurrences_geology_comments'=>'YES');
-        $q->param('occurrences_collection_comments'=>'YES');
-        $q->param('occurrences_taxonomy_comments'=>'YES');
-    }
+#     $q->param('max_interval_name'=>$q->param("max_interval"));
+#     $q->param('min_interval_name'=>$q->param("min_interval"));
+#     $q->param('collections_coords'=>'YES');
+#     $q->param('collections_coords_format'=>'decimal');
+#     if ($q->param('xml_format') =~ /points/i) { 
+#         $q->param('output_data'=>'collections');
+#     } else {
+#         $q->param('sp'=>'YES');
+#         $q->param('indet'=>'YES');
+#         $q->param('collections_collection_name'=>'YES');
+#         $q->param('collections_collection_environment'=>'YES');
+#         $q->param('collections_pres_mode'=>'YES');
+#         $q->param('collections_reference_no'=>'YES');
+#         $q->param('collections_country'=>'YES');
+#         $q->param('collections_state'=>'YES');
+#         $q->param('collections_geological_group'=>'YES');
+#         $q->param('collections_formation'=>'YES');
+#         $q->param('collections_member'=>'YES');
+#         $q->param('collections_ma_max'=>'YES');
+#         $q->param('collections_ma_min'=>'YES');
+#         $q->param('collections_max_interval_no'=>'YES');
+#         $q->param('collections_min_interval_no'=>'YES');
+#         $q->param('collections_paleocoords'=>'YES');
+#         $q->param('collections_paleocoords_format'=>'decimal');
+#         $q->param('occurrences_occurrence_no'=>'YES');
+#         $q->param('occurrences_subgenus_name'=>'YES');
+#         $q->param('occurrences_species_name'=>'YES');
+#         $q->param('occurrences_plant_organ'=>'YES');
+#         $q->param('occurrences_plant_organ2'=>'YES');
+#         $q->param('occurrences_stratcomments'=>'YES');
+#         $q->param('occurrences_geology_comments'=>'YES');
+#         $q->param('occurrences_collection_comments'=>'YES');
+#         $q->param('occurrences_taxonomy_comments'=>'YES');
+#     }
 
-    my $d = new PBDB::Download($dbt,$q,$s,$hbo);
-    my ($dataRows,$allDataRows,$dataRowsSize) = $d->queryDatabase();
-    my @dataRows = @$dataRows;
+#     my $d = new PBDB::Download($dbt,$q,$s,$hbo);
+#     my ($dataRows,$allDataRows,$dataRowsSize) = $d->queryDatabase();
+#     my @dataRows = @$dataRows;
 
-    my $last_record = scalar(@dataRows);
-    if ($limit && (($rowOffset+$limit) < $last_record)) {
-        $last_record = $rowOffset + $limit;
-    } 
+#     my $last_record = scalar(@dataRows);
+#     if ($limit && (($rowOffset+$limit) < $last_record)) {
+#         $last_record = $rowOffset + $limit;
+#     } 
 
-    print "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
+#     print "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
 
-    my $t = new PBDB::TimeLookup($dbt);
-    my $time_lookup;
-    if ($q->param('xml_format') !~ /points/i) { 
-        $time_lookup = $t->lookupIntervals([],['period_name','epoch_name','stage_name']);
-    }
+#     my $t = new PBDB::TimeLookup($dbt);
+#     my $time_lookup;
+#     if ($q->param('xml_format') !~ /points/i) { 
+#         $time_lookup = $t->lookupIntervals([],['period_name','epoch_name','stage_name']);
+#     }
 
-    my $g = XML::Generator->new(escape=>'always',conformance=>'strict',empty=>'args');
+#     my $g = XML::Generator->new(escape=>'always',conformance=>'strict',empty=>'args');
 
-    if ($q->param('xml_format') =~ /points/i) { 
-        print "<points total=\"$dataRowsSize\">\n";
-    } else {
-        print "<occurrences total=\"$dataRowsSize\">\n";
-    }
-#    print "<size>".scalar(@dataRows)."</size>";
-    for (my $i = $rowOffset; $i< $last_record;$i++) {
-        my $row = $dataRows[$i];
+#     if ($q->param('xml_format') =~ /points/i) { 
+#         print "<points total=\"$dataRowsSize\">\n";
+#     } else {
+#         print "<occurrences total=\"$dataRowsSize\">\n";
+#     }
+# #    print "<size>".scalar(@dataRows)."</size>";
+#     for (my $i = $rowOffset; $i< $last_record;$i++) {
+#         my $row = $dataRows[$i];
 
-        if ($q->param('xml_format') =~ /points/i) { 
-            print $g->p(
-                $g->col($row->{'collection_no'}),
-                $g->lat($row->{'c.latdec'}),
-                $g->lng($row->{'c.lngdec'})
-            );
-        } else {
-            if (!$row->{'c.min_interval_no'} && $row->{'c.max_interval_no'}) {
-                $row->{'c.min_interval_no'} = $row->{'c.max_interval_no'};
-            }
+#         if ($q->param('xml_format') =~ /points/i) { 
+#             print $g->p(
+#                 $g->col($row->{'collection_no'}),
+#                 $g->lat($row->{'c.latdec'}),
+#                 $g->lng($row->{'c.lngdec'})
+#             );
+#         } else {
+#             if (!$row->{'c.min_interval_no'} && $row->{'c.max_interval_no'}) {
+#                 $row->{'c.min_interval_no'} = $row->{'c.max_interval_no'};
+#             }
 
-            my ($period_max,$period_min,$epoch_max,$epoch_min,$stage_max,$stage_min);
-            my $max_lookup = $time_lookup->{$row->{'c.max_interval_no'}};
-            my $min_lookup = $time_lookup->{$row->{'c.min_interval_no'}};
-            # Period lookup
-            $period_max = $max_lookup->{'period_name'};
-            $period_min = $min_lookup->{'period_name'};
-            if (!$period_max) {$period_max = "";}
-            if (!$period_min) {$period_min= "";}
+#             my ($period_max,$period_min,$epoch_max,$epoch_min,$stage_max,$stage_min);
+#             my $max_lookup = $time_lookup->{$row->{'c.max_interval_no'}};
+#             my $min_lookup = $time_lookup->{$row->{'c.min_interval_no'}};
+#             # Period lookup
+#             $period_max = $max_lookup->{'period_name'};
+#             $period_min = $min_lookup->{'period_name'};
+#             if (!$period_max) {$period_max = "";}
+#             if (!$period_min) {$period_min= "";}
 
-            # Epoch lookup
-            $epoch_max = $max_lookup->{'epoch_name'};
-            $epoch_min = $min_lookup->{'epoch_name'};
-            if (!$epoch_max) {$epoch_max = "";}
-            if (!$epoch_min) {$epoch_min= "";}
+#             # Epoch lookup
+#             $epoch_max = $max_lookup->{'epoch_name'};
+#             $epoch_min = $min_lookup->{'epoch_name'};
+#             if (!$epoch_max) {$epoch_max = "";}
+#             if (!$epoch_min) {$epoch_min= "";}
 
-            # Stage lookup
-            $stage_max = $max_lookup->{'stage_name'};
-            $stage_min = $min_lookup->{'stage_name'};
-            if (!$stage_max) {$stage_max = "";}
-            if (!$stage_min) {$stage_min= "";}
+#             # Stage lookup
+#             $stage_max = $max_lookup->{'stage_name'};
+#             $stage_min = $min_lookup->{'stage_name'};
+#             if (!$stage_max) {$stage_max = "";}
+#             if (!$stage_min) {$stage_min= "";}
 
-            my $taxon_name = $row->{'o.genus_name'};
-            if ($q->param('lump_genera') ne 'YES') {
-                if ($row->{'o.subgenus_name'}) {
-                    $taxon_name .= " ($row->{'o.subgenus_name'})";
-                }
-                $taxon_name .= " $row->{'o.species_name'}";
-            }
+#             my $taxon_name = $row->{'o.genus_name'};
+#             if ($q->param('lump_genera') ne 'YES') {
+#                 if ($row->{'o.subgenus_name'}) {
+#                     $taxon_name .= " ($row->{'o.subgenus_name'})";
+#                 }
+#                 $taxon_name .= " $row->{'o.species_name'}";
+#             }
 
-            my $plant_organs = $row->{'o.plant_organ'};
-            if ($row->{'o.plant_organ2'}) {
-                $plant_organs .= ",".$row->{'o.plant_organ2'}; 
-            }
+#             my $plant_organs = $row->{'o.plant_organ'};
+#             if ($row->{'o.plant_organ2'}) {
+#                 $plant_organs .= ",".$row->{'o.plant_organ2'}; 
+#             }
 
-            print $g->occurrence(
-                $g->occurrence_no($row->{'o.occurrence_no'}),
-                $g->collection_no($row->{'collection_no'}),
-                $g->reference_no($row->{'c.reference_no'}),
-                $g->latitude($row->{'c.latdec'}),
-                $g->longitude($row->{'c.lngdec'}),
-                $g->paleolatitude($row->{'c.paleolatdec'}),
-                $g->paleolongitude($row->{'c.paleolngdec'}),
-                $g->age_max($row->{'c.ma_max'}),
-                $g->age_min($row->{'c.ma_min'}),
-                $g->collection_name($row->{'c.collection_name'}),
-                $g->environment($row->{'c.environment'}),
-                $g->preservation($row->{'c.pres_mode'}),
-                $g->group($row->{'c.geological_group'}),
-                $g->formation($row->{'c.formation'}),
-                $g->member($row->{'c.member'}),
-                $g->country($row->{'c.country'}),
-                $g->state($row->{'c.state'}),
-                $g->taxon_name($taxon_name),
-                $g->time_period_max($period_max),
-                $g->time_period_min($period_min),
-                $g->time_epoch_max($epoch_max),
-                $g->time_epoch_min($epoch_min),
-                $g->time_stage_max($stage_max),
-                $g->time_stage_min($stage_min),
-                $g->plant_organ($plant_organs),
-                $g->strat_comments($row->{'o.stratcomments'}),
-                $g->geology_comments($row->{'o.geology_comments'}),
-                $g->collection_comments($row->{'o.collection_comments'}),
-                $g->taxonomy_comments($row->{'o.taxonomy_comments'})
-            );
-        }
-        print "\n";
-    }
-    if ($q->param('xml_format') =~ /points/i) { 
-        print "</points>\n";
-    } else {
-        print "</occurrences>\n";
-    }
-}
+#             print $g->occurrence(
+#                 $g->occurrence_no($row->{'o.occurrence_no'}),
+#                 $g->collection_no($row->{'collection_no'}),
+#                 $g->reference_no($row->{'c.reference_no'}),
+#                 $g->latitude($row->{'c.latdec'}),
+#                 $g->longitude($row->{'c.lngdec'}),
+#                 $g->paleolatitude($row->{'c.paleolatdec'}),
+#                 $g->paleolongitude($row->{'c.paleolngdec'}),
+#                 $g->age_max($row->{'c.ma_max'}),
+#                 $g->age_min($row->{'c.ma_min'}),
+#                 $g->collection_name($row->{'c.collection_name'}),
+#                 $g->environment($row->{'c.environment'}),
+#                 $g->preservation($row->{'c.pres_mode'}),
+#                 $g->group($row->{'c.geological_group'}),
+#                 $g->formation($row->{'c.formation'}),
+#                 $g->member($row->{'c.member'}),
+#                 $g->country($row->{'c.country'}),
+#                 $g->state($row->{'c.state'}),
+#                 $g->taxon_name($taxon_name),
+#                 $g->time_period_max($period_max),
+#                 $g->time_period_min($period_min),
+#                 $g->time_epoch_max($epoch_max),
+#                 $g->time_epoch_min($epoch_min),
+#                 $g->time_stage_max($stage_max),
+#                 $g->time_stage_min($stage_min),
+#                 $g->plant_organ($plant_organs),
+#                 $g->strat_comments($row->{'o.stratcomments'}),
+#                 $g->geology_comments($row->{'o.geology_comments'}),
+#                 $g->collection_comments($row->{'o.collection_comments'}),
+#                 $g->taxonomy_comments($row->{'o.taxonomy_comments'})
+#             );
+#         }
+#         print "\n";
+#     }
+#     if ($q->param('xml_format') =~ /points/i) { 
+#         print "</points>\n";
+#     } else {
+#         print "</occurrences>\n";
+#     }
+# }
 
 # JA 23.6.12
 # hey, it's something
-sub jsonTaxon	{
+# sub jsonTaxon	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-	my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('name')},['all']);
-	my $author = PBDB::TaxonInfo::formatShortAuthor($t);
-	my $parent_hash = PBDB::TaxaCache::getParents($dbt,[$t->{'taxon_no'}],'array_full');
-	my @parent_array = @{$parent_hash->{$t->{'taxon_no'}}};
-	my $cof = PBDB::Collection::getClassOrderFamily($dbt,'',\@parent_array);
-	print qq|{ "PaleoDB_no": "$t->{'taxon_no'}", "author": "$author", "common_name": "$t->{'common_name'}", "extant": "$t->{'extant'}", "rank": "$t->{'taxon_rank'}", "family": "$cof->{'family'}", "order": "$cof->{'order'}", "class": "$cof->{'class'}" }|;
-}
+# 	my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('name')},['all']);
+# 	my $author = PBDB::TaxonInfo::formatShortAuthor($t);
+# 	my $parent_hash = PBDB::TaxaCache::getParents($dbt,[$t->{'taxon_no'}],'array_full');
+# 	my @parent_array = @{$parent_hash->{$t->{'taxon_no'}}};
+# 	my $cof = PBDB::Collection::getClassOrderFamily($dbt,'',\@parent_array);
+# 	print qq|{ "PaleoDB_no": "$t->{'taxon_no'}", "author": "$author", "common_name": "$t->{'common_name'}", "extant": "$t->{'extant'}", "rank": "$t->{'taxon_rank'}", "family": "$cof->{'family'}", "order": "$cof->{'order'}", "class": "$cof->{'class'}" }|;
+# }
 
-# JA 27.6.12
-sub jsonCollection	{
+# # JA 27.6.12
+# sub jsonCollection	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    return PBDB::Collection::jsonCollection($dbt,$q,$s);
-}
+#     return PBDB::Collection::jsonCollection($dbt,$q,$s);
+# }
 
 # JA 5-6.4.04
 # compose the SQL to find collections of a certain age within 100 km of
@@ -2238,15 +2234,17 @@ sub submitOpinionSearch {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
     if ($q->param('taxon_name')) {
         $q->param('goal'=>'opinion');
-        processTaxonSearch($q,$s,$dbt,$hbo);
+        $output .= processTaxonSearch($q,$s,$dbt,$hbo);
     } else {
         $q->param('goal'=>'opinion');
-        PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
+        $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
     }
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 # JA 17.8.02
@@ -2261,16 +2259,18 @@ sub submitTaxonSearch {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    processTaxonSearch($q, $s, $dbt, $hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= processTaxonSearch($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub processTaxonSearch {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    # my ($dbt, $hbo, $q, $s) = @_;
+    my $output = '';
     my $dbh = $dbt->dbh;
 	# check for proper spacing of the taxon..
 	my $errors = PBDB::Errors->new();
@@ -2282,8 +2282,8 @@ sub processTaxonSearch {
         }
     }
 
-	# Try to find this taxon in the authorities table
-
+    # Try to find this taxon in the authorities table
+    
     my %options;
     if ($q->param('taxon_name')) {
         $options{'taxon_name'} = $q->param('taxon_name');
@@ -2311,11 +2311,13 @@ sub processTaxonSearch {
         $errors->add("You must fill in at least one field");
     }
 
-	if ($errors->count()) {
-		print $errors->errorMessage();
-		return;
-	}
-
+    if ($errors->count()) {
+	$output = $hbo->stdIncludes($PAGE_TOP);
+	$output .= $errors->errorMessage();
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	return $output;
+    }
+    
     # Denormalize with the references table automatically
     $options{'get_reference'} = 1;
     # Also match against subgenera if the user didn't explicity state the genus
@@ -2407,10 +2409,10 @@ sub processTaxonSearch {
                 }
 
                 if (@typoResults) {
-                    print "<div align=\"center\">\n";
-    		        print "<p class=\"pageTitle\" style=\"margin-bottom: 0.5em;\">'<i>" . $q->param('taxon_name') . "</i>' was not found</p>\n<br>\n";
-                    print "<div class=\"displayPanel medium\" style=\"width: 36em; padding: 1em;\">\n";
-                    print "<p><div align=\"left\"><ul>";
+                    $output .= "<div align=\"center\">\n";
+		    $output .= "<p class=\"pageTitle\" style=\"margin-bottom: 0.5em;\">'<i>" . $q->param('taxon_name') . "</i>' was not found</p>\n<br>\n";
+                    $output .= "<div class=\"displayPanel medium\" style=\"width: 36em; padding: 1em;\">\n";
+                    $output .= "<p><div align=\"left\"><ul>";
                     my $none = "None of the above";
                     if ( $#typoResults == 0 )	{
                         $none = "Not the one above";
@@ -2420,27 +2422,27 @@ sub processTaxonSearch {
                         if (@full_rows) {
                             foreach my $full_row (@full_rows) {
                                 my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt,$full_row,'return_array'=>1);
-                                print "<li>" . makeAnchor("displayAuthorityForm", "taxon_no=$full_row->{taxon_no}", "$name") . " $authority</li>";
+                                $output .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_no=$full_row->{taxon_no}", "$name") . " $authority</li>";
                             }
                         } else {
-                            print "<li>" . makeAnchor("displayAuthorityForm", "taxon_name=$name", "$name") . "</li>";
+                            $output .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_name=$name", "$name") . "</li>";
                         }
                     }
                     # route them to a genus form instead if the genus doesn't
                     #   exist JA 24.10.11
                     if ( $oldg == 0 && $sp )	{
-                        print "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$g&amp;skip_typo_check=1", "$none") . " - create a new record for this genus";
+                        $output .= "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$g&amp;skip_typo_check=1", "$none") . " - create a new record for this genus";
                     } else	{
                         my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                        print "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name&amp;skip_typo_check=1", "$none") . " - create a new taxon record";
+                        $output .= "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name&amp;skip_typo_check=1", "$none") . " - create a new taxon record";
                     }
-                    print "</ul>";
+                    $output .= "</ul>";
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    print "<div align=left class=small style=\"width: 500\">";
-                    print "<p>The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of the names above match, please enter a new taxon record.";
-                    print "</div></p>";
-                    print "</div>";
-                    print "</div>";
+                    $output .= "<div align=left class=small style=\"width: 500\">";
+                    $output .= "<p>The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of the names above match, please enter a new taxon record.";
+                    $output .= "</div></p>";
+                    $output .= "</div>";
+                    $output .= "</div>";
                 }
 	    	else {
                     if (!$s->get('reference_no')) {
@@ -2452,7 +2454,7 @@ sub processTaxonSearch {
                     PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q); # $$$$ print
                 }
             } else {
-                print "<div align=\"center\"><p class=\"pageTitle\">No taxonomic names found</p></div>";
+                $output .= "<div align=\"center\"><p class=\"pageTitle\">No taxonomic names found</p></div>";
             }
         } else {
             # Try to see if theres any near matches already existing in the DB
@@ -2462,36 +2464,36 @@ sub processTaxonSearch {
             }
 
             if (@typoResults) {
-                print "<div align=\"center\">";
-    		    print "<p class=\"pageTitle\" style=\"margin-bottom: 0.5em;\">'<i>" . $q->param('taxon_name') . "</i>' was not found</p>\n<br>\n";
-                print "<div class=\"displayPanel medium\" style=\"width: 36em; padding: 1em;\">\n";
-                print "<div align=\"left\"><ul>";
+                $output .= "<div align=\"center\">";
+    		    $output .= "<p class=\"pageTitle\" style=\"margin-bottom: 0.5em;\">'<i>" . $q->param('taxon_name') . "</i>' was not found</p>\n<br>\n";
+                $output .= "<div class=\"displayPanel medium\" style=\"width: 36em; padding: 1em;\">\n";
+                $output .= "<div align=\"left\"><ul>";
                 foreach my $row (@typoResults) {
                     my $full_row = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['*']);
                     my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt,$full_row,'return_array'=>1);
 		            my $localtaxon_name = uri_escape_utf8($full_row->{taxon_name} // '');
-                    print "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$localtaxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . "$authority</li>";
+                    $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$localtaxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . "$authority</li>";
                 }
-                print "</ul>";
+                $output .= "</ul>";
 
-                print qq|<div align=left class="small">\n<p>|;
+                $output .= qq|<div align=left class="small">\n<p>|;
                 if ( $#typoResults > 0 )	{
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    print "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of them are what you're looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
+                    $output .= "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of them are what you're looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
                 } else	{
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    print "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, an approximate match was found and is listed above.  If it is not what you are looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
+                    $output .= "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, an approximate match was found and is listed above.  If it is not what you are looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
                 }
-                print "</div></p>";
-                print "</div>";
-                print "</div>";
+                $output .= "</div></p>";
+                $output .= "</div>";
+                $output .= "</div>";
             } else {
                 if ($q->param('taxon_name')) {
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
                     push my @errormessages , "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.<br>Please " . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name", "<b>enter</b>") . " an authority record for this taxon first.";
-                    print "<div align=\"center\" class=\"large\">".PBDB::Debug::printWarnings(\@errormessages)."</div>";
+                    $output .= "<div align=\"center\" class=\"large\">".PBDB::Debug::printWarnings(\@errormessages)."</div>";
                 } else {
-                    print "<div align=\"center\" class=\"large\">No taxonomic names were found that match the search criteria.</div>";
+                    $output .= "<div align=\"center\" class=\"large\">No taxonomic names were found that match the search criteria.</div>";
                 }
             }
             return;
@@ -2519,30 +2521,30 @@ sub processTaxonSearch {
 	# We have more than one matches, or we have 1 match or more and we're adding an authority.
     # Present a list so the user can either pick the taxon,
     # or create a new taxon with the same name as an exisiting taxon
-	} else	{
-		print "<div align=\"center\">\n";
+    } else	{
+	$output .= "<div align=\"center\">\n";
         if ($q->param("taxon_name")) { 
-    		print "<p class=\"pageTitle\" style=\"margin-top: 1em;\">Which '<i>" . $q->param('taxon_name') . "</i>' do you mean?</p>\n<br>\n";
+	    $output .= "<p class=\"pageTitle\" style=\"margin-top: 1em;\">Which '<i>" . $q->param('taxon_name') . "</i>' do you mean?</p>\n<br>\n";
         } else {
-		if ( $s->isDBMember() )	{
-    			print "<p class=\"pageTitle\">Select a taxon to edit</p>\n";
-		} else	{
-    			print "<p class=\"pageTitle\">Taxonomic names from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
-        	}
+	    if ( $s->isDBMember() )	{
+		$output .= "<p class=\"pageTitle\">Select a taxon to edit</p>\n";
+	    } else	{
+		$output .= "<p class=\"pageTitle\">Taxonomic names from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
+	    }
         }
-		
+	
         # now create a table of choices
-		print "<div class=\"displayPanel medium\" style=\"width: 40em; padding: 1em; padding-right: 2em; margin-top: -1em;\">";
-        print "<div align=\"left\"><ul>\n";
+		$output .= "<div class=\"displayPanel medium\" style=\"width: 40em; padding: 1em; padding-right: 2em; margin-top: -1em;\">";
+        $output .= "<div align=\"left\"><ul>\n";
         my $checked = (scalar(@results) == 1) ? "CHECKED" : "";
         foreach my $row (@results) {
             # Check the button if this is the first match, which forces
             #  users who want to create new taxa to check another button
             my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt, $row,'return_array'=>1);
             if ( $s->isDBMember() )	{
-                print "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . " $authority</li>\n";
+                $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . " $authority</li>\n";
             } else	{
-                print "<li>$name$authority</li>\n";
+                $output .= "<li>$name$authority</li>\n";
             }
         }
 
@@ -2554,32 +2556,34 @@ sub processTaxonSearch {
             } else	{
                 $localtext = "None of the above ";
             }
-            print "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=-1", "$localtext") . " - create a new taxon record</li>\n";
+            $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=-1", "$localtext") . " - create a new taxon record</li>\n";
         }
         
-		print "</ul></div>";
+		$output .= "</ul></div>";
 
         # we print out difference buttons for two cases:
         #  1: using a taxon name. give them an option to add a new taxon, so button is Submit
         #  2: this is from a reference_no. No option to add a new taxon, so button is Edit
         if ($q->param('goal') eq 'authority') {
             if ($q->param('taxon_name')) {
-		        print "<p align=\"left\"><div class=\"verysmall\" style=\"margin-left: 2em; text-align: left;\">";
-                print "You have a choice because there may be multiple biological species<br>&nbsp;&nbsp;(e.g., a plant and an animal) with identical names.<br>\n";
-		        print "Create a new taxon only if the old ones were named by different people in different papers.<br></div></p>\n";
+		$output .= "<p align=\"left\"><div class=\"verysmall\" style=\"margin-left: 2em; text-align: left;\">";
+                $output .= "You have a choice because there may be multiple biological species<br>&nbsp;&nbsp;(e.g., a plant and an animal) with identical names.<br>\n";
+		$output .= "Create a new taxon only if the old ones were named by different people in different papers.<br></div></p>\n";
             } else {
             }
         } else {
-            print "<p align=\"left\"><div class=\"verysmall\" style=\"margin-left: 2em; text-align: left;\">";
-            print "You have a choice because there may be multiple biological species<br>&nbsp;&nbsp;(e.g., a plant and an animal) with identical names.<br></div></p>\n";
+            $output .= "<p align=\"left\"><div class=\"verysmall\" style=\"margin-left: 2em; text-align: left;\">";
+            $output .= "You have a choice because there may be multiple biological species<br>&nbsp;&nbsp;(e.g., a plant and an animal) with identical names.<br></div></p>\n";
         }
-		print "<p align=\"left\"><div class=\"verysmall\" style=\"margin-left: 2em; text-align: left;\">";
+		$output .= "<p align=\"left\"><div class=\"verysmall\" style=\"margin-left: 2em; text-align: left;\">";
         if (!$q->param('reference_no')) {
-		    print "You may want to read the <a href=\"javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')\">FAQ</a>.</div></p>\n";
+		    $output .= "You may want to read the <a href=\"javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')\">FAQ</a>.</div></p>\n";
         }
-
-		print "</div>\n</div>\n";
-	}
+	
+	$output .= "</div>\n</div>\n";
+    }
+    
+    return $output;
 }
 
 ##############
@@ -2600,20 +2604,21 @@ sub displayAuthorityTaxonSearchForm {
         $s->setReferenceNo(0);
     }
     
-    print $hbo->stdIncludes($PAGE_TOP);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
     my %vars = $q->Vars();
     $vars{'authorizer_me'} = $s->get('authorizer_reversed');
 
-    print PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
 
     $vars{'page_title'} = "Search for names to add or edit";
     $vars{'action'} = "submitTaxonSearch";
     $vars{'taxonomy_fields'} = "YES";
     $vars{'goal'} = "authority";
 
-    print $hbo->populateHTML('search_taxon_form', \%vars);
+    $output .= $hbo->populateHTML('search_taxon_form', \%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 # rjp, 3/2004
@@ -2667,9 +2672,9 @@ sub submitAuthorityForm {
 # 		displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding new taxa" );
 # 		return;
 # 	}
-#     print $hbo->stdIncludes($PAGE_TOP);
+#     $output .= $hbo->stdIncludes($PAGE_TOP);
 # 	PBDB::FossilRecord::displayClassificationTableForm($dbt, $hbo, $s, $q);	
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 # }
 
 # sub displayClassificationUploadForm {
@@ -2685,9 +2690,9 @@ sub submitAuthorityForm {
 # 		displaySearchRefs($q, $s, $dbt, $hbo,"You must choose a reference before adding new taxa" );
 # 		return;
 # 	}
-#     print $hbo->stdIncludes($PAGE_TOP);
+#     $output .= $hbo->stdIncludes($PAGE_TOP);
 # 	PBDB::FossilRecord::displayClassificationUploadForm($dbt, $hbo, $s, $q);	
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 # }
 
 
@@ -2699,9 +2704,9 @@ sub submitAuthorityForm {
 # 		login( "Please log in first.");
 # 		return;
 # 	} 
-#     print $hbo->stdIncludes($PAGE_TOP);
+#     $output .= $hbo->stdIncludes($PAGE_TOP);
 # 	PBDB::FossilRecord::submitClassificationTableForm($dbt,$hbo, $s, $q);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 # }
 
 # sub submitClassificationUploadForm {
@@ -2712,9 +2717,9 @@ sub submitAuthorityForm {
 # 		login( "Please log in first.");
 # 		return;
 # 	} 
-#     print $hbo->stdIncludes($PAGE_TOP);
+#     $output .= $hbo->stdIncludes($PAGE_TOP);
 # 	PBDB::FossilRecord::submitClassificationUploadForm($dbt,$hbo, $s, $q);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 # }
 
 ## END Authority stuff
@@ -2732,17 +2737,20 @@ sub displayOpinionSearchForm {
     if ($q->param('use_reference') eq 'new') {
         $s->setReferenceNo(0);
     }
-    print $hbo->stdIncludes($PAGE_TOP);
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
     my %vars = $q->Vars();
     $vars{'authorizer_me'} = $s->get('authorizer_reversed');
-    print PBDB::Person::makeAuthEntJavascript($dbt);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
 
     $vars{'page_title'} = "Search for opinions to add or edit";
     $vars{'action'} = "submitOpinionSearch";
     $vars{'taxonomy_fields'} = "YES";
 
-    print $hbo->populateHTML('search_taxon_form', \%vars);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->populateHTML('search_taxon_form', \%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 # PS 01/24/2004
@@ -2755,31 +2763,44 @@ sub displayOpinionChoiceForm {
     if ($q->param('use_reference') eq 'new') {
         $s->setReferenceNo(0);
     }
-	print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub reviewOpinionsForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	if (!$s->isDBMember()) {
-		login( "Please log in first.");
-		return;
-	}
-	PBDB::Opinion::reviewOpinionsForm($dbt,$hbo,$s,$q);
+    if (!$s->isDBMember()) {
+	login( "Please log in first.");
+	return;
+    }
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::reviewOpinionsForm($dbt,$hbo,$s,$q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub reviewOpinions	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	if (!$s->isDBMember()) {
-		login( "Please log in first.");
-		return;
-	}
-	PBDB::Opinion::reviewOpinions($dbt,$hbo,$s,$q);
+    if (!$s->isDBMember()) {
+	login( "Please log in first.");
+	return;
+    }
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::reviewOpinions($dbt,$hbo,$s,$q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 # rjp, 3/2004
@@ -2790,23 +2811,24 @@ sub displayOpinionForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	if ($q->param('opinion_no') != -1 && $q->param("opinion_no") !~ /^\d+$/) {
-		return;	
-	}
-
-	if ($q->param('opinion_no') == -1) {
+    if ($q->param('opinion_no') != -1 && $q->param("opinion_no") !~ /^\d+$/) {
+	return;	
+    }
+    
+    if ($q->param('opinion_no') == -1) {
         if (!$s->get('reference_no') || $q->param('use_reference') eq 'new') {
             # Set this to prevent endless loop
             $q->param('use_reference'=>'');
             $s->enqueue_action('displayOpinionForm', $q); 
-            displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding a new opinion</center>");
-            return;
+            return displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding a new opinion</center>");
         }
-	}
-	
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Opinion::displayOpinionForm($dbt, $hbo, $s, $q);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    }
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::displayOpinionForm($dbt, $hbo, $s, $q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub submitOpinionForm {
@@ -2818,60 +2840,72 @@ sub submitOpinionForm {
 	return menu($q, $s, $dbt, $hbo, "<span style=\"color: red\">Record not saved. You do not have authorization to edit opinion records.</span>");
     }
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Opinion::submitOpinionForm($dbt,$hbo, $s, $q);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::submitOpinionForm($dbt,$hbo, $s, $q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub entangledNamesForm	{
     
     my ($q, $s, $dbt, $hbo, $error) = @_;
     
-    # my $error = shift;
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Taxon::entangledNamesForm($dbt,$hbo,$s,$q);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Taxon::entangledNamesForm($dbt,$hbo,$s,$q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub disentangleNames	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Taxon::disentangleNames($dbt,$hbo,$s,$q);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Taxon::disentangleNames($dbt,$hbo,$s,$q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub submitTypeTaxonSelect {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Taxon::submitTypeTaxonSelect($dbt, $s, $q);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Taxon::submitTypeTaxonSelect($dbt, $s, $q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub badNameForm	{
     
     my ($q, $s, $dbt, $hbo, $error) = @_;
     
-	my %vars;
-	# $vars{'error'} = $_[0];
-	if ( $error )	{
-		$vars{'error'} = '<p class="small" style="margin-left: 1em; margin-bottom: 1.5em; margin-top: 1em; text-indent: -1em;">' . $error . ". Please try again.</p>\n\n";
-	}
-	print $hbo->stdIncludes($PAGE_TOP);
-	print $hbo->populateHTML('bad_name_form', \%vars);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my %vars;
+    # $vars{'error'} = $_[0];
+    if ( $error )	{
+	$vars{'error'} = '<p class="small" style="margin-left: 1em; margin-bottom: 1.5em; margin-top: 1em; text-indent: -1em;">' . $error . ". Please try again.</p>\n\n";
+    }
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= $hbo->populateHTML('bad_name_form', \%vars);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub badNames	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Opinion::badNames($q, $s, $dbt, $hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::badNames($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 ## END Opinion stuff
@@ -2925,27 +2959,34 @@ sub searchOccurrenceMisspellingForm {
         login( "Please log in first." );
         return;
     }
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::TypoChecker::searchOccurrenceMisspellingForm ($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::TypoChecker::searchOccurrenceMisspellingForm ($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub occurrenceMisspellingForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::TypoChecker::occurrenceMisspellingForm ($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::TypoChecker::occurrenceMisspellingForm ($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub submitOccurrenceMisspelling {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::TypoChecker::submitOccurrenceMisspelling($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::TypoChecker::submitOccurrenceMisspelling($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 ## END occurrence misspelling stuff
@@ -2957,22 +2998,34 @@ sub submitOccurrenceMisspelling {
 sub startStartReclassifyOccurrences	{
     
     my ($q, $s, $dbt, $hbo) = @_;
-    
-	PBDB::Reclassify::startReclassifyOccurrences($q, $s, $dbt, $hbo);
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Reclassify::startReclassifyOccurrences($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub startDisplayOccurrenceReclassify	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+    my ($q, $s, $dbt, $hbo, $colls) = @_;
     
-	PBDB::Reclassify::displayOccurrenceReclassify($q, $s, $dbt, $hbo);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Reclassify::displayOccurrenceReclassify($q, $s, $dbt, $hbo, $colls);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub startProcessReclassifyForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	PBDB::Reclassify::processReclassifyForm($q, $s, $dbt, $hbo);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Reclassify::processReclassifyForm($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 ## END Reclassify stuff
@@ -2982,21 +3035,24 @@ sub startProcessReclassifyForm	{
 ## Taxon Info Stuff
 
 
-sub downloadOSA {
+# sub downloadOSA {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
-    PBDB::OSA();
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
+#     print $hbo->stdIncludes( $PAGE_TOP );
+#     PBDB::OSA();
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
+
 sub beginTaxonInfo{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
-    PBDB::TaxonInfo::searchForm($hbo, $q);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::TaxonInfo::searchForm($hbo, $q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub checkTaxonInfo {
@@ -3004,37 +3060,38 @@ sub checkTaxonInfo {
     my ($q, $s, $dbt, $hbo) = @_;
     
     logRequest($s,$q);
+    my $output =  $hbo->stdIncludes($PAGE_TOP);
+    
     if ( $q->param('match') eq "all" )	{
-        print $hbo->stdIncludes( $PAGE_TOP );
         $q->param('taxa' => @{PBDB::TaxonInfo::getMatchingSubtaxa($dbt,$q,$s,$hbo)} );
         if ( ! $q->param('taxa') )	{
-            PBDB::TaxonInfo::searchForm($hbo,$q,1);
+            $output .= PBDB::TaxonInfo::searchForm($hbo,$q,1);
         } else	{
-            PBDB::TaxonInfo::checkTaxonInfo($q, $s, $dbt, $hbo);
+            $output .= PBDB::TaxonInfo::checkTaxonInfo($q, $s, $dbt, $hbo);
         }
-        print $hbo->stdIncludes($PAGE_BOTTOM);
-        return;
     } elsif ( $q->param('match') eq "random" )	{
         # infinite loops are bad
-        PBDB::TaxonInfo::getMatchingSubtaxa($dbt,$q,$s,$hbo);
+        $output .= PBDB::TaxonInfo::getMatchingSubtaxa($dbt,$q,$s,$hbo);
         $q->param('match' => '');
-    }
-    print $hbo->stdIncludes( $PAGE_TOP );
-    if ($IS_FOSSIL_RECORD) {
-         PBDB::FossilRecord::submitSearchTaxaForm($dbt,$q,$s,$hbo);
+	$output .= PBDB::TaxonInfo::checkTaxonInfo($q, $s, $dbt, $hbo);
     } else {
-        PBDB::TaxonInfo::checkTaxonInfo($q, $s, $dbt, $hbo);
+	$output .= PBDB::TaxonInfo::checkTaxonInfo($q, $s, $dbt, $hbo);
     }
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub displayTaxonInfoResults {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
-	PBDB::TaxonInfo::displayTaxonInfoResults($dbt,$s,$q,$hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::TaxonInfo::displayTaxonInfoResults($dbt,$s,$q,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 # JA 3.11.09
@@ -3064,39 +3121,39 @@ sub basicTaxonInfo	{
 # 	print $hbo->stdIncludes( $PAGE_BOTTOM );
 # }
 
-sub displaySearchFossilRecordTaxaForm {
+# sub displaySearchFossilRecordTaxaForm {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
+#     print $hbo->stdIncludes( $PAGE_TOP );
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
 
-sub submitSearchFossilRecordTaxa {
+# sub submitSearchFossilRecordTaxa {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    logRequest($s,$q);
-    print $hbo->stdIncludes( $PAGE_TOP );
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
+#     logRequest($s,$q);
+#     print $hbo->stdIncludes( $PAGE_TOP );
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
 
-sub displayFossilRecordCurveForm {
+# sub displayFossilRecordCurveForm {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
-	PBDB::FossilRecord::displayFossilRecordCurveForm($dbt,$q,$s,$hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
-sub submitFossilRecordCurveForm {
+#     print $hbo->stdIncludes( $PAGE_TOP );
+# 	PBDB::FossilRecord::displayFossilRecordCurveForm($dbt,$q,$s,$hbo);
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
+# sub submitFossilRecordCurveForm {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
-	PBDB::FossilRecord::submitFossilRecordCurveForm($dbt,$q,$s,$hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}
+#     print $hbo->stdIncludes( $PAGE_TOP );
+# 	PBDB::FossilRecord::submitFossilRecordCurveForm($dbt,$q,$s,$hbo);
+#     print $hbo->stdIncludes($PAGE_BOTTOM);
+# }
 
 ### End Module Navigation
 ##############
@@ -3236,37 +3293,48 @@ sub startStartEcologyTaphonomySearch{
     my $goal='ecotaph';
     my $page_title ='<center>Search for the taxon you want to describe</center>';
 
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 sub startStartEcologyVertebrateSearch{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
     my $goal='ecovert';
     my $page_title ='<center>Search for the taxon you want to describe</center>';
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
+
 sub startPopulateEcologyForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 sub startProcessEcologyForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::EcologyEntry::processEcologyForm($dbt, $q, $s, $WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::EcologyEntry::processEcologyForm($dbt, $q, $s, $WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 ## END Ecology stuff
 ##############
 
@@ -3276,14 +3344,17 @@ sub displaySpecimenSearchForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	if (!$s->get('reference_no'))	{
-		$s->enqueue_action('displaySpecimenSearchForm');
-		displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding measurements</center>" );
-		return;
-	}
-	print $hbo->populateHTML('search_specimen_form',[],[]);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    
+    if (!$s->get('reference_no'))	{
+	$s->enqueue_action('displaySpecimenSearchForm');
+	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding measurements</center>" );
+    }
+
+    $output .= $hbo->populateHTML('search_specimen_form',[],[]);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub submitSpecimenSearch{
@@ -3299,27 +3370,33 @@ sub displaySpecimenList {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::MeasurementEntry::displaySpecimenList($dbt,$hbo,$q,$s,$WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::MeasurementEntry::displaySpecimenList($dbt,$hbo,$q,$s,$WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub populateMeasurementForm{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::MeasurementEntry::populateMeasurementForm($dbt,$hbo,$q,$s,$WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output .= $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::MeasurementEntry::populateMeasurementForm($dbt,$hbo,$q,$s,$WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub processMeasurementForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::MeasurementEntry::processMeasurementForm($dbt,$hbo,$q,$s,$WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::MeasurementEntry::processMeasurementForm($dbt,$hbo,$q,$s,$WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub deleteSpecimen {
@@ -3331,9 +3408,12 @@ sub deleteSpecimen {
     {
 	$s->{error_msg} = $err_msg;
     }
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::MeasurementEntry::displaySpecimenList($dbt,$hbo,$q,$s,$WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    my $output .= $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::MeasurementEntry::displaySpecimenList($dbt,$hbo,$q,$s,$WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 ## END Specimen measurement stuff
@@ -3348,28 +3428,36 @@ sub displayStrata {
     my ($q, $s, $dbt, $hbo) = @_;
     
     logRequest($s,$q);
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Strata::displayStrata($q,$s,$dbt,$hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Strata::displayStrata($q,$s,$dbt,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub displaySearchStrataForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Strata::displaySearchStrataForm($q,$s,$dbt,$hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Strata::displaySearchStrataForm($q,$s,$dbt,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }  
 
 sub displaySearchStrataResults{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Strata::displaySearchStrataResults($q,$s,$dbt,$hbo);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
-}  
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Strata::displaySearchStrataResults($q,$s,$dbt,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
+}
+
 ## END Strata stuff
 ##############
 
@@ -3474,21 +3562,29 @@ sub classificationForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	return if PBDB::PBDBUtil::checkForBot();
-	logRequest($s,$q);
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::PrintHierarchy::classificationForm($hbo, $s);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return if PBDB::PBDBUtil::checkForBot();
+    logRequest($s,$q);
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::PrintHierarchy::classificationForm($hbo, $s);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 sub classify	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	return if PBDB::PBDBUtil::checkForBot();
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::PrintHierarchy::classify($dbt, $hbo, $s, $q);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    return if PBDB::PBDBUtil::checkForBot();
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::PrintHierarchy::classify($dbt, $hbo, $s, $q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 ## END PrintHierarchy stuff
 ##############
 
@@ -3498,23 +3594,25 @@ sub displaySanityForm	{
     
     my ($q, $s, $dbt, $hbo, $error_message) = @_;
     
-    # my $error_message = shift;
-	print $hbo->stdIncludes($PAGE_TOP);
-	print $hbo->populateHTML('sanity_check_form',$error_message);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= $hbo->populateHTML('sanity_check_form',$error_message);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 sub startProcessSanityCheck	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	return if PBDB::PBDBUtil::checkForBot();
-	require PBDB::SanityCheck;
-	logRequest($s,$q);
+    return if PBDB::PBDBUtil::checkForBot();
+    logRequest($s,$q);
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	SanityCheck::processSanityCheck($q, $dbt, $hbo, $s);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= SanityCheck::processSanityCheck($q, $dbt, $hbo, $s);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 }
+
 ## END SanityCheck stuff
 ##############
 
@@ -3546,31 +3644,30 @@ sub displayOccurrenceAddEdit {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	my $dbh = $dbt->dbh;
-
+    my $dbh = $dbt->dbh;
+    my $output = '';
+    
 	# 1. Need to ensure they have a ref
 	# 2. Need to get a collection
 	
 	# Have to be logged in
 	if (!$s->isDBMember()) {
-		login( "Please log in first.",'displayOccurrenceAddEdit');
-		return;
-	} 
-	if (! $s->get('reference_no')) {
-		$s->enqueue_action('displayOccurrenceAddEdit', $q);
-		displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
-		return;
-	} 
-
-	my $collection_no = $q->param($COLLECTION_NO);
-	# No collection no is passed in, search for one
-	if ( ! $collection_no ) { 
-		$q->param('type'=>'edit_occurrence');
-		displaySearchColls($q, $s, $dbt, $hbo);
-		return;
+	    return login( "Please log in first.",'displayOccurrenceAddEdit');
 	}
-
-	# Grab the collection name for display purposes JA 1.10.02
+    
+    if (! $s->get('reference_no')) {
+	$s->enqueue_action('displayOccurrenceAddEdit', $q);
+	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
+    } 
+    
+    my $collection_no = $q->param($COLLECTION_NO);
+    # No collection no is passed in, search for one
+    if ( ! $collection_no ) { 
+	$q->param('type'=>'edit_occurrence');
+	return displaySearchColls($q, $s, $dbt, $hbo);
+    }
+    
+    # Grab the collection name for display purposes JA 1.10.02
 	my $sql;
 	$sql = "SELECT collection_name FROM collections WHERE collection_no=$collection_no";
 	my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
@@ -3578,7 +3675,7 @@ sub displayOccurrenceAddEdit {
 	my ($collection_name) = $sth->fetchrow_array();
 	$sth->finish();
 
-	print $hbo->stdIncludes( $PAGE_TOP );
+	$output .= $hbo->stdIncludes( $PAGE_TOP );
 
 	# get the occurrences right away because we need to make sure there
 	#  aren't too many to be displayed
@@ -3595,29 +3692,29 @@ sub displayOccurrenceAddEdit {
 	# don't do this if the user already has gone through one of those
 	#  links, so rows_to_display has a useable value
 	if ( $#all_data > 49 && $q->param("rows_to_display") !~ / to / )	{
-		print "<center><p class=\"pageTitle\">Please select the rows you wish to edit</p></center>\n\n";
-		print "<center>\n";
-		print "<table><tr><td>\n";
-		print "<ul>\n";
+		$output .= "<center><p class=\"pageTitle\">Please select the rows you wish to edit</p></center>\n\n";
+		$output .= "<center>\n";
+		$output .= "<table><tr><td>\n";
+		$output .= "<ul>\n";
         my ($startofblock,$endofblock);
 		for my $rowset ( 1..100 )	{
 			$endofblock = $rowset * 50;
 			$startofblock = $endofblock - 49;
 			if ( $#all_data >= $endofblock )	{
-				print "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no&rows_to_display=$startofblock+to+$endofblock", "Rows <b>$startofblock</b> to <b>$endofblock</b>");
+				$output .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no&rows_to_display=$startofblock+to+$endofblock", "Rows <b>$startofblock</b> to <b>$endofblock</b>");
 			}
 			if ( $#all_data < $endofblock + 50 )	{
 				$startofblock = $endofblock + 1;
 				$endofblock = $#all_data + 1;
-				print "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no&rows_to_display=$startofblock+to+$endofblock", "Rows <b>$startofblock</b> to <b>$endofblock</b>");
+				$output .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no&rows_to_display=$startofblock+to+$endofblock", "Rows <b>$startofblock</b> to <b>$endofblock</b>");
 				last;
 			}
 		}
-		print "</ul>\n\n";
-		print "</td></tr></table>\n";
-		print "</center>\n";
-		print $hbo->stdIncludes( $PAGE_BOTTOM );
-		return;
+		$output .= "</ul>\n\n";
+		$output .= "</td></tr></table>\n";
+		$output .= "</center>\n";
+		$output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+		return $output;
 	}
 
 	# which rows should be displayed?
@@ -3630,12 +3727,12 @@ sub displayOccurrenceAddEdit {
 	}
 
 	my %pref = $s->getPreferences();
-	print $hbo->populateHTML('js_occurrence_checkform');
+	$output .= $hbo->populateHTML('js_occurrence_checkform');
 
-	print qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
-	print qq|<input name="action" value="processEditOccurrences" type=hidden>\n|;
-	print qq|<input name="list_collection_no" value="$collection_no" type=hidden>\n|;
-	print qq|<input name="check_status" type="hidden">\n|;
+	$output .= qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
+	$output .= qq|<input name="action" value="processEditOccurrences" type=hidden>\n|;
+	$output .= qq|<input name="list_collection_no" value="$collection_no" type=hidden>\n|;
+	$output .= qq|<input name="check_status" type="hidden">\n|;
 	
 	my @optional = ('editable_collection_no','subgenera','genus_and_species_only','abundances','plant_organs');
 	my $header_vars = {
@@ -3644,7 +3741,7 @@ sub displayOccurrenceAddEdit {
 	};
 	$header_vars->{$_} = $pref{$_} for (@optional);
 	$header_vars->{collection_number} = '[' . makeAnchor("displayCollectionForm", "collection_no=$collection_no", $collection_no) . ']';
-	print $hbo->populateHTML('occurrence_header_row', $header_vars);
+	$output .= $hbo->populateHTML('occurrence_header_row', $header_vars);
 
     # main loop
     # each record is represented as a hash
@@ -3664,10 +3761,10 @@ sub displayOccurrenceAddEdit {
         # Read Only
         my $occ_read_only = ($occ_row->{'writeable'} == 0) ? "all" : ""; 
         $occ_row->{'darkList'} = ($occ_read_only eq 'all' && $gray_counter%2 == 0) ? "darkList" : "";
-        #    print qq|<input type=hidden name="row_token" value="row_token">\n|;
+        #    $output .= qq|<input type=hidden name="row_token" value="row_token">\n|;
 	    $occ_row->{reference_link} = makeAnchor("displayReference", "type=view&reference_no=$occ_row->{reference_no}", "view")
 	    if $occ_row->{reference_no};
-        print $hbo->populateHTML("occurrence_edit_row", $occ_row, [$occ_read_only]);
+        $output .= $hbo->populateHTML("occurrence_edit_row", $occ_row, [$occ_read_only]);
         my @reid_rows;
         my $sql = "SELECT * FROM reidentifications WHERE occurrence_no=" .  $occ_row->{'occurrence_no'};
         @reid_rows = @{$dbt->getData($sql)};
@@ -3693,7 +3790,7 @@ sub displayOccurrenceAddEdit {
 #            $reidHTML =~ s/<div id="genus_reso">/<div class=tiny>= /;
 #            $reidHTML =~ s//<input class=tiny /g;
 #            $reidHTML =~ s/<select /<select class=tiny /g;
-            print $reidHTML;
+            $output .= $reidHTML;
         }
         $gray_counter++;
     }
@@ -3718,17 +3815,18 @@ sub displayOccurrenceAddEdit {
 	my $blanks = $pref{'blanks'} || 10;
 
 	for ( my $i = 0; $i<$blanks ; $i++) {
-#		print qq|<input type=hidden name="row_token" value="row_token">\n|;
-		print $hbo->populateHTML("occurrence_entry_row", $blank);
+#		$output .= qq|<input type=hidden name="row_token" value="row_token">\n|;
+		$output .= $hbo->populateHTML("occurrence_entry_row", $blank);
 	}
 
-	print "</table><br>\n";
-	print "<p>Delete entries by erasing the taxon name.</p>\n";
-	print qq|<center><p><input type=submit value="Save changes">|;
-	printf " to collection %s's taxonomic list</p></center>\n",$collection_no;
-	print "</div>\n\n</form>\n\n";
+	$output .= "</table><br>\n";
+	$output .= "<p>Delete entries by erasing the taxon name.</p>\n";
+	$output .= qq|<center><p><input type=submit value="Save changes">|;
+	$output .= " to collection ${collection_no}'s taxonomic list</p></center>\n";
+	$output .= "</div>\n\n</form>\n\n";
 
-	print $hbo->stdIncludes( $PAGE_BOTTOM );
+    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+    return $output;
 } 
 
 # JA 5.7.07
@@ -3791,20 +3889,20 @@ sub formatTaxonNameInput	{
 sub displayOccurrenceTable {
     
     my ($q, $s, $dbt, $hbo, $colls_ref) = @_;
+
+    my $output = '';
     
     my @all_collections; @all_collections = @$colls_ref if ref $colls_ref eq 'ARRAY';
     # my @all_collections = @{$_[0]};
 	# Have to be logged in
 	if (!$s->isDBMember()) {
-		login( "Please log in first.",'displayOccurrenceTable' );
-		return;
+	    return login( "Please log in first.",'displayOccurrenceTable' );
 	}
 	# Have to have a reference #
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
-		$s->enqueue_action('displayOccurrenceTable');
-		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-		return;
+	    $s->enqueue_action('displayOccurrenceTable');
+	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 	}	
 
     # Get modifier as well
@@ -3895,14 +3993,14 @@ html {overflow-x:auto; overflow-y:hidden;}
    </style>
 <![endif]-->
 EOF
-    print $hbo->populateHTML('blank_page_top',{'extra_header'=>$extra_header});
-    print qq|<form method="post" action="$WRITE_URL" onSubmit="return handleSubmit();">|;
-    print '<input type="hidden" name="action" value="processOccurrenceTable" />';
+    $output .= $hbo->populateHTML('blank_page_top',{'extra_header'=>$extra_header});
+    $output .= qq|<form method="post" action="$WRITE_URL" onSubmit="return handleSubmit();">|;
+    $output .= '<input type="hidden" name="action" value="processOccurrenceTable" />';
     # this field is read by the javascript but not used otherwise
-    print qq|<input type="hidden" name="reference_no" value="$reference_no" />|;
+    $output .= qq|<input type="hidden" name="reference_no" value="$reference_no" />|;
 
     foreach my $collection_no (@collections) {
-        print qq|<input type="hidden" name="collection_nos" value="$collection_no" />\n|;
+        $output .= qq|<input type="hidden" name="collection_nos" value="$collection_no" />\n|;
     }
 
     # Fixed position header
@@ -3920,10 +4018,10 @@ EOF
     }
     my $abund_select = $hbo->htmlSelect('abund_unit',$hbo->getKeysValues('abund_unit'),$selected_abund_unit,'class="small"');
     my $reference = "$reference_no (".PBDB::Reference::formatShortRef($dbt,$reference_no).")";
-    print '<div id="occurrencesTableHeader">';
-    print '<table border=0 cellpadding=0 cellspacing=0>'."\n";
-    print '<tr>';
-    print '<td valign="bottom"><div class="fixedLabel">'.
+    $output .= '<div id="occurrencesTableHeader">';
+    $output .= '<table border=0 cellpadding=0 cellspacing=0>'."\n";
+    $output .= '<tr>';
+    $output .= '<td valign="bottom"><div class="fixedLabel">'.
           qq|<div class="small" align="left">Please see the <a href="#" onClick="tipsPopup('/public/tips/occurrence_table_tips.html');">tip sheet</a></div><br />|.
           '<div align="left" style="height: 160px; overflow: hidden;" class="small">'.
           '<b>New cells:</b><br />'.
@@ -3936,15 +4034,15 @@ EOF
           '</div></td>';
     foreach my $collection_no (@collections) {
         my $collection_name = encode_entities(generateCollectionLabel($dbt, $collection_no));
-        print '<td class="addBorders"><div class="fixedColumn">' . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "$collection_name") . "</div></td>";
+        $output .= '<td class="addBorders"><div class="fixedColumn">' . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "$collection_name") . "</div></td>";
             # qq|<a target="_blank" href="?a=basicCollectionSearch&amp;collection_no=$collection_no"><img border="0" src="/public/collection_labels/$collection_no.png" alt="$collection_name"/></a>|.
     }
-    print "</tr>\n";
-    print "</table></div>";
+    $output .= "</tr>\n";
+    $output .= "</table></div>";
 
  
-    print '<div style="height: 236px">&nbsp;</div>';
-    print '<table border=0 cellpadding=0 cellspacing=0 id="occurrencesTable">'."\n";
+    $output .= '<div style="height: 236px">&nbsp;</div>';
+    $output .= '<table border=0 cellpadding=0 cellspacing=0 id="occurrencesTable">'."\n";
     my @sorted_names;
     if ($q->param('taxa_order') eq 'alphabetical') {
         @sorted_names = sort keys %taxon_names;
@@ -3962,14 +4060,14 @@ EOF
         my $show_name = PBDB::CollectionEntry::formatOccurrenceTaxonName(\%hash);
         $show_name =~ s/<a href/<a target="_blank" href/;
         my $class = ($i % 2 == 0) ? 'class="darkList"' : '';
-        print '<tr '.$class.'><td class="fixedLabel"><div class="fixedLabel">'.
+        $output .= '<tr '.$class.'><td class="fixedLabel"><div class="fixedLabel">'.
             $show_name.
             qq|<input type="hidden" name="row_num" value="$i" />|.
             qq|<input type="hidden" name="taxon_key_$i" value="|.encode_entities($taxon_key).qq|" />|;
         foreach my $taxon_no (@taxon_nos) {
-           print qq|<input type="hidden" name="taxon_no_$i" value="$taxon_no" />|; 
+           $output .= qq|<input type="hidden" name="taxon_no_$i" value="$taxon_no" />|; 
         }
-        print "</div></td>";
+        $output .= "</div></td>";
         $class = ($i % 2 == 0) ? 'fixedInputDark' : 'fixedInput';
         for (my $j=0;$j<@collections;$j++) {
             my $collection_no = $collections[$j];
@@ -4012,44 +4110,44 @@ EOF
             # The span is necessary to act as a container and prevent wrapping
             # The &nbsp; fixes a Safari bug where the onClick doesn't trigger unless the TD has somethiing in it
 
-            print qq|<td class="fixedColumn" onClick="cellInfo($i,$collection_no,$occ_reference_no,$readonly,'$authorizer');$editCellJS"><div class="fixedColumn"><span class="fixedSpan" id="dummy_${i}_${collection_no}" $style>$abund_value &nbsp;|;
-            print qq|<input type="hidden" id="abund_value_${i}_${collection_no}" name="abund_value_${i}_${collection_no}" size="4" value="$abund_value" class="$class" $style /></span>|;
-            print qq|<input type="hidden" id="${key_type}_${i}_${collection_no}" name="${key_type}_${i}_${collection_no}" value="$key_value"/>|;
-            print qq|</div></td>\n|;
+            $output .= qq|<td class="fixedColumn" onClick="cellInfo($i,$collection_no,$occ_reference_no,$readonly,'$authorizer');$editCellJS"><div class="fixedColumn"><span class="fixedSpan" id="dummy_${i}_${collection_no}" $style>$abund_value &nbsp;|;
+            $output .= qq|<input type="hidden" id="abund_value_${i}_${collection_no}" name="abund_value_${i}_${collection_no}" size="4" value="$abund_value" class="$class" $style /></span>|;
+            $output .= qq|<input type="hidden" id="${key_type}_${i}_${collection_no}" name="${key_type}_${i}_${collection_no}" value="$key_value"/>|;
+            $output .= qq|</div></td>\n|;
                   
         }
-        print "</tr>\n";
+        $output .= "</tr>\n";
     }
-    print "</table>";
+    $output .= "</table>";
 
     my %prefs = $s->getPreferences();
     # Can dynamically add rows using javascript that modified the DOM -- see occurrence_table.js
-    print "<table>";
-    print '<tr><th></th><th class="small">Genus</th>';
+    $output .= "<table>";
+    $output .= '<tr><th></th><th class="small">Genus</th>';
     if ($prefs{'subgenera'} || $prefs{'genus_and_species_only'}) {
-        print '<th></th><th class="small">Subgenus</th>';
+        $output .= '<th></th><th class="small">Subgenus</th>';
     }
-    print '<th></th><th class="small">Species</th></tr>';
-    print "<tr>".
+    $output .= '<th></th><th class="small">Species</th></tr>';
+    $output .= "<tr>".
         '<td>'.$hbo->htmlSelect("genus_reso",$hbo->getKeysValues('genus_reso'),'','class="small"').'</td>'.
         '<td><input name="genus_name" class="small" /></td>';
     if ($prefs{'subgenera'} || $prefs{'genus_and_species_only'}) {
-        print '<td>'.$hbo->htmlSelect("subgenus_reso",$hbo->getKeysValues('subgenus_reso'),'','class="small"').'</td>'.
+        $output .= '<td>'.$hbo->htmlSelect("subgenus_reso",$hbo->getKeysValues('subgenus_reso'),'','class="small"').'</td>'.
         '<td><input name="subgenus_name" class="small" /></td>';
     }
-    print '<td>'.$hbo->htmlSelect("species_reso",$hbo->getKeysValues('species_reso'),'','class="small"').'</td>'.
+    $output .= '<td>'.$hbo->htmlSelect("species_reso",$hbo->getKeysValues('species_reso'),'','class="small"').'</td>'.
         '<td><input name="species_name" class="small" value="'.$prefs{species_name}.'" /></td>'.
         '</tr><tr>'.
         '<td colspan=6 align=right><input type="button" name="addRow" value="Add row" onClick="insertOccurrenceRow();" /></td>'.
         '</tr>';
-    print "</table>";
+    $output .= "</table>";
 
-    print "<br /><br />";
+    $output .= "<br /><br />";
 
-    print '<div align="center"><div style="width: 640px">';
+    $output .= '<div align="center"><div style="width: 640px">';
     if (@all_collections > @collections) {
-        print "<b>";
-        print "Showing collections ".($lower_limit + 1)." to $upper_limit of ".scalar(@all_collections).".";
+        $output .= "<b>";
+        $output .= "Showing collections ".($lower_limit + 1)." to $upper_limit of ".scalar(@all_collections).".";
         if (@all_collections > $upper_limit) {
             my $query = "offset=".($upper_limit);
             foreach my $p ($q->param()) {
@@ -4064,19 +4162,20 @@ EOF
             } else {
                 $remaining = "collection";
             }
-            print qq|<a href="$WRITE_URL?$query"> Get $verb $remaining</a>.|;
+            $output .= qq|<a href="$WRITE_URL?$query"> Get $verb $remaining</a>.|;
 
             # We save this so we can go to the next page easily on form submission
             my $next_page_link = uri_escape_utf8(qq|<b><a href="$WRITE_URL?$query"> Edit $verb $remaining</a></b>|);
-            print qq|<input type="hidden" name="next_page_link" value="$next_page_link">|;
+            $output .= qq|<input type="hidden" name="next_page_link" value="$next_page_link">|;
         }
-        print "</b>";
+        $output .= "</b>";
     }
-    print '</div></div>';
-    print "</form>";
-    print "<br /><br />";
+    $output .= '</div></div>';
+    $output .= "</form>";
+    $output .= "<br /><br />";
 
-    print $hbo->stdIncludes('blank_page_bottom');
+    $output .= $hbo->stdIncludes('blank_page_bottom');
+    return $output;
 }
 
 # JA 19-20.5.09
@@ -4084,18 +4183,18 @@ sub displayOccurrenceListForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	my $dbh = $dbt->dbh;
+    my $dbh = $dbt->dbh;
+    my $output = '';
+    
+    if (!$s->isDBMember()) {
+	return login( "Please log in first." );
+    }
 
-	if (!$s->isDBMember()) {
-		login( "Please log in first." );
-		return;
-	}
-	if (! $s->get('reference_no')) {
-		$s->enqueue_action('displayOccurrenceListForm');
-		displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
-		return;
-	}
- 
+    if (! $s->get('reference_no')) {
+	$s->enqueue_action('displayOccurrenceListForm');
+	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
+    }
+    
 	my %vars;
 	my $collection_no = $q->param($COLLECTION_NO);
 	my $sql = "(SELECT o.genus_reso,o.genus_name,o.species_reso,o.species_name FROM occurrences o LEFT JOIN reidentifications r ON o.occurrence_no=r.occurrence_no WHERE o.$COLLECTION_NO=$collection_no AND r.reid_no IS NULL) UNION (SELECT r.genus_reso,r.genus_name,r.species_reso,r.species_name FROM occurrences o LEFT JOIN reidentifications r ON o.occurrence_no=r.occurrence_no WHERE o.$COLLECTION_NO=$collection_no AND r.most_recent='YES') ORDER BY genus_name,species_name";
@@ -4128,30 +4227,30 @@ sub displayOccurrenceListForm	{
 	$sql = "SELECT collection_name FROM $COLLECTIONS WHERE $COLLECTION_NO=$collection_no";
 	$vars{'collection_name'} = ${$dbt->getData($sql)}[0]->{'collection_name'};
 
-	print $hbo->stdIncludes($PAGE_TOP);
-	print $hbo->populateHTML('js_occurrence_checkform');
+	$output .= $hbo->stdIncludes($PAGE_TOP);
+	$output .= $hbo->populateHTML('js_occurrence_checkform');
 
-	print qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
+	$output .= qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
 	$vars{$COLLECTION_NO} = $collection_no;
 	$vars{'collection_no_field'} = $COLLECTION_NO;
 	$vars{'collection_no_field2'} = $COLLECTION_NO;
 	$vars{'list_collection_no'} = $collection_no;
 	$vars{'reference_no'} = $s->get('reference_no');
-	print $hbo->populateHTML('occurrence_list_form',\%vars);
+	$output .= $hbo->populateHTML('occurrence_list_form',\%vars);
 
-	print $hbo->stdIncludes($PAGE_BOTTOM);
-
-   
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 sub processOccurrenceTable {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-
+    my $output = '';
+    
     if (!$s->isDBMember()) {
-        login( "Please log in first." );
-        return;
+        return login( "Please log in first." );
     }
    
     my @row_tokens = $q->param('row_num');
@@ -4159,23 +4258,25 @@ sub processOccurrenceTable {
     my $collection_list = join(",",@collections);
     my $global_abund_unit = $q->param("abund_unit");
     my $session_ref = $s->get('reference_no');
+    
     if (!$global_abund_unit) {
-        print "ERROR: no abund_unit specified";
+        print "ERROR: no abund_unit specified"; # $$$ FIX!!!
         die;
     }
     if (!$session_ref) {
-        print "ERROR: no session reference";
+        print "ERROR: no session reference";	# $$$ FIX!!!
         die;
     }
+    
     my $p = new PBDB::Permissions($s,$dbt);
     my $can_modify = $p->getModifierList();
     $can_modify->{$s->get('authorizer_no')} = 1;
 
-    print $hbo->stdIncludes('std_page_top');
-    print '<div align="center"><p class="pageTitle">Occurrence table entry results</p></div>';
-    print qq|<form method="post" action="$WRITE_URL">|;
-    print '<input type="hidden" name="action" value="startProcessReclassifyForm">';
-    print '<div align="center"><table cellpadding=3 cellspacing=0 border=0>';
+    $output .= $hbo->stdIncludes($PAGE_TOP);
+    $output .= '<div align="center"><p class="pageTitle">Occurrence table entry results</p></div>';
+    $output .= qq|<form method="post" action="$WRITE_URL">|;
+    $output .= '<input type="hidden" name="action" value="startProcessReclassifyForm">';
+    $output .= '<div align="center"><table cellpadding=3 cellspacing=0 border=0>';
     my $changed_rows = 0;
     my $seen_homonyms = 0;
     foreach my $i (@row_tokens) {
@@ -4219,7 +4320,7 @@ sub processOccurrenceTable {
             my $primary_key = "occurrence_no";
             my $table = 'occurrences';
             if ($primary_key !~ /^occurrence_no$|^reid_no$/) {
-                print "ERROR: invalid primary key type";
+                $output .= "ERROR: invalid primary key type";
                 next;
             }
 
@@ -4348,27 +4449,29 @@ sub processOccurrenceTable {
                 $row .= "Multiple versions of this name exist and must be " . makeAnchor("startDisplayOccurrenceReclassify", "collection_list=$collection_list&taxon_name=$simple_taxon_name", "manually classified");
             }
             $row .= "</td></tr>";
-            print $row;
+            $output .= $row;
             $changed_rows++;
         }
     }
     if (!$changed_rows) {
-        print "<tr><td>No rows were changed</td></tr>";
+        $output .= "<tr><td>No rows were changed</td></tr>";
     }
     if ($seen_homonyms) {
-        print qq|<tr><td colspan="3" align="center"><br><input type="submit" name="submit" value="Classify taxa"></td></tr>|;
-        print qq|<tr><td colspan="3">|.PBDB::Debug::printWarnings(['Multiple versions of some names exist in the database.  Please select the version wanted and choose "Classify taxa"']).qq|</td></tr>|;
+        $output .= qq|<tr><td colspan="3" align="center"><br><input type="submit" name="submit" value="Classify taxa"></td></tr>|;
+        $output .= qq|<tr><td colspan="3">|.PBDB::Debug::printWarnings(['Multiple versions of some names exist in the database.  Please select the version wanted and choose "Classify taxa"']).qq|</td></tr>|;
     }
-    print "</table>";
-    print "</div>";
-    print "</form>";
-    print '<div align="center"><p>';
-    print makeAnchor("displaySearchColls", "type=occurrence_table", "Edit more occurrences");
+    $output .= "</table>";
+    $output .= "</div>";
+    $output .= "</form>";
+    $output .= '<div align="center"><p>';
+    $output .= makeAnchor("displaySearchColls", "type=occurrence_table", "Edit more occurrences");
     if ($q->param('next_page_link')) {
-        print " - ".uri_unescape($q->param("next_page_link"));
+        $output .= " - ".uri_unescape($q->param("next_page_link"));
     }
-    print '</p></div>';
-    print $hbo->stdIncludes('std_page_bottom');
+    $output .= '</p></div>';
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub generateCollectionLabel {
@@ -4436,16 +4539,19 @@ sub processEditOccurrences {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	my $dbh = $dbt->dbh;
+    my $dbh = $dbt->dbh;
+    my $output = '';
+    
 	if (!$s->isDBMember()) {
-		login( "Please log in first." );
-		return;
+	    return login( "Please log in first." );
 	}
-                                
+    
     unless ( $q->param('check_status') eq 'done' )
     {
-	print "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
-	return;
+	my $output = $hbo->$hbo->stdIncludes($PAGE_TOP);
+	$output .= "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
+	$output .= $hbo->$hbo->stdIncludes($PAGE_BOTTOM);
+	return $output;
     }
 	
 	# list of the number of rows to possibly update.
@@ -5015,12 +5121,12 @@ sub processEditOccurrences {
         }
     }
 
-	print $hbo->stdIncludes( $PAGE_TOP );
+	$output .= $hbo->stdIncludes( $PAGE_TOP );
 
-	print qq|<div align="center"><p class="large" style="margin-bottom: 1.5em;">|;
+	$output .= qq|<div align="center"><p class="large" style="margin-bottom: 1.5em;">|;
 	$sql = "SELECT collection_name AS coll FROM collections WHERE collection_no=$collection_no";
-	print ${$dbt->getData($sql)}[0]->{'coll'};
-	print "</p></div>\n\n";
+	$output .= ${$dbt->getData($sql)}[0]->{'coll'};
+	$output .= "</p></div>\n\n";
 
 	# Links to re-edit, etc
 	my $links = "<div align=\"center\" style=\"padding-top: 1em;\">";
@@ -5057,7 +5163,7 @@ sub processEditOccurrences {
 	my @new_subgenera =  PBDB::TypoChecker::newTaxonNames($dbt,\@subgenera,'subgenus_name');
 	my @new_species =  PBDB::TypoChecker::newTaxonNames($dbt,\@species,'species_name');
 
-	print qq|<div style="padding-left: 1em; padding-right: 1em;>"|;
+	$output .= qq|<div style="padding-left: 1em; padding-right: 1em;>"|;
 
     my $return;
     if ($q->param('list_collection_no')) {
@@ -5068,14 +5174,15 @@ sub processEditOccurrences {
     	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,{'occurrence_list'=>\@occurrences, 'new_genera'=>\@new_genera, 'new_subgenera'=>\@new_subgenera, 'new_species'=>\@new_species, 'do_reclassify'=>1, 'warnings'=>\@warnings, 'save_links'=>$links });
     }
     if ( ! $return )	{
-        print $links;
+        $output .= $links;
     } else	{
-        print $return;
+        $output .= $return;
     }
 
-    print "\n</div>\n<br>\n";
+    $output .= "\n</div>\n<br>\n";
 
-	print $hbo->stdIncludes( $PAGE_BOTTOM );
+    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+    return $output;
 }
 
 
@@ -5125,12 +5232,12 @@ sub displayOccsForReID {
     
     my ($q, $s, $dbt, $hbo, $collNos) = @_;
     
-
+    my $output = '';
     my $dbh = $dbt->dbh;
-	my $collection_no = $q->param('collection_no');
+    my $collection_no = $q->param('collection_no');
     my $taxon_name = $q->param('taxon_name');
-	my $where = "";
-
+    my $where = "";
+    
 	#dbg("genus_name: $genus_name, subgenus_name: $subgenus_name, species_name: $species_name");
 
 	my $current_session_ref = $s->get("reference_no");
@@ -5151,8 +5258,8 @@ sub displayOccsForReID {
 
 	my $printCollDetails = 0;
 
-	print $hbo->stdIncludes( $PAGE_TOP );
-	print $hbo->populateHTML('js_occurrence_checkform');
+	$output .= $hbo->stdIncludes( $PAGE_TOP );
+	$output .= $hbo->populateHTML('js_occurrence_checkform');
     
 	my $pageNo = $q->param('page_no');
 	if ( ! $pageNo ) { 
@@ -5217,7 +5324,7 @@ sub displayOccsForReID {
             'list_collection_no'=>$collection_no
         };
         $header_vars->{$_} = $pref{$_} for (@optional);
-		print $hbo->populateHTML('reid_header_row', $header_vars);
+		$output .= $hbo->populateHTML('reid_header_row', $header_vars);
 
 	splice @results , 0 , ( $pageNo - 1 ) * 10;
         foreach my $row (@results) {
@@ -5298,26 +5405,26 @@ sub displayOccsForReID {
             } else	{
                 $html =~ s/<tr/<tr class=\"lightList\"/g;
             }
-            print $html;
+            $output .= $html;
 
         }
     }
 
-	print "</table>\n";
+	$output .= "</table>\n";
 	$pageNo++;
 	if ($rowCount > 0)	{
-		print qq|<center><p><input type=submit value="Save reidentifications"></center></p>\n|;
-		print qq|<input type="hidden" name="page_no" value="$pageNo">\n|;
-		print qq|<input type="hidden" name="sort_occs_by" value="|;
-		print $q->param('sort_occs_by'),"\">\n";
-		print qq|<input type="hidden" name="sort_occs_order" value="|;
-		print $q->param('sort_occs_order'),"\">\n";
+		$output .= qq|<center><p><input type=submit value="Save reidentifications"></center></p>\n|;
+		$output .= qq|<input type="hidden" name="page_no" value="$pageNo">\n|;
+		$output .= qq|<input type="hidden" name="sort_occs_by" value="|;
+		$output .= $q->param('sort_occs_by') . "\">\n";
+		$output .= qq|<input type="hidden" name="sort_occs_order" value="|;
+		$output .= $q->param('sort_occs_order') . "\">\n";
 	} else	{
-		print "<center><p class=\"pageTitle\">Sorry! No matches were found</p></center>\n";
-		print "<p align=center>Please " . makeAnchor("displayReIDCollsAndOccsSearchForm", "", "try again") . " with different search terms</p>\n";
+		$output .= "<center><p class=\"pageTitle\">Sorry! No matches were found</p></center>\n";
+		$output .= "<p align=center>Please " . makeAnchor("displayReIDCollsAndOccsSearchForm", "", "try again") . " with different search terms</p>\n";
 	}
-	print "</form>\n";
-	print "\n<table border=0 width=100%>\n<tr>\n";
+	$output .= "</form>\n";
+	$output .= "\n<table border=0 width=100%>\n<tr>\n";
 
 	# Print prev and next  links as appropriate
 
@@ -5325,15 +5432,16 @@ sub displayOccsForReID {
 	if ( $rowCount > 10 ) {
         my $localsort_occs_by=$q->param('sort_occs_by');
         my $localsort_occs_order=$q->param('sort_occs_order');
-		print "<td align=center>";
-		print "<b>" . makeAnchor("displayCollResults", "type=reid&taxon_name=$taxon_name&collection_no=$collection_no&sort_occs_by=$localsort_occs_by&sort_occs_order=$localsort_occs_order&page_no=$pageNo", "Skip to the next 10 occurrences") . "</b>";
-		print "</td></tr>\n";
-		print "<tr><td class=small align=center><i>Warning: if you go to the next page without saving, your changes will be lost</i></td>\n";
+		$output .= "<td align=center>";
+		$output .= "<b>" . makeAnchor("displayCollResults", "type=reid&taxon_name=$taxon_name&collection_no=$collection_no&sort_occs_by=$localsort_occs_by&sort_occs_order=$localsort_occs_order&page_no=$pageNo", "Skip to the next 10 occurrences") . "</b>";
+		$output .= "</td></tr>\n";
+		$output .= "<tr><td class=small align=center><i>Warning: if you go to the next page without saving, your changes will be lost</i></td>\n";
 	}
 
-	print "</tr>\n</table><p>\n";
+	$output .= "</tr>\n</table><p>\n";
 
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 
@@ -5538,10 +5646,12 @@ sub displayStratTaxaForm{
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require PBDB::Confidence;
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Confidence::displayStratTaxa($q, $s, $dbt);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Confidence::displayStratTaxa($q, $s, $dbt);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub showOptionsForm {
@@ -5549,10 +5659,12 @@ sub showOptionsForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require PBDB::Confidence;
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Confidence::optionsForm($q, $s, $dbt);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Confidence::optionsForm($q, $s, $dbt);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub calculateTaxaInterval {
@@ -5560,11 +5672,14 @@ sub calculateTaxaInterval {
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require PBDB::Confidence;
+
     logRequest($s,$q);
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Confidence::calculateTaxaInterval($q, $s, $dbt);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Confidence::calculateTaxaInterval($q, $s, $dbt);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub calculateStratInterval {
@@ -5572,11 +5687,14 @@ sub calculateStratInterval {
     my ($q, $s, $dbt, $hbo) = @_;
     
     return if PBDB::PBDBUtil::checkForBot();
-    require PBDB::Confidence;
+    
     logRequest($s,$q);
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Confidence::calculateStratInterval($q, $s, $dbt);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+
+    my $output= $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Confidence::calculateStratInterval($q, $s, $dbt);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 ## Cladogram stuff
@@ -5585,9 +5703,11 @@ sub displayCladeSearchForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    print $hbo->populateHTML('search_clade_form');
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= $hbo->populateHTML('search_clade_form');
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 
 	#print $hbo->stdIncludes($PAGE_TOP);
     #PBDB::Cladogram::displayCladeSearchForm($dbt,$q,$s,$hbo);
@@ -5602,40 +5722,51 @@ sub displayCladogramChoiceForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Cladogram::displayCladogramChoiceForm($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Cladogram::displayCladogramChoiceForm($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 sub displayCladogramForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Cladogram::displayCladogramForm($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Cladogram::displayCladogramForm($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
+
 sub submitCladogramForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::Cladogram::submitCladogramForm($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Cladogram::submitCladogramForm($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
+
 sub drawCladogram	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
     my $cladogram_no = $q->param('cladogram_no');
     my $force_redraw = $q->param('force_redraw');
     my ($pngname, $caption, $taxon_name) = PBDB::Cladogram::drawCladogram($dbt,$cladogram_no,$force_redraw);
     if ($pngname) {
-        print qq|<div align="center"><h3>$taxon_name</h3>|;
-        print qq|<img src="/public/cladograms/$pngname"><br>$caption|;
-        print qq|</div>|;
+        $output .= qq|<div align="center"><h3>$taxon_name</h3>|;
+        $output .= qq|<img src="/public/cladograms/$pngname"><br>$caption|;
+        $output .= qq|</div>|;
     }
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 # JA 17.1.10
@@ -5643,36 +5774,44 @@ sub displayReviewForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Review::displayReviewForm($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Review::displayReviewForm($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub processReviewForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Review::processReviewForm($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Review::processReviewForm($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub listReviews	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Review::listReviews($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Review::listReviews($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub showReview	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes($PAGE_TOP);
-	PBDB::Review::showReview($dbt,$q,$s,$hbo);
-	print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Review::showReview($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 # Displays taxonomic opinions and names associated with a reference_no
@@ -5681,20 +5820,21 @@ sub displayTaxonomicNamesAndOpinions {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes( $PAGE_TOP );
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
     my $ref = PBDB::Reference->new($dbt,$q->param('reference_no'));
     if ($ref) {
         $q->param('goal'=>'authority');
         if ( $q->param('display') ne "opinions" )	{
-            processTaxonSearch($q, $s, $dbt, $hbo);
+            return processTaxonSearch($q, $s, $dbt, $hbo);
         }
         if ( $q->param('display') ne "authorities" )	{
-            PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
+            $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
         }
     } else {
-        print "<div align=\"center\">".PBDB::Debug::printErrors(["No valid reference supplied"])."</div>";
+        $output .=  "<div align=\"center\">".PBDB::Debug::printErrors(["No valid reference supplied"])."</div>";
     }
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    return $output;
 }
 
 
@@ -5756,7 +5896,7 @@ sub listCollections {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes ($PAGE_TOP);
+    my $output = $hbo->stdIncludes ($PAGE_TOP);
     my $sql = "SELECT MAX(collection_no) max_id FROM collections";
     my $page = int($q->param("page"));
 
@@ -5764,25 +5904,26 @@ sub listCollections {
    
     for(my $i=0;$i*200 < $max_id;$i++) {
         if ($page == $i) {
-            print "$i ";
+            $output .= "$i ";
         } else {
-            print makeAnchor("listCollections", "page=$i", "$i");
+            $output .= makeAnchor("listCollections", "page=$i", "$i");
         }
     }
-    print "<BR><BR>";
+    $output .= "<BR><BR>";
     my $start = $page*200;
     for (my $i=$start; $i<$start+200 && $i <= $max_id;$i++) {
-        print makeAnchor("basicCollectionSearch", "collection_no=$i", "$i");
+        $output .= makeAnchor("basicCollectionSearch", "collection_no=$i", "$i");
     }
 
-	print $hbo->stdIncludes ($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes ($PAGE_BOTTOM);
+    return $output;
 }
 
 sub listTaxa {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	print $hbo->stdIncludes ($PAGE_TOP);
+    my $output = $hbo->stdIncludes ($PAGE_TOP);
     
     my $sql = "SELECT MAX(taxon_no) max_id FROM authorities";
     my $page = int($q->param("page"));
@@ -5791,18 +5932,19 @@ sub listTaxa {
    
     for(my $i=0;$i*200 < $max_id;$i++) {
         if ($page == $i) {
-            print "$i ";
+            $output .= "$i ";
         } else {
-            print makeAnchor("listCollections", "page=$i", "$i");
+            $output .= makeAnchor("listCollections", "page=$i", "$i");
         }
     }
-    print "<BR><BR>";
+    $output .= "<BR><BR>";
     my $start = $page*200;
     for (my $i=$start; $i<$start+200 && $i <= $max_id;$i++) {
-        print makeAnchor("basicTaxonInfo", "taxon_no=$i", "$i");
+        $output .= makeAnchor("basicTaxonInfo", "taxon_no=$i", "$i");
     }
 
-	print $hbo->stdIncludes ($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes ($PAGE_BOTTOM);
+    return $output;
 }
 
 

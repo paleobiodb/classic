@@ -96,7 +96,7 @@ sub buildDownload {
 
     if ( @errors ) # printquestion (MM)
     {
-	my $errorString = "<li>" . join('</li><li>',@$errors) . "</li>";
+	my $errorString = "<li>" . join('</li><li>',@errors) . "</li>";
 	my %vars = { error_message => $errorString };
 
 	return $hbo->populateHTML('download_form',\%vars);
