@@ -34,7 +34,6 @@ sub new {
         $self->{'pubyr'} = $results[0]->{'pubyr'};
     } else {
         print STDERR "ERROR: Could not create opinion object with passed in opinion $opinion_no\n";
-	#printquestion (MM)
         return;
     }
 	return $self;
@@ -289,7 +288,6 @@ sub displayOpinionForm {
 	
     if ((!$dbt) || (!$hbo) || (! $s) || (! $q)) {
 	print STDERR "ERROR: PBDB::Opinion::displayOpinionForm had invalid arguments passed to it.\n";
-	#printquestion (MM)
 	return;
     }
     
@@ -729,7 +727,6 @@ sub submitOpinionForm {
     
     if ((!$dbt) || (!$hbo) || (!$s) || (!$q)) {
 	print STDERR "ERROR: PBDB::Opinion::submitOpinionForm had invalid arguments passed to it\n";
-	#printquestion (MM)
 	return;	
     }
     
@@ -949,7 +946,7 @@ sub submitOpinionForm {
         my $sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_no=".$dbh->quote($q->param('parent_spelling_no'));
         my $row = ${$dbt->getData($sql)}[0];
         if (!$row) {
-            croak("Fatal error, parent_spelling_no ".$q->param('parent_spelling_no')." was set but not in the authorities table");
+            print STDERR "Fatal error, parent_spelling_no ".$q->param('parent_spelling_no')." was set but not in the authorities table";
         }
         $parentName = $row->{'taxon_name'};
         $parentRank = $row->{'taxon_rank'};
@@ -1367,7 +1364,7 @@ sub submitOpinionForm {
 
 		# make sure we have a taxon_no for this entry...
 		if (!$fields{'child_no'} ) {
-			croak("PBDB::Opinion::submitOpinionForm, tried to insert a record without knowing its child_no (original taxon)");
+                        print STDERR "PBDB::Opinion::submitOpinionForm, tried to insert a record without knowing its child_no (original taxon)";
 			return;	
 		}
 		
@@ -1744,8 +1741,6 @@ sub displayOpinionChoiceForm {
             if (scalar(@results) == 0) {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No opinions were found</div>');
                 return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-		#printquestion (MM) above output is not relevant if no
-		#opinions were actually found
             }
             $output .= "<div align=\"center\">";
             if ($s->isDBMember())	{
@@ -1784,11 +1779,9 @@ sub displayOpinionChoiceForm {
                 $message .= "</ul>\n</div>\n<br>\n"; 
                 $q->param('errors' => $message);
                 return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-		#printquestion (MM) above output is not relevant if errors occurred
             } else {
                 $q->param('errors' => '<div style="margin-bottom: 1.5em;">No search terms were entered</div>');
                 return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-		#printquestion (MM) above output is not relevant if errors occurred
             }
         }
     } 
@@ -1956,7 +1949,6 @@ sub badNames	{
 			$by = $e->{'auth1'}." and ".$e->{'auth2'}." ".$e->{'yr'};
 		}
 		$by =~ s/, jr.//gi;
-        #printquestion (MM) replaced <a...> with a call to makeATag()
 		$by = makeATag('displayReference', "reference_no=$e->{'refno'}") . $by;
 		$output .= '<div class="small" style="margin-top: 1em; margin-left: 1em; text-indent: -1em;">&bull; '.$e->{'taxon_rank'}." ".$e->{'taxon_name'}."</div>\n\n";
 		$output .= "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">currently assigned to ".$e->{'parent'}." based on $by</a></div>";
