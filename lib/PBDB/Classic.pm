@@ -146,6 +146,8 @@ sub classic_request {
     {
 	croak "Test error!!!";
     }
+
+    print STDERR "Action: $action\n";
     
     my $wing_session = get_session();
     
@@ -296,15 +298,14 @@ sub classic_request {
 	$vars->{enterer_no} = $s->{enterer_no};
 	$vars->{authorizer_name} = $authorizer_name;
 	$vars->{reference_name} = $reference_name;
-    $vars->{reference_no} = $reference_no;
+	$vars->{reference_no} = $reference_no;
 	# $vars->{current_user}{display_name} = 'FOO';
 	# $Data::Dumper::Maxdepth = 3;
 	# print STDERR "CURRENT_USER = " . Data::Dumper::Dumper($user) . "\n";
         $vars->{options} = MyApp::DB::Result::Classic->field_options;
     }
     
-    my $output = template 'header_include', $vars;	# Displays Wing header, but doesn't work
-							# when run from command line.
+    my $output = template 'header_include', $vars;
     
     my $print_output;
     my $return_output;
@@ -368,15 +369,18 @@ sub execAction {
     my ($q, $s, $dbt, $hbo, $action) = @_;
     
     my $action_sub = \&{"PBDB::$action"};
+    my $return_output;
     
     eval {
-	&$action_sub($q, $s, $dbt, $hbo);
+	$return_output = &$action_sub($q, $s, $dbt, $hbo);
     };
     
     if ( $@ )
     {
 	ouch 500, $@, { path => request->path };
     }
+
+    return $return_output;
 }
 
 
@@ -1514,7 +1518,7 @@ sub displayCollResults {
 			if ($q->param('type') eq 'reid')	{
 			    return displayOccsForReID($q, $s, $dbt, $hbo, \@colls);
 			} else	{
-			    return displayOccurrenceReclassify($q,$s,$dbt,$hbo,\@colls);
+			    return startDisplayOccurrenceReclassify($q,$s,$dbt,$hbo,\@colls);
 			}
 		    }
 
@@ -2181,7 +2185,12 @@ sub displayCollectionDetails {
     my ($q, $s, $dbt, $hbo) = @_;
     
     logRequest($s,$q);
-    return PBDB::CollectionEntry::displayCollectionDetails($dbt,$q,$s,$hbo);
+
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::CollectionEntry::displayCollectionDetails($dbt,$q,$s,$hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 sub rarefyAbundances {
@@ -2447,11 +2456,11 @@ sub processTaxonSearch {
 	    	else {
                     if (!$s->get('reference_no')) {
                         $s->enqueue_action('submitTaxonSearch', $q);
-                        displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please choose a reference before adding a new taxon</center>",1);
+                        return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please choose a reference before adding a new taxon</center>",1);
                         return;
                     }
                     $q->param('taxon_no'=> -1);
-                    PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q); # $$$$ print
+                    return PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q); # $$$$ print
                 }
             } else {
                 $output .= "<div align=\"center\"><p class=\"pageTitle\">No taxonomic names found</p></div>";
@@ -2496,28 +2505,28 @@ sub processTaxonSearch {
                     $output .= "<div align=\"center\" class=\"large\">No taxonomic names were found that match the search criteria.</div>";
                 }
             }
-            return;
+            return $output;
         }
     # One match - good enough for most of these forms
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'authority') {
         $q->param("taxon_no"=>$results[0]->{'taxon_no'});
         $q->param('called_by'=> 'processTaxonSearch');
-        PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q);	# $$$ print
+        $output .= PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q);	# $$$ print
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'cladogram') {
         $q->param("taxon_no"=>$results[0]->{'taxon_no'});
-        PBDB::Cladogram::displayCladogramChoiceForm($dbt,$q,$s,$hbo);
+        $output .= PBDB::Cladogram::displayCladogramChoiceForm($dbt,$q,$s,$hbo);
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'opinion') {
         $q->param("taxon_no"=>$results[0]->{'taxon_no'});
-        PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
+        $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
     # } elsif (scalar(@results) == 1 && $q->param('goal') eq 'image') {
     #     $q->param('taxon_no'=>$results[0]->{'taxon_no'});
     #     Images::displayLoadImageForm($dbt,$q,$s); 
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'ecotaph') {
         $q->param('taxon_no'=>$results[0]->{'taxon_no'});
-        PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
+        $output .= PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'ecovert') {
         $q->param('taxon_no'=>$results[0]->{'taxon_no'});
-        PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
+        $output .= PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
 	# We have more than one matches, or we have 1 match or more and we're adding an authority.
     # Present a list so the user can either pick the taxon,
     # or create a new taxon with the same name as an exisiting taxon
@@ -3361,9 +3370,11 @@ sub submitSpecimenSearch{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    print $hbo->stdIncludes($PAGE_TOP);
-    PBDB::MeasurementEntry::submitSpecimenSearch($dbt,$hbo,$q,$s,$WRITE_URL);
-    print $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::MeasurementEntry::submitSpecimenSearch($dbt,$hbo,$q,$s,$WRITE_URL);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
 }
 
 sub displaySpecimenList {

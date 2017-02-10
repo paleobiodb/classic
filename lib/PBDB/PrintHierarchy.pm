@@ -225,7 +225,7 @@ sub classify	{
 		}
 	    }
 	    
-	    printBox( $counts, $p, 1 );
+	    $output .= printBox( $counts, $p, 1 );
 	}
 	
 	$output .= "\n</div>\n\n";
@@ -240,7 +240,8 @@ sub classify	{
 		if ( $reference_no ) {
 			$output .= qq|<input type="hidden" name="reference_no" value="$reference_no">|;
 		}
-		$output .= "</form>\n"; 
+		$output .= "</form>\n";
+		return $output;
 		# print '<center><p class="tiny" style="padding-bottom: 3em;">';
 		# print '<a href="/public/classification/classification.csv">Download</a></b> this list of taxonomic names';
 		# print ' - <a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download</a> authority and opinion data for these taxa';
@@ -331,7 +332,7 @@ sub printBox {
 
     foreach my $t ( @{$counts->{valids}{$taxon_no}} )
     {
-	printBox( $counts, $t, $depth+1 );
+	$output .= printBox( $counts, $t, $depth+1 );
     }
     
     if ( $counts->{invalids}{$taxon_no} )	{

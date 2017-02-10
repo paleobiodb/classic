@@ -104,10 +104,10 @@ sub submitSpecimenSearch {
 	return $hbo->populateHTML('search_specimen_form', \%vars);
     } elsif (scalar(@results) == 1 && $q->param('collection_no')) {
         $q->param('occurrence_no'=>$results[0]->{'occurrence_no'});
-        displaySpecimenList($dbt,$hbo,$q,$s);
+        $output .= displaySpecimenList($dbt,$hbo,$q,$s);
     } elsif (scalar(@results) == 0 && scalar(@results_taxa_only) == 1) {
         $q->param('taxon_no'=>$results_taxa_only[0]->{'taxon_no'});
-        displaySpecimenList($dbt,$hbo,$q,$s);
+        $output .= displaySpecimenList($dbt,$hbo,$q,$s);
     } elsif (scalar(@results) == 0 && scalar(@results_taxa_only) == 0) {
         my %vars = { errors => "Occurrences or taxa matching these search terms could not be found" };
 	return $hbo->populateHTML('search_specimen_form', \%vars);
@@ -1146,7 +1146,7 @@ sub processMeasurementForm	{
 	# }
 	$more_links .= " or another " . makeAnchor("submitSpecimenSearch", "taxon_name=$taxon_name", "occurrence") . " of $taxon_name, or</div>
 ";
-	displaySpecimenList($dbt,$hbo,$q,$s,'processMeasurementForm',$more_links);
+	$output .= displaySpecimenList($dbt,$hbo,$q,$s,'processMeasurementForm',$more_links);
 	if ($q->param('occurrence_no')) {
 		my ($temp,$collection_no) = split / /,$collection;
 		$collection_no =~ s/\)//;
