@@ -59,6 +59,8 @@ use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request);
 use PBDB::Constants qw($WRITE_URL $HOST_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
 
+use ExternalIdent;
+
 
 get '/classic' => sub {
 
@@ -147,7 +149,7 @@ sub classic_request {
 	croak "Test error!!!";
     }
 
-    print STDERR "Action: $action\n";
+    # print STDERR "Action: $action\n";
     
     my $wing_session = get_session();
     
@@ -1214,53 +1216,175 @@ sub processReferenceForm {
 sub quickSearch	{
     
     my ($q, $s, $dbt, $hbo) = @_;
+
+    my $dbh = $dbt->dbh;
     
+    my $qs = $q->param('quick_search');
+    $qs =~ s/\./%/g;
+    $qs =~ s/\s+/ /g;
+    $qs =~ s/ $//;
+    $qs =~ s/^ //;
+    
+    $q->param('quick_search' => $qs);
 
-	my $qs = $q->param('quick_search');
-	$qs =~ s/\./%/g;
-	$qs =~ s/  / /g;
-	$q->param('quick_search' => $qs);
+    # print STDERR "qs: $qs\n";
+    
+    # Decide what to do based on the form of the quicksearch parameter.
 
-	# case 1 or 2: search string cannot be a taxon name, so search elsewhere
-	my $nowDate = now();
-	my ($date,$time) = split / /,$nowDate;
-	my ($yyyy,$mm,$dd) = split /-/,$date,3;
-	if ( $qs =~ /[^A-Za-z% ]/ || $qs =~ / .* / )	{
-	# case 1: string looks like author/year, so try references
-		my @words = split / /,$qs;
-		if ( $words[$#words] =~ /^\d+$/ && $words[$#words] >= 1758 && $words[$#words] <= $yyyy )	{
-			$q->param('name_pattern' => 'equals');
-			$q->param('name' => $words[0]);
-			$q->param('year_relation' => 'in');
-			$q->param('year' => $words[$#words]);
-			return displayRefResults($q, $s, $dbt, $hbo);
-		}
-	# case 2: otherwise or if that fails, try collections
-		my $found = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
-		return if $found == 1;
-	# if basicCollectionSearch finds any match it should exit somehow before
-	#   this point, so try a common name search as a desperation measure
-		if ( $qs !~ /[^A-Za-z' ]/ )	{
-			return basicTaxonInfo($q,$s,$dbt,$hbo);
-		}
+    # 1) If it is either single number or an external identifier, then attempt to display the
+    # corresponding entity. A single number is taken to be a collection identifier by default.
+    
+    my $ident = ExternalIdent::valid_identifier($qs, {}, 'ANY');
+    
+    if ( $ident && $ident->{value} )
+    {
+	my $num = $ident->{value}{num};
+	my $type = $ident->{value}{type};
+	
+	if ( $type eq 'col' || $type eq 'unk' )
+	{
+	    $q->param("collection_no" => $num);
+	    my $result = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+
+	    if ( $result )
+	    {
+		return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
+	    }
 	}
-	else	{
-		my $sql = "SELECT count(*) c FROM authorities WHERE taxon_name LIKE '".$qs."'";
-    		my $t = ${$dbt->getData($sql)}[0];
-	# case 3: string is formatted correctly and matches at least one name,
-	#  so search taxa only
-		if ( $t->{'c'} > 0 )	{
-			return basicTaxonInfo($q,$s,$dbt,$hbo);
-		}
-	# case 4: search is formatted correctly but does not directly match
-	#  any name, so first try collections and then try taxa again (which
-	#  will yield some kind of a match somehow)
-		else	{
-			my $found = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
-			return if $found == 1;
-			return basicTaxonInfo($q,$s,$dbt,$hbo);
-		    }
+	
+	elsif ( $type eq 'txn' || $type eq 'var' )
+	{
+	    $q->param('taxon_no' => $num);
+	    my $result = PBDB::TaxonInfo::basicTaxonInfo($q, $s, $dbt, $hbo);
+	    
+	    if ( $result )
+	    {
+		return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
+	    }
 	}
+	
+	# elsif ( $type eq 'opn' )
+	# {
+	    
+	# }
+
+	else
+	{
+	    my $output = $hbo->stdIncludes( $PAGE_TOP );
+	    $output .= menu($q, $s, $dbt, $hbo, "<center>You must use the data service to retrieve information about '$qs'</center>");
+	    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+	    
+	    return $output;
+	}
+    }
+
+    # 2) If it looks like 'author year', search for a reference.
+    
+    elsif ( $qs =~ / ^ ( .* [a-zA-Z] .* ) \s+ (\d\d\d\d) $ /xs )
+    {
+	$q->param('name_pattern' => 'equals');
+	$q->param('name' => $1);
+	$q->param('year_relation' => 'in');
+	$q->param('year' => $2);
+	return displayRefResults($q, $s, $dbt, $hbo);
+    }
+
+    # 3) If it looks like a stratum, search for that.
+
+    elsif ( $qs =~ / ^ ( .* [a-zA-Z] .* ) \s+ (group|grp|formation|fm|member|mbr) $ /xsi )
+    {
+	$q->param('collection_name' => $qs);
+	my $result = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+	
+	if ( $result )
+	{
+	    return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
+	}
+    }
+
+    # 4) If it is quoted, assume it is a collection name.
+
+    elsif ( $qs =~ / ^ " ( .* [a-zA-Z] .* ) " $ /xs )
+    {
+	$q->param('collection_name' => $1);
+	my $result = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+	
+	if ( $result )
+	{
+	    return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
+	}
+   }
+    
+    # Otherwise, we need to differentiate between taxonomic names and collection names.
+
+    else
+    {
+	# If it looks like a taxon name, check first to see if one can be found.
+	
+	if ( PBDB::Taxon::validTaxonName($qs) )
+	{
+	    my $quoted = $dbh->quote($qs);
+	    my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $quoted";
+	    my $taxon = ${$dbt->getData($sql)}[0];
+	    
+	    if ( $taxon )
+	    {
+		$q->param('taxon_name' => $qs);
+		return basicTaxonInfo($q, $s, $dbt, $hbo);
+	    }
+	}
+	
+	# If we get here, that means we didn't find a matching taxon. So look for a collection.
+
+	$q->param('collection_name' => $qs);
+	my $result = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+	
+	if ( $result )
+	{
+	    return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
+	}
+    }
+    
+	# # case 1 or 2: search string cannot be a taxon name, so search elsewhere
+	# my $nowDate = now();
+	# my ($date,$time) = split / /,$nowDate;
+	# my ($yyyy,$mm,$dd) = split /-/,$date,3;
+	# if ( $qs =~ /[^A-Za-z% ]/ || $qs =~ / .* / )	{
+	# # case 1: string looks like author/year, so try references
+	# 	my @words = split / /,$qs;
+	# 	if ( $words[$#words] =~ /^\d+$/ && $words[$#words] >= 1758 && $words[$#words] <= $yyyy )	{
+	# 		$q->param('name_pattern' => 'equals');
+	# 		$q->param('name' => $words[0]);
+	# 		$q->param('year_relation' => 'in');
+	# 		$q->param('year' => $words[$#words]);
+	# 		return displayRefResults($q, $s, $dbt, $hbo);
+	# 	}
+	# # case 2: otherwise or if that fails, try collections
+	# 	my $found = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+	# 	return $found if $found;
+	# # if basicCollectionSearch finds any match it should exit somehow before
+	# #   this point, so try a common name search as a desperation measure
+	# 	if ( $qs !~ /[^A-Za-z' ]/ )	{
+	# 		return basicTaxonInfo($q,$s,$dbt,$hbo);
+	# 	}
+	# }
+	# else	{
+	# 	my $sql = "SELECT count(*) c FROM authorities WHERE taxon_name LIKE '".$qs."'";
+    	# 	my $t = ${$dbt->getData($sql)}[0];
+	# # case 3: string is formatted correctly and matches at least one name,
+	# #  so search taxa only
+	# 	if ( $t->{'c'} > 0 )	{
+	# 		return basicTaxonInfo($q,$s,$dbt,$hbo);
+	# 	}
+	# # case 4: search is formatted correctly but does not directly match
+	# #  any name, so first try collections and then try taxa again (which
+	# #  will yield some kind of a match somehow)
+	# 	else	{
+	# 		my $found = PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
+	# 		return $found if $found;
+	# 		return basicTaxonInfo($q,$s,$dbt,$hbo);
+	# 	    }
+	# }
 
 	# if we don't have any idea what they're driving at, send them home
 	# this point should only ever be reached if nothing works whatsoever

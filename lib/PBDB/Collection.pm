@@ -1225,16 +1225,14 @@ sub display_colls {
     elsif ( $count == 1 )
     {
 	$q->param($COLLECTION_NO => $colls_ref->[0]{$COLLECTION_NO} );
-	basicCollectionInfo($dbt,$q,$s,$hbo);
-	return;
+	return basicCollectionInfo($dbt,$q,$s,$hbo);
     }
     
     else
     {
 	$q->param('type' => 'view');
 	$q->param('basic' => 'yes');
-	PBDB::displayCollResults($q, $s, $dbt, $hbo, $colls_ref);
-	return;
+	return PBDB::displayCollResults($q, $s, $dbt, $hbo, $colls_ref);
     }
 }
 
