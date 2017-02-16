@@ -430,8 +430,9 @@ sub displayPreferencesPage {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-        login( "Please log in first.");
-        return;
+	redirect '/login', 301;
+        # login( "Please log in first.");
+        # return;
     }
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -446,8 +447,9 @@ sub setPreferences {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-        login( "Please log in first.");
-        return;
+	redirect '/login', 301;
+        # login( "Please log in first.");
+        # return;
     }
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -1178,8 +1180,9 @@ sub displayReferenceForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	login( "Please log in first.");
-	return;
+	redirect '/login', 301;
+	# login( "Please log in first.");
+	# return;
     }
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -1407,11 +1410,12 @@ sub displaySearchCollsForAdd	{
     my ($q, $s, $dbt, $hbo) = @_;
     
 
-	if (!$s->isDBMember()) {
-		login( "Please log in first.");
-		return;
-	}
-
+    if (!$s->isDBMember()) {
+	redirect '/login', 301;
+	# login( "Please log in first.");
+	# return;
+    }
+    
 	# Have to have a reference #, unless we are just searching
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
@@ -1450,8 +1454,7 @@ sub displaySearchColls {
 	if ( ! $reference_no && $type !~ /^(?:basic|analyze_abundance|view|edit|reclassify_occurrence|count_occurrences|most_common)$/) {
 		# Come back here... requeue our option
 		$s->enqueue_action("displaySearchColls", "type=$type");
-		displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-		return;
+		return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 	}
 
 	# Show the "search collections" form
@@ -2277,8 +2280,9 @@ sub displayCollectionForm {
     
     # Have to be logged in
     if (!$s->isDBMember()) {
-        login("Please log in first.");
-        return;
+	redirect '/login', 301;
+        # login("Please log in first.");
+        # return;
     }
 
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -2293,8 +2297,9 @@ sub processCollectionForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-        login("Please log in first.");
-        return;
+	redirect '/login', 301;
+        # login("Please log in first.");
+        # return;
     }
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -2581,7 +2586,6 @@ sub processTaxonSearch {
                     if (!$s->get('reference_no')) {
                         $s->enqueue_action('submitTaxonSearch', $q);
                         return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please choose a reference before adding a new taxon</center>",1);
-                        return;
                     }
                     $q->param('taxon_no'=> -1);
                     return PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q); # $$$$ print
@@ -2909,8 +2913,9 @@ sub reviewOpinionsForm	{
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	login( "Please log in first.");
-	return;
+	redirect '/login', 301;
+	# login( "Please log in first.");
+	# return;
     }
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -2925,8 +2930,9 @@ sub reviewOpinions	{
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	login( "Please log in first.");
-	return;
+	redirect '/login', 301;
+	# login( "Please log in first.");
+	# return;
     }
 
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -2945,7 +2951,11 @@ sub displayOpinionForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if ($q->param('opinion_no') != -1 && $q->param("opinion_no") !~ /^\d+$/) {
-	return;	
+	my $output = $hbo->stdIncludes( $PAGE_TOP );
+	$output .= menu($q, $s, $dbt, $hbo, "<center>You must specify an opinion number</center>");
+	$output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+	
+	return $output;
     }
     
     if ($q->param('opinion_no') == -1) {
@@ -3068,7 +3078,7 @@ sub submitPermissionList {
     return $output;
 } 
 
-sub submitHeir{
+sub submitHeir {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
@@ -3088,9 +3098,10 @@ sub searchOccurrenceMisspellingForm {
     
     if (!$s->isDBMember()) {
         # have to be logged in
-        $s->enqueue_action("searchOccurrenceMisspellingForm" );
-        login( "Please log in first." );
-        return;
+        # $s->enqueue_action("searchOccurrenceMisspellingForm" );
+	redirect '/login', 301;
+        # login( "Please log in first." );
+        # return;
     }
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -5332,12 +5343,14 @@ sub displayReIDCollsAndOccsSearchForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	# Have to be logged in
-	if (!$s->isDBMember()) {
-		login( "Please log in first.",'displayReIDCollsAndOccsSearchForm');
-		return;
-	}
-	# Have to have a reference #
+    # Have to be logged in
+    if (!$s->isDBMember()) {
+	redirect '/login', 301;
+	# login( "Please log in first.",'displayReIDCollsAndOccsSearchForm');
+	# return;
+    }
+    
+        # Have to have a reference #
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
 		$s->enqueue_action('displayReIDCollsAndOccsSearchForm');
@@ -5381,8 +5394,7 @@ sub displayOccsForReID {
 	# a coll search right after logging in).
 	unless($current_session_ref){
 		$s->enqueue_action('displayOccsForReID', $q);
-		displaySearchRefs($q, $s, $dbt, $hbo);	
-		return;
+		return displaySearchRefs($q, $s, $dbt, $hbo);	
 	}
 
     # my $collNos = shift;
