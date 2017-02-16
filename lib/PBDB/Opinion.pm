@@ -1677,7 +1677,7 @@ sub displayOpinionChoiceForm {
                 $opinion = "<b>$opinion</b>";
             }
             if ( $o->{'reference_no'} != 6930 )	{
-                $output .= "<li>" . $opinion . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=$row->{opinion_no}" . "$opinion") . "$authority" . "</li>";
+                $output .= "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=$row->{opinion_no}", $opinion) . "$authority" . "</li>";
             } else	{
                 $output .= qq|<li>$opinion $authority*</li>|;
                 $sepkoski = qq|<br>\n*Opinions from Sepkoski's Compendium cannot be edited.|;
@@ -1763,7 +1763,7 @@ sub displayOpinionChoiceForm {
                     $authority = "";
                 }
                 if ($s->isDBMember())	{
-                    $output .= "<li>" . makeAnchor("displayOpinionForm", "opinion_no=$row->{opinion_no}", "$opinion") . " $authority";
+                    $output .= "<li>" . makeAnchor("displayOpinionForm", "opinion_no=$row->{opinion_no}", $opinion) . " $authority";
                 } else	{
                     $output .= "<li>$opinion $authority</li>\n";
                 }
