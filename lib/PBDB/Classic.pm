@@ -228,13 +228,27 @@ sub classic_request {
 		WHERE person_no = $authorizer_no LIMIT 1");
     }
     
-    if ( $action =~ /displayRefResults|displaySearchRefs/ && params->{reference_no} && params->{type} eq 'select' )
+    if ( $action =~ /displayRefResults|displaySearchRefs/ && params->{type} eq 'select' )
     {
-	$reference_no = params->{reference_no};
-	$s->setReferenceNo($reference_no);
+	my ($data) = PBDB::Reference::getReferences($dbt,$q,$s,$hbo);
 	
-	my %params = $s->dequeue();
-	$action = $q->reset_params(\%params);
+	if ( $data && @$data == 1 )
+	{
+	    $reference_no = $data->[0]{reference_no};
+	    $s->setReferenceNo($reference_no);
+	    
+	    my %params = $s->dequeue();
+
+	    if ( %params )
+	    {	    
+		$action = $q->reset_params(\%params);
+	    }
+
+	    else
+	    {
+		$action = 'menu';
+	    }
+	}
     }
     
     elsif ( $action eq 'dequeue' )
@@ -243,14 +257,14 @@ sub classic_request {
 	$action = $q->reset_params(\%params);
     }
     
-    if ( $action eq 'clearRef' )
+    elsif ( $action eq 'clearRef' )
     {
 	$s->setReferenceNo(0);
 	$reference_no = 0;
 	$action = 'menu';
     }
     
-    elsif ( $reference_no )
+    if ( $reference_no )
     {
 	# print STDERR "REFERENCE_NO = $reference_no\n";
 	
@@ -1419,9 +1433,10 @@ sub displaySearchCollsForAdd	{
 	# Have to have a reference #, unless we are just searching
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
-		# Come back here... requeue our option
-		$s->enqueue_action("displaySearchCollsForAdd");
-		return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>");
+	    # Come back here... requeue our option
+	    $s->enqueue_action("displaySearchCollsForAdd");
+	    $q->param('type' => 'select');
+	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>");
 	}
 
 	# Some prefilled variables like lat/lng/time term
@@ -1452,9 +1467,10 @@ sub displaySearchColls {
 	# Have to have a reference #, unless we are just searching
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no && $type !~ /^(?:basic|analyze_abundance|view|edit|reclassify_occurrence|count_occurrences|most_common)$/) {
-		# Come back here... requeue our option
-		$s->enqueue_action("displaySearchColls", "type=$type");
-		return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
+	    # Come back here... requeue our option
+	    $s->enqueue_action("displaySearchColls", "type=$type");
+	    $q->param('type' => 'select');
+	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 	}
 
 	# Show the "search collections" form
@@ -2585,6 +2601,7 @@ sub processTaxonSearch {
 	    	else {
                     if (!$s->get('reference_no')) {
                         $s->enqueue_action('submitTaxonSearch', $q);
+			$q->param('type' => 'select');
                         return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please choose a reference before adding a new taxon</center>",1);
                     }
                     $q->param('taxon_no'=> -1);
@@ -2768,6 +2785,7 @@ sub displayAuthorityForm {
     if ( $q->param('taxon_no') == -1) {
         if (!$s->get('reference_no')) {
             $s->enqueue_action('displayAuthorityForm');
+	    $q->param('type' => 'select');
 	    return displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding a new taxon</center>" );
         }
     } 
@@ -2962,6 +2980,7 @@ sub displayOpinionForm {
         if (!$s->get('reference_no') || $q->param('use_reference') eq 'new') {
             # Set this to prevent endless loop
             $q->param('use_reference'=>'');
+	    $q->param('type' => 'select');
             $s->enqueue_action('displayOpinionForm', $q); 
             return displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding a new opinion</center>");
         }
@@ -3492,6 +3511,7 @@ sub displaySpecimenSearchForm	{
     
     if (!$s->get('reference_no'))	{
 	$s->enqueue_action('displaySpecimenSearchForm');
+	$q->param('type' => 'select');
 	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding measurements</center>" );
     }
 
@@ -3803,6 +3823,7 @@ sub displayOccurrenceAddEdit {
     
     if (! $s->get('reference_no')) {
 	$s->enqueue_action('displayOccurrenceAddEdit', $q);
+	$q->param('type' => 'select');
 	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
     } 
     
@@ -4048,6 +4069,7 @@ sub displayOccurrenceTable {
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
 	    $s->enqueue_action('displayOccurrenceTable');
+	    $q->param('type' => 'select');
 	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
 	}	
 
@@ -4338,6 +4360,7 @@ sub displayOccurrenceListForm	{
 
     if (! $s->get('reference_no')) {
 	$s->enqueue_action('displayOccurrenceListForm');
+	$q->param('type' => 'select');
 	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
     }
     
@@ -5353,9 +5376,10 @@ sub displayReIDCollsAndOccsSearchForm {
         # Have to have a reference #
 	my $reference_no = $s->get("reference_no");
 	if ( ! $reference_no ) {
-		$s->enqueue_action('displayReIDCollsAndOccsSearchForm');
-		return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-	    }	
+	    $s->enqueue_action('displayReIDCollsAndOccsSearchForm');
+	    $q->param('type' => 'select');
+	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
+	}	
 
 
     my %vars = $q->Vars();
@@ -5393,8 +5417,9 @@ sub displayOccsForReID {
 	# (the only way to get here without a reference is by doing 
 	# a coll search right after logging in).
 	unless($current_session_ref){
-		$s->enqueue_action('displayOccsForReID', $q);
-		return displaySearchRefs($q, $s, $dbt, $hbo);	
+	    $s->enqueue_action('displayOccsForReID', $q);
+	    $q->param('type' => 'select');
+	    return displaySearchRefs($q, $s, $dbt, $hbo);	
 	}
 
     # my $collNos = shift;
