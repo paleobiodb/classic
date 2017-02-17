@@ -1,4 +1,5 @@
-#!/usr/bin/env perl
+#!/usr/local/bin/perl
+##!/usr/bin/env perl
 use lib '/data/MyApp/lib', '/data/Wing/lib';
 
 use Dancer;

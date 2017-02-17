@@ -1,5 +1,6 @@
-#!/opt/local/bin/perl
-#
+#!/usr/local/bin/perl
+##!/usr/bin/env perl
+
 # The purpose of this script is to initialize the Wing user table from the
 # PBDB table 'person'. It is designed to be idempotent, in other words, that
 # if run more than once it has no additional effect.

@@ -1,5 +1,6 @@
-#!/opt/local/bin/perl
-# 
+#!/usr/local/bin/perl
+##!/usr/bin/env perl
+
 # Paleobiology Database Data Service
 # 
 # This program reads configuration information from the file 'config.yml' and
@@ -37,11 +38,11 @@ close $pid_file;
 $ENV{WING_CONFIG} = "/data/MyApp/etc/wing.conf";
 $ENV{WING_HOME} = "/data/Wing";
 
-exec('/opt/local/bin/starman', 
+exec('/usr/local/bin/starman', 
      '--listen', ":$PORT", '--workers', $WORKERS, '--access-log', $ACCESS_LOG, 
      '--preload-app', 'bin/rest.psgi')
     
-    or die "Could not run program /opt/local/bin/starman: $!";
+    or die "Could not run program /usr/local/bin/starman: $!";
 
 
 
