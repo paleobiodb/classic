@@ -1,5 +1,4 @@
-#!/usr/local/bin/perl
-##!/usr/bin/env perl
+#!/usr/bin/env perl
  
 # Paleobiology Database Web server
 # 
@@ -43,10 +42,3 @@ exec('/usr/local/bin/starman',
      '--preload-app', 'bin/web.psgi')
     
     or die "Could not run program /usr/local/bin/starman: $!";
-
-
-
-
-
-
-

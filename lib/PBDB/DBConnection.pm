@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 # written 1/2004 by rjp
 # provides a global way to connect to the database.

@@ -365,13 +365,14 @@ END_SCRIPT
     # always give them an option to create a new measurement as well
     if ( $q->param('occurrence_no') )	{
             my $occurrence_no = $q->param('occurrence_no');
-            $output .= "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=-1", "&#149;") . "</span></td>";
+            $output .= "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "occurrence_no=$occurrence_no&specimen_no=-1", "[select]  ") . "</span></td>";
         } else	{
             my $taxon_no = $q->param('taxon_no');
-            $output .= "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=-1", "&#149;") . "</span></td>";
+            $output .= "<tr><td align=\"center\"><span class=\"measurementBullet\">" . makeAnchor("populateMeasurementForm", "taxon_no=$taxon_no&specimen_no=-1", "[select]  ") . "</span></td>";
         }
-    $output .= "<td colspan=\"6\">&nbsp;Add one new record (full form)</i></td></tr>\n";
-    $output .= qq|<tr><td align="center" valign="top"><a href="javascript:submitForm('')"><div class="measurementBullet" style="position: relative; margin-top: -0.1em;">&#149;</div></td>|;
+    $output .= "<br><td colspan=\"6\">&nbsp;Add one new record (full form)</td></tr>\n";
+    $output .= "<tr><td align=\"center\">-- or --</tr></td>";
+    $output .= qq|<tr><td align="center" valign="top"><a href="javascript:submitForm('')"><div class="measurementBullet" style="position: relative; margin-top: -0.1em;">[select]  </div></td>|;
 
     # anyone working on a large paper will enter the same type and source value
     #  almost every time, so grab the last one
@@ -401,7 +402,7 @@ END_SCRIPT
 
     # likewise, the same number of parts per taxon or occurrence may be
     #  entered every time
-    $output .= "<td colspan=\"6\" valign=\"top\">&nbsp;Add <input type=\"text\" name=\"specimens_measured\" value=\"$old_records\" size=3>new records</i><br>";
+    $output .= "<td colspan=\"6\" valign=\"top\">&nbsp;Add <input type=\"text\" name=\"specimens_measured\" value=\"$old_records\" size=3>new records with:<br>";
 
     $checked{'length'} = ( ! %checked ) ? "checked" : $checked{'length'};
     my $defaults = $last_entries[0];

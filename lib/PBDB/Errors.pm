@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # created by rjp, 3/2004.
 # Used to keep track of error messages to display to the user.

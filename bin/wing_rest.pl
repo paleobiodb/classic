@@ -1,5 +1,4 @@
-#!/usr/local/bin/perl
-##!/usr/bin/env perl
+#!/usr/bin/env perl
 
 # Paleobiology Database Data Service
 # 

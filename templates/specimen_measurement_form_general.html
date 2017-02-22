@@ -164,6 +164,7 @@ function checkForm() {
 <input id="occurrence_no" type="hidden" name="occurrence_no">
 <input id="taxon_no" type="hidden" name="taxon_no">
 
+<center>
 <table class="verysmall" cellpadding="6">
   <tr>
     <td>Specimens measured <input id="specimens_measured" type="text" size="5"></td>
@@ -303,18 +304,26 @@ Type of width measurement: <select class="verysmall" id="width_position"><option
       Does this sample include type specimens?
       <select id="specimen_is_type"></select>
   </td></tr>
+  <tr>
+    <td>
+      Comments:<br> 
+      <textarea id="comments" cols="40" rows="4" wrap="virtual"></textarea><p>
+    </td>
+  </tr>
 </table>
+<input type="submit" value="Submit">
+</center>
 
-  <div class="verysmall" style="margin-left: 6px;">
-    <div style="float: left; clear: none; margin-right: 1em;">
-    Comments:
-    </div>
-    <div style="float: left; clear: none; margin-right: 1em;">
-    <textarea id="comments" cols="50" rows="4" wrap="virtual"></textarea>
-    </div>
-    <div style="float: left; clear: none;">
-    <input type="submit" value="Submit">
-    </div>
-  </div>
+  <!-- <div class="verysmall" style="margin-left: 6px;"> -->
+  <!--   <div style="float: left; clear: none; margin-left: 6.5em; margin-right: 5em;"> -->
+  <!--     Comments: -->
+  <!--   </div> -->
+  <!--   <div style="float: left; clear: none; margin-right: 5em;"> -->
+  <!--     <textarea id="comments" cols="50" rows="4" wrap="virtual"></textarea> -->
+  <!--   </div> -->
+  <!--   <div style="float: left; clear: none;"> -->
+  <!--     <input type="submit" value="Submit"> -->
+  <!--   </div> -->
+  <!-- </div> -->
 
 </form>
