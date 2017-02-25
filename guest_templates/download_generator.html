@@ -90,8 +90,8 @@ document.addEventListener("DOMContentLoaded", dgapp.initApp, false);
     <input type="radio" name="private_url" value="0" id="rb.private.no" onClick="dgapp.setPrivate(0)"/>Public data only<br/>
     </p>
   </td><td>
-    <input type="radio" name="form_mode" value="simple" checked="1" onClick="dgapp.setFormMode('simple')"><b>Simple form</b><br/>
-    <input type="radio" name="form_mode" value="advanced"
+    <input type="radio" name="form_mode" value="simple" onClick="dgapp.setFormMode('simple')"><b>Simple form</b><br/>
+    <input type="radio" name="form_mode" value="advanced" checked="1"
     onClick="dgapp.setFormMode('advanced')"><b>Show all available parameters</b><br/>
     <hr style="margin-top: 20px; margin-bottom: 20px;"/>
     <input type="button" value="Clear form" onClick="dgapp.resetForm()"/>
@@ -521,7 +521,7 @@ from the download URL until the section is opened again.</p>
       <select id="pm_ccex" onChange="dgapp.checkCC()">
 	<option value="include">select</option>
 	<option value="exclude">exclude</option>
-      </select></span> &nbsp;
+      </select> &nbsp;
       Continent: <select id="pm_continent" name="continent" onChange="dgapp.checkCC()"></select> &nbsp;
      <select id="pm_ccmod" onChange="dgapp.checkCC()">
 	<option value="add">plus</option>
@@ -548,10 +548,12 @@ from the download URL until the section is opened again.</p>
 	<select id="pm_plate_ex" onChange="dgapp.checkCC()">
 	  <option value="include">select</option>
 	  <option value="exclude">exclude</option>
-        </select></span> &nbsp;
-	<input id="pm_plate" size="40" onChange="dgapp.checkCC()">
-	<select id="pm_pgmodel" onChange="dgapp.checkCC()">
+        </select> &nbsp;
+	<input id="pm_plate" size="30" onChange="dgapp.checkCC()"> &nbsp;
+	Paleogeography model: <select id="pm_pgmodel" onChange="dgapp.checkCC()">
 	  <option selected="1" value="G">GPlates</option>
+	  <option value="GE">GPlates (early)</option>
+	  <option value="GL">GPlates (late)</option>
 	  <option value="S">Scotese</option></select>
       </div>
       <ul id="pe_plate" class="dlErrmsg"></ul>
@@ -560,16 +562,22 @@ from the download URL until the section is opened again.</p>
     <tr class="vis_advanced vis_help_f3"><td>
       <p class="dlHelp">You can specify one or more plate numbers, from either the GPlates or the Scotese model.  To find out these
       numbers, you can search for either occurrences or geological strata using whatever criteria
-      are appropriate and include one of the following output blocks: <b>gplate</b>,
-      <b>splate</b>, or <b>paleoloc</b>.</p>
+      are appropriate and select the output block <b>paleolocation</b>.  You can also choose which paleogeography model
+      to use when evaluating or outputting paleocoordinates.  The default is the GPlates model, evaluated at the
+      midpoint of the time interval associated with each collection.  You can also choose the GPlates model evaluated at
+      the beginning or end of each time interval, or the Scotese model.
     </td></tr>
     
     <tr><td>
       <div style="margin-top: 10px">
-      Longitude: min <input id="pm_lngmin" size="15" onChange="dgapp.checkCoords()"> 
-	max <input id="pm_lngmax" size="15" onChange="dgapp.checkCoords()">
-	&nbsp;&nbsp; Latitude: min <input id="pm_latmin" size="15" onChange="dgapp.checkCoords()">
-	max <input id="pm_latmax" size="15" onChange="dgapp.checkCoords()">
+	<select id="pm_modpaleo" onChange="dgapp.checkCoords()">
+	  <option value="modern">modern</option>
+	  <option value="paleo">paleo</option>
+	</select> &nbsp; 
+	Longitude: min <input id="pm_lngmin" size="10" onChange="dgapp.checkCoords()"> 
+	max <input id="pm_lngmax" size="10" onChange="dgapp.checkCoords()">
+	&nbsp;&nbsp; Latitude: min <input id="pm_latmin" size="10" onChange="dgapp.checkCoords()">
+	max <input id="pm_latmax" size="10" onChange="dgapp.checkCoords()">
 	<ul id="pe_coords" class="dlErrmsg"></ul>
       </div>
     </td></tr>

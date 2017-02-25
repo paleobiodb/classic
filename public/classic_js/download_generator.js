@@ -1837,6 +1837,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	var plate_ex = getElementValue("pm_plate_ex");
 	errors = [ ];
 	
+	params.pgm = plate_model;
+	
 	if ( plate_list != '' )
 	{
 	    // var match = ( /^\^(.*)/.exec(plate_list) )
@@ -1862,6 +1864,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		else
 		    errors.push("Invalid plate number '" + value + "'");
 	    }
+	    
+	    if ( plate_model ) plate_model = plate_model.substr(0,1);
 	    
 	    if ( value_list.length )
 		params.plate = plate_exclude + plate_model + value_list.join(',');
@@ -1901,6 +1905,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	var latmax = getElementValue('pm_latmax');
 	var lngmin = getElementValue('pm_lngmin');
 	var lngmax = getElementValue('pm_lngmax');
+	var modpaleo = getElementValue('pm_modpaleo');
 	var errors = [];
 	
 	// Check for valid values in the coordinate fields
@@ -1928,6 +1933,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    params.lngmax = '';
 	    errors.push("invalid value '" + lngmax + "' for maximum longitude");
 	}
+	
+	if ( modpaleo == 'paleo' ) params.paleo = 1;
+	else params.paleo = 0;
 	
 	// If only one longitude coordinate is filled in, ignore the other one.
 	
@@ -2634,6 +2642,11 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	var occs_required = 0;
 	var taxon_required = 0;
 
+	// The following variable is set to true if we need to add a 'pgm' parameter to the URL to
+	// select the proper paleogeographic model.
+
+	var check_pgm = 0;
+	
 	// The following variable is set to true if certain form elements are filled in, to
 	// indicate that the "all_records" parameter must be added in order to satisfy the
 	// requirements of the API.
@@ -2808,10 +2821,17 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    
 	    if ( params.latmin || params.latmax || params.lngmin || params.lngmax )
 	    {
-		if ( params.lngmin ) param_list.push("lngmin=" + params.lngmin);
-		if ( params.lngmax ) param_list.push("lngmax=" + params.lngmax);
-		if ( params.latmin ) param_list.push("latmin=" + params.latmin);
-		if ( params.latmax ) param_list.push("latmax=" + params.latmax);
+		var prefix = "";
+		if ( params.paleo )
+		{
+		    prefix = "p";
+		    check_pgm = 1;
+		}
+		
+		if ( params.lngmin ) param_list.push(prefix + "lngmin=" + params.lngmin);
+		if ( params.lngmax ) param_list.push(prefix + "lngmax=" + params.lngmax);
+		if ( params.latmin ) param_list.push(prefix + "latmin=" + params.latmin);
+		if ( params.latmax ) param_list.push(prefix + "latmax=" + params.latmax);
 		
 		occs_required = 1;
 		has_main_param = 1;
@@ -3004,15 +3024,22 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	}
 	
 	// If the section "output options" is visible, then go through the parameters it contains.
-	// This includes specifying which output blocks to return using the "show" parameter.
+	// This includes specifying which output blocks to return using the "show" parameter, plus
+	// the order of the output records, record limits, etc.
 	
 	if ( visible.o1 )
 	{
 	    var output_list = getOutputList();
+
+	    // If additional output blocks have been specified, add the parameter 'show'.
 	    
 	    if ( ! occs_required )
 		output_list = output_list.replace(/occapp,?/, 'app,');
 	    if ( output_list ) param_list.push("show=" + output_list);
+	    
+	    if ( output_list.includes("paleoloc") ) check_pgm = 1;
+	    
+	    // If an output order was specified, add the parameter 'order'.
 	    
 	    var order_expr = getElementValue(output_order);
 	    var order_dir = getElementValue("pm_order_dir");
@@ -3043,6 +3070,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		}
 	    }
 	    
+	    // If record limits were specified, add the parameters 'limit' and/or 'offset'.
+	    
 	    if ( params.offset ) param_list.push("offset=" + params.offset);
 	    if ( params.limit ) param_list.push("limit=" + params.limit);
 
@@ -3072,6 +3101,15 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	else if ( taxon_required )
 	{
 	    if ( my_op == 'opinions/list' ) my_op = 'taxa/opinions';
+	}
+
+	// If the requested parameters an/or output require the selection of a paleogeography model,
+	// check and see if the user selected a model other than the default.
+
+	if ( check_pgm )
+	{
+	    var model = checkPgm();
+	    if ( model ) param_list.push("pgm=" + model);
 	}
 	
 	// If no "significant" parameter has been entered, then see if we need to add the
@@ -3244,8 +3282,19 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	return selected.join(',');
     }
-    
 
+    // If a paleogeography model other than the default has been selected, return that.
+
+    function checkPgm ( )
+    {
+	var selected = getElementValue("pm_pgmodel");
+	
+	if ( selected == "S" ) return "scotese";
+	else if ( selected == "GE" ) return "gp_early";
+	else if ( selected == "GL" ) return "gp_late";
+	else return "";
+    }
+    
     // Show or hide the "advanced" form elements.
     
     function setFormMode ( mode )
