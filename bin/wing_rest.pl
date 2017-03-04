@@ -37,7 +37,7 @@ close $pid_file;
 $ENV{WING_CONFIG} = "/data/MyApp/etc/wing.conf";
 $ENV{WING_HOME} = "/data/Wing";
 
-exec('/usr/local/bin/starman', 
+exec('starman', 
      '--listen', ":$PORT", '--workers', $WORKERS, '--access-log', $ACCESS_LOG, 
      '--preload-app', 'bin/rest.psgi')
     
