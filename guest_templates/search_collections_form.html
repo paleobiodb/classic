@@ -89,11 +89,13 @@ function checkForm ( ) {
         <td>Lithology:</td><td colspan=3><select id="lithification" autofill="lithification" class="small"></select><select id="lithologies" autofill="lithology1" class="small"></select><br></td>
       </tr>
       <tr>
-        <td>Data <select name="person_type" class="small"><option>authorizer</option><option>enterer</option><option>modifier</option><option value="any">any of above</option></select>: 
+        <td>Data <select name="person_type"
+                class="small"><option>authorizer</option><option>enterer</option><option>student</option><option value="any">any of above</option></select>: 
         </td>
         <td>
-          <input name="person_reversed" onKeyUp="doComplete(event, this, entererNames());" class="small" size="16">
-          <span show="is_contributor"><a href="#" onClick="document.forms[1].person_reversed.value='%%enterer_me%%'">me</a></span>
+            <input name="person_reversed">
+          <!-- <input name="person_reversed" onKeyUp="doComplete(event, this, entererNames());" class="small" size="16"> -->
+          <!-- <span show="is_contributor"><a href="#" onClick="document.forms[1].person_reversed.value='%%enterer_me%%'">Me</a></span> -->
         </td>
         <td style="padding-left: 1em;">Group/project: </td>
         <td><select id="research_group" class="small"></select>
