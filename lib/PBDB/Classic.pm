@@ -3507,7 +3507,6 @@ sub displaySpecimenSearchForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    my $output = $hbo->stdIncludes($PAGE_TOP);
     
     if (!$s->get('reference_no'))	{
 	$s->enqueue_action('displaySpecimenSearchForm');
@@ -3515,6 +3514,7 @@ sub displaySpecimenSearchForm	{
 	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>You must choose a reference before adding measurements</center>" );
     }
 
+    my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= $hbo->populateHTML('search_specimen_form',[],[]);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
