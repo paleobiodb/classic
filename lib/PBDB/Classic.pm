@@ -274,7 +274,7 @@ sub classic_request {
 	
 	if ( $oa )
 	{
-	    $reference_name = "$a1l, etc. $pubyr";
+	    $reference_name = "$a1l, et al. $pubyr";
 	}
 	
 	elsif ( $a2l )
