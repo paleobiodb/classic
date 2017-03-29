@@ -121,7 +121,9 @@
                     <div class="form-group">
                         <label class="col-sm-4 control-label" for="role">Request Role</label>
                         <div class="col-sm-8">
-                        <a class="btn btn-primary" href="mailto:sec@paleobiodb.org?subject=PBDB%20Authorizer%20Request&body=Please%20complete%20the%20following%20to%20request%20an%20upgrade%20of%20your%20account%20to%20Authorizer%20role.%0A%0A%0AFull name:%20%20[% current_user.real_name %]%0A%0AReason for interest in becoming a PBDB contributer:%0A%0A%0A%0A%0AAttach a CV to this email:%0A%0A%0A">Authorizer</a>
+                            <a class="btn btn-primary" href="mailto:sec@paleobiodb.org?subject=PBDB Authorizer Request ([% current_user.username %])&body=Thanks for your interest in contributing data! We have a few questions that will aid us in helping you get started as a contributor. Please complete the following to request an upgrade of your account to Authorizer role.%0A%0A%0A1. Full name:  [% current_user.real_name %]%0A%0A%0A2.  Please provide details on the ages, taxa, and geographic areas of data that you plan to enter:%0A%0A%0A3. Types of data to be entered (check all that apply):%0A%0A%20( ) Taxonomic names/opinions%0A%20( ) Fossil collections/occurrences%0A%20( ) Ecological data%0A%20( ) Specimen measurements%0A%0A%0A4. So we can gauge how much support to provide, please describe your familiarity with the database scope and structure (e.g., from your previous experiences as a user or student enterer).%0A%0A%0A5. Please also attach a CV to this email.%0A%0A">
+                            Authorizer
+                            </a>
                         </div>
                     </div>
             </fieldset>
