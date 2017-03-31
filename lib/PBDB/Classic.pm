@@ -60,6 +60,10 @@ use PBDB::Debug qw(dbg save_request);
 use PBDB::Constants qw($WRITE_URL $HOST_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
 
 use ExternalIdent;
+use PBLogger;
+
+
+my $logger = PBLogger->new;
 
 
 get '/classic' => sub {
@@ -144,11 +148,13 @@ sub classic_request {
     
     # $DB::single = 1;
     
+    $logger->log_request(request) if $logger;
+    
     if ( $action eq 'testerror' )
     {
 	croak "Test error!!!";
     }
-
+    
     # print STDERR "Action: $action\n";
     
     my $wing_session = get_session();
