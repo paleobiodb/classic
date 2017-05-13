@@ -36,12 +36,16 @@ sub submitSpecimenSearch {
 
     my $where = "";
     my (@taxa,@results,$taxon_nos);
-    if ($q->param('taxon_name')) {
+    
+    if ( my $taxon_name = $q->param('taxon_name'))
+    {
+	my $quoted = $dbh->quote($taxon_name);
+	
         if ( $q->param('match_type') =~ /exact|combinations only/ )	{
-            my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name='".$q->param('taxon_name')."'";
+            my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name=$quoted";
             @taxa = @{$dbt->getData($sql)};
         } else	{
-            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('taxon_name'),'match_subgenera'=>1});
+            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$taxon_name, 'match_subgenera'=>1});
         }
     } 
     if (@taxa) {
@@ -77,18 +81,25 @@ sub submitSpecimenSearch {
             $sql2 .= " AND re.species_name LIKE ".$dbh->quote($taxon_bits[1]);
         }
     }
-    if ( $q->param('get_occurrences') !~ /^no/i )	{
-        if ($q->param('comment')) {
-            $sql1 .= " AND o.comments LIKE '%".$q->param('comment')."%'";
-            $sql2 .= " AND (o.comments LIKE '%".$q->param('comment')."%' OR re.comments LIKE '%".$q->param('comment')."%')";
+    
+    if ( $q->param('get_occurrences') !~ /^no/i )
+    {
+        if ( my $comment_selector = $q->param('comment'))
+	{
+	    my $quoted = $dbh->quote('%' . $comment_selector . '%');
+            $sql1 .= " AND o.comments LIKE $quoted";
+            $sql2 .= " AND (o.comments LIKE $quoted OR re.comments LIKE $quoted)";
         }
-        if ($q->numeric_param('collection_no')) {
-            $sql1 .= " AND o.collection_no=".$q->numeric_param('collection_no');
-            $sql2 .= " AND o.collection_no=".$q->numeric_param('collection_no');
+	
+        if ( my $collection_no = $q->numeric_param('collection_no')) {
+            $sql1 .= " AND o.collection_no=$collection_no";
+            $sql2 .= " AND o.collection_no=$collection_no";
         }
+	
         $sql1 .= " GROUP BY o.occurrence_no";
         $sql2 .= " GROUP BY o.occurrence_no";
         my $sql = "($sql1) UNION ($sql2) ORDER BY collection_no";
+	
         @results = @{$dbt->getData($sql)};
     }
 
@@ -611,7 +622,7 @@ sub populateMeasurementForm {
         $last_position{$_->{'measurement_type'}} = $_->{'position'} foreach @{$dbt->getData($sql)};
         if (!$s->get('reference_no')) {
             # Make them choose a reference first
-            $s->enqueue_entry('populateMeasurementForm', $q);
+            $s->enqueue('populateMeasurementForm', $q);
             PBDB::displaySearchRefs($q, $s, $dbt, $hbo, "Please choose a reference before adding specimen measurement data",1);
             return;
         } else {
@@ -802,7 +813,9 @@ sub populateMeasurementForm {
 	# exact match on genus and species is required to avoid printing tons of
 	#  irrelevant records
 	my ($g,$s) = split / /,$taxon_name;
-	my $sql = "(SELECT collection_name,occurrence_no FROM collections c,occurrences o WHERE c.collection_no=o.collection_no AND genus_name='$g' AND species_name='$s') UNION (SELECT collection_name,occurrence_no FROM collections c,reidentifications r WHERE c.collection_no=r.collection_no AND genus_name='$g' AND species_name='$s') ORDER BY collection_name";
+	my $quoted_g = $dbh->quote($g);
+	my $quoted_s = $dbh->quote($s);
+	my $sql = "(SELECT collection_name,occurrence_no FROM collections c,occurrences o WHERE c.collection_no=o.collection_no AND genus_name='$g' AND species_name='$s') UNION (SELECT collection_name,occurrence_no FROM collections c,reidentifications r WHERE c.collection_no=r.collection_no AND genus_name=$quoted_g AND species_name=$quoted_s) ORDER BY collection_name";
        	my @colls = @{$dbt->getData($sql)};
 	if ( @colls )	{
 		push @fields , 'occurrences';
@@ -972,7 +985,10 @@ sub processMeasurementForm	{
                 $fields{'occurrence_no'} = $q->param('switch_occ');
                 $fields{'taxon_no'} = undef;
             } elsif ( $q->param('switch_coll') > 0 )	{
-                my $sql = "SELECT occurrence_no FROM occurrences WHERE collection_no=".$q->param('switch_coll')." AND genus_name='".$q->param('genus_name')."' AND species_name='".$q->param('species_name')."'";
+		my $switch_coll = $q->numeric_param('switch_coll');
+		my $quoted_genus = $dbh->quote($q->param('genus_name'));
+		my $quoted_species = $dbh->quote($q->param('species_name'));
+                my $sql = "SELECT occurrence_no FROM occurrences WHERE collection_no=$switch_coll AND genus_name=$quoted_genus AND species_name=$quoted_species";
                 $fields{'occurrence_no'} = ${$dbt->getData($sql)}[0]->{'occurrence_no'};
                 # the user might have screwed up the collection number...
                 if ( $fields{'occurrence_no'} == 0 )	{
@@ -985,7 +1001,8 @@ sub processMeasurementForm	{
                 my $sql = "SELECT collection_name FROM collections c,occurrences o WHERE c.collection_no=o.collection_no AND occurrence_no=".$fields{'occurrence_no'};
                 $newcoll = ${$dbt->getData($sql)}[0]->{'collection_name'};
             } elsif ( $q->param('switch_coll') > 0 )	{
-                my $sql = "SELECT collection_name FROM collections c WHERE collection_no=".$q->param('switch_coll');
+		my $switch_coll = $q->numeric_param('switch_coll');
+                my $sql = "SELECT collection_name FROM collections c WHERE collection_no=$switch_coll";
                 $badcoll = ${$dbt->getData($sql)}[0]->{'collection_name'};
             }
             my $result = $dbt->updateRecord($s,'specimens','specimen_no',$fields{'specimen_no'},\%fields);

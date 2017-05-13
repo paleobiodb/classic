@@ -967,16 +967,19 @@ sub fetchMultiple {
 		$name = $1; $rank = $2;
 	    }
 	    
+	    my $quoted_name = $dbh->quote($name);
+	    my $quoted_rank = $dbh->quote($rank);
+	    
 	    my $sql = "SELECT t3.lft, t3.rgt, t3.taxon_no
 		FROM authorities a JOIN taxa_tree_cache t1 USING (taxon_no)
 				JOIN taxa_tree_cache t2 ON t2.taxon_no = t1.synonym_no
 				JOIN taxa_tree_cache t3 ON t3.taxon_no = t2.synonym_no
-		WHERE a.taxon_name = '$name'";
+		WHERE a.taxon_name = $quoted_name";
 	    
 	    if ( defined $rank and $rank ne '' )
 	    {
 		die "400 Unknown taxon rank '$rank'" unless $DataQuery::TAXONOMIC_RANK{lc $rank};
-		$sql .= "and a.taxon_rank = '" . lc $rank . "'";
+		$sql .= "and a.taxon_rank = $quoted_rank";
 	    }
 	    
 	    my ($lft, $rgt, $base_no) = $dbh->selectrow_array($sql);

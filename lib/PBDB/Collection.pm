@@ -569,7 +569,9 @@ IS NULL))";
 
 	if ( $options{'citation'} =~ /^[A-Za-z'\-]* [12][0-9][0-9][0-9]$/ )	{
 		my ($auth,$yr) = split / /,$options{'citation'};
-		my $sql = "SELECT reference_no FROM refs WHERE (author1last LIKE '$auth' OR author2last LIKE '$auth') AND pubyr=$yr";
+		my $quoted_auth = $dbh->quote($auth);
+		my $quoted_yr = $dbh->quote($yr);
+		my $sql = "SELECT reference_no FROM refs WHERE (author1last LIKE $quoted_auth OR author2last LIKE $quoted_auth) AND pubyr=$quoted_yr";
 		my @refs = @{$dbt->getData($sql)};
 		my @ref_nos = map {$_->{'reference_no'}} @refs;
 		push @where , "c.reference_no IN (".join(',',@ref_nos).")";
@@ -617,7 +619,7 @@ IS NULL))";
     # do a lookup of all the countries in the continent
     if ($options{"country"}) {
         if ($options{"country"} =~ /^(North America|South America|Europe|Africa|Antarctica|Asia|Australia)/) {
-            if ( ! open ( REGIONS, "data/PBDB.regions" ) ) {
+            if ( ! open ( REGIONS, "../data/PBDB.regions" ) ) {
                 my $error_message = $!;
                 die($error_message);
             }
@@ -1069,10 +1071,10 @@ sub basicCollectionSearch {
 			$NAME = $q->param('quick_search');
 		}
 	}
-
-	if ( $q->param('collection_list') && $q->param('collection_list') =~ /^[\d ,]+$/ ) {
-		if ( $q->param('collection_list') =~ /,/ )	{
-			$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO IN (".$q->param('collection_list').")";
+        my $collection_list = $q->param('collection_list');
+	if ( $collection_list && $collection_list =~ /^[\d ,]+$/ ) {
+		if ( $collection_list =~ /,/ )	{
+			$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO IN ($collection_list)";
 			my @colls = @{$dbt->getData($sql)};
 			$q->param('type' => 'view');
 			$q->param('basic' => 'yes');

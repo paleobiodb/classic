@@ -1225,6 +1225,7 @@ sub printRefsCSV {
 sub getTitleWordOdds	{
     my ($dbt,$q,$s,$hbo) = @_;
 	
+    my $dbh = $dbt->dbh;
 	my $output = '';
 	my @tables= ("refs r");
 	my @where = ("(language IN ('English') OR language IS NULL) AND reftitle!='' AND reftitle IS NOT NULL");
@@ -1271,10 +1272,10 @@ sub getTitleWordOdds	{
 		push @where , " (r.author1last IN ('".join("','",split(/ /,$auth))."') OR r.author2last IN ('".join("','",split(/ /,$auth))."'))";
 	}
 	if ( $q->param('first_year') >= 1700 && ( $q->param('first_year') < $q->param('last_year') || ! $q->param('last_year') ) )		{
-		push @where , "r.pubyr>=".$q->param('first_year');
+		push @where , "r.pubyr>=".$q->numeric_param('first_year');
 	}
 	if ( $q->param('last_year') >= 1700 && ( $q->param('first_year') < $q->param('last_year') || ! $q->param('first_year') ) )		{
-		push @where , "r.pubyr<=".$q->param('last_year');
+		push @where , "r.pubyr<=".$q->numeric_param('last_year');
 	}
 	if ( $q->param('keywords') =~ /[A-Za-z]/ )	{
 		my @words = split / /,$q->param('keywords');
@@ -1320,7 +1321,8 @@ sub getTitleWordOdds	{
 		$isbad{$_->{'place'}}++ foreach @places;
 	}
 	if ( $q->param('taxon') =~ /^[A-Z][a-z]*$/ )	{
-		$sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name='".$q->param('taxon')."' AND t.taxon_no=spelling_no ORDER BY rgt-lft DESC";
+	    my $quoted_taxon = $dbh->quote($q->param('taxon'));
+	    $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_taxon AND t.taxon_no=spelling_no ORDER BY rgt-lft DESC";
 		my $span = ${$dbt->getData($sql)}[0];
 		push @tables , "opinions o,".$TAXA_TREE_CACHE." t";
 		push @where , "r.reference_no=o.reference_no AND child_no=t.taxon_no AND lft>=".$span->{'lft'}." AND rgt<=".$span->{'rgt'};

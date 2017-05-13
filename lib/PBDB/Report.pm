@@ -916,6 +916,7 @@ sub findMostCommonTaxa	{
 	my $q = $self->{q};
 	my $s = $self->{s};
 	my $dbt = $self->{dbt};
+	my $dbh = $dbt->dbh;
         my $output = '';
 
 	my @dataRows = @{$dataRowsRef};
@@ -931,7 +932,8 @@ sub findMostCommonTaxa	{
 	my $sql2 = "SELECT $names taxon_no,occurrence_no,collection_no FROM reidentifications WHERE most_recent='YES' AND taxon_no>0 AND collection_no IN (" . join(',',@collection_nos) . ")";
 	# WARNING: will take largest taxon if there are homonyms
 	if ( $q->param('taxon_name') )	{
-		$sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND (taxon_name='".$q->param('taxon_name')."' OR common_name='".$q->param('taxon_name')."') ORDER BY rgt-lft DESC";
+	    my $quoted_name = $dbh->quote($q->param('taxon_name'));
+	    $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND (taxon_name=$quoted_name OR common_name=$quoted_name) ORDER BY rgt-lft DESC";
 		my $row = ${$dbt->getData($sql)}[0];
 		$sql = "SELECT t.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND lft>=".$row->{'lft'}." AND rgt<=".$row->{'rgt'};
 		my @rows = @{$dbt->getData($sql)};
@@ -1166,10 +1168,13 @@ sub findMostCommonTaxa	{
 
 # JA 23.10.10
 sub fastTaxonCount	{
-	my ($dbt,$q,$s,$hbo) = @_;
-        my $output = '';
+    
+    my ($dbt,$q,$s,$hbo) = @_;
+    
+    my $dbh = $dbt->dbh;
+    my $output = '';
 
-	$output .= qq|
+    $output .= qq|
 <div align="center">
   <p class="pageTitle">Taxon counts</p>
 </div>
@@ -1183,7 +1188,8 @@ sub fastTaxonCount	{
 	push @qs , "taxon name = ".$q->param('taxon_name');
 	if ( $q->param('period') )	{
 		push @qs , "time interval = ".$q->param('period');
-		$sql = "SELECT interval_no FROM intervals WHERE interval_name='".$q->param('period')."'";
+		my $quoted = $dbh->quote($q->param('period'));
+		$sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
 		my $no = ${$dbt->getData($sql)}[0]->{interval_no};
 		$q->param('period' => $no);
 		$q->param('interval' => '');
@@ -1206,7 +1212,7 @@ sub fastTaxonCount	{
 			$interval =~ s/late //i;
 			$interval =~ s/upper //i;
 		}
-		my ($intervals,$errs,$warnings) = $t->getRange($eml,$interval,'','');
+		my ($intervals,$errs,$warnings) = $t->getRange($eml,$interval,'','');	# $$$
 		$interval_nos = join(',',@$intervals);
 		if ( $interval_nos eq "" )	{
 			$errors = "Sorry, there is no time interval called '".$q->param('interval')."'";
@@ -1237,9 +1243,10 @@ sub fastTaxonCount	{
 
 	my $enterer;
 	if ( $q->param('enterer_reversed') )	{
-		push @qs , "data enterer = ".$q->param('enterer_reversed');
-		$sql = "SELECT person_no FROM person WHERE reversed_name='".$q->param('enterer_reversed')."'";
-		$enterer = ${$dbt->getData($sql)}[0]->{person_no};
+	    push @qs , "data enterer = ".$q->param('enterer_reversed');
+	    my $quoted = $dbh->quote($q->param('enterer_reversed'));
+	    $sql = "SELECT person_no FROM person WHERE reversed_name=$quoted";
+	    $enterer = ${$dbt->getData($sql)}[0]->{person_no};
 	}
 	$output .= "<p style=\"margin-left: 2em; text-indent: -0.5em;\">Your query was: <i>".join(', ',@qs).".</i>";
 
@@ -1252,68 +1259,78 @@ sub fastTaxonCount	{
 	}
 
 	if ( $q->param('period') )	{
-		push @tables , "interval_lookup i";
-		push @and , "c.max_interval_no=i.interval_no AND i.period_no=".$q->param('period');
+	    my $quoted = $dbh->quote($q->param('period'));
+	    push @tables , "interval_lookup i";
+	    push @and , "c.max_interval_no=i.interval_no AND i.period_no=$quoted";
 	} elsif ( $interval_nos )	{
 		push @and , "c.max_interval_no IN ($interval_nos)";
 	}
 
 	if ( $q->param('strat_unit') )	{
-		push @and , "(geological_group='".$q->param('strat_unit')."' OR formation='".$q->param('strat_unit')."' OR member='".$q->param('strat_unit')."')";
+	    my $quoted = $dbh->quote($q->param('strat_unit'));
+	    push @and , "(geological_group=$quoted OR formation=$quoted OR member=$quoted)";
 	}
 
 	if ( $q->param('continent') )	{
 		# ugly but effective
 		my $c = $q->param('continent');
-		my $countries = `grep '$c' data/PBDB.regions`;
+		my $countries = `grep '$c' ../data/PBDB.regions`;
 		$countries =~ s/.*://;
 		$countries =~ s/'/\\'/;
 		$countries =~ s/\t/','/g;
 		push @and , "country IN ('".$countries."')";
 	} elsif ( $q->param('country') )	{
-		push @and , "(country LIKE '".$q->param('country')."%' OR state LIKE '".$q->param('country')."%')";
+	    my $quoted = $dbh->quote($q->param('country') . '%' );
+	    push @and , "(country LIKE $quoted OR state LIKE $quoted)";
 	}
-
+    
 	if ( $q->param('author') || $q->param('before') > 0 || $q->param('after') > 0 )	{
 		push @tables , "refs r";
 		push @and , "r.reference_no=a.reference_no";
 	}
 
-	if ( $q->param('author') )	{
-		if ( $q->param('author') =~ /[^A-Za-z ']/ )	{
-			$errors = "Sorry, the author name you entered is misformatted.";
-		}
-		push @and , "(((r.author1last='".$q->param('author')."' AND ref_is_authority='YES') OR a.author1last='".$q->param('author')."') OR ((r.author2last='".$q->param('author')."' AND ref_is_authority='YES') OR a.author2last='".$q->param('author')."'))";
+	if ( my $author = $q->param('author') )	{
+	    my $quoted_author = $dbh->quote($author);
+	    if ( $author =~ /[^A-Za-z ']/ )	{
+		$errors = "Sorry, the author name you entered is misformatted.";
+	    }
+	    push @and , "(((r.author1last=$quoted_author AND ref_is_authority='YES') OR a.author1last=$quoted_author) OR ((r.author2last=$quoted_author AND ref_is_authority='YES') OR a.author2last=$quoted_author))";
 	}
-
-	if ( $q->param('before') > 0 || $q->param('after') > 0 )	{
-		if ( $q->param('after') && ( $q->param('after') =~ /[^0-9]/ || $q->param('after') < 1700 || $q->param('after') > 2100 ) )	{
-			$errors = "Sorry, the 'after' year you entered is misformatted.";
-		} elsif ( $q->param('before') && ( $q->param('before') =~ /[^0-9]/ || $q->param('before') < 1700 || $q->param('before') > 2100 ) )	{
-			$errors = "Sorry, the 'before' year you entered is misformatted.";
-		}
-		if ( $q->param('before') > 0 )	{
-			push @and , "((r.pubyr<=".$q->param('before')." AND ref_is_authority='YES') OR (a.pubyr<=".$q->param('before')." AND a.pubyr>1700))";
-		}
-		if ( $q->param('after') > 0 )	{
-			push @and , "((r.pubyr>=".$q->param('after')." AND ref_is_authority='YES') OR a.pubyr>=".$q->param('after').")";
-		}
+    
+    my $before = $q->numeric_param('before');
+    my $after = $q->numeric_param('after');
+    
+    if ( ($before && $before > 0) || ($after && $after > 0) )
+    {
+	if ( $q->param('after') && ( $q->param('after') =~ /[^0-9]/ || $after < 1700 || $after > 2100 ) )
+	{
+	    $errors = "Sorry, the 'after' year you entered is misformatted.";
+	} elsif ( $q->param('before') && ( $q->param('before') =~ /[^0-9]/ || $q->param('before') < 1700 || $q->param('before') > 2100 ) )	{
+	    $errors = "Sorry, the 'before' year you entered is misformatted.";
 	}
+	if ( $before )	{
+	    push @and , "((r.pubyr<=$before AND ref_is_authority='YES') OR (a.pubyr<=$before AND a.pubyr>1700))";
+	}
+	if ( $after )	{
+	    push @and , "((r.pubyr>=$after AND ref_is_authority='YES') OR a.pubyr>=$after)";
+	}
+    }
 
 	if ( $enterer )	{
-		push @and , "a.enterer_no=".$enterer;
+		push @and , "a.enterer_no=".$dbh->quote($enterer);
 	}
 
 	if ( $q->param('taxon_name') )	{
-		$sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND t.taxon_no=synonym_no AND (taxon_name='".$q->param('taxon_name')."' OR common_name='".$q->param('taxon_name')."') ORDER BY rgt-lft DESC";
-		my $t = ${$dbt->getData($sql)}[0];
-		if ( $t )	{
-			push @and , "t2.lft>$t->{lft} AND t2.rgt<$t->{rgt}";
-		} else	{
-			$errors = "Sorry, there is no valid taxon in the database called \"$q->param('taxon_name')\".";
-		}
+	    my $quoted_name = $dbh->quote($q->param('taxon_name'));
+	    $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND t.taxon_no=synonym_no AND (taxon_name=$quoted_name OR common_name=$quoted_name) ORDER BY rgt-lft DESC";
+	    my $t = ${$dbt->getData($sql)}[0];
+	    if ( $t )	{
+		push @and , "t2.lft>$t->{lft} AND t2.rgt<$t->{rgt}";
+	    } else	{
+		$errors = "Sorry, there is no valid taxon in the database called \"$q->param('taxon_name')\".";
+	    }
 	} else	{
-		$errors = "Sorry, you must enter a taxon name.";
+	    $errors = "Sorry, you must enter a taxon name.";
 	}
 
 	# query excludes higher-order names lacking any genera or species

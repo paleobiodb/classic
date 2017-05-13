@@ -245,9 +245,10 @@ sub displayCollectionForm {
 #  * System commits data to database and thanks the nice user
 #    (or displays an error message if something goes terribly wrong)
 sub processCollectionForm {
-	my ($dbt,$q,$s,$hbo) = @_;
-	my $dbh = $dbt->dbh;
-	my $output = '';
+    
+    my ($dbt,$q,$s,$hbo) = @_;
+    my $dbh = $dbt->dbh;
+    my $output = '';
 
 	my $reference_no = $q->numeric_param("reference_no");
 	my $secondary = $q->numeric_param('secondary_reference_no');
@@ -271,28 +272,40 @@ sub processCollectionForm {
 
 	# change interval names into numbers by querying the intervals table
 	# JA 11-12.7.03
-	if ( $q->param('max_interval') )	{
-		my $sql = "SELECT interval_no FROM intervals WHERE interval_name='" . $q->param('max_interval') . "'";
-		if ( $q->param('eml_max_interval') )	{
-			$sql .= " AND eml_interval='" . $q->param('eml_max_interval') . "'";
-		} else	{
-			$sql .= " AND eml_interval=''";
-		}
-		my $no = ${$dbt->getData($sql)}[0]->{interval_no};
-		$q->param(max_interval_no => $no);
+    
+    if ( my $max_interval = $q->param('max_interval') )
+    {
+	my $quoted = $dbh->quote($max_interval);
+	my $sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
+	
+	if ( my $eml_max = $q->param('eml_max_interval') ) {
+	    my $quoted = $dbh->quote($eml_max);
+	    $sql .= " AND eml_interval=$quoted";
+	} else {
+	    $sql .= " AND eml_interval=''";
 	}
-	if ( $q->param('min_interval') )	{
-		my $sql = "SELECT interval_no FROM intervals WHERE interval_name='" . $q->param('min_interval') . "'";
-		if ( $q->param('eml_min_interval') )	{
-			$sql .= " AND eml_interval='" . $q->param('eml_min_interval') . "'";
-		} else	{
-			$sql .= " AND eml_interval=''";
-		}
-		my $no = ${$dbt->getData($sql)}[0]->{interval_no};
-		$q->param(min_interval_no => $no);
+	
+	my $no = ${$dbt->getData($sql)}[0]->{interval_no};
+	$q->param(max_interval_no => $no);
+    }
+    
+    if ( my $min_interval = $q->param('min_interval') )
+    {
+	my $quoted = $dbh->quote($min_interval);
+	my $sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
+	
+	if ( my $eml_min = $q->param('eml_min_interval') ) {
+	    my $quoted = $dbh->quote($eml_min);
+	    $sql .= " AND eml_interval=$quoted";
 	} else	{
-		$q->param(min_interval_no => 0);
+	    $sql .= " AND eml_interval=''";
 	}
+	
+	my $no = ${$dbt->getData($sql)}[0]->{interval_no};
+	$q->param(min_interval_no => $no);
+    } else {
+	$q->param(min_interval_no => 0);
+    }
 
 	# bomb out if no such interval exists JA 28.7.03
 	if ( $q->numeric_param('max_interval_no') < 1 )	{
@@ -321,12 +334,12 @@ sub processCollectionForm {
             if ($q->param('lngmin') =~ /\d+/ && $q->param('lngmin') >= 0 && $q->param('lngmin') < 60)  {
                 $f_lngdeg += $q->param('lngmin')/60 + $q->param('lngsec')/3600;
             } elsif ($q->param('lngdec') > 0) {
-                $f_lngdeg .= ".".$q->param('lngdec');
+                $f_lngdeg .= ".".($q->param('lngdec') + 0);
             }
             if ($q->param('latmin') =~ /\d+/ && $q->param('latmin') >= 0 && $q->param('latmin') < 60)  {
                 $f_latdeg += $q->param('latmin')/60 + $q->param('latsec')/3600;
             } elsif ($q->param('latdec') > 0) {
-                $f_latdeg .= ".".$q->param('latdec');
+                $f_latdeg .= ".".($q->param('latdec') + 0);
             }
             dbg("f_lngdeg $f_lngdeg f_latdeg $f_latdeg");
             if ($q->param('lngdir') =~ /West/)  {

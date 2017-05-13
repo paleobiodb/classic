@@ -1646,8 +1646,8 @@ sub getOccurrencesWhereClause {
     if ($q->param('authorizer_reversed')) {
         my $name = $q->param('authorizer_reversed');
         $name =~ s/^\s*(.*)\s*,\s*(.*)\s*$/$2 $1/;
-        $name =~ s/'/\\'/g;
-        my $sql = "SELECT person_no FROM person WHERE name='$name'";
+        my $quoted_name = $dbh->quote($name);
+        my $sql = "SELECT person_no FROM person WHERE name=$quoted_name";
         my $authorizer_no = ${$dbt->getData($sql)}[0]->{'person_no'};
         push @all_where, "o.authorizer_no=".$authorizer_no if ($authorizer_no);
     }
@@ -1682,8 +1682,10 @@ sub getCollectionsWhereClause {
 
     my @where = ();
 
-    if ( $q->param('state') )	{
-        push @where," c.state='".$q->param('state')."' ";
+    if ( my $state = $q->param('state') )
+    {
+	my $quoted = $dbh->quote($state);
+        push @where," c.state=$quoted";
     }
     
     if ( $q->param('pubyr') > 0 && $q->param('output_data') =~ /collections/i )    {
@@ -1698,8 +1700,8 @@ sub getCollectionsWhereClause {
     if($q->param('output_data') eq 'collections' && $q->param('authorizer_reversed')) {
         my $name = $q->param('authorizer_reversed');
         $name =~ s/^\s*(.*)\s*,\s*(.*)\s*$/$2 $1/;
-        $name =~ s/'/\\'/g;
-        my $sql = "SELECT person_no FROM person WHERE name='$name'";
+        my $quoted_name = $dbh->quote($name);
+        my $sql = "SELECT person_no FROM person WHERE name=$quoted_name";
         my $authorizer_no = ${$dbt->getData($sql)}[0]->{'person_no'};
         push @where, "c.authorizer_no=".$authorizer_no if ($authorizer_no);
     }
@@ -1741,25 +1743,44 @@ sub getCollectionsWhereClause {
         push @where,$created_string;
 
     }
-
-    if ($q->param("restrict_to_field") =~ /[a-z]*/ && $q->param("restrict_to_list") =~ /[A-Za-z0-9]/) {
+    
+    my $restrict_to_field = $q->param("restrict_to_field") // '';
+    my $restrict_to_list = $q->param("restrict_to_list") // '';
+    
+    if ( $restrict_to_field =~ /[a-z]*/ && $restrict_to_list =~ /[A-Za-z0-9]/)
+    {
         # treat it as a name with a wildcard if there are letters
         # won't work if the user actually wants reference or collection nos
         #  JA 17.8.08
-        if ($q->param("restrict_to_list") =~ /[A-Za-z]/)	{
-            if ($q->param("restrict_to_field") eq "strat_unit")	{
-                push @where, "(c.geological_group LIKE '".$q->param('restrict_to_list')."%' OR c.formation LIKE '".$q->param('restrict_to_list')."%' OR c.member LIKE '".$q->param('restrict_to_list')."%')"
-            } else	{
-                push @where, "c.".$q->param('restrict_to_field')." LIKE '".$q->param('restrict_to_list')."%'";
+        if ($restrict_to_list =~ /[A-Za-z]/)
+	{
+	    my $quoted = $dbh->quote($restrict_to_list . '%');
+	    
+            if ( $restrict_to_field eq "strat_unit" )
+	    {
+                push @where, "(c.geological_group LIKE $quoted OR c.formation LIKE $quoted OR c.member LIKE $quoted)"
             }
-        } elsif ($q->param("restrict_to_field") =~ /(_no|plate)$/)	{
-        # Clean it up
+	    
+	    elsif ( $restrict_to_field =~ /^\w+$/ )
+	    {
+                push @where, "c.$restrict_to_field LIKE $quoted";
+            }
+        }
+	
+	elsif ($restrict_to_field =~ /(_no|plate)$/)
+	{
+	    # Clean it up
             my @nos = split(/[^0-9]/,$q->param('restrict_to_list'));
-            @nos = map {int($_)} @nos;
-            if ( $q->param('restrict_to_field') =~ /reference_no/ )	{
-                push @where, "(c.reference_no IN (".join(",",@nos).") OR sr.reference_no IN (".join(",",@nos)."))";
-            } else	{
-                push @where, "c.".$q->param('restrict_to_field')." IN (".join(",",@nos).")";
+            my $list = join(',', map {int($_)} @nos);
+	    
+            if ( $restrict_to_field =~ /reference_no/ )
+	    {
+                push @where, "(c.reference_no IN ($list) OR sr.reference_no IN ($list))";
+            }
+	    
+	    elsif ( $restrict_to_field =~ /^\w+$/ )
+	    {
+                push @where, "c.$restrict_to_field IN ($list)";
             }
         }
     }

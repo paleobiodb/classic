@@ -833,11 +833,13 @@ sub submitOpinionForm {
 
         #  there might be a reference matching this author info
             if ( ! $q->param('confirm_no_ref') && $q->param('author1last') && $q->param('pubyr') && ( $fields{'old_author1last'} ne $q->param('author1last') || $fields{'old_author2last'} ne $q->param('author2last') || $fields{'old_pubyr'} != $q->param('pubyr') ) )	{
-                my $auth = $q->param('author1last');
-                $auth =~ s/'/\\'/g;
-                my $sql = "SELECT reference_no FROM refs WHERE author1last='".$auth."' AND pubyr=".$q->param('pubyr');
-                if ( $q->param('author2last') )	{
-                    $sql .= " AND author2last='".$q->param('author2last')."'";
+                my $quoted_auth = $dbh->quote($q->param('author1last'));
+		my $quoted_pubyr = $dbh->quote($q->param('pubyr'));
+                my $sql = "SELECT reference_no FROM refs WHERE author1last=$quoted_auth AND pubyr=$quoted_pubyr";
+                if ( my $auth2 = $q->param('author2last') )
+		{
+		    my $quoted_auth2 = $dbh->quote($auth2);
+                    $sql .= " AND author2last=$quoted_auth2";
                 }
                 my @rows = @{$dbt->getData($sql)};
                 if ( $#rows == 0 )	{
@@ -992,26 +994,42 @@ sub submitOpinionForm {
     #  "Create a new ... based off ... with rank ..." even though the name/
     #  rank combo already existed and was listed right there on the page
     #  immediately above this line (!)
-    if ($q->numeric_param('child_spelling_no') == -1) {
-        my $existing_no = ${$dbt->getData("SELECT taxon_no FROM authorities WHERE taxon_name='".$q->param('new_child_spelling_name')."' AND taxon_rank='".$q->param('new_child_spelling_rank')."'")}[0]->{'taxon_no'};
+    
+    my $child_spelling_no = $q->numeric_param('child_spelling_no');
+    
+    if ( $child_spelling_no == -1)
+    {
+	my $quoted_name = $dbh->quote($q->param('new_child_spelling_name'));
+	my $quoted_rank = $dbh->quote($q->param('new_child_spelling_rank'));
+        my $existing_no = ${$dbt->getData("SELECT taxon_no FROM authorities WHERE taxon_name=$quoted_name AND taxon_rank=$quoted_rank")}[0]->{'taxon_no'};
         if ( $existing_no )	{
             $q->param('child_spelling_no' => $existing_no);
+	    $child_spelling_no = $existing_no;
         }
     }
-    if ($q->numeric_param('child_spelling_no')) {
-        if ($q->numeric_param('child_spelling_no') == -1) {
+    
+    if ( $child_spelling_no )
+    {
+        if ( $child_spelling_no == -1 )
+	{
             $createSpelling = 1;
             $childSpellingName = $q->param('new_child_spelling_name');
             $childSpellingRank = $q->param('new_child_spelling_rank');
-        } else {
+        }
+	
+	else
+	{
             # This is a second pass through, b/c there was a homonym issue, the user
             # was presented with a pulldown to distinguish between homonyms, and has submitted the form
-            my $spelling = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('child_spelling_no')});
+            my $spelling = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$child_spelling_no});
             $childSpellingName = $spelling->{'taxon_name'};
             $childSpellingRank = $spelling->{'taxon_rank'};
-            $fields{'child_spelling_no'} = $q->numeric_param('child_spelling_no');
+            $fields{'child_spelling_no'} = $child_spelling_no;
         }
-    } else {
+    } 
+    
+    else
+    {
         if ($childName eq $q->param('child_spelling_name') && $childRank eq $q->param('child_spelling_rank')) {
             # This is the simplest case - if the childName and childSpellingName are the same, they get
             # the same taxon_no - don't present a pulldown in this case, even if the name is a homonym,
@@ -1538,11 +1556,11 @@ sub resetOriginalNo{
     $is_misspelling = 1 if ($row->{'spelling_reason'} eq 'misspelling');
     my $newSpellingReason;
     if ($is_misspelling) {
-        $newSpellingReason = 'misspelling';
+        $newSpellingReason = "'misspelling'";
     } else {
-        $newSpellingReason = guessSpellingReason($child,$spelling);
+        $newSpellingReason = $dbh->quote(guessSpellingReason($child,$spelling));
     }
-    my $sql = "UPDATE opinions SET modified=modified,spelling_reason='$newSpellingReason',child_no=$new_orig_no  WHERE opinion_no=$row->{opinion_no}";
+    my $sql = "UPDATE opinions SET modified=modified,spelling_reason=$newSpellingReason,child_no=$new_orig_no  WHERE opinion_no=$row->{opinion_no}";
     dbg("Migrating child: $sql");
     $dbh->do($sql);
 }
@@ -1887,7 +1905,7 @@ sub badNames	{
 	}
 
 	my $restrict;
-	if ( $q->param('restrict_to_rank') =~ /species|genus/ ) 	{
+	if ( $q->param('restrict_to_rank') =~ /^(species|genus)$/ ) 	{
 		$restrict = " AND a.taxon_rank LIKE '%".$q->param('restrict_to_rank')."'";
 	} elsif ( $q->param('restrict_to_rank') ) 	{
 		$restrict = " AND a.taxon_rank NOT LIKE '%species' AND a.taxon_rank NOT LIKE '%genus'";

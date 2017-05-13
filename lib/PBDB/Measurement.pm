@@ -524,15 +524,18 @@ sub displayDownloadMeasurementsResults  {
 	# same for "exclude" taxon JA 8.9.11
 	# it doesn't matter if excluded taxa are extant
 	my $exclude_clause;
-	if ( $q->param('exclude') )	{
-		$sql = "SELECT t.taxon_no,lft,rgt,rgt-lft width FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND (taxon_name='".$q->param('exclude')."' OR common_name ='".$q->param('exclude')."') ORDER BY width DESC LIMIT 1"; 
-		my $exclude = ${$dbt->getData($sql)}[0];
-		if ( ! $exclude )
-		{
-		    my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('exclude').' is not in our database. Please try another name.</i></p></center>';
-		    return PBDB::displayDownloadMeasurementsForm($errorMessage);
-		}
-		$exclude_clause = "AND (lft<$exclude->{'lft'} OR rgt>$exclude->{'rgt'})";
+	if ( my $exclude_name = $q->param('exclude') )
+	{
+	    my $quoted = $dbh->quote($exclude_name);
+	    
+	    $sql = "SELECT t.taxon_no,lft,rgt,rgt-lft width FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND (taxon_name = $quoted OR common_name = $quoted) ORDER BY width DESC LIMIT 1"; 
+	    my $exclude = ${$dbt->getData($sql)}[0];
+	    if ( ! $exclude )
+	    {
+		my $errorMessage = '<center><p class="medium"><i>The taxon '.$q->param('exclude').' is not in our database. Please try another name.</i></p></center>';
+		return PBDB::displayDownloadMeasurementsForm($errorMessage);
+	    }
+	    $exclude_clause = "AND (lft<$exclude->{'lft'} OR rgt>$exclude->{'rgt'})";
 	}
 
 	my @fields = ('synonym_no','spelling_no','a.taxon_no','taxon_name','taxon_rank');

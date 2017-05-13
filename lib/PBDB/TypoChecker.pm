@@ -630,7 +630,8 @@ sub typoCheck {
     }
     my $max_length = length($value) + 2;
     my $min_length = length($value) - 2;
-    my $sql = "SELECT $return_fields FROM $table WHERE $field LIKE '$first%$next%' AND (LENGTH($field) BETWEEN $min_length AND $max_length) ";
+    my $quoted = $dbh->quote("$first%$next%");
+    my $sql = "SELECT $return_fields FROM $table WHERE $field LIKE $quoted AND (LENGTH($field) BETWEEN $min_length AND $max_length) ";
     if ($where) {
         $sql .= " $where ";
     }

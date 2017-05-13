@@ -22,10 +22,13 @@ use strict;
 # uses the same format as the Catalogue of Life Annual Checklist Web Service:
 #  http://webservice.catalogueoflife.org/annual-checklist/
 # doesn't relate to other subroutines here, but has to go somewhere...
-sub getTaxonomyXML	{
-	my ($dbt,$q,$s,$hbo) = @_;
-        my $output .= '';
-
+sub getTaxonomyXML {
+    
+    my ($dbt,$q,$s,$hbo) = @_;
+    
+    my $output .= '';
+    my $dbh = $dbt->dbh;
+    
 	$output .= "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" ?>\n";
 
 	# we'll do this with simple table hits instead of recycling
@@ -60,9 +63,11 @@ sub getTaxonomyXML	{
 	if ( $searchString =~ /\%/ )	{
 		$sql = "SELECT t.taxon_no,spelling_no,synonym_no,status FROM authorities a,$TAXA_TREE_CACHE t, opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE '" . $searchString . "'";
 	} elsif ( $searchString > 0 )	{
-		$sql = "SELECT t.taxon_no,spelling_no,synonym_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND t.taxon_no=$searchString";
+	    my $quoted = int($searchString);
+		$sql = "SELECT t.taxon_no,spelling_no,synonym_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND t.taxon_no=$quoted";
 	} else	{
-		$sql = "SELECT t.taxon_no,spelling_no,synonym_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name='$searchString'";
+	    my $quoted = $dbh->quote($searchString);
+		$sql = "SELECT t.taxon_no,spelling_no,synonym_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name=$quoted";
 	}
 
 	# for each senior name, find all junior names

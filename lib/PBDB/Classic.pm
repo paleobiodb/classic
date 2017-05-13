@@ -2209,14 +2209,16 @@ sub processCollectionsSearchForAdd	{
 	} elsif ( $minlat <= -90 )	{
 		$minlat = -89;
 	} elsif ( ( $maxlat > 0 && $minlat > 0 ) || ( $maxlat < 0 && $minlat < 0 ) )	{
-		$sql .= "c.latdir='" . $q->param('latdir') . "' AND ";
+	    my $latdir = $dbh->quote($q->param('latdir'));
+	    $sql .= "c.latdir=$latdir AND ";
 	}
 	if ( $maxlng >= 180 )	{
 		$maxlng = 179;
 	} elsif ( $minlng <= -180 )	{
 		$minlng = -179;
 	} elsif ( ( $maxlng > 0 && $minlng > 0 ) || ( $maxlng < 0 && $minlng < 0 ) )	{
-		$sql .= "c.lngdir='" . $q->param('lngdir') . "' AND ";
+	    my $lngdir = $dbh->quote($q->param('lngdir'));
+	    $sql .= "c.lngdir=$lngdir AND ";
 	}
 
 	my $inlist;
@@ -2232,11 +2234,11 @@ sub processCollectionsSearchForAdd	{
 	}
 	$inlist =~ s/,$//;
 	$sql .= "c.lngdeg IN (" . $inlist . ")";
-
-	if ($q->param('sortby') eq $COLLECTION_NO) {
+        my $sortby = $q->param('sortby');
+	if ($sortby eq $COLLECTION_NO) {
 		$sql .= " ORDER BY c.$COLLECTION_NO";
-	} elsif ($q->param('sortby') =~ /collection_name|inventory_name/) {
-		$sql .= " ORDER BY c.".$q->param('sortby');
+	} elsif ($sortby =~ /^(collection_name|inventory_name)$/) {
+	    $sql .= " ORDER BY c.$sortby";
 	}
 
 	my @dataRows = ();
@@ -2523,7 +2525,12 @@ sub processTaxonSearch {
                 #  but let's cross our fingers
                 # perhaps getTaxa could be adapted for this purpose, but
                 #  it's a pretty simple piece of code
-                    my $sql = "SELECT taxon_name tn FROM authorities WHERE taxon_name='$g' OR taxon_name LIKE '$g %' OR taxon_name LIKE '% ($sg) %' OR taxon_name LIKE '% $sp'";
+		    my $quoted1 = $dbh->quote($g);
+		    my $quoted2 = $dbh->quote("$g %");
+		    my $quoted3 = $dbh->quote("% ($sg) %");
+		    my $quoted4 = $dbh->quote("% sp");
+		    
+                    my $sql = "SELECT taxon_name tn FROM authorities WHERE taxon_name=$quoted1 OR taxon_name LIKE $quoted2 OR taxon_name LIKE $quoted3 OR taxon_name LIKE $quoted4";
                     my @partials = @{$dbt->getData($sql)};
                     for my $p ( @partials )	{
                         if ( $p->{tn} eq $g )	{
@@ -5480,8 +5487,9 @@ sub displayOccsForReID {
 
 	# some occs are out of primary key order, so order them JA 26.6.04
 	my $sql = "SELECT * FROM occurrences WHERE ".join(" AND ",@where);
-	if ( $q->param('sort_occs_by') )	{
-		$sql .= " ORDER BY ".$q->param('sort_occs_by');
+        my $sortby = $q->param('sort_occs_by');
+	if ( $sortby && $sortby =~ /^\w+$/ )	{
+		$sql .= " ORDER BY $sortby";
 		if ( $q->param('sort_occs_order') eq "desc" )	{
 			$sql .= " DESC";
 		}
@@ -6248,7 +6256,7 @@ sub numeric_param {
     
     else
     {
-	return;
+	return '';
     }
 }
 

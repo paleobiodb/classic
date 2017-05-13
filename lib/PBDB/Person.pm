@@ -7,8 +7,11 @@ use PBDB::Reference;
 
 # replaces old admin.pl code JA 22.3.13
 sub personForm	{
-	my ($dbt,$hbo,$s,$q,$error) = @_;
-
+    
+    my ($dbt,$hbo,$s,$q,$error) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
 	my $name;
 	if ( $q->param('first_name') && $q->param('last_name') )	{
 		$name = $q->param('first_name')." ".$q->param('last_name');
@@ -46,10 +49,13 @@ sub personForm	{
 		$init =~ s/\'/\\'/g;
 		$last =~ s/\'/\\'/g;
 		if ( $init !~ /\./ )	{
-			$sql .= " first_name LIKE '$init' AND last_name='$last'";
+		    my $quoted_init = $dbh->quote($init);
+		    my $quoted_last = $dbh->quote($last);
+			$sql .= " first_name LIKE $quoted_init AND last_name=$quoted_last";
 		} else	{
 			$init =~ s/([A-Za-z])(.*)/$1./;
-			$sql .= " name='$init $last'";
+			my $quoted = $dbh->quote("$init $last");
+			$sql .= " name=$quoted";
 		}
 
 		# if there are multiple matches the first one will be returned
@@ -57,9 +63,8 @@ sub personForm	{
 			$person_no = ${$dbt->getData($sql)}[0]->{'person_no'};
 		}
 
-		if ( $q->numeric_param('person_no') > 0 )	{
-			$person_no = $q->numeric_param('person_no');
-		}
+		my $person_no = $q->numeric_param('person_no');
+		
 		if ( $person_no > 0 )	{
 			$sql = "SELECT * FROM person WHERE person_no=".$person_no;
 			$person = ${$dbt->getData($sql)}[0];
