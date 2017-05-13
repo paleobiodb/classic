@@ -111,6 +111,11 @@ post '/login' => sub {
 	    $user->login_authorizer_no($authorizer_no);
 	    return login($user);
 	}
+	
+	else
+	{
+	    ouch(403, "You must be assigned to an authorizer before you can log in.");
+	}
     }
     
     $user->login_role('guest');
