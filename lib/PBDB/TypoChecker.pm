@@ -210,7 +210,7 @@ sub occurrenceMisspellingForm {
         $output .= "</div>\n\n";
         $output .= qq|<form action="$WRITE_URL" method="POST">|;
         $output .= '<input type="hidden" name="action" value="submitOccurrenceMisspelling">';
-        my $page_no = (int($q->param('page_no'))) ? int($q->param('page_no')) : 0;
+        my $page_no = $q->numeric_param('page_no') || 0;
         $output .= '<input type="hidden" name="page_no" value="'.($page_no+1).'">';
         $output .= '<table cellpadding="2" cellspacing="0" width="100%">';
         my $class = '';

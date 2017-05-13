@@ -576,7 +576,7 @@ sub displayReference {
     my $dbh = $dbt->dbh;
 
     if (!$ref) {
-        $ref = getReference($dbt,$q->param('reference_no'));
+        $ref = getReference($dbt,$q->numeric_param('reference_no'));
     } 
 
     if (!$ref) {

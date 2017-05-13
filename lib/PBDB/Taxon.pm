@@ -171,15 +171,16 @@ sub displayAuthorityForm {
 
 
     # Simple variable assignments
-    my $isNewEntry = ($q->param('taxon_no') > 0) ? 0 : 1;
+    my $taxon_no = $q->numeric_param('taxon_no');
+    my $isNewEntry = defined $taxon_no && $taxon_no > 0 ? 0 : 1;
     my $reSubmission = ($error_message) ? 1 : 0;
     
 	# if the taxon is already in the authorities table, grab it
     my $t;
     if (!$isNewEntry) {
-        $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
+        $t = PBDB::Taxon->new($dbt,$q->numeric_param('taxon_no'));
         if (!$t) {
-            carp "Could not create taxon object in displayAuthorityForm for taxon_no ".$q->param('taxon_no');
+            carp "Could not create taxon object in displayAuthorityForm for taxon_no ".$q->numeric_param('taxon_no');
             return;
         }
     }
@@ -540,14 +541,15 @@ sub submitAuthorityForm {
     }
     
     # Simple variable assignments
-    my $isNewEntry = ($q->param('taxon_no') > 0) ? 0 : 1;
+    my $taxon_no = $q->numeric_param('taxon_no');
+    my $isNewEntry = $taxon_no && $taxon_no > 0 ? 0 : 1;
 
     # if the taxon is already in the authorities table, grab it
     my $t;
     if (!$isNewEntry) {
-        $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
+        $t = PBDB::Taxon->new($dbt,$taxon_no);
         if (!$t) {
-            carp "Could not create taxon object in submitAuthorityForm for taxon_no ".$q->param('taxon_no');
+            carp "Could not create taxon object in submitAuthorityForm for taxon_no ".$taxon_no;
 	    return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
         }
     }
@@ -637,7 +639,7 @@ sub submitAuthorityForm {
         if ($q->param('ref_is_authority') eq 'CURRENT') {
             $lookup_reference = $s->get('reference_no');
         } else {
-	    $fields{'reference_no'} ||= $q->param('reference_no');
+	    $fields{'reference_no'} ||= $q->numeric_param('reference_no');
             $lookup_reference = $fields{'reference_no'};
         }
         my $pubyr;
@@ -727,8 +729,9 @@ sub submitAuthorityForm {
 		}
 		if ( $coll != $q->param('type_locality') || ( ! $coll && ! $q->param('type_locality') ) )	{
 			my $sql;
-			if ( $q->param('taxon_no') > 0 )	{
-				$sql = "(SELECT collection_no FROM occurrences WHERE taxon_no=".$q->param('taxon_no')." AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE taxon_no=".$q->param('taxon_no')." AND species_reso='n. sp.')";
+			my $taxon_no = $q->numeric_param('taxon_no');
+			if ( $taxon_no && $taxon_no > 0 )	{
+				$sql = "(SELECT collection_no FROM occurrences WHERE taxon_no=$taxon_no AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE taxon_no=$taxon_no AND species_reso='n. sp.')";
 			} else	{
 				my($g,$sg,$s,$ss) = splitTaxon($q->param('taxon_name'));
 				$sql = "(SELECT collection_no FROM occurrences WHERE genus_name='$g' AND (subgenus_name='$sg' OR subgenus_name IS NULL OR subgenus_name='') AND species_name='$s' AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE genus_name='$g' AND (subgenus_name='$sg' OR subgenus_name IS NULL OR subgenus_name='') AND species_name='$s' AND species_reso='n. sp.')";
@@ -775,10 +778,10 @@ sub submitAuthorityForm {
         my @bits = split(/ /,$fields{'taxon_name'});
         pop @bits;
         my $parent_name = join(" ",@bits);
-        if ($q->param('parent_taxon_no')) {
-		    my $parent = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->param('parent_taxon_no')});
+        if ($q->numeric_param('parent_taxon_no')) {
+		    my $parent = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('parent_taxon_no')});
             if ($parent->{'taxon_name'} eq $parent_name) {
-                $parent_no=$q->param('parent_taxon_no');
+                $parent_no=$q->numeric_param('parent_taxon_no');
             } 
         }
         if (!$parent_no) {
@@ -1830,8 +1833,8 @@ sub displayTypeTaxonSelectForm {
 sub submitTypeTaxonSelect {
     my ($dbt,$s,$q) = @_;
 
-    my $type_taxon_no = $q->param('type_taxon_no');
-    my $reference_no = $q->param('reference_no');
+    my $type_taxon_no = $q->numeric_param('type_taxon_no');
+    my $reference_no = $q->numeric_param('reference_no');
     my $end_message = $q->param('end_message');
     $end_message =~ s/&quot;/"/g;
     $end_message =~ s/&lt;/</g;
@@ -2401,7 +2404,7 @@ sub propagateAuthorityInfo {
 # JA 14.12.10
 sub entangledNamesForm	{
 	my ($dbt,$hbo,$s,$q) = @_;
-	my $taxon_no = $q->param('taxon_no');
+	my $taxon_no = $q->numeric_param('taxon_no');
 	my %vars;
 
 	my $if = "IF(a.ref_is_authority='YES'";
@@ -2439,7 +2442,7 @@ sub disentangleNames	{
 	my ($dbt,$hbo,$s,$q) = @_;
 	my $dbh = $dbt->dbh;
 
-	my @spellings = $q->param('spelling_no');
+	my @spellings = $q->numeric_param('spelling_no');
 	my (@version1,@version2);
 	for my $i ( 0..$#spellings )	{
 		if ( $q->param('spelling'.$i) == "1" )	{

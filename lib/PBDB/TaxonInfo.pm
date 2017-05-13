@@ -56,7 +56,7 @@ sub checkTaxonInfo {
         return searchForm($hbo, $q, 1); # param for not printing header with form
     }
 
-    if ($q->param('taxon_no')) {
+    if ($q->numeric_param('taxon_no')) {
         # If we have is a taxon_no, use that:
         return displayTaxonInfoResults($dbt,$s,$q,$hbo);
     } elsif (!$q->param('taxon_name') && !($q->param('common_name')) && !($q->param('pubyr')) && !$q->param('author') && !$q->param('museum')) {
@@ -173,7 +173,7 @@ sub displayTaxonInfoResults {
     my $dbh = $dbt->dbh;
     my $output = '';
     
-    my $taxon_no = int($q->param('taxon_no'));
+    my $taxon_no = $q->numeric_param('taxon_no');
     
     if ( $taxon_no =~ /^(\d+)[^\d]/ )
     {
@@ -385,7 +385,7 @@ sub displayTaxonInfoResults {
 	$output .= "</div>\n</div>\n\n";
 
         my $entered_name = $q->param('entered_name') || $q->param('taxon_name') || $taxon_name;
-        my $entered_no = $q->param('entered_no') || $q->param('taxon_no');
+        my $entered_no = $q->numeric_param('entered_no') || $q->numeric_param('taxon_no');
         $output .= "<p>";
         $output .= "<div>";
         $output .= "<center>";
@@ -3599,8 +3599,8 @@ sub basicTaxonInfo	{
 
 	my $error;
 	my $taxon_no;
-	if ( $q->param('taxon_no') )	{
-		$taxon_no = $q->param('taxon_no');
+	if ( $q->numeric_param('taxon_no') )	{
+		$taxon_no = $q->numeric_param('taxon_no');
 		$taxon_no = getSeniorSynonym($dbt,$taxon_no); 
 	} elsif ( $q->param('author') || $q->param('pubyr') || $q->param('type_body_part') || $q->param('preservation') )	{
 		my @taxon_nos = getTaxonNos($dbt,$taxon_name,'','',$q->param('author'),$q->param('pubyr'),$q->param('type_body_part'),$q->param('preservation'));

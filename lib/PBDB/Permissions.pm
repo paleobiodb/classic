@@ -554,7 +554,7 @@ sub submitPermissionList {
             }
         }
     } elsif ($q->param('submit_type') eq 'delete') {
-        my @modifiers = $q->param('modifier_no');
+        my @modifiers = $q->numeric_param('modifier_no');
         foreach my $modifier_no (@modifiers) {
             my $sql = "DELETE FROM permissions WHERE authorizer_no=$action_for AND modifier_no=$modifier_no";
             dbg("Deleting from permission list: ".$sql);

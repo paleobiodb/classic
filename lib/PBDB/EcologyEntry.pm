@@ -21,10 +21,10 @@ sub populateEcologyForm	{
     my $output = '';
 
     # We need a taxon_no passed in, cause taxon_name is ambiguous
-    if ( ! $q->param('taxon_no')) {
+    if ( ! $q->numeric_param('taxon_no')) {
 	return "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the taxon's name is not in the system</div></center>\n";
     }
-    my $taxon_no = int($q->param('taxon_no'));
+    my $taxon_no = $q->numeric_param('taxon_no');
 
     # For form display purposes
     my $sql = "SELECT taxon_name FROM authorities WHERE taxon_no=" . $taxon_no;
@@ -109,15 +109,15 @@ sub processEcologyForm	{
         my $output = '';
 
 	# can't proceed without a taxon no
-	if (!$q->param('taxon_no'))	{
+	if (!$q->numeric_param('taxon_no'))	{
 		return "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Sorry, the ecology/taphonomy table can't be updated because the taxon's name is not in the system</div></center>\n";
 	}
-	my $taxon_no = int($q->param('taxon_no'));
+	my $taxon_no = $q->numeric_param('taxon_no');
 	my $sql;
 
 	# if ecotaph is blank but taxon no actually is in the ecotaph table,
 	#  something is really wrong, so exit
-	if ( $q->param('ecotaph_no') < 1 )	{
+	if ( $q->numeric_param('ecotaph_no') < 1 )	{
     	# query the ecotaph table
 		$sql = "SELECT ecotaph_no FROM ecotaph WHERE taxon_no=" . $taxon_no;
 		my $ecotaph = ${$dbt->getData($sql)}[0];
@@ -146,8 +146,8 @@ sub processEcologyForm	{
         $fields{'body_mass_estimate'} = gramsToKg($fields{'body_mass_estimate'});
     } 
 
-	if ( $q->param('ecotaph_no') > 0 )	{
-        $dbt->updateRecord($s,'ecotaph','ecotaph_no',$q->param('ecotaph_no'),\%fields);
+	if ( $q->numeric_param('ecotaph_no') > 0 )	{
+        $dbt->updateRecord($s,'ecotaph','ecotaph_no',$q->numeric_param('ecotaph_no'),\%fields);
 		$output .= "<center><div class=\"pageTitle\" style=\"margin-top: 1em;\">Ecological/taphonomic data for $taxon_name have been updated</div></center>\n";
 	} else {
         # Set the reference_no

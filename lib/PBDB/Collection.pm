@@ -1259,7 +1259,7 @@ sub basicCollectionInfo	{
 		}
 	}
 
-	my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->param('collection_no');
+	my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->numeric_param('collection_no');
 	my $c = ${$dbt->getData($sql)}[0];
 
 	my $p = PBDB::Permissions->new($s,$dbt);
@@ -1930,7 +1930,7 @@ sub rarefyAbundances	{
     my $dbh = $dbt->dbh;
     my $output = '';
 
-    my $collection_no = int($q->param('collection_no'));
+    my $collection_no = $q->numeric_param('collection_no');
     my $sql = "SELECT collection_name FROM collections WHERE collection_no=$collection_no";
     my $collection_name=${$dbt->getData($sql)}[0]->{'collection_name'};
 
@@ -2222,7 +2222,7 @@ sub displayCollectionEcology	{
     }
 
     # Get all occurrences for the collection using the most currently reid'd name
-    my $collection_no = int($q->param('collection_no'));
+    my $collection_no = $q->numeric_param('collection_no');
     my $collection_name = $q->param('collection_name');
 
     $output .= "<div align=center><p class=\"pageTitle\">$collection_name (collection number $collection_no)</p></div>";
@@ -2242,7 +2242,7 @@ sub displayCollectionEcology	{
 
 	if (!%$ecology) {
 		$output .= "<center><p>Sorry, there are no ecological data for any of the taxa</p></center>\n\n";
-        my $collection_no = $q->param('collection_no');
+        my $collection_no = $q->numeric_param('collection_no');
 		$output .= "<center><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b></p></center>\n\n";
 		return $output;
 	} 
@@ -2407,7 +2407,7 @@ sub displayCollectionEcology	{
 	$output .= "</table>\n";
     $output .= "</div>";
 
-    my $collection_no = $q->param('collection_no');
+    my $collection_no = $q->numeric_param('collection_no');
 	$output .= "<div align=\"center\"><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b> - ";
 	$output .= "<b>" . makeAnchor("displaySearchColls", "type=view", "Search for other collections") . "</b></p></div>\n\n";
     
@@ -2474,7 +2474,7 @@ sub explainAEOestimate	{
 		s/\n//;
 		$colls++;
 		my @data = split /\t/,$_;
-		if ( $data[0] == $q->param('collection_no') )	{
+		if ( $data[0] == $q->numeric_param('collection_no') )	{
 			$max = $data[1];
 			$min = $data[2];
 			$name = $data[3];

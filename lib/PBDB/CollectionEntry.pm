@@ -67,7 +67,7 @@ sub displayCollectionForm {
     my $dbh = $dbt->dbh;
     my $output = '';
 
-    my $isNewEntry = ($q->param('collection_no') =~ /^\d+$/) ? 0 : 1;
+    my $isNewEntry = $q->numeric_param('collection_no') ? 0 : 1;
     my $reSubmission = ($q->param('action') =~ /processCollectionForm/) ? 1 : 0;
 
     # First check to nake sure they have a reference no for new entries
@@ -84,7 +84,7 @@ sub displayCollectionForm {
 
     my %row = ();
     if (!$isNewEntry) {
-        my $collection_no = int($q->param('collection_no'));
+        my $collection_no = $q->numeric_param('collection_no');
         my $sql = "SELECT * FROM collections WHERE collection_no=$collection_no";
         my $c_row = ${$dbt->getData($sql)}[0] or die "invalid collection no";
         %row = %{$c_row};
@@ -95,8 +95,8 @@ sub displayCollectionForm {
 
     if ($reSubmission) {
         %vars = %form;
-    } if ($isNewEntry && int($q->param('prefill_collection_no'))) {
-        my $collection_no = int($q->param('prefill_collection_no'));
+    } if ($isNewEntry && $q->numeric_param('prefill_collection_no')) {
+        my $collection_no = $q->numeric_param('prefill_collection_no');
         my $sql = "SELECT * FROM collections WHERE collection_no=$collection_no";
         my $row = ${$dbt->getData($sql)}[0] or die "invalid collection no";
         foreach my $field (keys(%$row)) {
@@ -249,8 +249,8 @@ sub processCollectionForm {
 	my $dbh = $dbt->dbh;
 	my $output = '';
 
-	my $reference_no = $q->param("reference_no");
-	my $secondary = $q->param('secondary_reference_no');
+	my $reference_no = $q->numeric_param("reference_no");
+	my $secondary = $q->numeric_param('secondary_reference_no');
 
 	my $collection_no = $q->param($COLLECTION_NO);
 
@@ -295,7 +295,7 @@ sub processCollectionForm {
 	}
 
 	# bomb out if no such interval exists JA 28.7.03
-	if ( $q->param('max_interval_no') < 1 )	{
+	if ( $q->numeric_param('max_interval_no') < 1 )	{
 		return "<center><p>You can't enter an unknown time interval name</p>\n<p>Please go back, check the time scales, and enter a valid name</p></center>";
 	}
 
@@ -353,8 +353,8 @@ sub processCollectionForm {
                 $q->param('latlng_precision' => 'degrees');
             }
 
-            my $max_interval_no = ($q->param('max_interval_no')) ? $q->param('max_interval_no') : 0;
-            my $min_interval_no = ($q->param('min_interval_no')) ? $q->param('min_interval_no') : 0;
+            my $max_interval_no = ($q->numeric_param('max_interval_no')) ? $q->numeric_param('max_interval_no') : 0;
+            my $min_interval_no = ($q->numeric_param('min_interval_no')) ? $q->numeric_param('min_interval_no') : 0;
             ($paleolng, $paleolat, $pid) = getPaleoCoords($dbt,$q,$max_interval_no,$min_interval_no,$f_lngdeg,$f_latdeg);
             dbg("have paleocoords paleolat: $paleolat paleolng $paleolng");
             if ($paleolat ne "" && $paleolng ne "") {
@@ -619,7 +619,7 @@ sub displayCollectionDetails {
 		return;
 	}
 	
-	my $collection_no = int($q->param('collection_no'));
+	my $collection_no = $q->numeric_param('collection_no');
 
     # Handles the meat of displaying information about the colleciton
     # Separated out so it can be reused in enter/edit collection confirmation forms

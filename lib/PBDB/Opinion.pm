@@ -292,7 +292,7 @@ sub displayOpinionForm {
     }
     
     # Simple variable assignments
-    my $isNewEntry = ($q->param('opinion_no') > 0) ? 0 : 1;
+    my $isNewEntry = ($q->numeric_param('opinion_no') > 0) ? 0 : 1;
     my $reSubmission = ($error_message) ? 1 : 0;
 	my @belongsArray = ('belongs to', 'recombined as', 'revalidated', 'rank changed as','corrected as');
 	my @synArray = ('','subjective synonym of', 'objective synonym of','replaced by','misspelling of','invalid subgroup of');
@@ -303,9 +303,9 @@ sub displayOpinionForm {
     # if the opinion already exists, grab it
     my $o;
     if (!$isNewEntry) {
-        $o = PBDB::Opinion->new($dbt,$q->param('opinion_no'));
+        $o = PBDB::Opinion->new($dbt,$q->numeric_param('opinion_no'));
         if (!$o) {
-            carp "Could not create opinion object in displayOpinionForm for opinion_no ".$q->param('opinion_no');
+            carp "Could not create opinion object in displayOpinionForm for opinion_no ".$q->numeric_param('opinion_no');
             return;
         }
         $fields{'reference_no'} = $o->{'reference_no'};
@@ -316,8 +316,8 @@ sub displayOpinionForm {
         #  in even if this is a new opinion
 	if (! $reSubmission) {
         if ($isNewEntry) {
-            $fields{'child_no'} = $q->param('child_no');
-            $fields{'child_spelling_no'} = $q->param('child_spelling_no') || $q->param('child_no');
+            $fields{'child_no'} = $q->numeric_param('child_no');
+            $fields{'child_spelling_no'} = $q->numeric_param('child_spelling_no') || $q->numeric_param('child_no');
     	    $fields{'reference_no'} = $s->get('reference_no');
             # to speed up entry, assume that the primary (current) ref has
             #  the opinion JA 29.8.06
@@ -331,7 +331,7 @@ sub displayOpinionForm {
             #  opinion looks like such a thing because it is species level,
             #  "belongs to," original spelling, stated with evidence, and with a
             #  new diagnosis JA 6.6.07
-            my $sql = "SELECT diagnosis_given,ref_has_opinion,o.pages,basis,status FROM opinions o,authorities a WHERE child_no=taxon_no AND ((diagnosis_given!='' AND diagnosis_given IS NOT NULL) OR (o.pages!='' AND o.pages IS NOT NULL) OR (basis!='' AND basis IS NOT NULL)) AND o.reference_no=" . $s->get('reference_no') . " AND o.enterer_no=" . $s->get('enterer_no') . " AND child_no!=" . $q->param('child_no') . " AND (taxon_rank NOT LIKE '%species%' OR status!='belongs to' OR spelling_reason!='original spelling' OR basis!='stated with evidence' OR diagnosis_given!='new') ORDER BY opinion_no DESC LIMIT 1";
+            my $sql = "SELECT diagnosis_given,ref_has_opinion,o.pages,basis,status FROM opinions o,authorities a WHERE child_no=taxon_no AND ((diagnosis_given!='' AND diagnosis_given IS NOT NULL) OR (o.pages!='' AND o.pages IS NOT NULL) OR (basis!='' AND basis IS NOT NULL)) AND o.reference_no=" . $s->get('reference_no') . " AND o.enterer_no=" . $s->get('enterer_no') . " AND child_no!=" . $q->numeric_param('child_no') . " AND (taxon_rank NOT LIKE '%species%' OR status!='belongs to' OR spelling_reason!='original spelling' OR basis!='stated with evidence' OR diagnosis_given!='new') ORDER BY opinion_no DESC LIMIT 1";
             my $lastopinion = @{$dbt->getData($sql)}[0];
             if ( $lastopinion->{ref_has_opinion} eq "YES" )	{
                 $fields{'diagnosis_given'} = $lastopinion->{diagnosis_given};
@@ -742,14 +742,14 @@ sub submitOpinionForm {
 	my %fields;
 
 	# Simple checks
-    my $isNewEntry = ($q->param('opinion_no') > 0) ? 0 : 1;
+    my $isNewEntry = $q->numeric_param('opinion_no') ? 0 : 1;
 
     # if the opinion already exists, grab it
     my $o;
     if (!$isNewEntry) {
-        $o = PBDB::Opinion->new($dbt,$q->param('opinion_no'));
+        $o = PBDB::Opinion->new($dbt,$q->numeric_param('opinion_no'));
         if (!$o) {
-            carp "Could not create opinion object in displayOpinionForm for opinion_no ".$q->param('opinion_no');
+            carp "Could not create opinion object in displayOpinionForm for opinion_no ".$q->numeric_param('opinion_no');
             return;
         }
         $fields{'opinion_no'} = $o->get('opinion_no');
@@ -759,7 +759,7 @@ sub submitOpinionForm {
         $fields{'old_author2last'} = $o->get('author2last');
         $fields{'old_pubyr'} = $o->get('pubyr');
     } else {	
-        $fields{'child_no'} = PBDB::TaxonInfo::getOriginalCombination($dbt,$q->param('child_no')); 
+        $fields{'child_no'} = PBDB::TaxonInfo::getOriginalCombination($dbt,$q->numeric_param('child_no')); 
 		$fields{'reference_no'} = $s->get('reference_no');
 		
 		if (! $fields{'reference_no'} ) {
@@ -940,17 +940,17 @@ sub submitOpinionForm {
     # Get the parent name and rank, and parent spelling
     my $parentName = '';
     my $parentRank = '';
-    if ($q->param('parent_spelling_no')) {
+    if ($q->numeric_param('parent_spelling_no')) {
         # This is a second pass through, b/c there was a homonym issue, the user
         # was presented with a pulldown to distinguish between homonyms, and has submitted the form
-        my $sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_no=".$dbh->quote($q->param('parent_spelling_no'));
+        my $sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_no=".$q->numeric_param('parent_spelling_no');
         my $row = ${$dbt->getData($sql)}[0];
         if (!$row) {
-            print STDERR "Fatal error, parent_spelling_no ".$q->param('parent_spelling_no')." was set but not in the authorities table";
+            print STDERR "Fatal error, parent_spelling_no ".$q->numeric_param('parent_spelling_no')." was set but not in the authorities table";
         }
         $parentName = $row->{'taxon_name'};
         $parentRank = $row->{'taxon_rank'};
-        $fields{'parent_spelling_no'} = $q->param('parent_spelling_no');
+        $fields{'parent_spelling_no'} = $q->numeric_param('parent_spelling_no');
         $fields{'parent_no'} = PBDB::TaxonInfo::getOriginalCombination($dbt,$fields{'parent_spelling_no'});
     } else {
         # This block of code deals with a first pass through, when no homonym problems have yet popped up
@@ -992,24 +992,24 @@ sub submitOpinionForm {
     #  "Create a new ... based off ... with rank ..." even though the name/
     #  rank combo already existed and was listed right there on the page
     #  immediately above this line (!)
-    if ($q->param('child_spelling_no') == -1) {
+    if ($q->numeric_param('child_spelling_no') == -1) {
         my $existing_no = ${$dbt->getData("SELECT taxon_no FROM authorities WHERE taxon_name='".$q->param('new_child_spelling_name')."' AND taxon_rank='".$q->param('new_child_spelling_rank')."'")}[0]->{'taxon_no'};
         if ( $existing_no )	{
             $q->param('child_spelling_no' => $existing_no);
         }
     }
-    if ($q->param('child_spelling_no')) {
-        if ($q->param('child_spelling_no') == -1) {
+    if ($q->numeric_param('child_spelling_no')) {
+        if ($q->numeric_param('child_spelling_no') == -1) {
             $createSpelling = 1;
             $childSpellingName = $q->param('new_child_spelling_name');
             $childSpellingRank = $q->param('new_child_spelling_rank');
         } else {
             # This is a second pass through, b/c there was a homonym issue, the user
             # was presented with a pulldown to distinguish between homonyms, and has submitted the form
-            my $spelling = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->param('child_spelling_no')});
+            my $spelling = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('child_spelling_no')});
             $childSpellingName = $spelling->{'taxon_name'};
             $childSpellingRank = $spelling->{'taxon_rank'};
-            $fields{'child_spelling_no'} = $q->param('child_spelling_no');
+            $fields{'child_spelling_no'} = $q->numeric_param('child_spelling_no');
         }
     } else {
         if ($childName eq $q->param('child_spelling_name') && $childRank eq $q->param('child_spelling_rank')) {
@@ -1334,8 +1334,8 @@ sub submitOpinionForm {
     # Replace the reference with the current reference if need be
     if ($q->param('ref_has_opinion') =~ /CURRENT/ && $s->get('reference_no')) {
         $fields{'reference_no'} = $s->get('reference_no');
-    } elsif ($q->param('ref_has_opinion') > 0)	{
-        $fields{'reference_no'} = $q->param('ref_has_opinion');
+    } elsif ($q->numeric_param('ref_has_opinion') > 0)	{
+        $fields{'reference_no'} = $q->numeric_param('ref_has_opinion');
     }
 
 	# now we'll actually insert or update into the database.
@@ -1655,8 +1655,8 @@ sub displayOpinionChoiceForm {
     my $output = '';
 
     my $sepkoski;
-    if ($q->param('taxon_no')) {
-        my $child_no = $q->param('taxon_no');
+    if ($q->numeric_param('taxon_no')) {
+        my $child_no = $q->numeric_param('taxon_no');
         my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$child_no);
         my $sql = "SELECT o.opinion_no AS opinion_no,t.opinion_no AS current_opinion FROM opinions o,$TAXA_TREE_CACHE t,refs r ".
                   " WHERE o.child_no=$orig_no AND o.child_no=t.taxon_no AND r.reference_no=o.reference_no".
@@ -1689,8 +1689,8 @@ sub displayOpinionChoiceForm {
         my @where = ();
         my @errors = ();
         my $join_refs = "";
-        if ($q->param("reference_no")) {
-            push @where, "o.reference_no=".int($q->param("reference_no"));
+        if ($q->numeric_param("reference_no")) {
+            push @where, "o.reference_no=".$q->numeric_param("reference_no");
         }
         if ($q->param("authorizer_reversed")) {
             my $sql = "SELECT person_no FROM person WHERE name like ".$dbh->quote(PBDB::Person::reverseName($q->param('authorizer_reversed')));
@@ -1746,7 +1746,7 @@ sub displayOpinionChoiceForm {
             if ($s->isDBMember())	{
                 $output .= "<p class=\"pageTitle\">Select an opinion to edit</p>\n";
             } else	{
-                $output .= "<p class=\"pageTitle\">Opinions from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
+                $output .= "<p class=\"pageTitle\">Opinions from ".PBDB::Reference::formatShortRef($dbt,$q->numeric_param("reference_no"))."</p>\n";
             }
 
             $output .= qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
@@ -1759,7 +1759,7 @@ sub displayOpinionChoiceForm {
                 if ( $row->{'opinion_no'} == $row->{'current_opinion'} )	{
                     $opinion = "<b>".$opinion."</b>";
                 }
-                if ( $q->param('reference_no') == $row->{'reference_no'} && $row->{'ref_has_opinion'} eq "YES" )	{
+                if ( $q->numeric_param('reference_no') == $row->{'reference_no'} && $row->{'ref_has_opinion'} eq "YES" )	{
                     $authority = "";
                 }
                 if ($s->isDBMember())	{
@@ -1786,9 +1786,9 @@ sub displayOpinionChoiceForm {
         }
     } 
     
-    if ($q->param("taxon_no")) {
+    if ($q->numeric_param("taxon_no")) {
         $output .= qq|<div class="verysmall" style="margin-left: 4em; text-align: left;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>The currently favored opinion is in <b>bold</b>.\n<br>\nCreate a new opinion if your author's name is not in the above list.<br>\nDo not select an old opinion unless it was entered incorrectly or incompletely.$sepkoski</p></div>\n|;
-    } elsif ($q->param('reference_no') && $s->isDBMember())	{
+    } elsif ($q->numeric_param('reference_no') && $s->isDBMember())	{
         $output .= qq|<div class="tiny" style="padding-left: 8em; padding-bottom: 3em;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>|;
         $output .= qq|You may want to read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')">FAQ</a>.</p></div>\n|;
     }

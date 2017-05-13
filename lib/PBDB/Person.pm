@@ -57,8 +57,8 @@ sub personForm	{
 			$person_no = ${$dbt->getData($sql)}[0]->{'person_no'};
 		}
 
-		if ( $q->param('person_no') > 0 )	{
-			$person_no = $q->param('person_no');
+		if ( $q->numeric_param('person_no') > 0 )	{
+			$person_no = $q->numeric_param('person_no');
 		}
 		if ( $person_no > 0 )	{
 			$sql = "SELECT * FROM person WHERE person_no=".$person_no;
@@ -110,13 +110,14 @@ sub addPerson	{
 # replaces old admin.pl code JA 22.3.13
 sub editPerson	{
 	my ($dbt,$hbo,$s,$q) = @_;
+	my $dbh = $dbt->dbh;
 	my ($fields,$values) = checkPersonData($dbt,$hbo,$s,$q);
 	for my $i ( 0..$#$fields )	{
-		$$fields[$i] .= ( $$values[$i] ne "" ) ? "='".$$values[$i]."'" : "=NULL";
+		$$fields[$i] .= ( $$values[$i] ne "" ) ? "=".$dbh->quote($$values[$i]) : "=NULL";
 	}
-	my $sql = "UPDATE person SET last_action=last_action,modified=now(),".join(',',@$fields)." WHERE person_no=".$q->param('person_no');
+	my $sql = "UPDATE person SET last_action=last_action,modified=now(),".join(',',@$fields)." WHERE person_no=".$q->numeric_param('person_no');
 	$sql =~ s/'NULL'/NULL/g;
-	$dbt->dbh->do($sql);
+	$dbh->do($sql);
 	return PBDB::menu($q->param('first_name')." ".$q->param('last_name')."'s record has been updated");
 }
 
@@ -530,7 +531,7 @@ sub publications	{
 	}
 	$vars{'publications'} = formatPublications($s,\@pubs);
 	$vars{'other_publications'} = formatPublications($s,\@other_pubs);
-	$vars{'panel'} = ( $q->param('other_pub_no') > 0 ) ? "2" : "1";
+	$vars{'panel'} = $q->numeric_param('other_pub_no') ? "2" : "1";
 	return $hbo->populateHTML('publications', \%vars);
 }
 
@@ -600,10 +601,10 @@ sub formatPublications	{
 sub publicationForm	{
     my ($q,$dbt,$hbo) = @_;
     my $pub;
-    if ( $q->param('pub_no') )	{
-        $pub = ${$dbt->getData("SELECT * FROM pubs WHERE pub_no=".$q->param('pub_no'))}[0];
-    } elsif ( $q->param('other_pub_no') )	{
-        $pub = ${$dbt->getData("SELECT * FROM other_pubs WHERE other_pub_no=".$q->param('other_pub_no'))}[0];
+    if ( $q->numeric_param('pub_no') )	{
+        $pub = ${$dbt->getData("SELECT * FROM pubs WHERE pub_no=".$q->numeric_param('pub_no'))}[0];
+    } elsif ( $q->numeric_param('other_pub_no') )	{
+        $pub = ${$dbt->getData("SELECT * FROM other_pubs WHERE other_pub_no=".$q->numeric_param('other_pub_no'))}[0];
     }
     my %vars;
     $vars{$_} = $pub->{$_} foreach ( 'pub_no','other_pub_no','authors','year','title','journal','editors','publisher','volume','no','first_page','last_page','first_page','last_page','doi','extras' );
@@ -643,10 +644,10 @@ sub editPublication	{
         push @values , $p;
     }
     # note that the new_entry param is a pure sanity check
-    if ( $q->param('pub_no') )	{
-        $dbt->dbh->do("UPDATE pubs SET ".join(",",@updates)." WHERE pub_no=".$q->param('pub_no'));
-    } elsif ( $q->param('other_pub_no') )	{
-        $dbt->dbh->do("UPDATE other_pubs SET ".join(",",@updates)." WHERE other_pub_no=".$q->param('other_pub_no'));
+    if ( $q->numeric_param('pub_no') )	{
+        $dbt->dbh->do("UPDATE pubs SET ".join(",",@updates)." WHERE pub_no=".$q->numeric_param('pub_no'));
+    } elsif ( $q->numeric_param('other_pub_no') )	{
+        $dbt->dbh->do("UPDATE other_pubs SET ".join(",",@updates)." WHERE other_pub_no=".$q->numeric_param('other_pub_no'));
     } elsif ( $q->param('new_entry') eq "Y" )	{
         push @fields , "initials,last_names";
         push @values, "'".join(',',@inits)."'";

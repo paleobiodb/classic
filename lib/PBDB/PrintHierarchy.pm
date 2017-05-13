@@ -42,10 +42,10 @@ sub classify	{
 	my ($dbt,$hbo,$s,$q) = @_;
         my $output = '';
 
-	my $taxon_no = $q->param('taxon_no');
-	my $reference_no = $q->param('reference_no');
-	if ( $q->param('parent_no') )	{
-		$taxon_no = $q->param('parent_no');
+	my $taxon_no = $q->numeric_param('taxon_no');
+	my $reference_no = $q->numeric_param('reference_no');
+	if ( $q->numeric_param('parent_no') )	{
+		$taxon_no = $q->numeric_param('parent_no');
 	}
 	# if something like "Jones 1984" was submitted, find the matching
 	#  reference with the most opinions
