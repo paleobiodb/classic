@@ -742,14 +742,15 @@ sub submitOpinionForm {
 	my %fields;
 
 	# Simple checks
-    my $isNewEntry = $q->numeric_param('opinion_no') ? 0 : 1;
+    my $opinion_no = $q->numeric_param('opinion_no');
+    my $isNewEntry = $opinion_no > 0 ? 0 : 1;
 
     # if the opinion already exists, grab it
     my $o;
     if (!$isNewEntry) {
-        $o = PBDB::Opinion->new($dbt,$q->numeric_param('opinion_no'));
+        $o = PBDB::Opinion->new($dbt,$opinion_no);
         if (!$o) {
-            carp "Could not create opinion object in displayOpinionForm for opinion_no ".$q->numeric_param('opinion_no');
+            carp "Could not create opinion object in displayOpinionForm for opinion_no $opinion_no";
             return;
         }
         $fields{'opinion_no'} = $o->get('opinion_no');
