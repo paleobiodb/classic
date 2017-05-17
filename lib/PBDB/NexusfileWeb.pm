@@ -357,7 +357,7 @@ sub editFile {
     
     # First figure out which file we're supposed to be editing.
     
-    my $nexusfile_no = $q->param('nexusfile_no');
+    my $nexusfile_no = $q->numeric_param('nexusfile_no');
     
     unless ( $nexusfile_no > 0 )
     {
@@ -379,7 +379,7 @@ sub editFile {
     
     if ( $q->param('add_ref') )
     {
-	my $reference_no = $q->param('reference_no') || $s->get('reference_no');
+	my $reference_no = $q->numeric_param('reference_no') || $s->get('reference_no');
 	
 	PBDB::Nexusfile::addReference($dbt, $nexusfile_no, $reference_no);
     }
@@ -559,8 +559,7 @@ sub processEdit {
     # First make sure we know which file we're working with.  If we don't have
     # a nexusfile_no value, go to the main menu.
     
-    my $nexusfile_no = $q->param('nexusfile_no');
-    $nexusfile_no =~ tr/0-9//dc;
+    my $nexusfile_no = $q->numeric_param('nexusfile_no');
     
     unless ( $nexusfile_no > 0 )
     {
@@ -709,7 +708,7 @@ sub displaySearchPage {
 		   file_name => scalar($q->param('file_name')),
 		   taxon_name => scalar($q->param('taxon_name')),
 		   person_reversed => scalar($q->param('person_reversed')),
-		   reference_no => scalar($q->param('reference_no')),
+		   reference_no => $q->numeric_param('reference_no'),
 		 };
     
     return $hbo->populateHTML('nexus_search', $vars);
@@ -731,7 +730,7 @@ sub processSearch {
     my $filename = $q->param('file_name');
     my $taxon_name = $q->param('taxon_name');
     my $authorizer = $q->param('person_reversed');
-    my $reference_no = $q->param('reference_no');
+    my $reference_no = $q->numeric_param('reference_no');
     
     if ( $q->charset() =~ /utf-?8/i )
     {
@@ -990,7 +989,7 @@ sub findFile {
     # If we have been given a nexusfile_no value, just use that.  Either we
     # find a nexus file with the given nexusfile_no, or not.
     
-    if ( (my $nexusfile_no = $q->param('nexusfile_no')) > 0 )
+    if ( (my $nexusfile_no = $q->numeric_param('nexusfile_no')) > 0 )
     {
 	($nf) = PBDB::Nexusfile::getFileInfo($dbt, $nexusfile_no);
     }
@@ -1015,10 +1014,9 @@ sub findFile {
 	    $filename = $2;
 	}
 	
-	elsif ( $q->param('authorizer_no') =~ /^[0-9]/ and $q->param('filename') )
+	elsif ( $q->numeric_param('authorizer_no') and $q->param('filename') )
 	{
-	    $authorizer_no = $q->param('authorizer_no');
-	    $authorizer_no =~ tr/0-9//dc;
+	    $authorizer_no = $q->numeric_param('authorizer_no');
 	    $filename = $q->param('filename');
 	}
 	

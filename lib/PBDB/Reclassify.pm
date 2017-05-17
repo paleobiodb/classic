@@ -17,7 +17,7 @@ sub startReclassifyOccurrences	{
         my $dbh = $dbt->dbh;
         my $output = '';
 	
-	if ( $q->param("collection_no") )	{
+	if ( $q->numeric_param("collection_no") )	{
         # if they have the collection number, they'll immediately go to the
         #  reclassify page
 		displayOccurrenceReclassify($q,$s,$dbt,$hbo);
@@ -89,9 +89,9 @@ sub displayOccurrenceReclassify	{
         dbg("Reclassify sql:".$sql);
         @occrefs = @{$dbt->getData($sql)};
     } else {
-	    my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->param('collection_no');
+	    my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->numeric_param('collection_no');
 	    my $coll_name = ${$dbt->getData($sql)}[0]->{collection_name};
-	    $output .= "<center><p class=\"pageTitle\">Classification of taxa in collection ",$q->param('collection_no')," ($coll_name)</p>";
+	    $output .= "<center><p class=\"pageTitle\">Classification of taxa in collection ",$q->numeric_param('collection_no')," ($coll_name)</p>";
        
         my $authorizer_where = "";
         if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
@@ -99,7 +99,7 @@ sub displayOccurrenceReclassify	{
         }
 
         # get all the occurrences
-        my $collection_no = int($q->param('collection_no'));
+        my $collection_no = $q->numeric_param('collection_no');
         $sql = "(SELECT 0 reid_no,authorizer_no, occurrence_no,taxon_no,genus_reso,genus_name,subgenus_reso,subgenus_name,species_reso,species_name FROM occurrences WHERE collection_no=$collection_no $authorizer_where)".
                " UNION ".
                "(SELECT reid_no,authorizer_no, occurrence_no,taxon_no,genus_reso,genus_name,subgenus_reso,subgenus_name,species_reso,species_name FROM reidentifications WHERE collection_no=$collection_no $authorizer_where)".
@@ -113,13 +113,15 @@ sub displayOccurrenceReclassify	{
 	if ( @occrefs )	{
 		$output .= "<form action=\"$WRITE_URL\" method=\"post\">\n";
 		$output .= "<input id=\"action\" type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n";
-		$output .= "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
+		if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
+		    $output .= "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
+		}
         if (@collections) {
             $output .= "<input type=\"hidden\" name=\"taxon_name\" value=\"".$q->param('taxon_name')."\">";
 		    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
             $output .= "<tr><th class=\"large\" colspan=2>Collection</th><th class=\"large\" colspan=2 style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
         } else {
-            $output .= "<input type=\"hidden\" name=\"collection_no\" value=\"".$q->param('collection_no')."\">";
+            $output .= "<input type=\"hidden\" name=\"collection_no\" value=\"".$q->numeric_param('collection_no')."\">";
 		    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
             $output .= "<tr><th class=\"large\">Taxon name</th><th colspan=2 class=\"large\" style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
         }
@@ -321,10 +323,10 @@ sub processReclassifyForm	{
 
 	$output .= "<center>\n\n";
 
-    if ($q->param('collection_no')) {
-        my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->param('collection_no');
+    if ($q->numeric_param('collection_no')) {
+        my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->numeric_param('collection_no');
         my $coll_name = ${$dbt->getData($sql)}[0]->{collection_name};
-        $output .= "<p class=\"pageTitle\">Reclassified taxa in collection " , $q->param('collection_no') ," (" , $coll_name , ")</p>\n\n";
+        $output .= "<p class=\"pageTitle\">Reclassified taxa in collection " , $q->numeric_param('collection_no') ," (" , $coll_name , ")</p>\n\n";
 	    $output .= "<table border=0 cellpadding=2 cellspacing=0 class=\"small\">\n";
         $output .= "<tr><th class=\"large\">Taxon</th><th class=\"large\">Classification based on</th></tr>";
     } elsif ($q->param('taxon_name')) {
@@ -351,7 +353,7 @@ sub processReclassifyForm	{
 		# update the occurrences table
             my $dbh_r = $dbt->dbh;
 			my $sql = "UPDATE occurrences SET taxon_no=".$new_taxon_no.", modifier=".$dbh->quote($s->get('enterer')).", modifier_no=".$s->get('enterer_no');
-			if ( $old_taxon_no > 0 )	{
+			if ( $old_taxon_no && $old_taxon_no > 0 && $old_taxon_no =~ /^\d+$/ )	{
 				$sql .= " WHERE taxon_no=" . $old_taxon_no;
 			} else	{
 				$sql .= " WHERE taxon_no=0";
@@ -392,12 +394,19 @@ sub processReclassifyForm	{
 			my $sql = "UPDATE reidentifications SET taxon_no=".$new_taxon_no.
                    ", modifier=".$dbh->quote($s->get('enterer')).
 			       ", modifier_no=".$s->get('enterer_no');
-			if ( $old_taxon_no > 0 )	{
+			if ( $old_taxon_no && $old_taxon_no > 0 && $old_taxon_no =~ /^\d+$/ )	{
 				$sql .= " WHERE taxon_no=" . $old_taxon_no;
 			} else	{
 				$sql .= " WHERE taxon_no=0";
 			}
-			$sql .= " AND reid_no=" . $reids[$i];
+			if ( $reids[$i] && $reids[$i] =~ /^\d+$/ )
+			{
+			    $sql .= " AND reid_no=" . $reids[$i];
+			}
+			else
+			{
+			    $sql .= " AND reids_no=0";
+			}
 			$dbh_r->do($sql);
 
 		# print the taxon's info
@@ -422,9 +431,9 @@ sub processReclassifyForm	{
     if ($q->param('show_links')) {
         $output .= uri_unescape($q->param("show_links"));
     } else { 
-        if ($q->param('collection_no')) {
-	    my $occurrences_authorizer_no = $q->param('occurrences_authorizer_no');
-	    my $collection_no = $q->param('collection_no');
+        if ($q->numeric_param('collection_no')) {
+	    my $occurrences_authorizer_no = $q->numeric_param('occurrences_authorizer_no');
+	    my $collection_no = $q->numeric_param('collection_no');
             $output .= makeAnchor("startStartReclassifyOccurrences", "occurrences_authorizer_no=$occurrences_authorizer_no&collection_no=$collection_no", "Reclassify this collection") . " - ";
         } else {
 	    my $occurrences_authorizer_no = $q->param('occurrences_authorizer_no');

@@ -285,10 +285,10 @@ sub new {
 #     close PNG;
 #     chmod 0664, "$GIF_DIR/$pngname";
 
-#     if ( $q->param('taxon_no') || $q->param('taxon_name') )	{
+#     if ( $q->numeric_param('taxon_no') || $q->param('taxon_name') )	{
 # 	my $taxon;
-#     	if ( $q->param('taxon_no') )	{
-# 		$taxon = $q->param('taxon_no');
+#     	if ( $q->numeric_param('taxon_no') )	{
+# 		$taxon = $q->numeric_param('taxon_no');
 #     	} elsif ( $q->param('taxon_name') )	{
 # 		$taxon = $q->param('taxon_name');
 # 		$taxon =~ s/ /_/g;

@@ -27,10 +27,10 @@ sub displayReviewForm	{
 	if ( $q->param('title') =~ /[A-Za-z]/ || $q->param('text') =~ /[A-Za-z]/ )	{
 		%vars = $q->Vars();
 		$vars{'add_edit'} = "Editing";
-		if ( $q->param('release') =~ /y|n/i || $q->param('review_no') == 0 )	{
+		if ( $q->param('release') =~ /y|n/i || $q->numeric_param('review_no') == 0 )	{
 			$vars{'released'} = $publish_link;
 		} else	{
-			my $sql = "SELECT released FROM reviews WHERE review_no=".$q->param('review_no');
+			my $sql = "SELECT released FROM reviews WHERE review_no=".$q->numeric_param('review_no');
 			my $review = ${$dbt->getData($sql)}[0];
 			$vars{'released'} = "<i>This page was published on ".$review->{'released'}."</i>";
 		}
@@ -38,8 +38,9 @@ sub displayReviewForm	{
 	}
 
 	# if this is a second trip to the function, display the review
-	if ( $q->param('review_no') > 0 )	{
-		my $sql = "SELECT * FROM reviews r,versions v WHERE r.review_no=v.review_no AND latest='Y' AND author_no=".$s->get('enterer_no')." AND r.review_no=".$q->param('review_no');
+	my $review_no = $q->numeric_param('review_no');
+	if ( $review_no && $review_no > 0 )	{
+		my $sql = "SELECT * FROM reviews r,versions v WHERE r.review_no=v.review_no AND latest='Y' AND author_no=".$s->get('enterer_no')." AND r.review_no=".$q->numeric_param('review_no');
 		my $review = ${$dbt->getData($sql)}[0];
 
 		# paranoia check (authors shouldn't be able to select a review
@@ -71,7 +72,7 @@ sub displayReviewForm	{
 		return $hbo->populateHTML("review_form", \%vars);
 	}
 	# second trip, but the user wants to create a new page
-	elsif ( $q->param('review_no') == - 1)	{
+	elsif ( $review_no == - 1)	{
 		$vars{'add_edit'} = "Entry";
 		$vars{'released'} = $publish_link;
 		return $hbo->populateHTML("review_form", \%vars);
@@ -272,7 +273,7 @@ sub showReview	{
 		$institution = $person->{'institution'};
 		$title = $q->param('title');
 		$text = $q->param('text');
-		$no = $q->param('official_no');
+		$no = $q->numeric_param('official_no');
 
 		# anything that might have quotes needs to be escaped because
 		#  everything goes in hidden inputs
@@ -317,7 +318,7 @@ sub showReview	{
 	# otherwise retrieve everything from the database
 	else	{
 		$goal = "view";
-		$sql = "SELECT first_name,last_name,institution,r.*,v.* FROM person p,reviews r,versions v WHERE person_no=author_no AND r.review_no=v.review_no AND latest='Y' AND r.review_no=".$q->param('review_no');
+		$sql = "SELECT first_name,last_name,institution,r.*,v.* FROM person p,reviews r,versions v WHERE person_no=author_no AND r.review_no=v.review_no AND latest='Y' AND r.review_no=".$q->numeric_param('review_no');
 		my $review = ${$dbt->getData($sql)}[0];
 		$author = $review->{'first_name'}." ".$review->{'last_name'};
 		$institution = $review->{'institution'};
