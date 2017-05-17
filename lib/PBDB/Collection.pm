@@ -569,7 +569,9 @@ IS NULL))";
 
 	if ( $options{'citation'} =~ /^[A-Za-z'\-]* [12][0-9][0-9][0-9]$/ )	{
 		my ($auth,$yr) = split / /,$options{'citation'};
-		my $sql = "SELECT reference_no FROM refs WHERE (author1last LIKE '$auth' OR author2last LIKE '$auth') AND pubyr=$yr";
+		my $quoted_auth = $dbh->quote($auth);
+		my $quoted_yr = $dbh->quote($yr);
+		my $sql = "SELECT reference_no FROM refs WHERE (author1last LIKE $quoted_auth OR author2last LIKE $quoted_auth) AND pubyr=$quoted_yr";
 		my @refs = @{$dbt->getData($sql)};
 		my @ref_nos = map {$_->{'reference_no'}} @refs;
 		push @where , "c.reference_no IN (".join(',',@ref_nos).")";
@@ -617,7 +619,7 @@ IS NULL))";
     # do a lookup of all the countries in the continent
     if ($options{"country"}) {
         if ($options{"country"} =~ /^(North America|South America|Europe|Africa|Antarctica|Asia|Australia)/) {
-            if ( ! open ( REGIONS, "data/PBDB.regions" ) ) {
+            if ( ! open ( REGIONS, "../data/PBDB.regions" ) ) {
                 my $error_message = $!;
                 die($error_message);
             }
@@ -1069,10 +1071,10 @@ sub basicCollectionSearch {
 			$NAME = $q->param('quick_search');
 		}
 	}
-
-	if ( $q->param('collection_list') && $q->param('collection_list') =~ /^[\d ,]+$/ ) {
-		if ( $q->param('collection_list') =~ /,/ )	{
-			$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO IN (".$q->param('collection_list').")";
+        my $collection_list = $q->param('collection_list');
+	if ( $collection_list && $collection_list =~ /^[\d ,]+$/ ) {
+		if ( $collection_list =~ /,/ )	{
+			$sql = "SELECT $fields FROM $COLLECTIONS WHERE $COLLECTION_NO IN ($collection_list)";
 			my @colls = @{$dbt->getData($sql)};
 			$q->param('type' => 'view');
 			$q->param('basic' => 'yes');
@@ -1259,7 +1261,7 @@ sub basicCollectionInfo	{
 		}
 	}
 
-	my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->param('collection_no');
+	my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->numeric_param('collection_no');
 	my $c = ${$dbt->getData($sql)}[0];
 
 	my $p = PBDB::Permissions->new($s,$dbt);
@@ -1930,7 +1932,7 @@ sub rarefyAbundances	{
     my $dbh = $dbt->dbh;
     my $output = '';
 
-    my $collection_no = int($q->param('collection_no'));
+    my $collection_no = $q->numeric_param('collection_no');
     my $sql = "SELECT collection_name FROM collections WHERE collection_no=$collection_no";
     my $collection_name=${$dbt->getData($sql)}[0]->{'collection_name'};
 
@@ -2222,7 +2224,7 @@ sub displayCollectionEcology	{
     }
 
     # Get all occurrences for the collection using the most currently reid'd name
-    my $collection_no = int($q->param('collection_no'));
+    my $collection_no = $q->numeric_param('collection_no');
     my $collection_name = $q->param('collection_name');
 
     $output .= "<div align=center><p class=\"pageTitle\">$collection_name (collection number $collection_no)</p></div>";
@@ -2242,7 +2244,7 @@ sub displayCollectionEcology	{
 
 	if (!%$ecology) {
 		$output .= "<center><p>Sorry, there are no ecological data for any of the taxa</p></center>\n\n";
-        my $collection_no = $q->param('collection_no');
+        my $collection_no = $q->numeric_param('collection_no');
 		$output .= "<center><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b></p></center>\n\n";
 		return $output;
 	} 
@@ -2407,7 +2409,7 @@ sub displayCollectionEcology	{
 	$output .= "</table>\n";
     $output .= "</div>";
 
-    my $collection_no = $q->param('collection_no');
+    my $collection_no = $q->numeric_param('collection_no');
 	$output .= "<div align=\"center\"><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b> - ";
 	$output .= "<b>" . makeAnchor("displaySearchColls", "type=view", "Search for other collections") . "</b></p></div>\n\n";
     
@@ -2474,7 +2476,7 @@ sub explainAEOestimate	{
 		s/\n//;
 		$colls++;
 		my @data = split /\t/,$_;
-		if ( $data[0] == $q->param('collection_no') )	{
+		if ( $data[0] == $q->numeric_param('collection_no') )	{
 			$max = $data[1];
 			$min = $data[2];
 			$name = $data[3];

@@ -6,10 +6,13 @@ use strict;
 
 # 15.5.07 JA
 
-sub processSanityCheck	{
-	my ($q,$dbt,$hbo,$s) = @_;
+sub processSanityCheck {
 
-	my $sql;
+    my ($q,$dbt,$hbo,$s) = @_;
+    
+    my $dbh = $dbt->dbh;
+    my $sql;
+    
 	my %plural = ('order' => 'orders', 'family' => 'families', 'genus' => 'genera');
 	my @ranks = ('order', 'family', 'genus');
 	my @grades = ('F','F','F','D','D','C','C','B','B','A','A');
@@ -30,29 +33,31 @@ sub processSanityCheck	{
 	if ( ! $q->param('taxon_name') )	{
 		$error_message = "You must enter a taxon name.";
 	} else	{
-		$sql = "SELECT lft,rgt,taxon_rank rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name='" . $q->param('taxon_name') ."'";
-		my $row = @{$dbt->getData($sql)}[0];
-		$lft = $row->{lft};
-		$rgt = $row->{rgt};
-		if ( ! $lft )	{
-			$error_message = "\"" . $q->param('taxon_name') . "\" is not in the Database.";
-		} elsif ( $lft + 1 == $rgt )	{
-			$error_message = $q->param('taxon_name') . " does not include any subtaxa.";
+	    my $quoted_name = $dbh->quote($q->param('taxon_name'));
+	    $sql = "SELECT lft,rgt,taxon_rank rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_name";
+	    my $row = @{$dbt->getData($sql)}[0];
+	    $lft = $row->{lft};
+	    $rgt = $row->{rgt};
+	    if ( ! $lft )	{
+		$error_message = "\"" . $q->param('taxon_name') . "\" is not in the Database.";
+	    } elsif ( $lft + 1 == $rgt )	{
+		$error_message = $q->param('taxon_name') . " does not include any subtaxa.";
+	    } elsif ( $row->{rank} =~ /genus|species/ )	{
+		$error_message = $q->param('taxon_name') . " is not a higher taxon.";
+	    }
+	    if ( $q->param('excluded_taxon') )	{
+		my $quoted = $dbh->quote($q->param('excluded_taxon'));
+		$sql = "SELECT lft,rgt,taxon_rank rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted";
+		$row = @{$dbt->getData($sql)}[0];
+		$lftrgt2 .= " AND (lft<" . $row->{lft} . " OR rgt>" . $row->{rgt} . ")";
+		if ( ! $row->{lft} )	{
+		    $error_message .= " \"" . $q->param('excluded_taxon') . "\" is not in the Database.";
+		} elsif ( $row->{lft} + 1 == $row->{rgt} )	{
+		    $error_message .= " " . $q->param('excluded_taxon') . " does not include any subtaxa.";
 		} elsif ( $row->{rank} =~ /genus|species/ )	{
-			$error_message = $q->param('taxon_name') . " is not a higher taxon.";
+		    $error_message .= " " . $q->param('excluded_taxon') . " is not a higher taxon.";
 		}
-		if ( $q->param('excluded_taxon') )	{
-			$sql = "SELECT lft,rgt,taxon_rank rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name='" . $q->param('excluded_taxon') ."'";
-			$row = @{$dbt->getData($sql)}[0];
-			$lftrgt2 .= " AND (lft<" . $row->{lft} . " OR rgt>" . $row->{rgt} . ")";
-			if ( ! $row->{lft} )	{
-				$error_message .= " \"" . $q->param('excluded_taxon') . "\" is not in the Database.";
-			} elsif ( $row->{lft} + 1 == $row->{rgt} )	{
-				$error_message .= " " . $q->param('excluded_taxon') . " does not include any subtaxa.";
-			} elsif ( $row->{rank} =~ /genus|species/ )	{
-				$error_message .= " " . $q->param('excluded_taxon') . " is not a higher taxon.";
-			}
-		}
+	    }
 	}
 	if ( $error_message )	{
 		$error_message = "<p><i>" . $error_message . " Please try again.</i></p>\n";

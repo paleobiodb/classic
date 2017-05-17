@@ -56,15 +56,17 @@ sub checkTaxonInfo {
         return searchForm($hbo, $q, 1); # param for not printing header with form
     }
 
-    if ($q->param('taxon_no')) {
+    if ($q->numeric_param('taxon_no')) {
         # If we have is a taxon_no, use that:
         return displayTaxonInfoResults($dbt,$s,$q,$hbo);
     } elsif (!$q->param('taxon_name') && !($q->param('common_name')) && !($q->param('pubyr')) && !$q->param('author') && !$q->param('museum')) {
         return searchForm($hbo,$q);
     } else {
         my @results;
-        if ( $q->param('museum') )	{
-            my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND museum='".$q->param('museum')."' GROUP BY taxon_no";
+        if ( my $museum = $q->param('museum') )
+	{
+	    my $quoted = $dbh->quote($museum);
+            my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND museum=$quoted GROUP BY taxon_no";
             my @nos = map { $_->{'taxon_no'} } @{$dbt->getData($sql)};
             $q->param('taxa' => join(',',@nos));
         }
@@ -87,13 +89,20 @@ sub checkTaxonInfo {
                         ($init2,$author) = split / /,$author,2;
                         $init .= " ".$init2;
                     }
-                    $morewhere .= " AND ((((a.author1init='$init' AND a.author1last='$author') OR (a.author2init='$init' AND a.author2last='$author')) AND ref_is_authority='') OR (((r.author1init='$init' AND r.author1last='$author') OR (r.author2init='$init' AND r.author2last='$author')) AND ref_is_authority='YES'))";
+		    
+		    my $quoted_init = $dbh->quote($init);
+		    my $quoted_author = $dbh->quote($author);
+		    
+                    $morewhere .= " AND ((((a.author1init=$quoted_init AND a.author1last=$quoted_author) OR (a.author2init=$quoted_init AND a.author2last=$quoted_author)) AND ref_is_authority='') OR (((r.author1init=$quoted_init AND r.author1last=$quoted_author) OR (r.author2init=$quoted_init AND r.author2last=$quoted_author)) AND ref_is_authority='YES'))";
                 } else	{
-                    $morewhere .= " AND (((a.author1last='$author' OR a.author2last='$author') AND ref_is_authority='') OR ((r.author1last='$author' OR r.author2last='$author') AND ref_is_authority='YES'))";
+ 		    my $quoted_author = $dbh->quote($author);
+		    $morewhere .= " AND (((a.author1last=$quoted_author OR a.author2last=$quoted_author) AND ref_is_authority='') OR ((r.author1last=$quoted_author OR r.author2last=$quoted_author) AND ref_is_authority='YES'))";
                 }
             }
-            if ( $q->param('pubyr') )	{
-                $morewhere .= " AND ((a.pubyr=".$q->param('pubyr')." AND ref_is_authority='') OR (r.pubyr=".$q->param('pubyr')." AND ref_is_authority='YES'))";
+            if ( my $pubyr = $q->param('pubyr') )
+	    {
+		my $quoted_pubyr = $dbh->quote($pubyr);
+                $morewhere .= " AND ((a.pubyr=$quoted_pubyr AND ref_is_authority='') OR (r.pubyr=$quoted_pubyr AND ref_is_authority='YES'))";
             }
             my $sql = "SELECT a.*,IF (ref_is_authority='YES',r.author1last,a.author1last) author1last,IF (ref_is_authority='YES',r.author2last,a.author2last) author2last,IF (ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF (ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,pages,figures,ref_is_authority,a.reference_no FROM authorities a,refs r WHERE a.reference_no=r.reference_no AND taxon_no IN (".join(',',$q->param('taxa')).") $morewhere";
             @results = @{$dbt->getData($sql)};
@@ -173,7 +182,7 @@ sub displayTaxonInfoResults {
     my $dbh = $dbt->dbh;
     my $output = '';
     
-    my $taxon_no = int($q->param('taxon_no'));
+    my $taxon_no = $q->numeric_param('taxon_no');
     
     if ( $taxon_no =~ /^(\d+)[^\d]/ )
     {
@@ -385,7 +394,7 @@ sub displayTaxonInfoResults {
 	$output .= "</div>\n</div>\n\n";
 
         my $entered_name = $q->param('entered_name') || $q->param('taxon_name') || $taxon_name;
-        my $entered_no = $q->param('entered_no') || $q->param('taxon_no');
+        my $entered_no = $q->numeric_param('entered_no') || $q->numeric_param('taxon_no');
         $output .= "<p>";
         $output .= "<div>";
         $output .= "<center>";
@@ -2862,7 +2871,8 @@ sub beginFirstAppearance	{
 # JA 10-13.1.09
 sub displayFirstAppearance	{
     my ($q,$s,$dbt,$hbo) = @_;
-
+    
+    my $dbh = $dbt->dbh;
     # $|=1;
     my $output = '';
 	my ($sql,$field,$name);
@@ -2901,7 +2911,8 @@ sub displayFirstAppearance	{
 	}
 
 	# it's overkill to use getChildren because the query is so simple
-	$sql  = "SELECT a.taxon_no,a.taxon_name,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,a.taxon_rank,a.extant,a.preservation,lft,rgt FROM refs r,authorities a,authorities a2,$TAXA_TREE_CACHE t WHERE r.reference_no=a.reference_no AND a2.taxon_no=t.taxon_no AND a2.$field='$name' AND a.taxon_no=t.synonym_no GROUP BY lft,rgt ORDER BY rgt-lft DESC";
+	my $quoted_name = $dbh->quote($name); 
+	$sql  = "SELECT a.taxon_no,a.taxon_name,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,a.taxon_rank,a.extant,a.preservation,lft,rgt FROM refs r,authorities a,authorities a2,$TAXA_TREE_CACHE t WHERE r.reference_no=a.reference_no AND a2.taxon_no=t.taxon_no AND a2.$field=$quoted_name AND a.taxon_no=t.synonym_no GROUP BY lft,rgt ORDER BY rgt-lft DESC";
 	my @nos = @{$dbt->getData($sql)};
 
 	if ( ! @nos )	{
@@ -3341,7 +3352,7 @@ sub displayFirstAppearance	{
 	# getCollections won't return multiple occurrences per collection, so...
 	my @collnos;
 	push @collnos , $_->{'collection_no'} foreach @$colls;
-	my $reso;
+	my $reso = '';
 	# not returning occurrences means that getCollections can't apply this
 	#  filter consistently
 	if ( $q->param('types_only') =~ /yes/i )	{
@@ -3562,6 +3573,8 @@ sub basicTaxonInfo	{
     my ($q,$s,$dbt,$hbo) = @_;
 
     my $output = '';
+    my $dbh = $dbt->dbh;
+    
 	my ($is_real_user,$not_bot) = (1,1);
 	if (! $q->request_method() eq 'POST' && ! $q->param('is_real_user') && ! $s->isDBMember()) {
 		$is_real_user = 0;
@@ -3599,8 +3612,8 @@ sub basicTaxonInfo	{
 
 	my $error;
 	my $taxon_no;
-	if ( $q->param('taxon_no') )	{
-		$taxon_no = $q->param('taxon_no');
+	if ( $q->numeric_param('taxon_no') )	{
+		$taxon_no = $q->numeric_param('taxon_no');
 		$taxon_no = getSeniorSynonym($dbt,$taxon_no); 
 	} elsif ( $q->param('author') || $q->param('pubyr') || $q->param('type_body_part') || $q->param('preservation') )	{
 		my @taxon_nos = getTaxonNos($dbt,$taxon_name,'','',$q->param('author'),$q->param('pubyr'),$q->param('type_body_part'),$q->param('preservation'));
@@ -3666,20 +3679,23 @@ sub basicTaxonInfo	{
 			my $wild = $taxon_name;
 			my $length = length($wild);
 			$wild =~ s/[aeiou]/%/g;
-			my $sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND length(taxon_name)>=$length-1 AND length(taxon_name)<=$length+1 AND taxon_name LIKE '$wild' $rank_clause ORDER BY rgt-lft DESC";
+			my $quoted_wild = $dbh->quote($wild);
+			my $sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND length(taxon_name)>=$length-1 AND length(taxon_name)<=$length+1 AND taxon_name LIKE $quoted_wild $rank_clause ORDER BY rgt-lft DESC";
 			my $guess = ${$dbt->getData($sql)}[0];
 			# now try first letter plus vowels
 			if ( ! $guess )	{
 				$wild = $taxon_name;
 				$wild =~ s/[^A-Zaeiou]/%/g;
-				$sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND length(taxon_name)>=$length-1 AND length(taxon_name)<=$length+1 AND taxon_name LIKE '$wild' $rank_clause ORDER BY rgt-lft DESC";
+				my $quoted_wild = $dbh->quote($wild);
+				$sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND length(taxon_name)>=$length-1 AND length(taxon_name)<=$length+1 AND taxon_name LIKE $quoted_wild $rank_clause ORDER BY rgt-lft DESC";
 				$guess = ${$dbt->getData($sql)}[0];
 			}
 			# we're desperate, so try whittling down the name
 			$wild = $taxon_name;
 			while ( ! $guess && length( $wild ) > 3 )	{
 				$wild =~ s/.$//;
-				$sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name LIKE '$wild%' $rank_clause ORDER BY rgt-lft DESC";
+				my $quoted_wild = $dbh->quote($wild);
+				$sql = "SELECT a.taxon_no,taxon_name,taxon_rank FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name LIKE $quoted_wild $rank_clause ORDER BY rgt-lft DESC";
 				$guess = ${$dbt->getData($sql)}[0];
 			}
 			$taxon_no = $guess->{'taxon_no'};
@@ -4395,24 +4411,28 @@ sub getMatchingSubtaxa	{
 		if ( $q->param('author') =~ /^[A-Za-z]/ )	{
 			my $author = $q->param('author');
 			$author =~ s/[^A-Za-z '\-]//g;
-			$author =~ s/'/\\'/g;
-			$morewhere .= " AND ((ref_is_authority='yes' AND (r.author1last='$author' OR r.author2last='$author')) OR (ref_is_authority!='yes' AND (a.author1last='$author' OR a.author2last='$author')))";
+			my $quoted_author = $dbh->quote($author);
+			$morewhere .= " AND ((ref_is_authority='yes' AND (r.author1last=$quoted_author OR r.author2last=$quoted_author)) OR (ref_is_authority!='yes' AND (a.author1last=$quoted_author OR a.author2last=$quoted_author)))";
 		}
 		if ( $q->param('pubyr') > 1700 )	{
 			my $pubyr = $q->param('pubyr');
 			$pubyr =~ s/[^0-9]//g;
-			$morewhere .= " AND ((ref_is_authority='yes' AND r.pubyr=$pubyr) OR (ref_is_authority!='yes' AND a.pubyr=$pubyr))";
+			my $quoted_pubyr = $dbh->quote($pubyr);
+			$morewhere .= " AND ((ref_is_authority='yes' AND r.pubyr=$pubyr) OR (ref_is_authority!='yes' AND a.pubyr=$quoted_pubyr))";
 		}
-		if ( $q->param('taxon_rank') )	{
-			$morewhere .= " AND taxon_rank='".$q->param('taxon_rank')."'";
+		if ( my $rank = $q->param('taxon_rank') )	{
+		    my $quoted = $dbh->quote($rank);
+		    $morewhere .= " AND taxon_rank=$quoted";
 		} else	{
-			$morewhere .= " AND taxon_rank='species'";
+		    $morewhere .= " AND taxon_rank='species'";
 		}
-		if ( $q->param('type_body_part') )	{
-			$morewhere = " AND type_body_part='".$q->param('type_body_part')."'";
+		if ( my $tbp = $q->param('type_body_part') )	{
+		    my $quoted = $dbh->quote($tbp);
+		    $morewhere = " AND type_body_part=$quoted";
 		}
-		if ( $q->param('preservation') )	{
-			$morewhere .= " AND preservation='".$q->param('preservation')."'";
+		if ( my $pres = $q->param('preservation') )	{
+		    my $quoted = $dbh->quote($pres);
+		    $morewhere .= " AND preservation=$quoted";
 		}
 		if ( $q->param('exclude_taxon') )	{
 			$sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=".$dbh->quote($q->param('exclude_taxon'))." ORDER BY rgt-lft DESC";
@@ -4530,12 +4550,41 @@ sub getTaxonNos {
         if ( $name )	{
             #$sql .= " AND (a.taxon_name LIKE ".$dbh->quote($name)." OR a.common_name LIKE ".$dbh->quote($name).")";
         }
-        $sql .= ( $name ) ? " AND (a.taxon_name LIKE ".$dbh->quote($name)." OR a.common_name LIKE ".$dbh->quote($name).")" : "";
-        $sql .= ( $rank ) ? " AND taxon_rank=".$dbh->quote($rank) : "";
-        $sql .= ( $author ) ? " AND ((ref_is_authority='Y' AND (r.author1last='$author' OR r.author2last='$author')) OR (ref_is_authority='' AND (a.author1last='$author' OR a.author2last='$author')))" : "";
-        $sql .= ( $year ) ? " AND ((ref_is_authority='Y' AND r.pubyr='$year') OR (ref_is_authority='' AND a.pubyr='$year'))" : "";
-        $sql .= ( $type_body_part ) ? " AND type_body_part=".$dbh->quote($type_body_part) : "";
-        $sql .= ( $preservation ) ? " AND preservation=".$dbh->quote($preservation) : "";
+	
+	if ( $name )
+	{
+	    my $quoted_name = $dbh->quote($name);
+	    $sql .= " AND (a.taxon_name LIKE $quoted_name OR a.common_name LIKE $quoted_name)";
+	}
+	
+	if ( $rank )
+	{
+	    my $quoted_rank = $dbh->quote($rank);
+	    $sql .= " AND taxon_rank=$quoted_rank";
+	}
+	
+	if ( $author )
+	{
+	    my $quoted_author = $dbh->quote($author);
+	    $sql .= " AND ((ref_is_authority='Y' AND (r.author1last=$quoted_author OR r.author2last=$quoted_author)) OR (ref_is_authority='' AND (a.author1last=$quoted_author OR a.author2last=$quoted_author)))";
+	}
+	
+	if ( $year )
+	{
+	    my $quoted_year = $dbh->quote($year);
+	    $sql .= " AND ((ref_is_authority='Y' AND r.pubyr=$quoted_year) OR (ref_is_authority='' AND a.pubyr=$quoted_year))";
+	}
+	
+	if ( $type_body_part )
+	{
+	    $sql .= " AND type_body_part=".$dbh->quote($type_body_part);
+	}
+	
+	if ( $preservation )
+	{
+	    $sql .= " AND preservation=".$dbh->quote($preservation);
+	}
+	
         if ($lump_ranks) {
             $sql .= " GROUP BY t.lft,t.rgt";
         }
@@ -4675,16 +4724,18 @@ sub getTaxa {
             $species_sql .= " $subspecies";
         }
         my $taxon1_sql;
+	my $quoted_name = $dbh->quote($options->{taxon_name});
         if ($options->{'ignore_common_name'})	{
-            $taxon1_sql = "(taxon_name LIKE '$options->{taxon_name}')";
+            $taxon1_sql = "(taxon_name LIKE $quoted_name)";
         } else	{
-            $taxon1_sql = "(taxon_name LIKE '$options->{taxon_name}' OR common_name LIKE '$options->{taxon_name}')";
+            $taxon1_sql = "(taxon_name LIKE $quoted_name OR common_name LIKE $quoted_name)";
         }
         
         my $sql = "($base_sql WHERE ".join(" AND ",@where,$taxon1_sql).")";
         if ($subgenus) {
             # Only exact matches for now, may have to rethink this
-            my $taxon3_sql = "taxon_name LIKE '$subgenus$species_sql'";
+	    my $quoted = $dbh->quote("$subgenus$species_sql");
+            my $taxon3_sql = "taxon_name LIKE $quoted";
             $sql .= " UNION ";
             $sql .= "($base_sql WHERE ".join(" AND ",@where,$taxon3_sql).")";
         } else {
@@ -4698,10 +4749,11 @@ sub getTaxa {
         @results = @{$dbt->getData($sql)};
     } else {
         if ($options->{'taxon_name'}) {
+	    my $quoted_name = $dbh->quote($options->{'taxon_name'});
             if ($options->{'ignore_common_name'})	{
-                push @where,"(a.taxon_name LIKE ".$dbh->quote($options->{'taxon_name'}).")";
+                push @where,"(a.taxon_name LIKE $quoted_name)";
             } else	{
-                push @where,"(a.taxon_name LIKE ".$dbh->quote($options->{'taxon_name'})." OR a.common_name LIKE ".$dbh->quote($options->{'taxon_name'}).")";
+                push @where,"(a.taxon_name LIKE $quoted_name OR a.common_name LIKE $quoted_name)";
             }
         }
         if (@where) {

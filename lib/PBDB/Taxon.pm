@@ -171,15 +171,16 @@ sub displayAuthorityForm {
 
 
     # Simple variable assignments
-    my $isNewEntry = ($q->param('taxon_no') > 0) ? 0 : 1;
+    my $taxon_no = $q->numeric_param('taxon_no');
+    my $isNewEntry = defined $taxon_no && $taxon_no > 0 ? 0 : 1;
     my $reSubmission = ($error_message) ? 1 : 0;
     
 	# if the taxon is already in the authorities table, grab it
     my $t;
     if (!$isNewEntry) {
-        $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
+        $t = PBDB::Taxon->new($dbt,$q->numeric_param('taxon_no'));
         if (!$t) {
-            carp "Could not create taxon object in displayAuthorityForm for taxon_no ".$q->param('taxon_no');
+            carp "Could not create taxon object in displayAuthorityForm for taxon_no ".$q->numeric_param('taxon_no');
             return;
         }
     }
@@ -540,14 +541,15 @@ sub submitAuthorityForm {
     }
     
     # Simple variable assignments
-    my $isNewEntry = ($q->param('taxon_no') > 0) ? 0 : 1;
+    my $taxon_no = $q->numeric_param('taxon_no');
+    my $isNewEntry = $taxon_no && $taxon_no > 0 ? 0 : 1;
 
     # if the taxon is already in the authorities table, grab it
     my $t;
     if (!$isNewEntry) {
-        $t = PBDB::Taxon->new($dbt,$q->param('taxon_no'));
+        $t = PBDB::Taxon->new($dbt,$taxon_no);
         if (!$t) {
-            carp "Could not create taxon object in submitAuthorityForm for taxon_no ".$q->param('taxon_no');
+            carp "Could not create taxon object in submitAuthorityForm for taxon_no ".$taxon_no;
 	    return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
         }
     }
@@ -637,7 +639,7 @@ sub submitAuthorityForm {
         if ($q->param('ref_is_authority') eq 'CURRENT') {
             $lookup_reference = $s->get('reference_no');
         } else {
-	    $fields{'reference_no'} ||= $q->param('reference_no');
+	    $fields{'reference_no'} ||= $q->numeric_param('reference_no');
             $lookup_reference = $fields{'reference_no'};
         }
         my $pubyr;
@@ -727,11 +729,15 @@ sub submitAuthorityForm {
 		}
 		if ( $coll != $q->param('type_locality') || ( ! $coll && ! $q->param('type_locality') ) )	{
 			my $sql;
-			if ( $q->param('taxon_no') > 0 )	{
-				$sql = "(SELECT collection_no FROM occurrences WHERE taxon_no=".$q->param('taxon_no')." AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE taxon_no=".$q->param('taxon_no')." AND species_reso='n. sp.')";
+			my $taxon_no = $q->numeric_param('taxon_no');
+			if ( $taxon_no && $taxon_no > 0 )	{
+				$sql = "(SELECT collection_no FROM occurrences WHERE taxon_no=$taxon_no AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE taxon_no=$taxon_no AND species_reso='n. sp.')";
 			} else	{
 				my($g,$sg,$s,$ss) = splitTaxon($q->param('taxon_name'));
-				$sql = "(SELECT collection_no FROM occurrences WHERE genus_name='$g' AND (subgenus_name='$sg' OR subgenus_name IS NULL OR subgenus_name='') AND species_name='$s' AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE genus_name='$g' AND (subgenus_name='$sg' OR subgenus_name IS NULL OR subgenus_name='') AND species_name='$s' AND species_reso='n. sp.')";
+				my $quoted_g = $dbh->quote($g);
+				my $quoted_sg = $dbh->quote($sg);
+				my $quoted_s = $dbh->quote($s);
+				$sql = "(SELECT collection_no FROM occurrences WHERE genus_name=$quoted_g AND (subgenus_name=$quoted_sg OR subgenus_name IS NULL OR subgenus_name='') AND species_name=$quoted_s AND species_reso='n. sp.') UNION (SELECT collection_no FROM reidentifications WHERE genus_name=$quoted_g AND (subgenus_name=$quoted_sg OR subgenus_name IS NULL OR subgenus_name='') AND species_name=$quoted_s AND species_reso='n. sp.')";
 			}
 			my @locs = @{$dbt->getData($sql)};
 			my $nlocs = $#locs + 1;
@@ -775,10 +781,10 @@ sub submitAuthorityForm {
         my @bits = split(/ /,$fields{'taxon_name'});
         pop @bits;
         my $parent_name = join(" ",@bits);
-        if ($q->param('parent_taxon_no')) {
-		    my $parent = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->param('parent_taxon_no')});
+        if ($q->numeric_param('parent_taxon_no')) {
+		    my $parent = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('parent_taxon_no')});
             if ($parent->{'taxon_name'} eq $parent_name) {
-                $parent_no=$q->param('parent_taxon_no');
+                $parent_no=$q->numeric_param('parent_taxon_no');
             } 
         }
         if (!$parent_no) {
@@ -849,17 +855,18 @@ sub submitAuthorityForm {
 					my $year = pop @words;
 					$value = join ' ',@words;
 					my ($author1,$and,$author2) = split / (and|&) /,$value;
-					$author1 =~ s/'/\\'/g;
-					$author2 =~ s/'/\\'/g;
 					if ( $author2 && $author1 !~ /et al\./ )	{
-						$author2 = "author2last='$author2' AND (otherauthors IS NULL OR otherauthors='')";
+					    my $quoted2 = $dbh->quote($author2);
+					    $author2 = "author2last=$quoted2 AND (otherauthors IS NULL OR otherauthors='')";
 					} elsif ( ! $author2 && $author1 =~ /et al\./ )	{
 						$author1 =~ s/et al\.//;
 						$author2 = "author2last IS NOT NULL AND author2last!='' AND otherauthors IS NOT NULL and otherauthors!=''";
 					} else	{
 						$author2 = "(author2last IS NULL OR author2last='') AND (otherauthors IS NULL OR otherauthors='')";
 					}
-					$sql = "SELECT reference_no FROM refs WHERE author1last='$author1' AND $author2 AND pubyr=$year";
+					my $quoted1 = $dbh->quote($author1);
+					my $quoted_year = $dbh->quote($year);
+					$sql = "SELECT reference_no FROM refs WHERE author1last=$quoted1 AND $author2 AND pubyr=$quoted_year";
 					$no = ${$dbt->getData($sql)}[0]->{reference_no};
 					$table = ( $no > 0 ) ? "ref" : "";
 				}
@@ -1049,11 +1056,10 @@ sub submitAuthorityForm {
 
         my $style = qq| style="padding-top: 0.65em;"|;
         if ( $q->param('ref_is_authority') !~ /PRIMARY/ )	{
-            my $cleanauth1 = $q->param('author1last');
-            $cleanauth1 =~ s/'/\\'/;
-            my $cleanauth2 = $q->param('author2last');
-            $cleanauth2 =~ s/'/\\'/;
-            my $sql = "SELECT opinion_no FROM opinions WHERE author1last='$cleanauth1' AND author2last='$cleanauth2' AND pubyr='" . $q->param('pubyr') . "' AND child_spelling_no=$resultTaxonNumber AND child_no=$origResultTaxonNumber ORDER BY opinion_no DESC";
+            my $cleanauth1 = $dbh->quote($q->param('author1last'));
+            my $cleanauth2 = $dbh->quote($q->param('author2last'));
+	    my $quoted_pubyr = $dbh->quote($q->param('pubyr'));
+            my $sql = "SELECT opinion_no FROM opinions WHERE author1last='$cleanauth1' AND author2last='$cleanauth2' AND pubyr=$quoted_pubyr AND child_spelling_no=$resultTaxonNumber AND child_no=$origResultTaxonNumber ORDER BY opinion_no DESC";
             my $opinion_no = ${$dbt->getData($sql)}[0]->{opinion_no};
             if ( $opinion_no > 0 )	{
                 $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=$opinion_no", "Edit this author's opinion about $fields{taxon_name}") . "</li>";
@@ -1830,8 +1836,8 @@ sub displayTypeTaxonSelectForm {
 sub submitTypeTaxonSelect {
     my ($dbt,$s,$q) = @_;
 
-    my $type_taxon_no = $q->param('type_taxon_no');
-    my $reference_no = $q->param('reference_no');
+    my $type_taxon_no = $q->numeric_param('type_taxon_no');
+    my $reference_no = $q->numeric_param('reference_no');
     my $end_message = $q->param('end_message');
     $end_message =~ s/&quot;/"/g;
     $end_message =~ s/&lt;/</g;
@@ -2159,16 +2165,21 @@ sub getBestClassification{
     if ( $genus_reso !~ /informal/ && $genus_name) {
         my $species_sql = "";
         if ($species_reso  !~ /informal/ && $species_name =~ /^[a-z]+$/ && $species_name !~ /^sp(\.)?$|^indet(\.)?$/) {
-            $species_sql = "AND ((taxon_rank='species' and taxon_name like '% $species_name') or taxon_rank != 'species')";
+	    my $quoted = $dbh->quote("% $species_name");
+            $species_sql = "AND ((taxon_rank='species' and taxon_name like $quoted) or taxon_rank != 'species')";
         }
-        my $sql = "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE '$genus_name%' $species_sql)";
+	my $quoted2 = $dbh->quote("$genus_name%");
+	my $quoted3 = $dbh->quote("% ($genus_name)");
+	my $quoted4 = $dbh->quote("$subgenus_name%");
+	my $quoted5 = $dbh->quote("% ($subgenus_name)");
+        my $sql = "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE $quoted2 $species_sql)";
         $sql .= " UNION ";
-        $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_rank='subgenus' AND taxon_name LIKE '% ($genus_name)')";
+        $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_rank='subgenus' AND taxon_name LIKE $quoted3)";
         if ($subgenus_reso !~ /informal/ && $subgenus_name) {
             $sql .= " UNION ";
-            $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE '$subgenus_name%' $species_sql)";
+            $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE $quoted4 $species_sql)";
             $sql .= " UNION ";
-            $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_rank='subgenus' AND taxon_name LIKE '% ($subgenus_name)')";
+            $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_rank='subgenus' AND taxon_name LIKE $quoted5)";
         }
 
         #print "Trying to match $genus_name ($subgenus_name) $species_name\n";
@@ -2401,7 +2412,7 @@ sub propagateAuthorityInfo {
 # JA 14.12.10
 sub entangledNamesForm	{
 	my ($dbt,$hbo,$s,$q) = @_;
-	my $taxon_no = $q->param('taxon_no');
+	my $taxon_no = $q->numeric_param('taxon_no');
 	my %vars;
 
 	my $if = "IF(a.ref_is_authority='YES'";
@@ -2439,7 +2450,7 @@ sub disentangleNames	{
 	my ($dbt,$hbo,$s,$q) = @_;
 	my $dbh = $dbt->dbh;
 
-	my @spellings = $q->param('spelling_no');
+	my @spellings = $q->numeric_param('spelling_no');
 	my (@version1,@version2);
 	for my $i ( 0..$#spellings )	{
 		if ( $q->param('spelling'.$i) == "1" )	{

@@ -363,9 +363,9 @@ sub getSecondaryRefs {
 
 sub displayReferenceForm {
     my ($dbt,$q,$s,$hbo) = @_;
-    my $reference_no = $q->param('reference_no');
+    my $reference_no = $q->numeric_param('reference_no');
 
-    my $isNewEntry = ($reference_no > 0) ? 0 : 1;
+    my $isNewEntry = $reference_no && $reference_no > 0 ? 0 : 1;
     
     my %defaults = (
         'basis'=>'stated without evidence',
@@ -417,10 +417,10 @@ sub displayReferenceForm {
 sub processReferenceForm {
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
-    my $reference_no = int($q->param('reference_no'));
+    my $reference_no = $q->numeric_param('reference_no');
     my $output = '';
     
-    my $isNewEntry = ($reference_no > 0) ? 0 : 1;
+    my $isNewEntry = $reference_no && $reference_no > 0 ? 0 : 1;
     
     unless ( $q->param('check_status') eq 'done' )
     {

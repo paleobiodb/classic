@@ -67,7 +67,7 @@ sub displayCollectionForm {
     my $dbh = $dbt->dbh;
     my $output = '';
 
-    my $isNewEntry = ($q->param('collection_no') =~ /^\d+$/) ? 0 : 1;
+    my $isNewEntry = $q->numeric_param('collection_no') ? 0 : 1;
     my $reSubmission = ($q->param('action') =~ /processCollectionForm/) ? 1 : 0;
 
     # First check to nake sure they have a reference no for new entries
@@ -84,7 +84,7 @@ sub displayCollectionForm {
 
     my %row = ();
     if (!$isNewEntry) {
-        my $collection_no = int($q->param('collection_no'));
+        my $collection_no = $q->numeric_param('collection_no');
         my $sql = "SELECT * FROM collections WHERE collection_no=$collection_no";
         my $c_row = ${$dbt->getData($sql)}[0] or die "invalid collection no";
         %row = %{$c_row};
@@ -95,8 +95,8 @@ sub displayCollectionForm {
 
     if ($reSubmission) {
         %vars = %form;
-    } if ($isNewEntry && int($q->param('prefill_collection_no'))) {
-        my $collection_no = int($q->param('prefill_collection_no'));
+    } if ($isNewEntry && $q->numeric_param('prefill_collection_no')) {
+        my $collection_no = $q->numeric_param('prefill_collection_no');
         my $sql = "SELECT * FROM collections WHERE collection_no=$collection_no";
         my $row = ${$dbt->getData($sql)}[0] or die "invalid collection no";
         foreach my $field (keys(%$row)) {
@@ -245,12 +245,13 @@ sub displayCollectionForm {
 #  * System commits data to database and thanks the nice user
 #    (or displays an error message if something goes terribly wrong)
 sub processCollectionForm {
-	my ($dbt,$q,$s,$hbo) = @_;
-	my $dbh = $dbt->dbh;
-	my $output = '';
+    
+    my ($dbt,$q,$s,$hbo) = @_;
+    my $dbh = $dbt->dbh;
+    my $output = '';
 
-	my $reference_no = $q->param("reference_no");
-	my $secondary = $q->param('secondary_reference_no');
+	my $reference_no = $q->numeric_param("reference_no");
+	my $secondary = $q->numeric_param('secondary_reference_no');
 
 	my $collection_no = $q->param($COLLECTION_NO);
 
@@ -271,31 +272,43 @@ sub processCollectionForm {
 
 	# change interval names into numbers by querying the intervals table
 	# JA 11-12.7.03
-	if ( $q->param('max_interval') )	{
-		my $sql = "SELECT interval_no FROM intervals WHERE interval_name='" . $q->param('max_interval') . "'";
-		if ( $q->param('eml_max_interval') )	{
-			$sql .= " AND eml_interval='" . $q->param('eml_max_interval') . "'";
-		} else	{
-			$sql .= " AND eml_interval=''";
-		}
-		my $no = ${$dbt->getData($sql)}[0]->{interval_no};
-		$q->param(max_interval_no => $no);
+    
+    if ( my $max_interval = $q->param('max_interval') )
+    {
+	my $quoted = $dbh->quote($max_interval);
+	my $sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
+	
+	if ( my $eml_max = $q->param('eml_max_interval') ) {
+	    my $quoted = $dbh->quote($eml_max);
+	    $sql .= " AND eml_interval=$quoted";
+	} else {
+	    $sql .= " AND eml_interval=''";
 	}
-	if ( $q->param('min_interval') )	{
-		my $sql = "SELECT interval_no FROM intervals WHERE interval_name='" . $q->param('min_interval') . "'";
-		if ( $q->param('eml_min_interval') )	{
-			$sql .= " AND eml_interval='" . $q->param('eml_min_interval') . "'";
-		} else	{
-			$sql .= " AND eml_interval=''";
-		}
-		my $no = ${$dbt->getData($sql)}[0]->{interval_no};
-		$q->param(min_interval_no => $no);
+	
+	my $no = ${$dbt->getData($sql)}[0]->{interval_no};
+	$q->param(max_interval_no => $no);
+    }
+    
+    if ( my $min_interval = $q->param('min_interval') )
+    {
+	my $quoted = $dbh->quote($min_interval);
+	my $sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
+	
+	if ( my $eml_min = $q->param('eml_min_interval') ) {
+	    my $quoted = $dbh->quote($eml_min);
+	    $sql .= " AND eml_interval=$quoted";
 	} else	{
-		$q->param(min_interval_no => 0);
+	    $sql .= " AND eml_interval=''";
 	}
+	
+	my $no = ${$dbt->getData($sql)}[0]->{interval_no};
+	$q->param(min_interval_no => $no);
+    } else {
+	$q->param(min_interval_no => 0);
+    }
 
 	# bomb out if no such interval exists JA 28.7.03
-	if ( $q->param('max_interval_no') < 1 )	{
+	if ( $q->numeric_param('max_interval_no') < 1 )	{
 		return "<center><p>You can't enter an unknown time interval name</p>\n<p>Please go back, check the time scales, and enter a valid name</p></center>";
 	}
 
@@ -321,12 +334,12 @@ sub processCollectionForm {
             if ($q->param('lngmin') =~ /\d+/ && $q->param('lngmin') >= 0 && $q->param('lngmin') < 60)  {
                 $f_lngdeg += $q->param('lngmin')/60 + $q->param('lngsec')/3600;
             } elsif ($q->param('lngdec') > 0) {
-                $f_lngdeg .= ".".$q->param('lngdec');
+                $f_lngdeg .= ".".($q->param('lngdec') + 0);
             }
             if ($q->param('latmin') =~ /\d+/ && $q->param('latmin') >= 0 && $q->param('latmin') < 60)  {
                 $f_latdeg += $q->param('latmin')/60 + $q->param('latsec')/3600;
             } elsif ($q->param('latdec') > 0) {
-                $f_latdeg .= ".".$q->param('latdec');
+                $f_latdeg .= ".".($q->param('latdec') + 0);
             }
             dbg("f_lngdeg $f_lngdeg f_latdeg $f_latdeg");
             if ($q->param('lngdir') =~ /West/)  {
@@ -353,8 +366,8 @@ sub processCollectionForm {
                 $q->param('latlng_precision' => 'degrees');
             }
 
-            my $max_interval_no = ($q->param('max_interval_no')) ? $q->param('max_interval_no') : 0;
-            my $min_interval_no = ($q->param('min_interval_no')) ? $q->param('min_interval_no') : 0;
+            my $max_interval_no = ($q->numeric_param('max_interval_no')) ? $q->numeric_param('max_interval_no') : 0;
+            my $min_interval_no = ($q->numeric_param('min_interval_no')) ? $q->numeric_param('min_interval_no') : 0;
             ($paleolng, $paleolat, $pid) = getPaleoCoords($dbt,$q,$max_interval_no,$min_interval_no,$f_lngdeg,$f_latdeg);
             dbg("have paleocoords paleolat: $paleolat paleolng $paleolng");
             if ($paleolat ne "" && $paleolng ne "") {
@@ -619,7 +632,7 @@ sub displayCollectionDetails {
 		return;
 	}
 	
-	my $collection_no = int($q->param('collection_no'));
+	my $collection_no = $q->numeric_param('collection_no');
 
     # Handles the meat of displaying information about the colleciton
     # Separated out so it can be reused in enter/edit collection confirmation forms

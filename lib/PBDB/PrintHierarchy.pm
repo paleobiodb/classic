@@ -38,14 +38,17 @@ sub classificationForm	{
 
 # JA 27.2.12
 # complete rewrite of most of this module
-sub classify	{
-	my ($dbt,$hbo,$s,$q) = @_;
-        my $output = '';
+sub classify {
 
-	my $taxon_no = $q->param('taxon_no');
-	my $reference_no = $q->param('reference_no');
-	if ( $q->param('parent_no') )	{
-		$taxon_no = $q->param('parent_no');
+    my ($dbt,$hbo,$s,$q) = @_;
+    
+    my $output = '';
+    my $dbh = $dbt->dbh;
+    
+	my $taxon_no = $q->numeric_param('taxon_no');
+	my $reference_no = $q->numeric_param('reference_no');
+	if ( $q->numeric_param('parent_no') )	{
+		$taxon_no = $q->numeric_param('parent_no');
 	}
 	# if something like "Jones 1984" was submitted, find the matching
 	#  reference with the most opinions
@@ -55,7 +58,9 @@ sub classify	{
 		if ( $year < 1700 || $year > 2100 )	{
 			return classificationForm($hbo, $s, 'The publication year is misformatted');
 		}
-		my $sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,pubyr,reftitle,pubtitle,pubvol,firstpage,lastpage FROM refs WHERE author1last='$auth' AND pubyr=$year ORDER BY author1last DESC,author2last DESC,pubyr DESC";
+		my $quoted_auth = $dbh->quote($auth);
+		my $quoted_year = $dbh->quote($year);
+		my $sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,pubyr,reftitle,pubtitle,pubvol,firstpage,lastpage FROM refs WHERE author1last=$quoted_auth AND pubyr=$quoted_year ORDER BY author1last DESC,author2last DESC,pubyr DESC";
 		my @refs = @{$dbt->getData($sql)};
 		if ( $#refs == 0 )	{
 			$reference_no = $refs[0]->{'reference_no'};
@@ -110,8 +115,9 @@ sub classify	{
 		}
 	# ditto for a standard taxonomic name
 	} elsif ( ! $taxon_no && $q->param('taxon_name') )	{
-		my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name='".$q->param('taxon_name')."' ORDER BY rgt-lft DESC LIMIT 1";
-		$taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
+	    my $quoted_name = $dbh->quote($q->param('taxon_name'));
+	    my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_name ORDER BY rgt-lft DESC LIMIT 1";
+	    $taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
 	}
 
 	if ( ! $taxon_no && ! @taxa )	{

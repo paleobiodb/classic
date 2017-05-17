@@ -1124,7 +1124,7 @@ sub selectReference {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	$s->setReferenceNo($q->param("reference_no") );
+	$s->setReferenceNo($q->numeric_param("reference_no") );
 	menu($q, $s, $dbt, $hbo );
 }
 
@@ -1158,7 +1158,7 @@ sub displayRefResults {
     my ($q, $s, $dbt, $hbo) = @_;
     
     my $type = $q->param('type');
-    my $reference_no = $q->param('reference_no');
+    my $reference_no = $q->numeric_param('reference_no');
     
     # if ( $type eq 'select' && $reference_no && $reference_no > 0 )
     # {
@@ -1811,7 +1811,7 @@ sub displayCollResults {
                     $output .= "&species_name=".$q->param('species_name');
                 }
                 if ($q->param('occurrences_authorizer_no')) {
-                    $output .= "&occurrences_authorizer_no=".$q->param('occurrences_authorizer_no');
+                    $output .= "&occurrences_authorizer_no=".$q->numeric_param('occurrences_authorizer_no');
                 }
                 $output .= "\">$dataRow->{$COLLECTION_NO}</a></td>";
             } else {	
@@ -2209,14 +2209,16 @@ sub processCollectionsSearchForAdd	{
 	} elsif ( $minlat <= -90 )	{
 		$minlat = -89;
 	} elsif ( ( $maxlat > 0 && $minlat > 0 ) || ( $maxlat < 0 && $minlat < 0 ) )	{
-		$sql .= "c.latdir='" . $q->param('latdir') . "' AND ";
+	    my $latdir = $dbh->quote($q->param('latdir'));
+	    $sql .= "c.latdir=$latdir AND ";
 	}
 	if ( $maxlng >= 180 )	{
 		$maxlng = 179;
 	} elsif ( $minlng <= -180 )	{
 		$minlng = -179;
 	} elsif ( ( $maxlng > 0 && $minlng > 0 ) || ( $maxlng < 0 && $minlng < 0 ) )	{
-		$sql .= "c.lngdir='" . $q->param('lngdir') . "' AND ";
+	    my $lngdir = $dbh->quote($q->param('lngdir'));
+	    $sql .= "c.lngdir=$lngdir AND ";
 	}
 
 	my $inlist;
@@ -2232,11 +2234,11 @@ sub processCollectionsSearchForAdd	{
 	}
 	$inlist =~ s/,$//;
 	$sql .= "c.lngdeg IN (" . $inlist . ")";
-
-	if ($q->param('sortby') eq $COLLECTION_NO) {
+        my $sortby = $q->param('sortby');
+	if ($sortby eq $COLLECTION_NO) {
 		$sql .= " ORDER BY c.$COLLECTION_NO";
-	} elsif ($q->param('sortby') =~ /collection_name|inventory_name/) {
-		$sql .= " ORDER BY c.".$q->param('sortby');
+	} elsif ($sortby =~ /^(collection_name|inventory_name)$/) {
+	    $sql .= " ORDER BY c.$sortby";
 	}
 
 	my @dataRows = ();
@@ -2465,7 +2467,7 @@ sub processTaxonSearch {
         }
         $options{'author'} = $q->param('author');
         $options{'pubyr'} = $q->param('pubyr');
-        $options{'reference_no'} = $q->param('reference_no');
+        $options{'reference_no'} = $q->numeric_param('reference_no');
     }
     if (keys %options == 0) {
         $errors->add("You must fill in at least one field");
@@ -2523,7 +2525,12 @@ sub processTaxonSearch {
                 #  but let's cross our fingers
                 # perhaps getTaxa could be adapted for this purpose, but
                 #  it's a pretty simple piece of code
-                    my $sql = "SELECT taxon_name tn FROM authorities WHERE taxon_name='$g' OR taxon_name LIKE '$g %' OR taxon_name LIKE '% ($sg) %' OR taxon_name LIKE '% $sp'";
+		    my $quoted1 = $dbh->quote($g);
+		    my $quoted2 = $dbh->quote("$g %");
+		    my $quoted3 = $dbh->quote("% ($sg) %");
+		    my $quoted4 = $dbh->quote("% sp");
+		    
+                    my $sql = "SELECT taxon_name tn FROM authorities WHERE taxon_name=$quoted1 OR taxon_name LIKE $quoted2 OR taxon_name LIKE $quoted3 OR taxon_name LIKE $quoted4";
                     my @partials = @{$dbt->getData($sql)};
                     for my $p ( @partials )	{
                         if ( $p->{tn} eq $g )	{
@@ -2689,7 +2696,7 @@ sub processTaxonSearch {
 	    if ( $s->isDBMember() )	{
 		$output .= "<p class=\"pageTitle\">Select a taxon to edit</p>\n";
 	    } else	{
-		$output .= "<p class=\"pageTitle\">Taxonomic names from ".PBDB::Reference::formatShortRef($dbt,$q->param("reference_no"))."</p>\n";
+		$output .= "<p class=\"pageTitle\">Taxonomic names from ".PBDB::Reference::formatShortRef($dbt,$q->numeric_param("reference_no"))."</p>\n";
 	    }
         }
 	
@@ -2788,7 +2795,7 @@ sub displayAuthorityForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    if ( $q->param('taxon_no') == -1) {
+    if ( $q->numeric_param('taxon_no') == -1) {
         if (!$s->get('reference_no')) {
             $s->enqueue_action('displayAuthorityForm');
 	    $q->param('type' => 'select');
@@ -2974,7 +2981,7 @@ sub displayOpinionForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    if ($q->param('opinion_no') != -1 && $q->param("opinion_no") !~ /^\d+$/) {
+    if ($q->numeric_param('opinion_no') != -1 && $q->param("opinion_no") !~ /^\d+$/) {
 	my $output = $hbo->stdIncludes( $PAGE_TOP );
 	$output .= menu($q, $s, $dbt, $hbo, "<center>You must specify an opinion number</center>");
 	$output .= $hbo->stdIncludes( $PAGE_BOTTOM );
@@ -2982,7 +2989,7 @@ sub displayOpinionForm {
 	return $output;
     }
     
-    if ($q->param('opinion_no') == -1) {
+    if ($q->numeric_param('opinion_no') == -1) {
         if (!$s->get('reference_no') || $q->param('use_reference') eq 'new') {
             # Set this to prevent endless loop
             $q->param('use_reference'=>'');
@@ -3435,7 +3442,7 @@ sub basicTaxonInfo	{
 #     } else {
 #         print $hbo->stdIncludes($PAGE_TOP) 
 #     }
-#     my $image_no = int($q->param('image_no'));
+#     my $image_no = $q->numeric_param('image_no');
 #     if (!$image_no) {
 #         print "<div align=\"center\">".PBDB::Debug::printErrors(["No image number specified"])."</div>";
 #     } else {
@@ -4734,8 +4741,8 @@ sub processEditOccurrences {
 
 	# parse freeform all-in-one-textarea lists passed in by
 	#  displayOccurrenceListForm JA 19-20.5.09
-	my $collection_no = $q->param('collection_no');
-    my $reference_no = $q->param('reference_no');
+	my $collection_no = $q->numeric_param('collection_no');
+    my $reference_no = $q->numeric_param('reference_no');
     
     if ( ref $collection_no eq 'ARRAY' )
     {
@@ -5311,14 +5318,14 @@ sub processEditOccurrences {
         # this won't work if exactly ten occurrences have been displayed
         if ( $#rowTokens < 9 )	{
             my $localtaxon_name = uri_escape_utf8($q->param('search_taxon_name') // '');
-            my $localcoll_no = uri_escape_utf8($q->param("list_collection_no") // '');
+            my $localcoll_no = uri_escape_utf8($q->numeric_param("list_collection_no") // '');
             my $localpage_no = uri_escape_utf8($q->param('page_no') // '');
             $links .= makeAnchor("displayCollResults", "type=reid&taxon_name=$localtaxon_name&collection_no=$localcoll_no&page_no=$localpage_no") . "<nobr>Reidentify next 10 occurrences</nobr> - ";
         }
         $links .= makeAnchor("displayReIDCollsAndOccsSearchForm", "", "<nobr>Reidentify different occurrences</nobr>");
     } else {
         if ($q->param('list_collection_no')) {
-            my $collection_no = $q->param("list_collection_no");
+            my $collection_no = $q->numeric_param("list_collection_no");
             $links .= makeAnchor("displayOccurrenceAddEdit", "$COLLECTION_NO=$collection_no", "<nobr>Edit this taxonomic list</nobr>") . " - ";
             $links .= makeAnchor("displayOccurrenceListForm", "$COLLECTION_NO=$collection_no", "Paste in more names") . " - ";
             $links .= makeAnchor("startStartReclassifyOccurrences", "$COLLECTION_NO=$collection_no", "<nobr>Reclassify these IDs</nobr>") . " - ";
@@ -5342,7 +5349,7 @@ sub processEditOccurrences {
 
     my $return;
     if ($q->param('list_collection_no')) {
-        my $collection_no = $q->param("list_collection_no");
+        my $collection_no = $q->numeric_param("list_collection_no");
         my $coll = ${$dbt->getData("SELECT $COLLECTION_NO,reference_no FROM $COLLECTIONS WHERE $COLLECTION_NO=$collection_no")}[0];
     	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,{$COLLECTION_NO=>$collection_no, 'hide_reference_no'=>$coll->{'reference_no'},'new_genera'=>\@new_genera, 'new_subgenera'=>\@new_subgenera, 'new_species'=>\@new_species, 'do_reclassify'=>1, 'warnings'=>\@warnings, 'save_links'=>$links });
     } else {
@@ -5412,7 +5419,7 @@ sub displayOccsForReID {
     
     my $output = '';
     my $dbh = $dbt->dbh;
-    my $collection_no = $q->param('collection_no');
+    my $collection_no = $q->numeric_param('collection_no');
     my $taxon_name = $q->param('taxon_name');
     my $where = "";
     
@@ -5456,8 +5463,8 @@ sub displayOccsForReID {
 	# Don't build it directly from the genus_name or species_name, let dispalyCollResults
 	# DO that for us and pass in a set of collection_nos, for consistency, then filter at the end
 
-	if (! @colls && $q->param('collection_no')) {
-		push @colls , $q->param('collection_no');
+	if (! @colls && $q->numeric_param('collection_no')) {
+		push @colls , $q->numeric_param('collection_no');
 	}
 
 	if (@colls) {
@@ -5480,8 +5487,9 @@ sub displayOccsForReID {
 
 	# some occs are out of primary key order, so order them JA 26.6.04
 	my $sql = "SELECT * FROM occurrences WHERE ".join(" AND ",@where);
-	if ( $q->param('sort_occs_by') )	{
-		$sql .= " ORDER BY ".$q->param('sort_occs_by');
+        my $sortby = $q->param('sort_occs_by');
+	if ( $sortby && $sortby =~ /^\w+$/ )	{
+		$sql .= " ORDER BY $sortby";
 		if ( $q->param('sort_occs_order') eq "desc" )	{
 			$sql .= " DESC";
 		}
@@ -5934,7 +5942,7 @@ sub drawCladogram	{
     my ($q, $s, $dbt, $hbo) = @_;
     
     my $output = $hbo->stdIncludes($PAGE_TOP);
-    my $cladogram_no = $q->param('cladogram_no');
+    my $cladogram_no = $q->numeric_param('cladogram_no');
     my $force_redraw = $q->param('force_redraw');
     my ($pngname, $caption, $taxon_name) = PBDB::Cladogram::drawCladogram($dbt,$cladogram_no,$force_redraw);
     if ($pngname) {
@@ -5999,7 +6007,7 @@ sub displayTaxonomicNamesAndOpinions {
     my ($q, $s, $dbt, $hbo) = @_;
     
     my $output = $hbo->stdIncludes( $PAGE_TOP );
-    my $ref = PBDB::Reference->new($dbt,$q->param('reference_no'));
+    my $ref = PBDB::Reference->new($dbt,$q->numeric_param('reference_no'));
     if ($ref) {
         $q->param('goal'=>'authority');
         if ( $q->param('display') ne "opinions" )	{
@@ -6218,6 +6226,37 @@ sub param {
     else
     {
 	return keys %{$request->{params}};
+    }
+}
+
+
+sub numeric_param {
+
+    my ($request, $name) = @_;
+    
+    my $value;
+    
+    if ( defined $name )
+    {
+	if ( ref $request->{params}{$name} eq 'ARRAY' )
+	{
+	    $value = $request->{params}{$name}[0];
+	}
+	
+	else
+	{
+	    $value = $request->{params}{$name};
+	}
+    }
+    
+    if ( defined $value && $value =~ /^(-?\d+)/ )
+    {
+	return $1;
+    }
+    
+    else
+    {
+	return '';
     }
 }
 
