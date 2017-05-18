@@ -144,7 +144,7 @@ sub classify {
 		    return "<p><i>A full classification of the subtaxa is too large to display here</i></p>\n";
 		}
 
-		$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no AND t.taxon_no=t.spelling_no AND lft>=".$range->{'lft'}." AND rgt<=".$range->{'rgt'}." ORDER BY lft";
+		$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no AND t.taxon_no=t.spelling_no AND lft>=".$range->{'lft'}." AND lft<=".$range->{'rgt'}." ORDER BY lft";
 		@taxa = @{$dbt->getData($sql)};
 		$title = "the ".$taxa[0]->{'taxon_rank'}." ".PBDB::TaxonInfo::italicize( $taxa[0] );
 		$title =~ s/unranked //;
@@ -153,7 +153,7 @@ sub classify {
 		for my $i ( 1..$#taxa )	{
 			my $isChild = 0;
 			for my $pre ( reverse 0..$i-1 )	{
-				if ( $taxa[$pre]->{'rgt'} > $taxa[$i]->{'rgt'} )	{
+				if ( $taxa[$pre]->{'rgt'} > $taxa[$i]->{'lft'} )	{
 					push @{$children{$taxa[$pre]->{'taxon_no'}}} , $taxa[$i];
 					$isChild++;
 					last;
