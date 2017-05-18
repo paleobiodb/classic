@@ -744,7 +744,7 @@ sub submitOpinionForm {
 	# Simple checks
     my $opinion_no = $q->numeric_param('opinion_no');
     my $isNewEntry = $opinion_no && $opinion_no > 0 ? 0 : 1;
-
+    
     # if the opinion already exists, grab it
     my $o;
     if (!$isNewEntry) {
