@@ -743,8 +743,8 @@ sub submitOpinionForm {
 
 	# Simple checks
     my $opinion_no = $q->numeric_param('opinion_no');
-    my $isNewEntry = $opinion_no > 0 ? 0 : 1;
-
+    my $isNewEntry = $opinion_no && $opinion_no > 0 ? 0 : 1;
+    
     # if the opinion already exists, grab it
     my $o;
     if (!$isNewEntry) {
@@ -823,6 +823,9 @@ sub submitOpinionForm {
                       if ( $q->param('author2last') )	{
                           $sql .= " AND r.author2last=".$dbh->quote($q->param('author2last'));
                       }
+		      else {
+		      	  $sql .= " AND r.author2last = ''";
+		      }
                       $sql .= " AND r.pubyr=".$dbh->quote($q->param('pubyr')).
                       " AND status NOT IN ('misspelling of','homonym of')";
             my $row2 = ${$dbt->getData($sql)}[0];
