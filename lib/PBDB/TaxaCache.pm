@@ -895,8 +895,8 @@ sub getChildren {
         my $sql = "SELECT tc.taxon_no, a1.type_taxon_no, a1.taxon_rank, a1.taxon_name, tc.spelling_no, tc.lft, tc.rgt, tc.synonym_no "
                 . " FROM $TAXA_TREE_CACHE tc, authorities a1"
                 . " WHERE a1.taxon_no=tc.taxon_no"
-                . " AND (tc.lft BETWEEN $lft AND $rgt)"
-                . " AND (tc.rgt BETWEEN $lft AND $rgt)";
+                . " AND (tc.lft BETWEEN $lft AND $rgt)";
+              # . " AND (tc.rgt BETWEEN $lft AND $rgt)";
         foreach my $exclude (@exclude) {
             $sql .= " AND (tc.lft NOT BETWEEN $exclude->[0] AND $exclude->[1])";
             $sql .= " AND (tc.rgt NOT BETWEEN $exclude->[0] AND $exclude->[1])";
