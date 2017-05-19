@@ -23,7 +23,7 @@ use PBDB::TaxaCache;
 use PBDB::Classification;
 use PBDB::TaxonInfo;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $TAXA_TREE_CACHE makeAnchor);
+use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
 
 use PBDB::Opinion;
 use PBDB::Reference;
@@ -1059,7 +1059,7 @@ sub submitAuthorityForm {
             my $cleanauth1 = $dbh->quote($q->param('author1last'));
             my $cleanauth2 = $dbh->quote($q->param('author2last'));
 	    my $quoted_pubyr = $dbh->quote($q->param('pubyr'));
-            my $sql = "SELECT opinion_no FROM opinions WHERE author1last='$cleanauth1' AND author2last='$cleanauth2' AND pubyr=$quoted_pubyr AND child_spelling_no=$resultTaxonNumber AND child_no=$origResultTaxonNumber ORDER BY opinion_no DESC";
+            my $sql = "SELECT opinion_no FROM opinions WHERE author1last=$cleanauth1 AND author2last=$cleanauth2 AND pubyr=$quoted_pubyr AND child_spelling_no=$resultTaxonNumber AND child_no=$origResultTaxonNumber ORDER BY opinion_no DESC";
             my $opinion_no = ${$dbt->getData($sql)}[0]->{opinion_no};
             if ( $opinion_no > 0 )	{
                 $end_message .= "<li$style>" . makeAnchor("displayOpinionForm", "child_spelling_no=$resultTaxonNumber&child_no=$origResultTaxonNumber&opinion_no=$opinion_no", "Edit this author's opinion about $fields{taxon_name}") . "</li>";
