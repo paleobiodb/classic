@@ -333,13 +333,13 @@ sub processCollectionForm {
             my ($f_latdeg, $f_lngdeg) = ($q->param('latdeg'), $q->param('lngdeg') );
             if ($q->param('lngmin') =~ /\d+/ && $q->param('lngmin') >= 0 && $q->param('lngmin') < 60)  {
                 $f_lngdeg += $q->param('lngmin')/60 + $q->param('lngsec')/3600;
-            } elsif ($q->param('lngdec') > 0) {
-                $f_lngdeg .= ".".($q->param('lngdec') + 0);
+            } elsif ($q->param('lngdec') =~ /^\d+$/ ) {
+                $f_lngdeg .= ".".$q->param('lngdec');
             }
             if ($q->param('latmin') =~ /\d+/ && $q->param('latmin') >= 0 && $q->param('latmin') < 60)  {
                 $f_latdeg += $q->param('latmin')/60 + $q->param('latsec')/3600;
-            } elsif ($q->param('latdec') > 0) {
-                $f_latdeg .= ".".($q->param('latdec') + 0);
+            } elsif ($q->param('latdec') =~ /^\d+$/) {
+                $f_latdeg .= ".".$q->param('latdec');
             }
             dbg("f_lngdeg $f_lngdeg f_latdeg $f_latdeg");
             if ($q->param('lngdir') =~ /West/)  {
