@@ -1653,7 +1653,7 @@ END_OF_MESSAGE
 #        $sql2 = "UPDATE reidentifications SET modified=modified,taxon_no=0 WHERE taxon_no IN (".join(",",@taxon_nos).")";
 #        $dbt->getData($sql1);
 #        $dbt->getData($sql2);
-        push @warnings, "Since $taxon_name is a homonym, occurrences of it may be incorrectly classified.  Please " . makeAnchorWithAttrs("displayCollResults", "type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$authorizer_no", "reclassify your occurrences", "target=\"_BLANK\"") . "of this taxon.";
+        push @warnings, "Since $taxon_name is a homonym, occurrences of it may be incorrectly classified.  Please " . makeAnchorWithAttrs("displayCollResults", "type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$authorizer_no", "target=\"_BLANK\"", "reclassify your occurrences") . " of this taxon.";
     } elsif (scalar(@taxon_nos) == 1) {
         my @matchedOccs = ();
         my @matchedReids = ();

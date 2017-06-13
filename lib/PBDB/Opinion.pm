@@ -1121,10 +1121,10 @@ sub submitOpinionForm {
         dbg("MIGRATING:<PRE>".Dumper(\@opinions_to_migrate1)."</PRE><PRE>".Dumper(\@opinions_to_migrate2)."</PRE>"); 
         my $msg = "";
         if (@opinions_to_migrate1) {
-            $msg .= "<b>$childSpellingName</b> already exists with " . makeAnchorWithAttrs("displayOpinionChoiceForm", "taxon_no=$fields{child_spelling_no}", "opinions classifying it", "target=\"_BLANK\"");
+            $msg .= "<b>$childSpellingName</b> already exists with " . makeAnchorWithAttrs("displayOpinionChoiceForm", "taxon_no=$fields{child_spelling_no}", "target=\"_BLANK\"", " opinions classifying it");
         }
         if (@opinions_to_migrate2) {
-            $msg .= "<b>$childSpellingName</b> already exists with " . makeAnchorWithAttrs("displayOpinionChoiceForm", "taxon_no=$fields{child_spelling_no}", "opinions classifying it", "target=\"_BLANK\"");
+            $msg .= "<b>$childSpellingName</b> already exists with " . makeAnchorWithAttrs("displayOpinionChoiceForm", "taxon_no=$fields{child_spelling_no}", "target=\"_BLANK\"", " opinions classifying it");
         }
         if ( ! @opinions_to_migrate1 && ! @opinions_to_migrate2 && ( @parents_to_migrate1 || @parents_to_migrate2 ) ) {
             $msg .= "<b>$childSpellingName</b> already exists</a>."; 
