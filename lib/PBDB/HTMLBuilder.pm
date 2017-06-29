@@ -13,7 +13,8 @@ use Encode;
 use strict;
 
 # Package wide variable, little messy but other modules need to access it
-%HTMLBuilder::hard_lists = (
+
+our (%hard_lists) = (
     abund_unit=>['', 'specimens', 'individuals', 'elements', 'fragments', 'category', 'rank', 'grid-count', 'quadrats', '%-specimens', '%-individuals', '%-elements', '%-fragments', '%-quadrats', '%-volume', '%-area'], 
 
     release_date=>['immediate','three months','six months','one year','two years','three years','four years','five years'],
@@ -86,10 +87,10 @@ sub new {
     my $select_lists = {
         #period_max=>[\&_listFromHardList,'periods'],
         environment=>[\&_listFromList,
-            '','-- General --','',@{$HTMLBuilder::hard_lists{'environment_general'}},
-            '', '-- Carbonate marine --', '', @{$HTMLBuilder::hard_lists{'environment_carbonate'}},
-            '', '-- Siliciclastic marine --', '', @{$HTMLBuilder::hard_lists{'environment_siliciclastic'}},
-            '', '-- Terrestrial --','',@{$HTMLBuilder::hard_lists{'environment_terrestrial'}}], 
+            '','-- General --','',@{$hard_lists{'environment_general'}},
+            '', '-- Carbonate marine --', '', @{$hard_lists{'environment_carbonate'}},
+            '', '-- Siliciclastic marine --', '', @{$hard_lists{'environment_siliciclastic'}},
+            '', '-- Terrestrial --','',@{$hard_lists{'environment_terrestrial'}}], 
         lithadj=> [\&_listFromEnum,'collections','lithadj' ,'space_after'=>'paleosol/pedogenic,lag,very coarse,volcaniclastic,shelly/skeletal'],
         lithadj2=>[\&_listFromEnum,'collections','lithadj2','space_after'=>'paleosol/pedogenic,lag,very coarse,volcaniclastic,shelly/skeletal'],
         lithology1=>[\&_listFromEnum,'collections','lithology1','space_after'=>'not reported,breccia,marl,"carbonate",radiolarite,tar,siderite,quartzite'],
@@ -713,9 +714,9 @@ sub getKeysValues {
             $values = $r[0];
         }
         return ($keys,$values);
-    } elsif (exists $HTMLBuilder::hard_lists{$name}) {
+    } elsif (exists $hard_lists{$name}) {
         my (@keys,@values);
-        @keys = @{$HTMLBuilder::hard_lists{$name}};
+        @keys = @{$hard_lists{$name}};
         if (ref $keys[0] eq 'ARRAY') {
             my ($keys_ref,$values_ref) = @keys;
             @keys = @{$keys_ref};
@@ -911,7 +912,7 @@ sub _listFromList {
 
 sub _listFromHardList {
     my ($self,$name,%options) = @_;
-    my @list = @{$HTMLBuilder::hard_lists{$name}};
+    my @list = @{$hard_lists{$name}};
     unshift @list,$options{'unshift'} if (exists $options{'unshift'});
     
     return \@list;
