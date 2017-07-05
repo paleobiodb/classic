@@ -619,7 +619,7 @@ IS NULL))";
     # do a lookup of all the countries in the continent
     if ($options{"country"}) {
         if ($options{"country"} =~ /^(North America|South America|Europe|Africa|Antarctica|Asia|Australia)/) {
-            if ( ! open ( REGIONS, "../data/PBDB.regions" ) ) {
+            if ( ! open ( REGIONS, "./data/PBDB.regions" ) ) {
                 my $error_message = $!;
                 die($error_message);
             }
