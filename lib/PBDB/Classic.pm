@@ -51,6 +51,7 @@ use PBDB::PrintHierarchy;
 use PBDB::Strata;
 use PBDB::DownloadTaxonomy;
 use PBDB::Download;
+use PBDB::WebApp;
 
 # god awful Poling modules
 use PBDB::Taxon;  # slated for removal
@@ -79,6 +80,15 @@ get '/classic/' => sub {
     my $action = param('page') ? 'page' : (param('a') || param('action') || 'menu');
     
     return classic_request($action);
+};
+
+
+get '/classic/app/*' => sub {
+
+    my ($app_name) = splat;
+    params->{webapp_name} = $app_name;
+    
+    return classic_request('webapp');
 };
 
 
@@ -311,7 +321,7 @@ sub classic_request {
 
     $action =~ s/[^a-zA-Z0-9_]//g;
     
-    $action = \&{"PBDB::$action"}; # Hack so use strict doesn't break
+    my $action_sub = \&{"PBDB::$action"}; # Hack so use strict doesn't break
     
     my $vars = {};
     if ($user) {
@@ -331,7 +341,6 @@ sub classic_request {
     
     my $print_output;
     my $return_output;
-    my $action_sub;
     
     open(SAVE_STDOUT, '>&STDOUT');
     
@@ -343,14 +352,22 @@ sub classic_request {
     
     eval {
 	$DB::single = 1;
-	$return_output = &$action($q, $s, $dbt, $hbo);
+	$return_output = &$action_sub($q, $s, $dbt, $hbo);
     };
-
+    
     if ( $@ )
     {
-	ouch 500, $@, { path => request->path };
+	if ( $@ =~ /^Undefined subroutine &PBDB::$action/ )
+	{
+	    ouch 404, "Page not found", { path => request->path };
+	}
+	
+	else
+	{
+	    die $@;
+	}
     }
-
+    
     elsif ( ! $print_output && ! $return_output && ! $DB::OUT )
     {
 	ouch 500, "No output was generated.", { path => request->path };
@@ -818,6 +835,46 @@ sub displayDownloadGenerator {
     $output .= $hbo->populateSimple('download_generator',\%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
+    return $output;
+}
+
+
+sub webapp {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $app_name = $q->param('webapp_name');
+    
+    unless ( $app_name )
+    {
+	ouch 404, 'Page Not Found', { path => request->path };
+	return;
+    }
+    
+    my $app = PBDB::WebApp->new($app_name, $q, $s, $dbt, $hbo);
+    
+    unless ( $app )
+    {
+	ouch 404, 'Page Not Found', { path => request->path };
+	return;
+	
+	# my $output = $app->stdIncludes($PAGE_TOP);
+	# $output .= "<p>Page not found</p>\n";
+	# $output .= $app->stdIncludes($PAGE_BOTTOM);
+	
+	# return $output;
+    }
+    
+    if ( $app->requires_login && ! $s->isDBMember() )
+    {
+	redirect '/login', 303;
+    }
+    
+    my $output = $app->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Person::makeAuthEntJavascript($dbt) if $app->{settings}{INCLUDE_AUTHENT};
+    $output .= $app->generateBasePage();
+    $output .= $app->stdIncludes($PAGE_BOTTOM);
+    
     return $output;
 }
 
