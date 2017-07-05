@@ -273,26 +273,34 @@ sub processCollectionForm {
 	# change interval names into numbers by querying the intervals table
 	# JA 11-12.7.03
     
+    my ($max_int_no, $min_int_no, $max_early, $min_early);
+    
     if ( my $max_interval = $q->param('max_interval') )
     {
 	my $quoted = $dbh->quote($max_interval);
-	my $sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
+	my $sql = "SELECT interval_no, early_age, late_age
+		FROM intervals as i left join interval_data as id using (interval_no)
+		WHERE i.interval_name=$quoted";
 	
 	if ( my $eml_max = $q->param('eml_max_interval') ) {
 	    my $quoted = $dbh->quote($eml_max);
-	    $sql .= " AND eml_interval=$quoted";
+	    $sql .= " AND i.eml_interval=$quoted";
 	} else {
-	    $sql .= " AND eml_interval=''";
+	    $sql .= " AND i.eml_interval=''";
 	}
 	
-	my $no = ${$dbt->getData($sql)}[0]->{interval_no};
-	$q->param(max_interval_no => $no);
+	my $imax = ${$dbt->getData($sql)}[0];
+	# $q->param(max_interval_no => $imax->{interval_no});
+	$max_int_no = $imax->{interval_no};
+	$max_early = $imax->{early_age};
     }
     
     if ( my $min_interval = $q->param('min_interval') )
     {
 	my $quoted = $dbh->quote($min_interval);
-	my $sql = "SELECT interval_no FROM intervals WHERE interval_name=$quoted";
+	my $sql = "SELECT interval_no, early_age, late_age
+		FROM intervals as i left join interval_data as id using (interval_no)
+		WHERE i.interval_name=$quoted";
 	
 	if ( my $eml_min = $q->param('eml_min_interval') ) {
 	    my $quoted = $dbh->quote($eml_min);
@@ -301,17 +309,32 @@ sub processCollectionForm {
 	    $sql .= " AND eml_interval=''";
 	}
 	
-	my $no = ${$dbt->getData($sql)}[0]->{interval_no};
-	$q->param(min_interval_no => $no);
+	my $imin = ${$dbt->getData($sql)}[0];
+	# $q->param(min_interval_no => $imin->{interval_no});
+	$min_int_no = $imin->{interval_no};
+	$min_early = $imin->{early_age};
     } else {
-	$q->param(min_interval_no => 0);
+	# $q->param(min_interval_no => 0);
+	$min_int_no = 0;
     }
-
-	# bomb out if no such interval exists JA 28.7.03
-	if ( $q->numeric_param('max_interval_no') < 1 )	{
-		return "<center><p>You can't enter an unknown time interval name</p>\n<p>Please go back, check the time scales, and enter a valid name</p></center>";
-	}
-
+    
+    # If the intervals are in the wrong order, we should swap them.
+    
+    if ( $max_early && $min_early && $max_early < $min_early )
+    {
+	my $temp = $max_int_no;
+	$max_int_no = $min_int_no;
+	$min_int_no = $temp;
+    }
+    
+    $q->param(max_interval_no => $max_int_no);
+    $q->param(min_interval_no => $min_int_no);
+    
+    # bomb out if no such interval exists JA 28.7.03
+    if ( $q->numeric_param('max_interval_no') < 1 )	{
+	return "<center><p>You can't enter an unknown time interval name</p>\n<p>Please go back, check the time scales, and enter a valid name</p></center>";
+    }
+    
     unless($q->param('fossilsfrom1')) {
       $q->param(fossilsfrom1=>'');
     }
@@ -988,7 +1011,7 @@ sub displayCollectionDetailsPage {
     $row->{"zone_type"} =~ s/(^.)/\u$1/;
 
 	# check whether we have period/epoch/locage/intage max AND/OR min:
-    if ($s->isDBMember()) {
+    # if ($s->isDBMember()) {
         foreach my $term ("epoch","intage","locage","period"){
             $row->{'legacy_'.$term} = '';
             if ($row->{$term."_max"}) {
@@ -1010,7 +1033,7 @@ sub displayCollectionDetailsPage {
                 }
             }
         }
-    }
+    # }
     if ($row->{'legacy_period'} eq $row->{'period'}) {
         $row->{'legacy_period'} = '';
     }
