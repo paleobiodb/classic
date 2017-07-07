@@ -289,8 +289,8 @@ sub getCollections {
         } else {
  		    ($intervals,$errors,$warnings) = $t->getRange($eml_max,$max,$eml_min,$min);
         }
-        push @errors, @$errors;
-        push @warnings, @$warnings;
+        push @errors, @$errors if ref $errors eq 'ARRAY';
+        push @warnings, @$warnings if ref $warnings eq 'ARRAY';
         my $val = join(",",@$intervals);
         if ( ! $val )	{
             $val = "-1";

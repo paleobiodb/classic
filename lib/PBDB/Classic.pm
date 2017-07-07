@@ -1335,12 +1335,13 @@ sub quickSearch	{
 	elsif ( $type eq 'txn' || $type eq 'var' )
 	{
 	    $q->param('taxon_no' => $num);
-	    my $result = PBDB::TaxonInfo::basicTaxonInfo($q, $s, $dbt, $hbo);
+	    return redirect "/classic/basicTaxonInfo?taxon_no=$num", 303;
+	    # my $result = PBDB::TaxonInfo::basicTaxonInfo($q, $s, $dbt, $hbo);
 	    
-	    if ( $result )
-	    {
-		return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
-	    }
+	    # if ( $result )
+	    # {
+	    # 	return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
+	    # }
 	}
 	
 	# elsif ( $type eq 'opn' )
@@ -1410,7 +1411,8 @@ sub quickSearch	{
 	    if ( $taxon )
 	    {
 		$q->param('taxon_name' => $qs);
-		return basicTaxonInfo($q, $s, $dbt, $hbo);
+		return redirect "/classic/basicTaxonInfo?taxon_name=$qs", 303;
+		# return basicTaxonInfo($q, $s, $dbt, $hbo);
 	    }
 	}
 	
@@ -3331,12 +3333,22 @@ sub displayTaxonInfoResults {
 sub basicTaxonInfo	{
     
     my ($q, $s, $dbt, $hbo) = @_;
-
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
-    $output .= PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
-    return $output;
+    
+    my $result = PBDB::TaxonInfo::basicTaxonInfo($q,$s,$dbt,$hbo);
+    
+    if ( $result =~ /^\d+$/ )
+    {
+	redirect "/classic/basicTaxonInfo?taxon_no=$result", 303;
+	return $result;
+    }
+    
+    else
+    {
+	my $output = $hbo->stdIncludes( $PAGE_TOP );
+	$output .= $result;
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	return $output;
+    }
 }
 
 ## END Taxon Info Stuff
