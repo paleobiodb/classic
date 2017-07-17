@@ -7,7 +7,7 @@ package PBDB::WebApp;
 
 use Encode qw(decode_utf8);
 use HTML::Entities qw(encode_entities);
-use PBDB::Constants qw($WEBAPP_DIR $WEBAPP_PATH $DATA_URL $READ_URL);
+use PBDB::Constants qw($WEBAPP_DIR $WEBAPP_PATH $DATA_URL $TEST_DATA_URL $READ_URL);
 
 use base 'PBDB::HTMLBuilder';
 
@@ -23,7 +23,7 @@ sub new {
     
     if ( $app_name =~ qr{ ^ ([^/]+) / }xs )
     {
-	$main_filename = "$WEBAPP_DIR/${app_name}.html";
+	$main_filename = "$WEBAPP_DIR/${app_name}/$1.html";
 	$app_path = "$WEBAPP_PATH/$1";
     }
     
@@ -93,6 +93,7 @@ sub generateBasePage {
     $vars{'authorizer_me'} = $s->get("authorizer");
     $vars{'enterer_me'} = $s->get("enterer");
     $vars{'data_url'} = $DATA_URL;
+    $vars{'test_data_url'} = $TEST_DATA_URL || $DATA_URL;
     $vars{'classic_url'} = $READ_URL;
     $vars{'app_resources'} = $app->{app_path};
     $vars{'common_resources'} = $app->{common_path};
