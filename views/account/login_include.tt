@@ -1,4 +1,6 @@
 <form action="/login" method="POST" enctype="multipart/form-data" class="form-horizontal">
+<input type="hidden" name="app" value="[% params.app %]">
+<input type="hidden" name="action" value="[% params.action %]">
 [% IF redirect_after || params.redirect_after %]
 <input class="form-control" type="hidden" name="redirect_after" value="[% redirect_after || params.redirect_after %]">
 [% END %]

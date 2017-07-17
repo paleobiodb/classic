@@ -306,6 +306,17 @@ sub login {
                 expires     => '+5y',
                 http_only   => 0,
                 path        => '/';
+    
+    if (params->{app})
+    {
+	return redirect "/classic/app/" . params->{app};
+    }
+    
+    elsif (params->{action})
+    {
+	return redirect "/classic/" . params->{action};
+    }
+    
     if (params->{sso_id}) {
         my $cookie = cookies->{sso_id};
         my $sso_id = $cookie->value if defined $cookie;

@@ -857,17 +857,11 @@ sub webapp {
     {
 	ouch 404, 'Page Not Found', { path => request->path };
 	return;
-	
-	# my $output = $app->stdIncludes($PAGE_TOP);
-	# $output .= "<p>Page not found</p>\n";
-	# $output .= $app->stdIncludes($PAGE_BOTTOM);
-	
-	# return $output;
     }
     
     if ( $app->requires_login && ! $s->isDBMember() )
     {
-	redirect '/login', 303;
+	redirect "/login?app=$app_name", 303;
     }
     
     my $output = $app->stdIncludes($PAGE_TOP);
