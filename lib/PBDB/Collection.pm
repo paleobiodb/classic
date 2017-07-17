@@ -289,8 +289,8 @@ sub getCollections {
         } else {
  		    ($intervals,$errors,$warnings) = $t->getRange($eml_max,$max,$eml_min,$min);
         }
-        push @errors, @$errors;
-        push @warnings, @$warnings;
+        push @errors, @$errors if ref $errors eq 'ARRAY';
+        push @warnings, @$warnings if ref $warnings eq 'ARRAY';
         my $val = join(",",@$intervals);
         if ( ! $val )	{
             $val = "-1";
@@ -619,7 +619,7 @@ IS NULL))";
     # do a lookup of all the countries in the continent
     if ($options{"country"}) {
         if ($options{"country"} =~ /^(North America|South America|Europe|Africa|Antarctica|Asia|Australia)/) {
-            if ( ! open ( REGIONS, "../data/PBDB.regions" ) ) {
+            if ( ! open ( REGIONS, "./data/PBDB.regions" ) ) {
                 my $error_message = $!;
                 die($error_message);
             }

@@ -1117,7 +1117,8 @@ sub getReferences {
 			$wild[$i] = "%";
 			splice @wild , $i+1 , 1;
 			push @variants , $dbh->quote(join('',@wild));
-		}
+		    }
+		push @variants, $dbh->quote('NO_VARIANTS') unless @variants;
 		$sql = "SELECT reference_no,author1last AS name,pubyr AS year FROM refs r WHERE author1last != ".$dbh->quote($options{'name'})." AND (author1last LIKE ".join(" OR author1last LIKE ",@variants).")";
 		$sql .= ( $options{'year'} > 1500 ) ? " AND $year_relation" : "";
 		$sql .= " AND length(author1last)-1<=".length($options{'name'})." AND length(author1last)+1>=".length($options{'name'});

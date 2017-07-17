@@ -3719,6 +3719,11 @@ sub basicTaxonInfo	{
 	    # print $hbo->stdIncludes($PAGE_BOTTOM);
 	}
 
+    if ( $q->param('do_redirect') && $taxon_no && $taxon_no =~ /^\d+$/ )
+    {
+	return $taxon_no;
+    }
+    
 	# PAGE TITLE ETC.
 
 	my $authorfields = "if(ref_is_authority='YES',r.author1init,a.author1init) author1init,if(ref_is_authority='YES',r.author1last,a.author1last) author1last,if(ref_is_authority='YES',r.author2init,a.author2init) author2init,if(ref_is_authority='YES',r.author2last,a.author2last) author2last,if(ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,if(ref_is_authority='YES',r.pubyr,a.pubyr) pubyr,reftitle,pubtitle,pubvol,pubno,firstpage,lastpage";
