@@ -826,6 +826,11 @@ sub isGuest {
     return $self->{session_id} ? 1 : 0;
 }
 
+sub isLoggedIn {
+    my $self = shift;
+    return $self->{session_id} ? 1 : 0;
+}
+
 # Display the preferences page JA 25.6.02
 sub displayPreferencesPage {
     my ($dbt,$q,$s,$hbo) = @_;

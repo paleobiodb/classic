@@ -863,7 +863,12 @@ sub webapp {
 	return;
     }
     
-    if ( $app->requires_login && ! $s->isDBMember() )
+    if ( $app->requires_member && ! $s->isDBMember() )
+    {
+	redirect "/login?app=$app_name", 303;
+    }
+
+    if ( $app->requires_login && ! $s->isLoggedIn() )
     {
 	$app_name .= "/$file_name" if $file_name;
 	redirect "/login?app=$app_name", 303;

@@ -82,6 +82,14 @@ sub requires_login {
 }
 
 
+sub requires_member {
+
+    my ($app) = @_;
+
+    return $app->{settings}{REQUIRES_MEMBER};
+}
+
+
 sub generateBasePage {
     
     my ($app) = @_;
