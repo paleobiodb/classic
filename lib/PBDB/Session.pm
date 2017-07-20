@@ -115,7 +115,7 @@ sub new {
     unless ( $session_id && $enterer_no && $enterer_no =~ /^\d+$/ )
     {
 	my $s = { dbt => $dbt,
-		  session_id => '',
+		  session_id => ($session_id || ''),
 		  role => 'guest',
 		  roles => 'guest',
 		  authorizer_no => 0,
@@ -823,7 +823,7 @@ sub isDBMember {
 
 sub isGuest {
     my $self = shift;
-    return (!$self->isDBMember());
+    return $self->{session_id} ? 1 : 0;
 }
 
 # Display the preferences page JA 25.6.02

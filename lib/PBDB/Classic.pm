@@ -83,10 +83,13 @@ get '/classic/' => sub {
 };
 
 
-get '/classic/app/*' => sub {
+get '/classic/app/:webapp_name' => sub {
 
-    my ($app_name) = splat;
-    params->{webapp_name} = $app_name;
+    return classic_request('webapp');
+};
+
+
+get '/classic/app/:webapp_name/:file_name' => sub {
     
     return classic_request('webapp');
 };
@@ -844,6 +847,7 @@ sub webapp {
     my ($q, $s, $dbt, $hbo) = @_;
     
     my $app_name = $q->param('webapp_name');
+    my $file_name = $q->param('file_name');
     
     unless ( $app_name )
     {
@@ -851,7 +855,7 @@ sub webapp {
 	return;
     }
     
-    my $app = PBDB::WebApp->new($app_name, $q, $s, $dbt, $hbo);
+    my $app = PBDB::WebApp->new($app_name, $file_name, $q, $s, $dbt, $hbo);
     
     unless ( $app )
     {
@@ -861,6 +865,7 @@ sub webapp {
     
     if ( $app->requires_login && ! $s->isDBMember() )
     {
+	$app_name .= "/$file_name" if $file_name;
 	redirect "/login?app=$app_name", 303;
     }
     

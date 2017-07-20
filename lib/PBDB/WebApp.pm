@@ -14,28 +14,30 @@ use base 'PBDB::HTMLBuilder';
 
 sub new {
 
-    my ($class, $app_name, $q, $s, $dbt, $hbo) = @_;
+    my ($class, $app_name, $file_name, $q, $s, $dbt, $hbo) = @_;
     
     # First check to make sure that the named page is actually there. If $app_name does not
     # contain a '/', then use the string as both the directory name and the file name.
     
     my ($main_filename, $app_path, $common_path);
     
-    if ( $app_name =~ qr{ ^ ([^/]+) / }xs )
+    if ( $file_name )
     {
-	$main_filename = "$WEBAPP_DIR/${app_name}/$1.html";
-	$app_path = "$WEBAPP_PATH/$1";
+	$main_filename = "$WEBAPP_DIR/$app_name/$file_name.html";
+	$app_path = "$WEBAPP_PATH/$app_name";
     }
     
     else
     {
-	$main_filename = "$WEBAPP_DIR/${app_name}/${app_name}.html";
+	$main_filename = "$WEBAPP_DIR/$app_name/${app_name}.html";
 	$app_path = "$WEBAPP_PATH/$app_name";
     }
     
     $common_path = "$WEBAPP_PATH/common";
     
     # If the main HTML file is not found, return false.
+
+    print STDERR "WEBAPP FILENAME: $main_filename\n";
     
     unless ( -e $main_filename )
     {
