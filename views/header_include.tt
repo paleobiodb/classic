@@ -103,12 +103,14 @@
                 </a>
                 <ul class="dropdown-menu">
                   <li><a href=""><em>
-		        [% IF current_user.authorizer_no && current_user.authorizer_no == current_user.person_no %] Authorizer: Myself
-			[% ELSIF current_user.authorizer_name %] Authorizer: [% current_user.authorizer_name %]
-			[% ELSE %] Guest User [% END %]</em></a></li>
+                    [% IF current_user.authorizer_no && current_user.authorizer_no == current_user.person_no %] Authorizer: Myself
+                    [% ELSIF current_user.authorizer_name %] Authorizer: [% current_user.authorizer_name %]
+                    [% ELSE %] Guest User [% END %]
+                  </em></a></li>
 		  <hr>
 		  <li><a href="/account">Account settings</a></li>
 		  [% IF current_user.admin %]
+		  <li><a href="/classic/app/resource_sub/manager">Manage resources</a></li>
 		  <li><a href="/admin/users">Manage database users</a></li>
 		  [% END %]
 		  [% IF current_user.role == "authorizer" %]
