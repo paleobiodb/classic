@@ -36,7 +36,7 @@ function PBDB_map_widget(mapElementName, options) {
           new ol.layer.Tile({
             source: new ol.source.XYZ({
               attributions: [attribution],
-              url: 'https://a.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png'
+              url: 'https://stamen-tiles-a.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png'
             })
           }),
           vectorLayer
