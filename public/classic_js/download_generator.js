@@ -75,6 +75,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
     var patt_has_digit = /\d/;
     var patt_date = /^(\d+[mshdMY]|\d\d\d\d(-\d\d(-\d\d)?)?)$/;
     var patt_extid = /^(col|occ|clu|spm)[:]\d+$/;
+    var patt_init_slash = /^\//;
     
     // The following function initializes this application controller object.  It is exported as
     // a method, so that it can be called once the web page is fully loaded.  It must make two
@@ -3128,7 +3129,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    
 	    // Construct the new URL
 	    
-	    var new_url = data_url + my_op + data_format + '?';
+	    var prefix = patt_init_slash.test(data_url) ? document.origin + data_url : data_url;
+	    var new_url = prefix + my_op + data_format + '?';
 	    
 	    if ( params.output_metadata )
 		new_url += 'datainfo&rowcount&';
