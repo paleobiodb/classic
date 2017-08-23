@@ -75,7 +75,10 @@ function DownloadGeneratorApp( data_url, is_contributor )
     var patt_has_digit = /\d/;
     var patt_date = /^(\d+[mshdMY]|\d\d\d\d(-\d\d(-\d\d)?)?)$/;
     var patt_extid = /^(col|occ|clu|spm)[:]\d+$/;
-    var patt_init_slash = /^\//;
+    
+    // If the value of data_url starts with a slash, prefix the origin of the current page to get a full URL.
+    
+    var full_data_url;
     
     // The following function initializes this application controller object.  It is exported as
     // a method, so that it can be called once the web page is fully loaded.  It must make two
@@ -103,6 +106,15 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    if ( getElementValue(s) == "1" )
 		showHideSection(sections[s], 'show');
 	}
+	
+	// Make sure we have a proper URL to use for data service requests.
+	
+	var origin_match;
+	
+	if ( data_url.match( /^\// ) && window.location.origin )
+	    full_data_url = window.location.origin + data_url;
+	else
+	    full_data_url = data_url;
 	
 	// If the form is being reloaded and already has values entered into it, take some steps
 	// to make sure it is properly set up.
@@ -3129,8 +3141,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    
 	    // Construct the new URL
 	    
-	    var prefix = patt_init_slash.test(data_url) ? document.origin + data_url : data_url;
-	    var new_url = prefix + my_op + data_format + '?';
+	    var new_url = full_data_url + my_op + data_format + '?';
 	    
 	    if ( params.output_metadata )
 		new_url += 'datainfo&rowcount&';
