@@ -172,7 +172,7 @@ sub classic_request {
     
     my $wing_session = get_session();
     
-    my ($user, $session_id, $enterer_no, $authorizer_no, $is_admin, $role);
+    my ($user, $session_id, $user_id, $enterer_no, $authorizer_no, $is_admin, $role);
     
     if ( $wing_session )
     {
@@ -185,6 +185,7 @@ sub classic_request {
 	    $enterer_no = $user->get_column('person_no');
 	    $is_admin = $user->get_column('admin');
 	    $role = $user->get_column('role');
+	    $user_id = $user->get_column('id');
 	}
     }
     
@@ -206,7 +207,7 @@ sub classic_request {
     
     my $dbt = PBDB::DBTransactionManager->new();
     
-    my $s = PBDB::Session->new($dbt, $session_id, $authorizer_no, $enterer_no, $role, $is_admin);
+    my $s = PBDB::Session->new($dbt, $session_id, $user_id, $authorizer_no, $enterer_no, $role, $is_admin);
     
     if ( $action eq 'menu' )
     {

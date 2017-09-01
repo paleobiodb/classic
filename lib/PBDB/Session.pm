@@ -17,54 +17,9 @@ sub start_login_session {
     
     my ($class, $session_id, $enterer_no, $authorizer_no, $login_role) = @_;
     
-    # print STDERR "session_id = $session_id\n";
-    # print STDERR "authorizer_no = $authorizer_no\n";
-    # print STDERR "enterer_no = $enterer_no\n";
-    # print STDERR "login_role = $login_role\n";
+    # Actually, we no longer need to do anything in this routine.
     
-    # my $dbh = PBDB::DBConnection::connect();
-    
-    # unless ( $session_id && $session_id =~ qr{ ^ [0-9A-F-]+ $ }xs )
-    # {
-    # 	die "Error: invalid session_id\n";
-    # }
-    
-    # unless ( $enterer_no && $enterer_no =~ qr{ ^ [0-9]+ $ }xs )
-    # {
-    # 	die "Error: invalid enterer_no\n";
-    # }
-    
-    # unless ( $authorizer_no && $authorizer_no =~ qr{ ^ [0-9]+ $ }xs )
-    # {
-    # 	die "Error: invalid authorizer_no\n";
-    # }
-    
-    # unless ( $login_role && $login_role =~ qr{ ^ (?: authorizer | enterer | student | guest ) $ }xs )
-    # {
-    # 	die "Error: invalid role\n";
-    # }
-    
-    # my $quoted_id = $dbh->quote($session_id);
-    # my $quoted_role = $dbh->quote($login_role);
-    
-    # my $sql = "
-    # 	REPLACE INTO session_data (session_id, authorizer_no, enterer_no, role, record_date)
-    # 	VALUES ($quoted_id, $authorizer_no, $enterer_no, $quoted_role, now())";
-    
-    # my $result = $dbh->do($sql);
-    
-    # $sql = "
-    # 	UPDATE session_data as s join person as pa on pa.person_no = authorizer_no
-    # 		join person as pe on pe.person_no = enterer_no
-    # 	SET s.authorizer = pa.name,
-    # 	    s.enterer = pe.name,
-    # 	    s.superuser = pe.superuser,
-    # 	    s.roles = s.role
-    # 	WHERE session_id = $quoted_id";
-    
-    # $result = $dbh->do($sql);
-    
-    # my $a = 1;	# we can stop here when debugging
+    my $a = 1;	# we can stop here when debugging
 }
 
 
@@ -101,94 +56,150 @@ sub end_login_session {
 
 sub new {
     
-    my ($class, $dbt, $session_id, $authorizer_no, $enterer_no, $role, $is_admin) = @_;
+    my ($class, $dbt, $session_id, $user_id, $authorizer_no, $enterer_no, $role, $is_admin) = @_;
     my $dbh = $dbt->dbh;
     my $self;
     
     $is_admin ||= 0;
     
-    # If we don't have a Wing session identifier, or if we don't have an enterer_no value
-    # indicating a logged-in user, then there is no need to add anything to session_data.  We just
-    # create a record that specifies the role of "guest", which is not able to do anything except
-    # browse.
+    my $result;
     
-    unless ( $session_id && $enterer_no && $enterer_no =~ /^\d+$/ )
+    # Make sure the role is 'guest' unless the user has an authorizer_no.
+    
+    $role = 'guest' unless $authorizer_no;    
+    
+    # If we don't have a Wing session identifier, then there is no need to add anything to
+    # session_data.  We just create a record that specifies the role of "guest", which is not able
+    # to do anything except browse.
+    
+    unless ( $session_id )
     {
-	my $s = { dbt => $dbt,
-		  session_id => ($session_id || ''),
-		  role => 'guest',
-		  roles => 'guest',
-		  authorizer_no => 0,
-		  enterer_no => 0,
-		};
+    	my $s = { dbt => $dbt,
+    		  session_id => '',
+		  user_id => '',
+    		  role => 'guest',
+    		  roles => 'guest',
+    		  authorizer_no => 0,
+    		  enterer_no => 0,
+    		};
 	
-	# print STDERR "SESSION: guest\n";
+	# 	print STDERR "SESSION: not logged in\n";
 	
-	return bless $s;
+    	return bless $s;
     }
     
-    # Otherwise, we need to see if there is an existing record in the 'session_data' table.  If
+    # We first need to see if there is an existing record in the 'session_data' table.  If
     # so, we fetch it.  We are currently using only some of the fields in this table.  The
     # 'authorizer_no', 'authorizer', 'enterer' and 'superuser' fields of the session record are
     # set using information that comes from Wing.
     
     my $quoted_id = $dbh->quote($session_id);
-    my $sql = "	SELECT session_id, enterer_no, queue, reference_no, marine_invertebrate, micropaleontology,
-			paleobotany, taphonomy, vertebrate, authorizer, enterer
+    my $sql = "	SELECT session_id, user_id, queue, authorizer_no, enterer_no, reference_no,
+			marine_invertebrate, micropaleontology,	paleobotany, taphonomy, vertebrate
 		FROM session_data WHERE session_id = $quoted_id";
     
     my ($session_record) = $dbh->selectrow_hashref( $sql, { Slice => { } } );
     
+    # If there is already a record in the 'session_data' table, check that the values match the
+    # authorization information we have gotten from Wing.
+    
+    if ( $session_record )
+    {
+	if ( ! $session_record->{user_id} || $session_record->{user_id} ne $user_id )
+	{
+	    my $quoted_user = $dbh->quote($user_id);
+	    
+	    $sql = "
+		UPDATE session_data SET user_id = $quoted_user
+		WHERE session_id = $quoted_id";
+	    
+	    $result = $dbh->do($sql);
+	}
+	
+	# If either the enterer_no or the authorizer_no do not match, update the session_data
+	# entry. This probably means that the user is using the Wing facility for becoming another
+	# user for testing purposes.
+	
+	if ( $enterer_no && $session_record->{enterer_no} ne $enterer_no )
+	{
+	    my $quoted_enterer = $dbh->quote($enterer_no);
+	    
+	    $sql = "
+		UPDATE session_data SET enterer_no = $quoted_enterer
+		WHERE session_id = $quoted_id";
+	    
+	    $result = $dbh->do($sql);
+	}
+	
+	# Same with the authorizer_no. This may also happen if the user switched from one to
+	# another of their available authorizers.
+	
+	if ( $authorizer_no && $session_record->{authorizer_no} ne $authorizer_no )
+	{
+	    my $quoted_authorizer = $dbh->quote($authorizer_no);
+	    
+	    $sql = "
+		UPDATE session_data SET authorizer_no = $quoted_authorizer
+		WHERE session_id = $quoted_id";
+	    
+	    $result = $dbh->do($sql);
+	}
+    }
+    
     # If there is not an existing record, then we must make one.  Some of the fields are fetched
     # from the 'person' table corresponding to the authorizer.
     
-    unless ( $session_record )
+    else
     {
 	my $quoted_role = $dbh->quote($role);
+	my $quoted_user = $dbh->quote($user_id || '');
+	my $quoted_enterer = $dbh->quote($enterer_no || 0);
+	my $quoted_authorizer = $dbh->quote($authorizer_no || 0);
+	my $quoted_admin = $dbh->quote($is_admin || 0);
 	
 	my $sql = "
-		INSERT INTO session_data (session_id, enterer_no, authorizer_no, role, superuser)
-		VALUES ($quoted_id, $enterer_no, $authorizer_no, $quoted_role, $is_admin)";
+		INSERT INTO session_data (session_id, user_id, enterer_no, authorizer_no, role, superuser)
+		VALUES ($quoted_id, $quoted_user, $quoted_enterer, $quoted_authorizer, $quoted_role, $quoted_admin)";
 	
 	$dbh->do($sql);
 	
-	$sql = "UPDATE session_data JOIN person as auth on auth.person_no = session_data.authorizer_no
-			JOIN person as ent on ent.person_no = session_data.enterer_no
-		SET session_data.authorizer = auth.name, session_data.enterer = ent.name";
+	# $sql = "UPDATE session_data JOIN person as auth on auth.person_no = session_data.authorizer_no
+	# 		JOIN person as ent on ent.person_no = session_data.enterer_no
+	# 	SET session_data.authorizer = auth.name, session_data.enterer = ent.name";
 	
-	$dbh->do($sql);
+	# $dbh->do($sql);
 	
-	$sql = "SELECT research_group FROM person WHERE person_no = $enterer_no";
-	my ($group_list) = $dbh->selectrow_array($sql);
+	# Create a session record with these values.
+	
+	$session_record = { session_id => $session_id,
+			    user_id => $user_id,
+			    reference_no => 0,
+			    queue => '' };
 	
 	# Try to set the field of the session record corresponding to each research group we
 	# found, but wrap it in an eval so that any errors are ignored.  This whole system of
 	# fixed research group field names is terrible and needs to be replaced anyway.
 	
-	foreach my $group ( split qr{,}, $group_list )
+	if ( $enterer_no )
 	{
-	    next unless $group;
+	    $sql = "SELECT research_group FROM person WHERE person_no = $quoted_enterer";
+	    my ($group_list) = $dbh->selectrow_array($sql);
 	    
-	    $sql = "UPDATE session_data SET $group = 1 WHERE session_id = $quoted_id";
-	    
-	    eval {
-		$dbh->do($sql);
-	    };
+	    foreach my $group ( split qr{,}, $group_list )
+	    {
+		next unless $group;
+		
+		$session_record->{$group} = 1;
+		
+		$sql = "UPDATE session_data SET $group = 1 WHERE session_id = $quoted_id";
+		
+		eval {
+		    $dbh->do($sql);
+		};
+	    }
 	}
 	
-	# Fill in the rest of the fields to their defaults.
-	
-	$session_record = { session_id => $session_id,
-			    enterer_no => $enterer_no,
-			    reference_no => 0,
-			    queue => '' };
-	
 	# print STDERR "SESSION: new\n";
-    }
-    
-    else
-    {
-	# print STDERR "SESSION: found\n";
     }
     
     # Fill in 'dbt' using the parameter we were passed.
@@ -197,301 +208,16 @@ sub new {
     
     # Now fill in the data we get from Wing.
     
+    $session_record->{user_id} = $user_id;
+    $session_record->{enterer_no} = $enterer_no || 0;
     $session_record->{authorizer_no} = $authorizer_no || 0;
     $session_record->{role} = $role || 'guest';
     $session_record->{superuser} = $is_admin || 0;
-    
-    # Make sure that 'role' is 'guest' unless we have a nonzero authorizer_no.
-    
-    $session_record->{role} = 'guest' unless $authorizer_no;
     
     return bless $session_record;
 }
 
 
-# sub new {
-
-#     my ($class, $dbt, $session_id, $authorizer_no, $enterer_no, $role, $is_admin) = @_;
-#     my $dbh = $dbt->dbh;
-#     my $self;
-    
-#     if ($session_id) {
-	
-# 	my $quoted_id = $dbh->quote($session_id);
-# 	# Ensure their session_id corresponds to a valid database entry
-# 	my $sql = "SELECT * FROM session_data WHERE session_id=$quoted_id LIMIT 1";
-# 	my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
-# 	# execute returns number of rows affected for NON-select statements
-# 	# and true/false (success) for select statements.
-# 	$sth->execute();
-#         my $rs = $sth->fetchrow_hashref();
-	
-# 	if ( $authorizer_no && $rs && $rs->{authorizer_no} && $rs->{authorizer_no} ne $authorizer_no )
-# 	{
-# 	    # print STDERR "UPDATING SESSION authorizer_no = $authorizer_no\n";
-	    
-# 	    $rs->{authorizer_no} = $authorizer_no;
-	    
-# 	    my ($authorizer_name) = $dbh->selectrow_array("SELECT real_name FROM pbdb_wing.users WHERE person_no = $authorizer_no");
-	    
-# 	    $rs->{authorizer} = $authorizer_name || 'unknown';
-	    
-# 	    my $quoted_name = $dbh->quote($rs->{authorizer});
-	    
-# 	    $dbh->do("UPDATE pbdb.session_data SET authorizer_no = $authorizer_no, authorizer = $quoted_name
-# 			WHERE session_id = $quoted_id");
-# 	}
-	
-#         if($rs) {
-#             # Store some values (for later)
-#             foreach my $field ( keys %{$rs} ) {
-#                 $self->{$field} = $rs->{$field};
-#             }
-#             # These are used in lots of places (anywhere with a 'Me' button), convenient to create here
-#             my $authorizer_reversed = $rs->{'authorizer'};
-#             $authorizer_reversed =~ s/^\s*([^\s]+)\s+([^\s]+)\s*$/$2, $1/;
-#             my $enterer_reversed = $rs->{'enterer'};
-#             $enterer_reversed =~ s/^\s*([^\s]+)\s+([^\s]+)\s*$/$2, $1/;
-#             $self->{'authorizer_reversed'} = $authorizer_reversed;
-#             $self->{'enterer_reversed'} = $enterer_reversed;    
-# 	    $self->{role} = $rs->{role};
-#             # Update the person data
-#             # We don't bother for bristol mirror 
-#             if ($ENV{'SERVER_ADDR'} eq $IP_MAIN ||
-#                 $ENV{'SERVER_ADDR'} eq $IP_BACKUP) {
-#                 my $sql = "UPDATE person SET last_action=NOW() WHERE person_no=$self->{enterer_no}";
-#                 $dbh->do( $sql ) || die ( "$sql<HR>$!" );
-#             }
-
-#             # now update the session_data record to the current time
-#             $sql = "UPDATE session_data SET record_date=NULL WHERE session_id=".$dbh->quote($session_id);
-#             $dbh->do($sql);
-#             $self->{'logged_in'} = 1;
-#         } else {
-#             $self->{'logged_in'} = 0;
-#         }
-# 	} else {
-#         $self->{'logged_in'} = 0;
-#     }
-    
-#     $self->{role} = $role;
-#     $self->{superuser} = $is_admin ? 1 : 0;
-    
-#     $self->{'dbt'} = $dbt;
-#     bless $self, $class;
-#     return $self;
-# }
-
-
-# Processes the login from the submitted authorizer/enterer names.
-# Creates a session_data table row if the login is valid.
-#
-# modified by rjp, 3/2004.
-# sub processLogin {
-# 	my $self = shift;
-# 	my $authorizer  = shift;
-#     my $enterer = shift;
-#     my $password = shift;
-
-#     my $dbt = $self->{'dbt'};
-#     my $dbh = $dbt->dbh;
-    
-# 	my $valid = 0;
-
-
-# 	# First do some housekeeping
-# 	# This cleans out ALL records in session_data older than 48 hours.
-# 	$self->houseCleaning( $dbh );
-
-
-# 	# We want them to specify both an authorizer and an enterer
-# 	# otherwise kick them out to the public site.
-# 	if (!$authorizer || !$enterer || !$password) {
-# 		return '';
-# 	}
-
-# 	# also check that both names exist in the database.
-# 	if (! Person::checkName($dbt,$enterer) || ! Person::checkName($dbt,$authorizer)) {
-# 		return '';
-# 	}
-
-#     my ($sql,@results,$authorizer_row,$enterer_row);
-# 	# Get info from database on this authorizer.
-# 	$sql =	"SELECT * FROM person WHERE name=".$dbh->quote($authorizer);
-# 	@results =@{$dbt->getData($sql)};
-# 	$authorizer_row  = $results[0];
-
-# 	# Get info from database on this enterer.
-# 	$sql =	"SELECT * FROM person WHERE name=".$dbh->quote($enterer);
-# 	@results =@{$dbt->getData($sql)};
-# 	$enterer_row  = $results[0];
-
-# 	# find highest-level role JA 20.1.09
-# 	# note that we are defaulting to lowest-level in cases where role
-# 	#  is unknown, which is only true for people added before the
-# 	#  student and technician categories were separated
-# 	$enterer_row->{'roles'} = $enterer_row->{'role'};
-# 	if ( $enterer_row->{'role'} =~ /authorizer/ )	{
-# 		$enterer_row->{'role'} = "authorizer";
-# 	} elsif ( $enterer_row->{'role'} =~ /technician/ )	{
-# 		$enterer_row->{'role'} = "technician";
-# 	} elsif ( $enterer_row->{'role'} =~ /student/ )	{
-# 		$enterer_row->{'role'} = "student";
-# 	} else	{
-# 		$enterer_row->{'role'} = "limited";
-# 	}
-	
-
-# 	if ($authorizer_row) {
-# 		# Check the password
-# 		my $db_password = $authorizer_row->{'password'};
-# 		my $plaintext = $authorizer_row->{'plaintext'};
-# 		if ( $enterer_row->{'password'} ne "" )	{
-# 			$db_password = $enterer_row->{'password'};
-# 		}
-# 		if ( $enterer_row->{'plaintext'} ne "" )	{
-# 			$plaintext = $enterer_row->{'plaintext'};
-# 		}
-
-# 		# First try the plain text version
-# 		if ( $plaintext && $plaintext eq $password) {
-# 			$valid = 1; 
-# 			# If that worked but there is still an old encrypted password,
-# 			#   zorch that version to make sure it is never used again
-# 			#   JA 12.6.02
-# 			if ($db_password ne "")	{
-# 				$sql =	"UPDATE person SET password='' WHERE person_no = ".$authorizer_row->{'person_no'};
-# 				$dbh->do( $sql ) || die ( "$sql<HR>$!" );
-# 			}
-# 		# If that didn't work and there is no plain text password,
-# 		#   try the old encrypted password
-# 		} elsif ($plaintext eq "") {
-# 			# Legacy: Test the encrypted password
-# 			# For encrypted passwords
-# 			my $salt = substr ( $db_password, 0, 2);
-# 			my $encryptedPassword = crypt ( $password, $salt );
-
-# 			if ( $db_password eq $encryptedPassword ) {
-# 				$valid = 1; 
-# 				# Mysteriously collect their plaintext password
-# 				$sql =	"UPDATE person SET password='',plaintext=".$dbh->quote($password).
-# 						" WHERE person_no = ".$authorizer_row->{person_no};
-# 				$dbh->do( $sql ) || die ( "$sql<HR>$!" );
-# 			}
-# 		}
-
-# 		# If valid, do some stuff
-# 		if ( $valid ) {
-# 		    my $session_id = $self->buildSessionID();
-
-# #             my $cookie = new CGI::Cookie(
-# #                 -name    => 'session_id',
-# #                 -value   => $session_id, 
-# #                 -expires => '+1y',
-# #                 -path    => "/",
-# #                 -secure  => 0);
-
-# 			# Store the session id (for later)
-# 			$self->{session_id} = $session_id;
-
-# 			# Are they superuser?
-# 			my $superuser = 0;
-# 			if ( $authorizer_row->{'superuser'} && 
-#                  $authorizer_row->{'role'} =~ /authorizer/ && 
-#                  $authorizer eq $enterer) {
-#                  $superuser = 1; 
-#             }
-
-# 			# Insert all of the session data into a row in the session_data table
-# 			# so we will still have access to it the next time the user tries to do something.
-#             my %row = ('session_id'=>$session_id,
-#                        'authorizer'=>$authorizer_row->{'name'},
-#                        'authorizer_no'=>$authorizer_row->{'person_no'},
-#                        'enterer'=>$enterer_row->{'name'},
-#                        'enterer_no'=>$enterer_row->{'person_no'},
-#                        'role'=>$enterer_row->{'role'},
-#                        'roles'=>$enterer_row->{'roles'},
-#                        'superuser'=>$superuser,
-#                        'marine_invertebrate'=>$authorizer_row->{'marine_invertebrate'}, 
-#                        'micropaleontology'=>$authorizer_row->{'micropaleontology'},
-#                        'paleobotany'=>$authorizer_row->{'paleobotany'},
-#                        'taphonomy'=>$authorizer_row->{'taphonomy'},
-#                        'vertebrate'=>$authorizer_row->{'vertebrate'});
-
-#             # Copy to the session objet
-#             while (my ($k,$v) = each %row) {
-#                 $self->{$k} = $v;
-#             }
-           
-#             my $keys = join(",",keys(%row));
-#             my $values = join(",",map { $dbh->quote($_) } values(%row));
-            
-# 			$sql =	"INSERT INTO session_data ($keys) VALUES ($values)";
-# 			$dbh->do( $sql ) || die ( "$sql<HR>$!" );
-	
-# 		#	return $cookie;
-# 		}
-# 	}
-# 	return "";
-# }
-
-
-# Handles the Guest login.  No password required.
-# Anyone who passes through this routine becomes guest.
-# sub processGuestLogin {
-# 	my $self = shift;
-#     my $dbt = $self->{'dbt'};
-#     my $dbh = $dbt->dbh;
-#     my $name = shift;
-
-#     my $session_id = $self->buildSessionID();
-
-# #     my $cookie = new CGI::Cookie(
-# #         -name    => 'session_id',
-# #         -value   => $session_id
-# #         -expires => '+1y',
-# #         -domain  => '',
-# #         -path    => "/",
-# #         -secure  => 0);
-
-#     # Store the session id (for later)
-#     $self->{session_id} = $session_id;
-
-#     # The research groups are stored so as not to do many db lookups
-#     $self->{enterer_no} = 0;
-#     $self->{enterer} = $name;
-#     $self->{authorizer_no} = 0;
-#     $self->{authorizer} = $name;
-    
-#     # Insert all of the session data into a row in the session_data table
-#     # so we will still have access to it the next time the user tries to do something.
-#     #
-#     my %row = ('session_id'=>$session_id,
-#                'authorizer'=>$self->{'authorizer'},
-#                'authorizer_no'=>$self->{'authorizer_no'},
-#                'enterer'=>$self->{'enterer'},
-#                'enterer_no'=>$self->{'enterer_no'});
-   
-#     my $keys = join(",",keys(%row));
-#     my $values = join(",",map { $dbh->quote($_) } values(%row));
-    
-#     my $sql = "INSERT INTO session_data ($keys) VALUES ($values)";
-#     $dbh->do( $sql ) || die ( "$sql<HR>$!" );
-
-# 	#return $cookie;
-# }
-
-# sub buildSessionID {
-#   my $self = shift;
-#   my $md5 = Digest::MD5->new();
-#   my $remote = $ENV{REMOTE_ADDR} . $ENV{REMOTE_PORT};
-#   # Concatenates args: epoch, this interpreter PID, $remote (above)
-#   # returned as base 64 encoded string
-#   my $id = $md5->md5_base64(time, $$, $remote);
-#   # replace + with -, / with _, and = with .
-#   $id =~ tr|+/=|-_.|;
-#   return $id;
-# }
 
 # Cleans stale entries from the session_data table.
 # 48 hours is the current time considered
@@ -800,10 +526,49 @@ sub clearQueue {
 
 # Gets a variable from memory
 sub get {
-	my $self = shift;
-	my $key = shift;
-
-	return $self->{$key};
+    my ($session, $key) = @_;
+    
+    # If the key is found in the session record, return its value.
+    
+    if ( defined $session->{$key} )
+    {
+	return $session->{$key};
+    }
+    
+    # If the variable is 'authorizer', 'enterer', 'authorizer_reversed', or 'enterer_reversed', we
+    # may need to look up this information.
+    
+    elsif ( $key eq 'authorizer' || $key eq 'enterer' )
+    {
+	my $dbh = $session->{dbt}->dbh;
+	my $person_no = $dbh->quote($session->{$key . '_no'});
+	
+	my ($name) = $dbh->selectrow_array("SELECT name FROM person WHERE person_no = $person_no");
+	
+	$session->{$key} = $name if $name;
+	return $name;
+    }
+    
+    elsif ( $key eq 'authorizer_reversed' || $key eq 'enterer_reversed' )
+    {
+	my $dbh = $session->{dbt}->dbh;
+	
+	my $selector = $key;
+	$selector =~ s/_reversed/_no/;
+	my $person_no = $dbh->quote($session->{$selector});
+	
+	my ($name) = $dbh->selectrow_array("SELECT reversed_name FROM person WHERE person_no = $person_no");
+	
+	$session->{$key} = $name if $name;
+	return $name;
+    }
+    
+    # Otherwise, just return the undefined value.
+    
+    else
+    {
+	return;
+    }
 }
 
 # Is the current user superuser?  This is true
