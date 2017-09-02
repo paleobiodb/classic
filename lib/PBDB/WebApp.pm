@@ -9,6 +9,8 @@ use Encode qw(decode_utf8);
 use HTML::Entities qw(encode_entities);
 use PBDB::Constants qw($WEBAPP_DIR $WEBAPP_PATH $DATA_URL $TEST_DATA_URL $READ_URL);
 
+use ExternalIdent qw(generate_identifier);
+
 use base 'PBDB::HTMLBuilder';
 
 
@@ -37,7 +39,7 @@ sub new {
     
     # If the main HTML file is not found, return false.
 
-    print STDERR "WEBAPP FILENAME: $main_filename\n";
+    # print STDERR "WEBAPP FILENAME: $main_filename\n";
     
     unless ( -e $main_filename )
     {
@@ -96,21 +98,84 @@ sub generateBasePage {
     
     # First substitute variable values for references.
     
-    my $s = $app->{s};
-    my %vars;
+    my %vars = ( data_url => $DATA_URL,
+		 test_data_url => $TEST_DATA_URL || $DATA_URL,
+		 classic_url => $READ_URL,
+		 app_resources => $app->{app_path},
+		 common_resources => $app->{common_path} );
     
-    $vars{'is_contributor'} = $s->isDBMember() ? 1 : 0;
-    $vars{'authorizer_me'} = $s->get("authorizer");
-    $vars{'enterer_me'} = $s->get("enterer");
-    $vars{'data_url'} = $DATA_URL;
-    $vars{'test_data_url'} = $TEST_DATA_URL || $DATA_URL;
-    $vars{'classic_url'} = $READ_URL;
-    $vars{'app_resources'} = $app->{app_path};
-    $vars{'common_resources'} = $app->{common_path};
-    
-    $app->{txt} =~ s/%%(\w+)%%/$vars{$1}/gse;
+    $app->{txt} =~ s/%%(\w+)%%/$app->substitute_value(\%vars, $1)/gse;
     
     return $app->{txt};
+}
+
+
+sub substitute_value {
+
+    my ($app, $vars, $key) = @_;
+    
+    # If the requested value is in the array, just return it.
+    
+    if ( defined $vars->{$key} )
+    {
+	return $vars->{$key};
+    }
+    
+    # Otherwise, call the appropriate method to obtain it.
+    
+    my $s = $app->{s};
+    
+    if ( $key eq 'is_contributor' || $key eq 'is_member' )
+    {
+	return $s->isDBMember() ? 1 : 0;
+    }
+    
+    elsif ( $key eq 'is_loggedin' )
+    {
+	return $s->isLoggedIn() ? 1 : 0;
+    }
+    
+    elsif ( $key eq 'is_admin' )
+    {
+	return $s->isSuperUser() ? 1 : 0;
+    }
+    
+    elsif ( $key eq 'user_role' )
+    {
+	return $s->get('role');
+    }
+    
+    elsif ( $key eq 'user_name' || $key eq 'user_reversed' ||
+	    $key eq 'enterer_name' || $key eq 'enterer_reversed' ||
+	    $key eq 'authorizer_name' || $key eq 'authorizer_reversed' )
+    {
+	return $s->get($key);
+    }
+    
+    elsif ( $key eq 'authorizer_id' || $key eq 'enterer_id' )
+    {
+	my $session_field = $key; $session_field =~ s/_id/_no/;
+	my $person_no = $s->get($session_field);
+	
+	if ( $person_no )
+	{
+	    $vars->{$key} = generate_identifier('PRS', $person_no);
+	}
+	
+	else
+	{
+	    $vars->{$key} = '';
+	}
+	
+	return $vars->{$key};
+    }
+    
+    # If we get here, then the variable does not exist.
+    
+    else
+    {
+	return 'BAD_VARIABLE';
+    }
 }
 
 1;
