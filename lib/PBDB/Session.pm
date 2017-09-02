@@ -64,12 +64,8 @@ sub new {
     
     my $result;
     
-    # Make sure the role is 'guest' unless the user has an authorizer_no.
-    
-    $role = 'guest' unless $authorizer_no;    
-    
     # If we don't have a Wing session identifier, then there is no need to add anything to
-    # session_data.  We just create a record that specifies the role of "guest", which is not able
+    # session_data.  We just create a record that specifies the role of "anonymous", which is not able
     # to do anything except browse.
     
     unless ( $session_id )
@@ -77,8 +73,8 @@ sub new {
     	my $s = { dbt => $dbt,
     		  session_id => '',
 		  user_id => '',
-    		  role => 'guest',
-    		  roles => 'guest',
+    		  role => 'anonymous',
+    		  roles => 'anonymous',
     		  authorizer_no => 0,
     		  enterer_no => 0,
     		};
@@ -87,6 +83,10 @@ sub new {
 	
     	return bless $s;
     }
+    
+    # Make sure the role is 'guest' unless the user has an authorizer_no.
+    
+    $role = 'guest' unless $authorizer_no;    
     
     # We first need to see if there is an existing record in the 'session_data' table.  If
     # so, we fetch it.  We are currently using only some of the fields in this table.  The
@@ -538,29 +538,63 @@ sub get {
     # If the variable is 'authorizer', 'enterer', 'authorizer_reversed', or 'enterer_reversed', we
     # may need to look up this information.
     
-    elsif ( $key eq 'authorizer' || $key eq 'enterer' )
+    elsif ( $key eq 'enterer' || $key eq 'enterer_name' || $key eq 'enterer_reversed' )
     {
 	my $dbh = $session->{dbt}->dbh;
-	my $person_no = $dbh->quote($session->{$key . '_no'});
+	my $enterer_no = $session->{enterer_no};
 	
-	my ($name) = $dbh->selectrow_array("SELECT name FROM person WHERE person_no = $person_no");
+	if ( $enterer_no && $enterer_no =~ /^\d+$/ )
+	{
+	    my ($name, $reversed) = $dbh->selectrow_array("SELECT name, reversed_name FROM person WHERE person_no = $enterer_no");
+	    
+	    $session->{enterer} = $name;
+	    $session->{enterer_name} = $name;
+	    $session->{enterer_reversed} = $reversed;
+	}
 	
-	$session->{$key} = $name if $name;
-	return $name;
+	else
+	{
+	    $session->{enterer} = $session->{enterer_name} = $session->{enterer_reversed} = '';
+	}
+	
+	return $session->{$key};
     }
     
-    elsif ( $key eq 'authorizer_reversed' || $key eq 'enterer_reversed' )
+    elsif ( $key eq 'authorizer' || $key eq 'authorizer_name' || $key eq 'authorizer_reversed' )
     {
 	my $dbh = $session->{dbt}->dbh;
+	my $authorizer_no = $session->{authorizer_no};
 	
-	my $selector = $key;
-	$selector =~ s/_reversed/_no/;
-	my $person_no = $dbh->quote($session->{$selector});
+	if ( $authorizer_no && $authorizer_no =~ /^\d+$/ )
+	{
+	    my ($name, $reversed) = $dbh->selectrow_array("SELECT name, reversed_name FROM person WHERE person_no = $authorizer_no");
+	    
+	    $session->{authorizer} = $name;
+	    $session->{authorizer_name} = $name;
+	    $session->{authorizer_reversed} = $reversed;
+	}
 	
-	my ($name) = $dbh->selectrow_array("SELECT reversed_name FROM person WHERE person_no = $person_no");
+	else
+	{
+	    $session->{authorizer} = $session->{authorizer_name} = $session->{authorizer_reversed} = '';
+	}
 	
-	$session->{$key} = $name if $name;
-	return $name;
+	return $session->{$key};
+    }
+    
+    elsif ( $key eq 'user_name' || $key eq 'user_reversed' )
+    {
+	my $dbh = $session->{dbt}->dbh;
+	my $user_id = $dbh->quote($session->{user_id} || 'xxx');
+	
+	my ($name, $first, $last, $middle) = $dbh->selectrow_array("
+		SELECT real_name, first_name, last_name, middle_name FROM pbdb_wing.users WHERE id = $user_id");
+	
+	$session->{user_name} = $name;
+	$session->{user_reversed} = "$last, $first";
+	$session->{user_reversed} .= " $middle" if $middle;
+	
+	return $session->{$key};
     }
     
     # Otherwise, just return the undefined value.
@@ -584,11 +618,6 @@ sub isDBMember {
     my $self = shift;
     return 1 if $self->{role} eq 'authorizer' || $self->{role} eq 'enterer' || $self->{role} eq 'student';
     return;
-}
-
-sub isGuest {
-    my $self = shift;
-    return $self->{session_id} ? 1 : 0;
 }
 
 sub isLoggedIn {

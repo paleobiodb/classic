@@ -191,8 +191,6 @@ sub classic_request {
     
     # print STDERR "SESSION ID = $session_id\n";
     
-    $role ||= 'guest';
-    
     my $q = PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
     
     my $apphandler = config->{apphandler} || '';
