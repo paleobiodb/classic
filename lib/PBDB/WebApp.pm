@@ -57,6 +57,18 @@ sub new {
     
     my %settings = ( $top_chars =~ /([A-Z_]+) = ([^;\n]+)/xg );
     
+    # If we have any errors, save them now.
+    
+    my @errors;
+    
+    foreach my $k ( keys %settings )
+    {
+	unless ( $k eq 'REQUIRES_LOGIN' || $k eq 'REQUIRES_MEMBER' )
+	{
+	    push @errors, "Unknown setting '$k'";
+	}
+    }
+    
     # Otherwise, create a new object and use it to save the parameters.
     
     my $new = {
@@ -69,6 +81,7 @@ sub new {
 	       s => $s,
 	       dbt => $dbt,
 	       txt => $txt,
+	       error_list => \@errors,
 	       settings => \%settings,
 	      };
     
@@ -170,11 +183,28 @@ sub substitute_value {
 	return $vars->{$key};
     }
     
+    # If we generated any errors in this process, report them.
+    
+    elsif ( $key eq 'errors' )
+    {
+	if ( ref $app->{error_list} eq 'ARRAY' )
+	{
+	    my $error_string = join('; ', @{$app->{error_list}});
+	    return $error_string;
+	}
+	
+	else
+	{
+	    return '';
+	}
+    }
+    
     # If we get here, then the variable does not exist.
     
     else
     {
-	return 'BAD_VARIABLE';
+	push @{$app->{error_list}}, "Bad variable '$key'";
+	return '%%' . $key . '%%';
     }
 }
 
