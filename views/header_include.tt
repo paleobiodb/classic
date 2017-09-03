@@ -44,16 +44,6 @@
                 <li><a href="/#/contact">Contact Us</a></li>
               </ul>
             </li>
-            <!-- <li class="dropdown"> -->
-            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown">Download<b class="caret"></b></a> -->
-            <!--   <ul class="dropdown-menu"> -->
-            <!--     <li><a href="/classic/displayDownloadGenerator">Download data records</a></li> -->
-            <!--     <1!-- <li><a href="/classic/displayDownloadForm">Old form for collections and occurrences</a></li> --1> -->
-            <!--     <1!-- <li><a href="/classic/displayDownloadTaxonomyForm">Old form for taxonomic names</a></li> --1> -->
-            <!--     <1!-- <li><a href="/classic/displayDownloadMeasurementsForm">Old form for measurements</a></li> --1> -->
-            <!--     <li><a href="/classic/?page=OSA">View data archives</a></li> -->
-            <!--   </ul> -->
-            <!-- </li> -->
             <li><a href="/classic/displayDownloadGenerator">Download</a></li>
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Search<b class="caret"></b></a>
@@ -66,7 +56,7 @@
                 <li><a href="/classic/?page=OSA">Data archives</a></li>
               </ul>
             </li>
-            [% IF current_user.role != "guest" %]
+            [% IF current_user.role AND current_user.role != "guest" %]
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Actions<b class="caret"></b></a>
               <ul class="dropdown-menu">
