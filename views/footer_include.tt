@@ -1,4 +1,3 @@
-[% INCLUDE jquery_js_include.tt %]
 [% INCLUDE bootstrap_js_include.tt %]
 [% INCLUDE pnotify_js_include.tt %]
 [% INCLUDE wing_js_include.tt %]

@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     [% INCLUDE bootstrap_css_include.tt %]
     [% INCLUDE pnotify_css_include.tt %]
+    [% INCLUDE jquery_js_include.tt %]
 
     <meta charset="UTF-8">
     [% section_head_tags %]
@@ -15,6 +16,11 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.2/html5shiv.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/respond.js/1.2.0/respond.js"></script>
     <![endif]-->
+    <script src="/public/classic_js/autocomplete.js"></script>
+    <script language="javascript" type="text/javascript">
+        var autocomplete = new AutoCompleteObject("universalAutocompleteInput", "universalSearchButton");
+        document.addEventListener("DOMContentLoaded", autocomplete.initialize, false);
+    </script>
   </head>
 
   <body>
@@ -116,10 +122,17 @@
           </ul>
           [% END %]
 
-          <form class="navbar-form navbar-right navbar-input-group" role="search" id="global-game-search" action="/classic/quickSearch" method="POST">
-            <div class="form-group">
-              <input type="text" class="form-control search-query" name="quick_search" placeholder="Quick search" onkeyup="update_global_game_search()">
-            </div>
+          <form class="navbar-form navbar-right navbar-input-group" action="/classic/quickSearch" method="POST">
+                  <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Search the database" id="universalAutocompleteInput">
+                    <div class="searchResult dropdown-menu" style="display: none;"></div>
+                    <span class="input-group-btn">
+                      <button type="submit" class="btn btn-primary" id="universalSearchButton"><i class="icon-search"></i></button>
+                    </span>
+                  </div>
+            <!-- <div class="form-group"> -->
+            <!--   <input type="text" class="form-control search-query" name="quick_search" placeholder="Quick search" onkeyup="update_global_game_search()"> -->
+            <!-- </div> -->
           </form>
 
         </div><!-- /.navbar-collapse -->
