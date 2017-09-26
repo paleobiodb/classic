@@ -1,11 +1,12 @@
-[% page_title = "${current_user.display_name}'s Enterers" %]
+[% page_title = "${current_user.display_name}'s Enterers and Students" %]
 [% INCLUDE account/header_include.tt %]
 <div ng-app="AccountApp" ng-controller="AccountCtrl" ng-cloak>
-<h4>PBDB User Roles:</h4>
+<br>
+<h4>About PBDB User Roles:</h4>
 <b>Authorizer</b><ul>An authorizer has the power to enter data of all types.</ul>
 <b>Enterer</b><ul>Enterers can enter data of all types, under the supervision of an Authorizer. Records entered by an Enterer will reflect both the identity of Enterer and Authorizer. Enterers may have multiple Authorizers, and should be sure to select the appropriate Authorizer for particular data entry tasks.</ul>
 <b>Student</b><ul>A Student user has the same rights and responsibilities as an Enterer, but CANNOT enter or edit taxonomic data.</ul>
-<b>Guest</b><ul>Guest users have an identity in the PBDB system, but do not have the ability to add data. Anyone who wants to become an Authorizer, Enterer, or Student user should first sign up as a Guest, and request Authorizer, Enterer, or Student status.</ul>
+<b>Guest</b><ul>Guest users have an identity in the PBDB system, but do not have the ability to add data. Anyone who wants to become an Authorizer, Enterer, or Student user should first sign up as a Guest, and request Authorizer, Enterer, or Student status. Guests are able to submit external project resources and educational material.</ul>
 To switch the role of a user between student and enterer, remove them and re-add them with the desired subordinate role. If a user wishes to become an authorizer, they may request this role using the button on their own Account Settings page.
 <br><br><br>
 
@@ -22,7 +23,7 @@ To switch the role of a user between student and enterer, remove them and re-add
   </tbody>
   </table>
 
-<h2>Add enterers</h2>
+<h2>Add Enterers or Students</h2>
 
 <div class="input-group">
 
