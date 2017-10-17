@@ -7,7 +7,7 @@ use Data::Dumper qw(Dumper);
 use PBDB::TaxaCache;
 use PBDB::Validation;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
+use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $TAXA_TREE_CACHE makeATag makeAnchor makeAnchorWithAttrs);
 
 # list of allowable data fields.
 use fields qw(opinion_no reference_no author1last author2last pubyr dbt DBrow);  
