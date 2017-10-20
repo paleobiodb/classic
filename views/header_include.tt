@@ -18,8 +18,8 @@
     <![endif]-->
     <script src="/public/classic_js/autocomplete.js"></script>
     <script language="javascript" type="text/javascript">
-        var autocomplete = new AutoCompleteObject("universalAutocompleteInput", "universalSearchButton");
-        document.addEventListener("DOMContentLoaded", autocomplete.initialize, false);
+        var acapp = new AutoCompleteObject("universalAutocompleteInput", "cls", 1);
+        document.addEventListener("DOMContentLoaded", acapp.initialize, false);
     </script>
   </head>
 
@@ -122,13 +122,14 @@
           </ul>
           [% END %]
 
-          <form class="navbar-form navbar-right navbar-input-group" action="/classic/quickSearch" method="POST">
+          <form class="navbar-form navbar-right navbar-input-group form-search universalSearchForm" action="/classic/quickSearch" method="POST">
                   <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search the database" id="universalAutocompleteInput">
+                    <input type="text" class="form-control" placeholder="Search the database" id="universalAutocompleteInput"
+				onkeyup="acapp.do_keyup()">
                     <div class="searchResult dropdown-menu" style="display: none;"></div>
-                    <span class="input-group-btn">
-                      <button type="submit" class="btn btn-primary" id="universalSearchButton"><i class="icon-search"></i></button>
-                    </span>
+                    <!-- <span class="input-group-btn"> -->
+                    <!--   <button type="submit" class="btn btn-primary" id="universalSearchButton"><i class="icon-search"></i></button> -->
+                    <!-- </span> -->
                   </div>
             <!-- <div class="form-group"> -->
             <!--   <input type="text" class="form-control search-query" name="quick_search" placeholder="Quick search" onkeyup="update_global_game_search()"> -->
@@ -138,3 +139,7 @@
         </div><!-- /.navbar-collapse -->
       </div><!-- container -->
     </nav>
+
+      <script language="javascript" type="text/javascript">
+      	document.getElementById("universalAutocompleteInput").addEventListener("onblur", "acapp.do_blur()", false);
+      </script>
