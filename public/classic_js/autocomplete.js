@@ -94,11 +94,6 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
     {
 	search_box = document.getElementById(search_box_id);
 	dropdown_box = $(search_box_selector).next('.searchResult');
-	
-	if ( window.location.origin && window.location.origin.match(/localhost/) )
-	{
-	    data_url = window.location.origin + ":3000";
-	}
     }
     
     this.initialize = initialize;
@@ -114,7 +109,7 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	var search_value = search_box.value;
 	var check_punctuation;
 	
-	if ( check_punctuation = search_value.match( /[;,](.*)/ ) )
+	if ( check_punctuation = search_value.match( /[;, ]+(.*)/ ) )
 	{
 	    search_value = check_punctuation[1];
 	}
