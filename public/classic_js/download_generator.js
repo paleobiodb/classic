@@ -1,4 +1,4 @@
-//
+y//
 // PBDB Download generator
 //
 // Author: Michael McClennen
@@ -358,8 +358,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
     {
 	showByClass('type_occs');
 	showByClass('taxon_reso');
+	showByClass('advanced');
 	
-	hideByClass('advanced');
+	hideByClass('taxon_mods');
 	hideByClass('mult_cc3');
 	hideByClass('mult_cc2');
 	
@@ -422,7 +423,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 				      "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
 				      "accepted only", "acconly", "Suppress the exact identification of the occurrence, show only accepted name",
 				      "ident components", "ident", "Individual components of the identification, rarely needed",
-				      "phylopic id", "img", "Identifier of a <a href=\"http://phylopic.org/\" target=\"_blank\">phylopic</a> representing this taxon or the closest containing taxon",
+				      "phylopic id", "img", "Identifier of a <a href=\"http://phylopic.org/\" target=\"_blank\">phylopic</a>" +
+								"representing this taxon or the closest containing taxon",
 				      "*plant organs", "plant", "Plant organ(s) identified as part of this occurrence, if any",
 				      "*abundance", "abund", "Abundance of this occurrence in the collection",
 				      "*ecospace", "ecospace", "The ecological space occupied by this organism",
@@ -434,6 +436,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
 				      "*location", "loc", "Additional info about the geographic locality",
 				      "*paleolocation", "paleoloc", "Paleogeographic locality of this occurrence",
 				      "*protection", "prot", "Indicates whether this occurrence is on protected land, i.e. a national park",
+				      "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
+								  "occurrence falls",
+				      "time comparison", "timecompare", "Like the above, but shows this information for all available timerules",
 				      "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
 				      "*stratigraphy ext.", "stratext", "Extended (detailed) stratigraphy of the occurrence",
 				      "lithology", "lith", "Basic lithology of the occurrence",
@@ -460,6 +465,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
 				     ["*location", "loc", "Additional info about the geographic locality",
 				      "*paleolocation", "paleoloc", "Paleogeographic locality of this collection",
 				      "*protection", "prot", "Indicates whether collection is on protected land",
+				      "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
+								  "collection falls",
+				      "time comparison", "timecompare", "Like the above, but shows this information for all available timerules",
 				      "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
 				      "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence",
 				      "lithology", "lith", "Basic lithology of the occurrence",

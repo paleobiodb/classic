@@ -90,9 +90,9 @@ document.addEventListener("DOMContentLoaded", dgapp.initApp, false);
     <input type="radio" name="private_url" value="0" id="rb.private.no" onClick="dgapp.setPrivate(0)"/>Public data only<br/>
     </p>
   </td><td>
-    <input type="radio" name="form_mode" value="simple" checked="1" onClick="dgapp.setFormMode('simple')"><b>Simple form</b><br/>
-    <input type="radio" name="form_mode" value="advanced"
-    onClick="dgapp.setFormMode('advanced')"><b>Show all available parameters</b><br/>
+    <input type="radio" name="form_mode" value="advanced" checked="1"
+                                         onClick="dgapp.setFormMode('advanced')"><b>Show all available parameters</b><br/>
+    <input type="radio" name="form_mode" value="simple" onClick="dgapp.setFormMode('simple')"><b>Simple form</b><br/>
     <hr style="margin-top: 20px; margin-bottom: 20px;"/>
     <input type="button" value="Clear form" onClick="dgapp.resetForm()"/>
   </td></tr>
