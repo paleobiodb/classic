@@ -1,9 +1,66 @@
 //
-// Autocomplete functionality for Classic menu bar. This should be kept in synchrony with the corresponding function on the splash page.
+// autocomplete.js - provides access to the autocompletion facility provided by the PBDB data service.
+// 
+// Original code by: Valerie Syverson
+// Updated by: Michael McClennen
+// 
+// This javascript file defines the object class AutoCompleteObject by providing a constructor
+// function of that name. This is designed to work with a text input element, which we refer to as
+// a "search box". The following code should be included inside a <script> tag near the top of
+// each page on which such an element appears (with appropriate values for the constructor parameters):
+// 
+//     var acapp = new AutoCompleteObject("searchbox", "cls", 1);
+//     document.addEventListener("DOMContentLoaded", acapp.initialize, false);
+// 
+// Note that you will need to create and initialize a separate AutoCompleteObject for each search
+// box on the page, if there is more than one.
+// 
+// Each search box and its associated dropdown menu should be declared using something like the following:
+// 
+//     <input type="text" class="form-control" placeholder="Search the database" id="searchbox"
+//			  onkeyup="acapp.do_keyup()">
+//     <div class="searchResult dropdown-menu" style="display: none;"></div>
+// 
+// The input element can have any value for "id", as long as the same value is passed to the
+// constructor. The "onkeyup" attribute must refer to an AutoCompleteObject instance that was
+// created with that same value as the first parameter to the constructor call. The dropdown menu
+// MUST have class "searchResult", as that is how it is identified and referred to in the code below.
+// 
+// The final thing you will need to do is to add an "onclick" handler to the body tag, either in
+// HTML as follows:
+// 
+//     <body onclick="acapp.showhide_menu(event)">
+// 
+// or else using a call to addEventListener:
+// 
+//     document.body.addEventListener("click", function (e) {
+//             acapp.showhide_menu(e);
+//         });
+// 
+// Again, you must add a separate call to showhide_menu for each separate instance of
+// AutoCompleteObject that you create. These calls can all appear in the same handler function or
+// script.
 // 
 
-
-//Autocomplete for search bar and taxon/time pick lists
+// AutoCompleteObject ( sb_id, req_type, show_links )
+// 
+// This constructor function returns a new object of this class, which will handle autocompletion
+// using an HTML text input element. The first parameter should be the "id" value of this
+// element. The second specifies what kind of PBDB entities should be matched against whatever is
+// typed into the text input. It may consist of one or more of the following, separated by commas
+// without spaces:
+// 
+//   int	geological time intervals
+//   str	names of geological strata
+//   prs	names of database contributors
+//   txn	taxonomic names
+//   col	fossil collections
+//   ref	bibliographic references
+//   nav	the set of types appropriate for auto-completion in the Navigator web application
+//   cls	the set of types appropriate for auto-completion in the Classic web application
+// 
+// If the third parameter is true, then menu items will be displayed in HTML <a> tags which link
+// to the corresponding Classic pages.
 
 function AutoCompleteObject ( sb_id, req_type, show_links )
 {
@@ -25,6 +82,14 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	"group": "Gp"
     };
     
+    var data_cache = { };
+    
+    // The following function must be called once for each object instance, after DOM content is
+    // loaded. This is typically done using an event listener on "DOMContentLoaded".
+    // 
+    // The purpose of this function is to grab object references to the search box and dropdown
+    // menu box, and to properly initialize the data service URL.
+    
     function initialize ( )
     {
 	search_box = document.getElementById(search_box_id);
@@ -37,6 +102,12 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
     }
     
     this.initialize = initialize;
+    
+    // The following function must be called in response to every keyup event in the search
+    // box. It checks the text value, and if that exceeds 3 characters (disregarding initial
+    // punctuation) then it makes a call to the data service autocompletion operator. Results are
+    // cached to avoid duplicate calls, especially if the user backspaces and then retypes the
+    // same thing. 
     
     function do_keyup ()
     {
@@ -55,10 +126,17 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	    return;
 	}
 	
+	else if ( data_cache[search_value] )
+	{
+	    display_results(search_value, data_cache[search_value]);
+	    return;
+	}
+	
 	var htmlRequest = data_url + data_service + '/combined/auto.json?show=countries&name=' + search_value + request_type;
 	$.getJSON(encodeURI(htmlRequest)).then(
 	    function(json) { // on success
-		display_results(json)
+		display_results(search_value, json);
+		data_cache[search_value] = json;
 	    }, 
 	    function() { // on failure
 		var htmlResult = "<div class='autocompleteError'>Error: server did not respond</div>"
@@ -70,13 +148,16 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
     
     this.do_keyup = do_keyup;
     
-    function display_results ( json )
+    // The following function fills in the dropdown menu box according to the results received
+    // from the data service.
+    
+    function display_results ( search_value, json )
     {
 	var htmlResult = "";
 	
 	if (json.records.length == 0)
 	{
-	    htmlResult += "<div class='autocompleteError'>No matching results for \"" + autocompleteInput + "\"</div>"
+	    htmlResult += "<div class='autocompleteError'>No matching results for \"" + search_value + "\"</div>"
 	    $(dropdown_box).html(htmlResult);
 	    $(dropdown_box).css("display","inline-block");
 	    return;
@@ -140,6 +221,9 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	    };
 	});
 	
+	// The following code was written by Valerie, and I'm not sure what it does. We need to
+	// talk and figure out how to adapt it to the rewritten code base.
+	
 	$(dropdown_box).html(htmlResult);
 	$(dropdown_box).css("display","inline-block");
 	$(".suggestion").on("click", function(event) {
@@ -170,21 +254,27 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	return;
     }
     
-    function do_blur ()
+    // The following function must be called from a "click" event listener on the document
+    // body. If the click was made on the search box, and the contents of the dropdown box are not
+    // empty, then the dropdown is displayed. Otherwise, the dropdown is hidden.
+    
+    function showhide_menu (e)
     {
-	if ($(dropdown_box).html().length > 0) {
-	    switch (event.type) {
-	    case "focus":
-		$(search_box).next('.searchResult').css("display","inline-block");
-		break;
-	    case "blur":
-		$(search_box).next('.searchResult').css("display","none");
-		break;
-	    };
+	if ( typeof(e) == 'object' && e.target == search_box && typeof(dropdown_box) == 'object' )
+	{
+	   if ( $(dropdown_box).html().length > 0 )
+	    {
+		$(dropdown_box).css("display","inline-block");
+	    }
+	}
+	
+	else
+	{
+	    $(dropdown_box).css("display","none");
 	}
     }
-
-    this.do_blur = do_blur;
+    
+    this.showhide_menu = showhide_menu;
 }
 
 

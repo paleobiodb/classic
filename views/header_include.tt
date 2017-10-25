@@ -18,13 +18,13 @@
     <![endif]-->
     <script src="/public/classic_js/autocomplete.js"></script>
     <script language="javascript" type="text/javascript">
-        var acapp = new AutoCompleteObject("universalAutocompleteInput", "cls", 1);
+        var acapp = new AutoCompleteObject("searchbox", "cls", 1);
         document.addEventListener("DOMContentLoaded", acapp.initialize, false);
     </script>
   </head>
 
   <body>
-    <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
+      <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
       <div class="container">
 
   <!-- Brand and toggle get grouped for better mobile display --> 
@@ -123,23 +123,19 @@
           [% END %]
 
           <form class="navbar-form navbar-right navbar-input-group form-search universalSearchForm" action="/classic/quickSearch" method="POST">
-                  <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search the database" id="universalAutocompleteInput"
+                  <div class="input-group" id="acinput">
+                    <input type="text" class="form-control" placeholder="Search the database" id="searchbox"
 				onkeyup="acapp.do_keyup()">
                     <div class="searchResult dropdown-menu" style="display: none;"></div>
-                    <!-- <span class="input-group-btn"> -->
-                    <!--   <button type="submit" class="btn btn-primary" id="universalSearchButton"><i class="icon-search"></i></button> -->
-                    <!-- </span> -->
                   </div>
-            <!-- <div class="form-group"> -->
-            <!--   <input type="text" class="form-control search-query" name="quick_search" placeholder="Quick search" onkeyup="update_global_game_search()"> -->
-            <!-- </div> -->
           </form>
 
         </div><!-- /.navbar-collapse -->
       </div><!-- container -->
     </nav>
 
-      <script language="javascript" type="text/javascript">
-      	document.getElementById("universalAutocompleteInput").addEventListener("onblur", "acapp.do_blur()", false);
+      <script language="javascript">
+          document.body.addEventListener("click", function (e) {
+              acapp.showhide_menu(e);
+          });
       </script>

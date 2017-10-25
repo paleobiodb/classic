@@ -142,9 +142,9 @@
 		}
 
 	    // if ( /[^A-Za-z0-9\)\]\?\!"\.]$/.test(frm.reftitle.value) )	{
-	    if ( /\.$/.test(frm.reftitle.value) ) {
-		errors += "* The reference's title must end with a letter\n";
-	    }
+	    // if ( /\.$/.test(frm.reftitle.value) ) {
+	    //	errors += "* The reference's title must end with a letter\n";
+	    // }
 		if ( /\.$/.test(frm.reftitle.value) )	{
 			if ( ! / nov\.$/.test(frm.reftitle.value) && ! /U\.S\.A\.$/.test(frm.reftitle.value) && ! /U\.S\.S\.R\.$/.test(frm.reftitle.value) && ! / sp\.$/.test(frm.reftitle.value) && ! / spec\.$/.test(frm.reftitle.value) && ! / nov\.$/.test(frm.reftitle.value) )	{
 				warnings += "* A reference title shouldn't end with a period\n";

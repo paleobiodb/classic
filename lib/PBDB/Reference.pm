@@ -895,7 +895,7 @@ sub getReferenceLinkSummary	{
 
 	if ( $opinion_total ) {
 		my $plural = ($opinion_total == 1) ? "" : "s";
-		push @chunks , makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no", "$opinion_total taxonomic opinion$plural");
+		push @chunks , makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=opinions", "$opinion_total taxonomic opinion$plural");
 		if ( $has_opinion > 0 )	{
  			$chunks[$#chunks] .= " (" . makeAnchor("classify", "reference_no=$reference_no", "show classification") . ")";
 		}

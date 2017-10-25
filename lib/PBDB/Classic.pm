@@ -2574,6 +2574,7 @@ sub processTaxonSearch {
     # If there were no matches, present the new taxon entry form immediately
     # We're adding a new taxon
     if (scalar(@results) == 0) {
+	$output = $hbo->stdIncludes($PAGE_TOP);
         if ($q->param('goal') eq 'authority') {
             # Try to see if theres any near matches already existing in the DB
             if ($q->param('taxon_name')) {
@@ -2725,32 +2726,35 @@ sub processTaxonSearch {
                     $output .= "<div align=\"center\" class=\"large\">No taxonomic names were found that match the search criteria.</div>";
                 }
             }
-            return $output;
         }
+
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	return $output;
     # One match - good enough for most of these forms
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'authority') {
         $q->param("taxon_no"=>$results[0]->{'taxon_no'});
         $q->param('called_by'=> 'processTaxonSearch');
-        $output .= PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q);	# $$$ print
+        return PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q);	# $$$ print
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'cladogram') {
         $q->param("taxon_no"=>$results[0]->{'taxon_no'});
-        $output .= PBDB::Cladogram::displayCladogramChoiceForm($dbt,$q,$s,$hbo);
+        return PBDB::Cladogram::displayCladogramChoiceForm($dbt,$q,$s,$hbo);
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'opinion') {
         $q->param("taxon_no"=>$results[0]->{'taxon_no'});
-        $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
+        return PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
     # } elsif (scalar(@results) == 1 && $q->param('goal') eq 'image') {
     #     $q->param('taxon_no'=>$results[0]->{'taxon_no'});
     #     Images::displayLoadImageForm($dbt,$q,$s); 
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'ecotaph') {
         $q->param('taxon_no'=>$results[0]->{'taxon_no'});
-        $output .= PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
+        return PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
     } elsif (scalar(@results) == 1 && $q->param('goal') eq 'ecovert') {
         $q->param('taxon_no'=>$results[0]->{'taxon_no'});
-        $output .= PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
+        return PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
 	# We have more than one matches, or we have 1 match or more and we're adding an authority.
     # Present a list so the user can either pick the taxon,
     # or create a new taxon with the same name as an exisiting taxon
     } else	{
+	$output = $hbo->stdIncludes($PAGE_TOP);
 	$output .= "<div align=\"center\">\n";
         if ($q->param("taxon_name")) { 
 	    $output .= "<p class=\"pageTitle\" style=\"margin-top: 1em;\">Which '<i>" . $q->param('taxon_name') . "</i>' do you mean?</p>\n<br>\n";
@@ -2810,9 +2814,10 @@ sub processTaxonSearch {
         }
 	
 	$output .= "</div>\n</div>\n";
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	
+	return $output;
     }
-    
-    return $output;
 }
 
 ##############
@@ -6083,9 +6088,9 @@ sub displayTaxonomicNamesAndOpinions {
     if ($ref) {
         $q->param('goal'=>'authority');
         if ( $q->param('display') ne "opinions" )	{
-            return processTaxonSearch($q, $s, $dbt, $hbo);
+            $output .= processTaxonSearch($q, $s, $dbt, $hbo);
         }
-        if ( $q->param('display') ne "authorities" )	{
+        elsif ( $q->param('display') ne "authorities" )	{
             $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
         }
     } else {

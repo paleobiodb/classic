@@ -255,6 +255,7 @@ before verify_creation_params => sub {
     
     ouch(400, "Institution is required.") unless $params->{institution};
     ouch(400, "Email is required.") unless $params->{email};
+    ouch(400, "Badly formatted email address.") unless $params->{email} =~ qr{ \w .* [@] .* \w .* [.] \w+ $ }xs;
     
     unless ( $params->{password} )
     {
