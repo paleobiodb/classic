@@ -436,15 +436,15 @@ function DownloadGeneratorApp( data_url, is_contributor )
 				      "*location", "loc", "Additional info about the geographic locality",
 				      "*paleolocation", "paleoloc", "Paleogeographic locality of this occurrence",
 				      "*protection", "prot", "Indicates whether this occurrence is on protected land, i.e. a national park",
-				      "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
-								  "occurrence falls",
-				      "time comparison", "timecompare", "Like the above, but shows this information for all available timerules",
 				      "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
 				      "*stratigraphy ext.", "stratext", "Extended (detailed) stratigraphy of the occurrence",
 				      "lithology", "lith", "Basic lithology of the occurrence",
 				      "*lithology ext.", "lithext", "Extended (detailed) lithology of the occurrence",
 				      "paleoenvironment", "env", "The paleoenvironment associated with this collection",
 				      "*geological context", "geo", "Additional info about the geological context (includes env)",
+				      "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
+								  "occurrence falls",
+				      "time comparison", "timecompare", "Shows the time binning for all available timerules, so you can compare them",
 				      "*methods", "methods", "Info about the collection methods used",
 				      "research group", "resgroup", "The research group(s) if any associated with the collection",
 				      "reference", "ref", "The reference from which this occurrence was entered, as formatted text",
