@@ -1,4 +1,4 @@
-y//
+//
 // PBDB Download generator
 //
 // Author: Michael McClennen
@@ -1474,7 +1474,6 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    params.idgenmod = '';
 	    params.idspcmod = '';
 	    hideByClass('taxon_mods');
-	    return;
 	}
 	
 	else if ( idqual == 'custom' )
@@ -2681,11 +2680,26 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    if ( param_errors.base_name ) errors_found = 1;
 	    
 	    if ( data_type == "occs" || data_type == "specs" || data_type == "meas" ||
-		 data_type == "colls" || data_type == "strata" )
+		 data_type == "colls" || data_type == "strata" || data_type == "diversity" )
 	    {
-		var taxonres = getElementValue("pm_taxon_reso");
-		if ( taxonres && taxonres != "" )
-		    param_list.push("taxon_reso=" + taxonres);
+		// The "taxonomic resolution" parameter is different for diversity than for the
+		// other data types.
+		
+		if ( data_type == "diversity" )
+		{
+	    	    var taxonres = getElementValue("pm_div_count");
+	    	    if ( taxonres && taxonres != "" )
+	    		param_list.push("count=" + taxonres);
+		}
+		
+		else
+		{
+		    var taxonres = getElementValue("pm_taxon_reso");
+		    if ( taxonres && taxonres != "" )
+			param_list.push("taxon_reso=" + taxonres);
+		}
+		
+		// The advanced parameters are treated the same for all of these types.
 		
 		if ( visible.advanced )
 		{
@@ -2711,14 +2725,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		    }
 		}
 	    }
-	    
-	    else if ( data_type == 'diversity' )
-	    {
-		var taxonres = getElementValue("pm_div_count");
-		if ( taxonres && taxonres != "" )
-		    param_list.push("count=" + taxonres);
-	    }
-	    
+	    	    
 	    else if ( data_type == "taxa" || data_type == "ops" || data_type == "refs" )
 	    {
 		var taxon_rank = getElementValue("pm_taxon_rank");
