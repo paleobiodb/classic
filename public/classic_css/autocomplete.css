@@ -1,0 +1,52 @@
+# 
+# This file contains styles for the autocompletion search box and associated dropdown menu.
+# 
+
+.autocompleteTitle {
+  margin: 0 10px 5px;
+  padding: 7px 0;
+  border-bottom: 1px solid #ccc;
+}
+
+.autocompleteError {
+  color: #aaa;
+  font-style: italic;
+}
+
+.searchResult.dropdown-menu {
+  position: absolute;
+  z-index: 5;
+  top: 2em;
+  margin-top: 1px;
+  margin-left: 0px;
+  padding: 5px 10px;
+  background-color: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.2);
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 5px 10px rgba(0,0,0,.2);
+  background-clip: padding-box;
+  min-width: 24em;
+}
+
+.tt-suggestion {
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.tt-suggestion > small.taxaRank {
+  color: #777;
+}
+
+.suggestion {
+  display: block;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background-color: rgb(66, 139, 202);
+  color: white;
+}
+
+.suggestion > a {
+  color: black;
+}

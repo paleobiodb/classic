@@ -6,6 +6,8 @@
     [% INCLUDE pnotify_css_include.tt %]
     [% INCLUDE jquery_js_include.tt %]
 
+    <link rel="stylesheet" href="/public/classic_css/autocomplete.css">
+
     <meta charset="UTF-8">
     [% section_head_tags %]
     [% head_tags %]
@@ -18,7 +20,7 @@
     <![endif]-->
     <script src="/public/classic_js/autocomplete.js"></script>
     <script language="javascript" type="text/javascript">
-        var acapp = new AutoCompleteObject("searchbox", "cls", 1);
+        var acapp = new AutoCompleteObject("searchbox", "cls", "classic");
         document.addEventListener("DOMContentLoaded", acapp.initialize, false);
     </script>
   </head>
@@ -122,7 +124,8 @@
           </ul>
           [% END %]
 
-          <form class="navbar-form navbar-right navbar-input-group form-search universalSearchForm" action="/classic/quickSearch" method="POST">
+          <form class="navbar-form navbar-right navbar-input-group form-search universalSearchForm"
+			  onsubmit="return acapp.do_submit(this)">
                   <div class="input-group" id="acinput">
                     <input type="text" class="form-control" placeholder="Search the database" id="searchbox"
 				onkeyup="acapp.do_keyup()">

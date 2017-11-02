@@ -10,16 +10,18 @@
 // each page on which such an element appears (with appropriate values for the constructor parameters):
 // 
 //     var acapp = new AutoCompleteObject("searchbox", "cls", 1);
-//     document.addEventListener("DOMContentLoaded", acapp.initialize, false);
+//     document.addEventListener("DOMContentLoaded", acapp.initialize.bind(acapp), false);
 // 
 // Note that you will need to create and initialize a separate AutoCompleteObject for each search
 // box on the page, if there is more than one.
 // 
 // Each search box and its associated dropdown menu should be declared using something like the following:
 // 
+//   <form onsubmit="return acapp.do_submit(this)">
 //     <input type="text" class="form-control" placeholder="Search the database" id="searchbox"
 //			  onkeyup="acapp.do_keyup()">
 //     <div class="searchResult dropdown-menu" style="display: none;"></div>
+//   </form>
 // 
 // The input element can have any value for "id", as long as the same value is passed to the
 // constructor. The "onkeyup" attribute must refer to an AutoCompleteObject instance that was
@@ -59,22 +61,21 @@
 //   nav	the set of types appropriate for auto-completion in the Navigator web application
 //   cls	the set of types appropriate for auto-completion in the Classic web application
 // 
-// If the third parameter is true, then menu items will be displayed in HTML <a> tags which link
-// to the corresponding Classic pages.
+// If the third parameter is the string "classic", then menu items will be displayed in HTML <a> tags which link
+// to the corresponding Classic pages. If it is a function, then it is set as a "click" handler on the dropdown menu items.
 
-function AutoCompleteObject ( sb_id, req_type, show_links )
+function AutoCompleteObject ( search_box_id, req_type, link_handler )
 {
-    var search_box_id = sb_id;
-    var search_box_selector = '#' + sb_id;
-    var include_links = show_links;
-    
-    var search_box;
-    var dropdown_box;
+    var self = this;
+    var search_box_selector = '#' + search_box_id;
     
     var data_url = window.location.origin;
     var data_service = "/data1.2";
     
     var request_type = '&type=' + req_type;
+    
+    var link_classic;
+    var link_function;
     
     var stratRankMap = {
 	"member": "Mbr",
@@ -84,19 +85,59 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
     
     var data_cache = { };
     
+    var quick_link;
+    
+    // Check parameters
+    
+    if ( ! search_box_id )
+    {
+	throw "You must specify the 'id' attribute value of the search box as the first parameter.";
+    }
+    
+    if ( ! req_type )
+    {
+	throw "You must specify the 'type' argument to pass to the data service autocomplete operation as the first parameter.";
+    }
+    
+    if ( link_handler )
+    {
+	if ( typeof(link_handler) == "function" )
+	{
+	    link_function = link_handler;
+	}
+	
+	else if ( link_handler == "classic" )
+	{
+	    link_classic = 1;
+	}
+	
+	else
+	{
+	    throw "Invalid link handler '" + link_handler + "'";
+	}
+    }
+    
     // The following function must be called once for each object instance, after DOM content is
     // loaded. This is typically done using an event listener on "DOMContentLoaded".
     // 
     // The purpose of this function is to grab object references to the search box and dropdown
     // menu box, and to properly initialize the data service URL.
     
-    function initialize ( )
+    this.initialize = function initialize ( )
     {
-	search_box = document.getElementById(search_box_id);
-	dropdown_box = $(search_box_selector).next('.searchResult');
+	self.search_box = document.getElementById(search_box_id);
+	self.dropdown_box = $(search_box_selector).next('.searchResult');
+	
+	if ( ! self.search_box )
+	{
+	    throw "Cannot find HTML element with id '" + search_box_id + "'";
+	}
+	
+	if ( ! self.dropdown_box )
+	{
+	    throw "Cannot find HTML element with class 'searchResult'";
+	}
     }
-    
-    this.initialize = initialize;
     
     // The following function must be called in response to every keyup event in the search
     // box. It checks the text value, and if that exceeds 3 characters (disregarding initial
@@ -104,49 +145,59 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
     // cached to avoid duplicate calls, especially if the user backspaces and then retypes the
     // same thing. 
     
-    function do_keyup ()
+    this.do_keyup = function do_keyup ()
     {
-	var search_value = search_box.value;
+	var search_value = self.search_box.value;
+	var dropdown_box = self.dropdown_box;
 	var check_punctuation;
 	
-	if ( check_punctuation = search_value.match( /[;, ]+(.*)/ ) )
+	// Check for punctuation
+	
+	if ( check_punctuation = search_value.match( /[;,]+(.*)/ ) )
 	{
 	    search_value = check_punctuation[1];
 	}
+	
+	// If there are fewer than 3 characters in the search box, hide the menu and otherwise do nothing.
 	
 	if (search_value.length < 3)
 	{
 	    $(dropdown_box).css("display","none");
 	    $(dropdown_box).html("");
+	    quick_link = undefined;
 	    return;
 	}
 	
+	// If there is already a cached autocomplete result corresponding to the search box
+	// contents, just display that.
+	
 	else if ( data_cache[search_value] )
 	{
-	    display_results(search_value, data_cache[search_value]);
+	    display_results(dropdown_box, search_value, data_cache[search_value]);
 	    return;
 	}
+	
+	// Otherwise, we need to make a data service call.
 	
 	var htmlRequest = data_url + data_service + '/combined/auto.json?show=countries&name=' + search_value + request_type;
 	$.getJSON(encodeURI(htmlRequest)).then(
 	    function(json) { // on success
-		display_results(search_value, json);
+		display_results(dropdown_box, search_value, json);
 		data_cache[search_value] = json;
 	    }, 
 	    function() { // on failure
 		var htmlResult = "<div class='autocompleteError'>Error: server did not respond</div>"
 		$(dropdown_box).html(htmlResult);
 		$(dropdown_box).css("display","block");
+		quick_link = undefined;
 	    }
 	)
     }
     
-    this.do_keyup = do_keyup;
-    
     // The following function fills in the dropdown menu box according to the results received
     // from the data service.
     
-    function display_results ( search_value, json )
+    function display_results ( dropdown_box, search_value, json )
     {
 	var htmlResult = "";
 	
@@ -155,10 +206,16 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	    htmlResult += "<div class='autocompleteError'>No matching results for \"" + search_value + "\"</div>"
 	    $(dropdown_box).html(htmlResult);
 	    $(dropdown_box).css("display","inline-block");
+	    quick_link = undefined;
 	    return;
 	}
 	
+	var search_compare = search_value.toLowerCase();
 	var currentType = "";
+	var itemLink;
+	var oneLink;
+	var linkCount = 0;
+	
 	json.records.map( function(d) {
 	    var oidsplit = d.oid.split(":");
 	    var rtype = oidsplit[0];
@@ -166,110 +223,146 @@ function AutoCompleteObject ( sb_id, req_type, show_links )
 	    switch (rtype) {
 	    case "int":
 		if ( currentType != "int" ) { htmlResult += "<h4 class='autocompleteTitle'>Time Intervals</h4>"; currentType = "int"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + oidnum + "'>"
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + oidnum + "' data-rtype='int'>"
 		htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + Math.round(d.eag) + "-" + Math.round(d.lag) + " ma</small></p></div>\n";
 		break;
 	    case "str":
 		if ( currentType != "str" ) { htmlResult += "<h4 class='autocompleteTitle'>Stratigraphic Units</h4>"; currentType = "str"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "'>"
-		if ( include_links ) { 
-		    htmlResult += "<a href=\"/classic/displaySearchStrataResults?group_formation_member=" + encodeURI(d.nam) + "\">"
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='str'>"
+		if ( link_classic ) { 
+		    linkCount++;
+		    itemLink = '/classic/displaySearchStrataResults?group_formation_member=' + encodeURI(d.nam);
+		    htmlResult += '<a href="' + itemLink + '">';
 		}
 		htmlResult += "<p class='tt-suggestion'>" + d.nam + " " + stratRankMap[d.rnk] + " <small class=taxaRank>in " + 
 		    d.cc2 + "</small></p>"
-		if ( include_links ) { htmlResult += "</a>"}
+		if ( link_classic ) { htmlResult += "</a>"}
 		htmlResult += "</div>\n";
 		break;
 	    case "txn":
 		if ( currentType != "txn" ) { htmlResult += "<h4 class='autocompleteTitle'>Taxa</h4>"; currentType = "txn"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-typ='" + rtype + "' data-oid='" + 
-		    oidnum + "' data-searchstr='" + oidnum + "'>"
-		if ( include_links) { htmlResult += "<a href=\"/classic/basicTaxonInfo?taxon_no=" + oidnum + "\">"}
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + 
+		    oidnum + "' data-searchstr='" + oidnum + "' data-rtype='txn'>"
+		if ( link_classic) {
+		    linkCount++;
+		    itemLink = '/classic/basicTaxonInfo?taxon_no=' + oidnum;
+		    htmlResult += '<a href="' + itemLink + '">';
+		}
 		if (d.tdf) { htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + 
 			     " in " + d.htn + "</small><br><small class=misspelling>" + d.tdf + " " + d.acn + "</small></p>"; }
 		else { htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + " in "
 		       + d.htn + "</small></p>"; }
-		if ( include_links ) { htmlResult += "</a>"}
+		if ( link_classic ) { htmlResult += "</a>"}
 		htmlResult += "</div>\n";
 		break;
 	    case "col":
 		var interval = d.oei ? d.oei : "" ;
 		if (d.oli) { interval += "-" + d.oli };
 		if ( currentType != "col" ) { htmlResult += "<h4 class='autocompleteTitle'>Collections</h4>"; currentType = "col"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-typ='" + rtype + "' data-oid='" + oidnum + "' data-searchval='" + oidnum + "'>"
-		if ( include_links) { htmlResult += "<a href=\"/classic/displayCollResults?collection_no=" + oidnum + "\">"}
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + oidnum + "' data-searchval='" + oidnum + "' data-rtype='col'>"
+		if ( link_classic) {
+		    linkCount++;
+		    itemLink = '/classic/displayCollResults?collection_no=' + oidnum;
+		    htmlResult += '<a href="' + itemLink + '">';
+		}
 		htmlResult += "<p class='tt-suggestion'>" + d.nam + " <br><small class=taxaRank>" + " (" + interval + 
 		    " of " + d.cc2 + ")</small></p>";
-		if ( include_links ) { htmlResult += "</a>"}
+		if ( link_classic ) { htmlResult += "</a>"}
 		htmlResult += "</div>\n";
 		break;
 	    case "ref":
 		if ( currentType != "ref" ) { htmlResult += "<h4 class='autocompleteTitle'>References</h4>"; currentType = "ref"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-typ='" + rtype + "' data-oid='" + 
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='" + rtype + "' data-oid='" + 
 		    oidnum + "' data-searchval='" + oidnum + "'>"
-		if ( include_links) { htmlResult += "<a href=\"/classic/displayRefResults?reference_no=" + oidnum + "\">"}
+		if ( link_classic) {
+		    linkCount++;
+		    itemLink = '/classic/displayRefResults?reference_no=' + oidnum;
+		    htmlResult += '<a href="' + itemLink + '">';
+		}
 		htmlResult += "<p class='tt-suggestion'>" + " <small> " + d.nam + "</small></p>";
-		if ( include_links ) { htmlResult += "</a>"}
+		if ( link_classic ) { htmlResult += "</a>"}
 		htmlResult += "</div>\n";
 		break;
 	    default: //do nothing
 	    };
+	    
+	    if ( d.nam && d.nam.toLowerCase() == search_compare )
+	    {
+		oneLink = itemLink;
+	    }
 	});
 	
-	// The following code was written by Valerie, and I'm not sure what it does. We need to
-	// talk and figure out how to adapt it to the rewritten code base.
+	// If we are displaying exactly one link, save that in 'quick_link' so that we can select it when the return key is hit.
+	
+	if ( linkCount == 1 )
+	{
+	    quick_link = itemLink;
+	}
+	
+	else if ( oneLink )
+	{
+	    quick_link = oneLink;
+	}
+	
+	else
+	{
+	    quick_link = undefined;
+	}
+	
+	// Set the contents of the dropdown box to be the HTML we have just computed, and display it.
 	
 	$(dropdown_box).html(htmlResult);
 	$(dropdown_box).css("display","inline-block");
-	$(".suggestion").on("click", function(event) {
-	    // event.preventDefault();
-	    switch (thisName) {
-	    case "taxonAutocompleteInput": //allow multiple values
-		if ($(thisInput).val().indexOf(';') > -1) {
-		    var previousTaxa = $(thisInput).val().match(/(.*[;,] )(.*)/)[1];
-		    var newval = previousTaxa + $(this).attr('data-nam')
-		    $(thisInput).val(newval);
-		    $(thisInput).attr('data-oid',$(thisInput).attr('data-oid') + ",txn:" + $(this).attr('data-oid'));
-		} else {
-		    $(thisInput).val($(this).attr('data-nam'));
-		    $(thisInput).attr('data-oid',"txn:" + $(this).attr('data-oid'));
-		};
-		break;
-	    case "timeStartAutocompleteInput":
-	    case "timeEndAutocompleteInput":
-		$(thisInput).val($(this).attr('data-nam'));
-		$(thisInput).attr('data-oid',$(this).attr('data-oid'));
-		break;
-	    case "universalAutocompleteInput": //this is handled by the previous switch function
-	    default: //do nothing
-		break;
-	    }
-	    $(thisInput).next('.searchResult').css("display","none");
-	});
+	
+	// If we were given a function to handle clicking on a menu item, assign it as the event handler now.
+	
+	if ( link_function )
+	{
+	    $(".suggestion").on("click", link_function);
+	}
+	
 	return;
     }
+    
+    // The following function must be called in response to a "submit" event on the form that the
+    // search box is contained in. The argument must be the form object itself. If there is a
+    // single link displayed on the menu, or if one of the menu links exactly matches what is
+    // typed in the search box, then that link is followed.
+    
+    this.do_submit = function do_submit ( this_form )
+    {
+	if ( quick_link && this_form )
+	{
+	    window.location.href = quick_link;
+	    return false;
+	}
+	
+	else
+	{
+	    return false;
+	}
+    }
+    
     
     // The following function must be called from a "click" event listener on the document
     // body. If the click was made on the search box, and the contents of the dropdown box are not
     // empty, then the dropdown is displayed. Otherwise, the dropdown is hidden.
     
-    function showhide_menu (e)
+    this.showhide_menu = function showhide_menu (e)
     {
-	if ( typeof(e) == 'object' && e.target == search_box && typeof(dropdown_box) == 'object' )
+	if ( typeof(e) == 'object' && e.target == self.search_box && typeof(self.dropdown_box) == 'object' )
 	{
-	   if ( $(dropdown_box).html().length > 0 )
+	   if ( $(self.dropdown_box).html().length > 0 )
 	    {
-		$(dropdown_box).css("display","inline-block");
+		$(self.dropdown_box).css("display","inline-block");
 	    }
 	}
 	
 	else
 	{
-	    $(dropdown_box).css("display","none");
+	    $(self.dropdown_box).css("display","none");
 	}
     }
-    
-    this.showhide_menu = showhide_menu;
 }
 
 

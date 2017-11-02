@@ -8,7 +8,7 @@ use Data::Dumper qw(Dumper);
 use PBDB::Debug qw(dbg);
 use PBDB::Person;
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($READ_URL $WRITE_URL makeAnchor);
+use PBDB::Constants qw($READ_URL $WRITE_URL makeAnchor makeATag);
 
 # written by PS  12/01/2004
 
