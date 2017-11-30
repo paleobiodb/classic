@@ -1,6 +1,7 @@
 [% INCLUDE header_include.tt %]
 
 <div class="container">
+<!--
 
     <nav class="navbar navbar-default" role="navigation">
         <div class="navbar-header">
@@ -16,9 +17,10 @@
             <li><a href="/admin/trends/reports">Trends</a></li>
             <li><a href="/admin/wingman">Wingman</a></li>
           </ul>
-        </div><!--/.nav-collapse -->
+        </div>
     </nav>
 
-        
+-->
+
 <h1>[% page_title %]</h1>
 

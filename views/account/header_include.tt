@@ -1,6 +1,7 @@
 [% INCLUDE header_include.tt %]
 
 <div class="container">
+<!--
 
     <nav class="navbar navbar-default" role="navigation">
         <div class="navbar-header">
@@ -24,9 +25,10 @@
 	    [% END %]
             <li><a href="/logout">Log Out</a></li>
           </ul>
-        </div><!--/.nav-collapse -->
+        </div>
     </nav>
 
+-->
         
 <h1>[% page_title %]</h1>
 
