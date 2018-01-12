@@ -412,6 +412,7 @@ sub displayITISDownload {
     # which uses this author/pubyr combination, so should be semi-stable
     # This section needs to come benfore the taxonomic_units section so we can the use the numbers
     # we pick here as a key in that file
+    umask 022;
     open FH_AL, ">$filesystem_dir/taxon_authors_lookup.dat";
     my @sorted_names = sort {$a->{taxon_no} <=> $b->{taxon_no}} @names;
     my %seen_ref = ();
@@ -446,6 +447,7 @@ sub displayITISDownload {
     $output .= "<p>$taxon_author_count taxon authors names were printed</p>";
 
     
+    umask 022;
     open FH_TU, ">$filesystem_dir/taxonomic_units.dat"
         or die "Could not create taxonomic_units.dat";
     my @columns= ('taxon_no','','taxon_name','is_valid','invalid_reason','','','','','created','parent_name','taxon_author_id','hybrid_author_id','kingdom','taxon_rank','modified_short','');
@@ -493,6 +495,7 @@ sub displayITISDownload {
     $taxon_count = "No" if ($taxon_count == 0);
     $output .= "<p>$taxon_count taxononomic units were printed</p>";
 
+    umask 022;
     open FH_SL, ">$filesystem_dir/synonym_links.dat";
     my $synonym_count = 0;
     foreach my $t (@names) {
@@ -514,6 +517,7 @@ sub displayITISDownload {
     $output .= "<p>$synonym_count synonym links were printed</p>";
     
     my @references = keys %references; 
+    umask 022;
     open FH_P, ">$filesystem_dir/publications.dat";
     my $ref_count = 0;
     if (@references) {
@@ -556,6 +560,7 @@ sub displayITISDownload {
     
     my ($opinions,$opinion_file_message) = getTaxonomicOpinions($dbt,$http_dir,\%people,\%options); 
     my @opinions = @$opinions;
+    umask 022;
     open FH_RL, ">$filesystem_dir/reference_links.dat";
     my $ref_link_count = 0;
     foreach my $o (@opinions) {
@@ -581,6 +586,7 @@ sub displayITISDownload {
    
    
     my @comments = ();
+    umask 022;
     open FH_C, ">$filesystem_dir/comments.dat";
     # Note that our comments aren't denormalized so the comment_id key
     # (primary key for comments table for ITIS is just the primary key taxon_no for us
@@ -604,6 +610,7 @@ sub displayITISDownload {
     $comment_count = "No" if ($comment_count == 0);
     $output .= "<p>$comment_count comments and comment links were printed</p>";
 
+    umask 022;
     open FH_CL, ">$filesystem_dir/tu_comments_links.dat";
     # Note that our comments aren't denormalized so the comment_id key
     # (primary key for comments table for ITIS is just the primary key taxon_no for us
@@ -632,7 +639,7 @@ sub displayITISDownload {
 
     my $dirname = ($s->isDBMember()) ? $s->{'enterer'} : "guest_".$date."_".$$;
     $dirname =~ s/[^a-zA-Z0-9_\/]//g;
-    umask '022';
+    umask 022;
 
     my $datafile = $DATA_DIR."/ITISCustomizedDwnld.doc";
     my $cmd = "cp $datafile $filesystem_dir";
@@ -745,6 +752,7 @@ sub displayPBDBDownload {
     # from the opinions function to download
     my ($opinions,$opinion_file_message) = getTaxonomicOpinions($dbt,$http_dir,\%people,\%options);
     my @opinions = @$opinions;
+    umask 022;
     open FH_OP, ">$filesystem_dir/opinions.csv"
         or die "Could not open opinions.csv ($!)";
     my @header;
@@ -790,6 +798,7 @@ sub displayPBDBDownload {
     my @names = @$names;
 
 
+    umask 022;
     open FH_VT, ">$filesystem_dir/valid_taxa.csv"
         or die "Could not open valid_taxa.csv ($!)";
     if ( $q->param('output_data') =~ /basic/ )	{
@@ -817,6 +826,7 @@ sub displayPBDBDownload {
     close FH_VT;
 
 
+    umask 022;
     open FH_IT, ">$filesystem_dir/invalid_taxa.csv"
         or die "Could not open invalid_taxa.csv ($!)";
     if ( $q->param('output_data') =~ /basic/ )	{
@@ -846,6 +856,7 @@ sub displayPBDBDownload {
 
 
     my @references = keys %references; 
+    umask 022;
     open FH_REF, ">$filesystem_dir/references.csv";
     open FH_RIS, ">$filesystem_dir/references_ris.txt";
     if ( $q->param('output_data') =~ /basic/ )	{
@@ -1293,7 +1304,7 @@ sub makeDataFileDir {
 
     PBDB::PBDBUtil::autoCreateDir($filesystem_dir);
 
-    umask '022';
+    umask 022;
     dbg("File dir is $filesystem_dir");
     if (! -e $filesystem_dir) {
         mkdir($filesystem_dir)
