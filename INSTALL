@@ -1,0 +1,44 @@
+
+The software in this repository has the following dependencies:
+
+Main dependency:
+
+Wing
+
+Perl packages necessary for Wing applications:
+
+Server::Starter
+Starman
+Ouch
+CHI
+Log::Log4perl
+Dancer::Logger::Log4perl
+Config::JSON
+Email::Sender::Simple
+Email::MIME::Kit
+DateTime::Format::MySQL
+DBIx::Class
+DBIx::Class::Schema
+DBIx::Class::UUIDColumns
+DBIx::Class::TimeStamp
+DBIx::Class::InflateColumn::Serializer
+Data::GUID
+Crypt::Eksblowfish::Bcrypt
+String::Random
+Cache::FastMmap
+Data::Serializer
+Plugin::Tiny
+Beanstalk::Client
+Plack::Middleware::CrossOrigin
+Plack::Middleware::MethodOverride
+Plack::Handler::Starman
+Net::Server::SS::PreFork
+Wing::Client
+Facebook::Graph
+
+Additional perl packages necessary for PBDB classic:
+
+Class::Date
+Mail::Mailer
+
+
