@@ -5,7 +5,17 @@
 function checkName()	{
 
     var errors = "";
-    document.forms[1].taxon_name.value = document.forms[1].taxon_name.value.trim();
+    document.forms[1].taxon_name.value =
+        document.forms[1].taxon_name.value.trim();
+
+    document.forms[1].common_name.value =
+        document.forms[1].common_name.value.trim();
+
+    document.forms[1].pubyr.value =
+        document.forms[1].pubyr.value.trim();
+
+    document.forms[1].exclude_name.value =
+        document.forms[1].exclude_name.value.trim();
 
     if (document.forms[1].taxon_name.value == "" &&
         document.forms[1].common_name.value == "" )	{
