@@ -4,7 +4,8 @@
 
 function checkName()	{
 
-var errors = "";
+    var errors = "";
+    document.forms[1].taxon_name.value = document.forms[1].taxon_name.value.trim();
 
     if (document.forms[1].taxon_name.value == "" &&
         document.forms[1].common_name.value == "" )	{
