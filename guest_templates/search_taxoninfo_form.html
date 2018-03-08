@@ -5,6 +5,7 @@
 function checkName()	{
 
     var errors = "";
+
     document.forms[1].taxon_name.value =
         document.forms[1].taxon_name.value.trim();
 
@@ -52,7 +53,7 @@ function checkName()	{
     */
 
     if (document.forms[1].pubyr.value != "" &&
-        !/[0-9]{4}/.test(document.forms[1].pubyr.value)) {
+        /[^0-9]|[0-9]{5}/.test(document.forms[1].pubyr.value)) {
 
         errors += "The publication year is formatted incorrectly.\n";
     }
