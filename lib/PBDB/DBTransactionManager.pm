@@ -312,6 +312,9 @@ sub updateRecord {
     $updateEmptyOnly = 0 if (!exists $table_row->{'authorizer_no'});
     $updateEmptyOnly = 0 if ($table_name =~ /authorities|opinions|refs/);
 
+    # Override this for certain tables.
+    $updateEmptyOnly = 0 if $table_name eq 'ecotaph';
+    
     # Get the table definition, only get it once though. Careful about this if we move to mod_perl, cache
     # will exist for as long of the $dbt object exists
     my @table_definition = ();
