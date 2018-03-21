@@ -92,9 +92,9 @@ function checkForm()	{
 	if ( pres == 'not a trace' )	{
 	    error += "* We are no longer using the 'not a trace' category; please select another value\n";
 	}
-	if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
-	    error += "* If the type isn't a body or in amber the taxon can't be extant\n";
-	}
+	// if ( pres != 'body (3D)' && pres != 'amber' && frm.extant.selectedIndex == 2 && ( /species/.test(frm.taxon_rank.value) || pres != "" ) )	{
+	//     error += "* If the type isn't a body or in amber the taxon can't be extant\n";
+	// }
     } else if ( typeof(frm.preservation2) != "undefined" )	{
 	var pres = frm.preservation2.options[frm.preservation2.selectedIndex].text;
 	if ( pres == 'not a trace' )	{
