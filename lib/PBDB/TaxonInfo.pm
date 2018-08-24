@@ -278,9 +278,13 @@ sub displayTaxonInfoResults {
             }
         }
     }
-
+    
+    $output .= '<script language="JavaScript" type="text/javascript">' . "\n";
+    $output .= "var taxonName = '$taxon_name';\n";
+    $output .= "</script>\n";
+    
     $output .= '
-<script src="/JavaScripts/common.js" language="JavaScript" type="text/javascript"></script>
+<script src="/public/classic_js/taxoninfo.js" language="JavaScript" type="text/javascript"></script>
 
 <div align="center">
   <table class="panelNavbar" cellpadding="0" cellspacing="0" border="0">
@@ -299,8 +303,8 @@ sub displayTaxonInfoResults {
       Morphology</td>
     <td id="tab6" class="tabOff" onClick = "switchToPanel(6,8);">
       Ecology and taphonomy</td>
-    <td id="tab7" class="tabOff" onClick = "switchToPanel(7,8);">
-      &nbsp;</td>
+    <td id="tab7" class="tabOff" onClick = "switchToPanel(7,8); openLiterature();">
+      Literature</td>
     <td id="tab8" class="tabOff" onClick = "switchToPanel(8,8);">
       Age range and collections</td>
   </tr>
@@ -508,7 +512,7 @@ sub displayTaxonInfoResults {
     if ($modules{7}) {
         $output .= '<center>';
         $output .= '<div id="panel7" class="panel">';
-        $output .= '<div align="center" style="margin-top: -1em;">';
+        # $output .= '<div align="center" style="margin-top: -1em;">';
 
         # if ($is_real_user) {
 	#     eval {
@@ -527,7 +531,7 @@ sub displayTaxonInfoResults {
         #     $output .= "<input type=\"submit\" name=\"submit\" value=\"Show map\">";
         #     $output .= "</form>\n";
         # }
-        $output .= "</div>\n";
+        # $output .= "</div>\n";
         $output .= "</div>\n";
         $output .= '</center>';
     }
