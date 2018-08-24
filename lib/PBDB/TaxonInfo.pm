@@ -4355,6 +4355,7 @@ sub basicTaxonInfo	{
                         $output .= ' Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
                         $output .= '<input type="button" id="getImages" name="getImages" value="Display Images">';
                         $output .= '<div id="images"></div>';
+                        $output .= '<b><p id="result"></p></b>';
                 }
 	}
 	$output .= "</div>\n</div>\n\n";
@@ -4382,7 +4383,10 @@ sub basicTaxonInfo	{
 
         $output .= qq|
           <script type=\"text/javascript\">
+
+
             \$('#getImages').on(\"click\", function() {
+
               if ('$taxon_rank' == 'genus') {
                 var qualifier = 'genus:';
               } else {
@@ -4399,6 +4403,9 @@ sub basicTaxonInfo	{
               })
               .done (function (data) {
                 \$('#images').empty();
+                if (data.mediaURLs.length == 0) {
+                  \$("#result").text("No images found");
+                } else {
                   var lastUri = null;
                   for (i in data.mediaURLs) {
                     var uri = data.mediaURLs[i];
@@ -4407,6 +4414,7 @@ sub basicTaxonInfo	{
                       lastUri = uri;
                     }
                   }
+                }
                 });
               })
           </script>
