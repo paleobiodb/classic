@@ -4351,8 +4351,9 @@ sub basicTaxonInfo	{
 			$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
 		}
                 if ( $taxon_rank eq "genus" || $taxon_rank eq "species" ) {
-                        $output .= '<hr><input type="button" id="getImages" name="getImages" value="Display Images">';
-                        $output .= '<p>Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
+                        $output .= '<hr><p><a href="http://epandda.org" target="_blank"><img src="https://epandda.org/img/epandda_logo_small.png" style="width: 50px;"></a>';
+                        $output .= ' Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
+                        $output .= '<input type="button" id="getImages" name="getImages" value="Display Images">';
                         $output .= '<div id="images"></div>';
                 }
 	}
@@ -4387,7 +4388,6 @@ sub basicTaxonInfo	{
               } else {
                 var qualifier = 'scientificname:';
               }
-              console.log('$taxon_rank' + ': ' + '$taxon_name' + ' -> ' + qualifier);
               \$.ajax( {
                 url: "https://api.epandda.org/occurrences",
                 dataType: "json",
@@ -4399,10 +4399,12 @@ sub basicTaxonInfo	{
               })
               .done (function (data) {
                 \$('#images').empty();
+                  var lastUri = null;
                   for (i in data.mediaURLs) {
                     var uri = data.mediaURLs[i];
-                    if (uri != null) {
+                    if (uri != null && uri != lastUri) {
                       \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a>');
+                      lastUri = uri;
                     }
                   }
                 });
