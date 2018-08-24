@@ -4336,6 +4336,10 @@ sub basicTaxonInfo	{
 
 	}
 
+
+        my $taxon_name = $taxon->{'taxon_name'};
+        my $taxon_rank = $taxon->{'taxon_rank'};
+
 	if ( $is_real_user > 0 && ( @occs || $taxon_no ) )	{
 		if ( $taxon_no && $SQL_DB eq "pbdb" )	{
 			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
@@ -4346,6 +4350,11 @@ sub basicTaxonInfo	{
 			$output .= "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
 			$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
 		}
+                if ( $taxon_rank eq "genus" || $taxon_rank eq "species" ) {
+                        $output .= '<hr><input type="button" id="getImages" name="getImages" value="Display Images">';
+                        $output .= '<p>Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
+                        $output .= '<div id="images"></div>';
+                }
 	}
 	$output .= "</div>\n</div>\n\n";
 
@@ -4357,6 +4366,7 @@ sub basicTaxonInfo	{
 		$output .= qq|<input type="hidden" name="last_taxon" value="$taxon_no">
 |;
 	}
+
 # $output .= qq|
 # <span class="small">
 # <input type="text" name="search_again" value="Search again" size="24" onFocus="textClear(search_again);" onBlur="textRestore(search_again);" style="font-size: 1.0em;">
@@ -4366,6 +4376,39 @@ sub basicTaxonInfo	{
 
 	$output .= "<br>\n\n";
 	$output .= "</div>\n\n";
+
+        $output .= "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js\" type=\"text/javascript\"></script>";
+
+        $output .= qq|
+          <script type=\"text/javascript\">
+            \$('#getImages').on(\"click\", function() {
+              if ('$taxon_rank' == 'genus') {
+                var qualifier = 'genus:';
+              } else {
+                var qualifier = 'scientificname:';
+              }
+              console.log('$taxon_rank' + ': ' + '$taxon_name' + ' -> ' + qualifier);
+              \$.ajax( {
+                url: "https://api.epandda.org/occurrences",
+                dataType: "json",
+                data: {
+                  terms: qualifier + '$taxon_name',
+                  mediaOnly: "1",
+                  limit: "3000"
+                }
+              })
+              .done (function (data) {
+                \$('#images').empty();
+                  for (i in data.mediaURLs) {
+                    var uri = data.mediaURLs[i];
+                    if (uri != null) {
+                      \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a>');
+                    }
+                  }
+                });
+              })
+          </script>
+          |;
 
     # print $hbo->stdIncludes($PAGE_BOTTOM);
 
