@@ -4332,8 +4332,11 @@ sub basicTaxonInfo	{
 
 	}
 
+
+        my $taxon_name = $taxon->{'taxon_name'};
+        my $taxon_rank = $taxon->{'taxon_rank'};
+
 	if ( $is_real_user > 0 && ( @occs || $taxon_no ) )	{
-                $output .= '<input type="button" id="getImages" name="getImages" value="Get Images"> <div id="images"></div>';
 		if ( $taxon_no && $SQL_DB eq "pbdb" )	{
 			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 		} elsif ( $SQL_DB eq "pbdb" )	{
@@ -4343,6 +4346,11 @@ sub basicTaxonInfo	{
 			$output .= "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
 			$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
 		}
+                if ( $taxon_rank eq "genus" || $taxon_rank eq "species" ) {
+                        $output .= '<hr><input type="button" id="getImages" name="getImages" value="Display Images">';
+                        $output .= '<p>Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
+                        $output .= '<div id="images"></div>';
+                }
 	}
 	$output .= "</div>\n</div>\n\n";
 
@@ -4367,35 +4375,37 @@ sub basicTaxonInfo	{
 
         $output .= "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js\" type=\"text/javascript\"></script>";
 
-        $taxon_name = $taxon->{'taxon_name'};
         $output .= qq|
-      <script type="text/javascript">
-      \$('#getImages').on(\"click\", function(){
-      // Above: when html element where id=getImages is clicked, perform the following function
-      \$.ajax( {
-          url: "https://epandda.org/taxonomy",
-          dataType: "json",
-          data: {
-              scientificName: '$taxon_name',
-              images: 'true'
-          },
-      })
-      .done (function (data){
-          //Above: when ajax call is complete, perform the following function
-          \$('#images').empty();
-          //Above: clear html element where id=images
-          \$.map(data.media, function (v)
-          //Above: process all of the items in the media node of the returned JSON object (essentially a loop over the media node)
-          {
-              \$('#images').append('<img src="' + v[1] + '" style="width:100px;">');
-              //Above: add the second array element (v[1]) value as an img to the element where id=images
-          })
-          console.log(data);
-          //Above: write the ajax returned to the browser console (for debugging purposes)
-      });
-  })
-  </script>
-|;
+          <script type=\"text/javascript\">
+            \$('#getImages').on(\"click\", function() {
+              if ('$taxon_rank' == 'genus') {
+                var qualifier = 'genus:';
+              } else {
+                var qualifier = 'scientificname:';
+              }
+              console.log('$taxon_rank' + ': ' + '$taxon_name' + ' -> ' + qualifier);
+              \$.ajax( {
+                url: "https://api.epandda.org/occurrences",
+                dataType: "json",
+                data: {
+                  terms: qualifier + '$taxon_name',
+                  mediaOnly: "1",
+                  limit: "3000"
+                }
+              })
+              .done (function (data) {
+                \$('#images').empty();
+                  for (i in data.mediaURLs) {
+                    var uri = data.mediaURLs[i];
+                    if (uri != null) {
+                      \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a>');
+                    }
+                  }
+                });
+              })
+          </script>
+          |;
+
     # print $hbo->stdIncludes($PAGE_BOTTOM);
 
     return $output;
