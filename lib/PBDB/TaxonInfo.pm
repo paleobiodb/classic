@@ -4354,6 +4354,7 @@ sub basicTaxonInfo	{
                         $output .= '<hr><p><a href="http://epandda.org" target="_blank"><img src="https://epandda.org/img/epandda_logo_small.png" style="width: 50px;"></a>';
                         $output .= ' Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
                         $output .= '<input type="button" id="getImages" name="getImages" value="Display Images">';
+                        $output .= '<center><p class="fa-3x" id="running"><i class="fas fa-spinner fa-spin"></i><p></center>';
                         $output .= '<div id="images"></div>';
                         $output .= '<b><p id="result"></p></b>';
                 }
@@ -4380,13 +4381,17 @@ sub basicTaxonInfo	{
 	$output .= "</div>\n\n";
 
         $output .= "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js\" type=\"text/javascript\"></script>";
+        $output .= '<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">';
 
         $output .= qq|
           <script type=\"text/javascript\">
 
+            \$('document').ready(function() {
+              \$('#running').hide();
+            })
 
             \$('#getImages').on(\"click\", function() {
-
+              \$('#running').show();
               if ('$taxon_rank' == 'genus') {
                 var qualifier = 'genus:';
               } else {
@@ -4402,9 +4407,10 @@ sub basicTaxonInfo	{
                 }
               })
               .done (function (data) {
+                \$('#running').hide();
                 \$('#images').empty();
                 if (data.mediaURLs.length == 0) {
-                  \$("#result").text("No images found");
+                  \$('#result').text('No images found');
                 } else {
                   var lastUri = null;
                   for (i in data.mediaURLs) {
