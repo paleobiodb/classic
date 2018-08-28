@@ -14,7 +14,7 @@ use PBDB::EcologyEntry;
 use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($HOST_URL $READ_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECORD 
+use PBDB::Constants qw($HOST_URL $READ_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECORD $GDD_URL
 		       $PAGE_TOP $PAGE_BOTTOM $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeATag makeAnchor 
 		       makeAnchorWithAttrs makeURL);
 
@@ -279,12 +279,11 @@ sub displayTaxonInfoResults {
         }
     }
     
-    $output .= '<script language="JavaScript" type="text/javascript">' . "\n";
-    $output .= "var taxonName = '$taxon_name';\n";
-    $output .= "</script>\n";
-    
     $output .= '
 <script src="/public/classic_js/taxoninfo.js" language="JavaScript" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "panel7", "gddapp" );
+</script>
 
 <div align="center">
   <table class="panelNavbar" cellpadding="0" cellspacing="0" border="0">
@@ -303,8 +302,8 @@ sub displayTaxonInfoResults {
       Morphology</td>
     <td id="tab6" class="tabOff" onClick = "switchToPanel(6,8);">
       Ecology and taphonomy</td>
-    <td id="tab7" class="tabOff" onClick = "switchToPanel(7,8); openLiterature();">
-      Literature</td>
+    <td id="tab7" class="tabOff" onClick = "switchToPanel(7,8); gddapp.initApp();">
+      External Literature Search</td>
     <td id="tab8" class="tabOff" onClick = "switchToPanel(8,8);">
       Age range and collections</td>
   </tr>
@@ -327,15 +326,15 @@ sub displayTaxonInfoResults {
 |;
 
     
-    $output .= '<script language="JavaScript" type="text/javascript">
-    hideTabText(2);
-    hideTabText(3);
-    hideTabText(4);
-    hideTabText(5);
-    hideTabText(6);
-    hideTabText(7);
-    hideTabText(8);
-</script>';
+#     $output .= '<script language="JavaScript" type="text/javascript">
+#     hideTabText(2);
+#     hideTabText(3);
+#     hideTabText(4);
+#     hideTabText(5);
+#     hideTabText(6);
+#     hideTabText(7);
+#     hideTabText(8);
+# </script>';
 
     my %modules = ();
     $modules{$_} = 1 foreach @modules_to_display;

@@ -5,7 +5,7 @@ package PBDB::Constants;
 use base 'Exporter';
 use FindBin;
 
-our @EXPORT_OK = qw($READ_URL $WRITE_URL $DATA_URL $TEST_DATA_URL
+our @EXPORT_OK = qw($READ_URL $WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL
 		    $INTERVAL_URL $HOST_URL $HTML_DIR $DATA_DIR
 		    $SQL_DB $DB_TYPE $DB_USER $DB_SOCKET $DB_PASSWD $IS_FOSSIL_RECORD
 		    $TAXA_TREE_CACHE $TAXA_LIST_CACHE $IP_MAIN $IP_BACKUP $DB
@@ -22,6 +22,7 @@ my $conf = $PBDB::Constants::conf;
 
 $PBDB::Constants::HOST_URL	= $conf->{'HOST_URL'};
 $PBDB::Constants::DATA_URL	= $conf->{'DATA_URL'};
+$PBDB::Constants::GDD_URL	= $conf->{'GDD_URL'};
 $PBDB::Constants::TEST_DATA_URL = $conf->{'TEST_DATA_URL'};
 $PBDB::Constants::READ_URL	= '/classic';
 $PBDB::Constants::WRITE_URL	= '/classic';

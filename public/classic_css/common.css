@@ -225,6 +225,10 @@ H1, H2, H3, H4, H5, H6 {
     clear: both;
 }
 
+.actionLink {
+    margin-bottom: 1em;
+}
+
 .introTextBox	{
     display: none;
     height: 13.5em;
