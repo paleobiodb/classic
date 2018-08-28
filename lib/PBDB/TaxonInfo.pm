@@ -4354,7 +4354,8 @@ sub basicTaxonInfo	{
                         $output .= ' Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
                         $output .= '<input type="button" id="getImages" name="getImages" value="Display Images">';
                         $output .= '<center><p class="fa-3x" id="running"><i class="fas fa-spinner fa-spin"></i><p></center>';
-                        $output .= '<div id="images"></div>';
+                        $output .= '<div id="instructions"><br>Click image to enlarge. Click <i class="fas fa-info-circle"></i> to access iDigBio record.</div>';
+                        $output .= '<div class="img-with-text" id="images"></div>';
                         $output .= '<b><p id="result"></p></b>';
                 }
 	}
@@ -4387,6 +4388,7 @@ sub basicTaxonInfo	{
 
             \$('document').ready(function() {
               \$('#running').hide();
+              \$('#instructions').hide();
             })
 
             \$('#getImages').on(\"click\", function() {
@@ -4407,16 +4409,20 @@ sub basicTaxonInfo	{
               })
               .done (function (data) {
                 \$('#running').hide();
+                \$('#instructions').show();
                 \$('#images').empty();
                 if (data.mediaURLs.length == 0) {
                   \$('#result').text('No images found');
                 } else {
                   var lastUri = null;
-                  for (i in data.mediaURLs) {
-                    var uri = data.mediaURLs[i];
-                    if (uri != null && uri != lastUri) {
-                      \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a>');
-                      lastUri = uri;
+                  for (rec in data.mediaURLs) {
+                    var infoLink = data.mediaURLs[rec].record;
+                    for (link in data.mediaURLs[rec].media) {
+                      var uri = data.mediaURLs[rec].media[link];
+                      if (uri != null && uri != lastUri) {
+                        \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a><a href="' + infoLink + '"><i class="fas fa-info-circle"></i></a>');
+                        lastUri = uri;
+                      }
                     }
                   }
                 }
