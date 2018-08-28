@@ -4420,7 +4420,7 @@ sub basicTaxonInfo	{
                     for (link in data.mediaURLs[rec].media) {
                       var uri = data.mediaURLs[rec].media[link];
                       if (uri != null && uri != lastUri) {
-                        \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a><a href="' + infoLink + '"><i class="fas fa-info-circle"></i></a>');
+                        \$('#images').append('<a target="_blank" href="' + uri + '"><img src="' + uri + '" style="padding: 2px 2px 2px 2px;width: 100px;"></a><a target="_blank" href="' + infoLink + '"><i class="fas fa-info-circle"></i></a>');
                         lastUri = uri;
                       }
                     }
