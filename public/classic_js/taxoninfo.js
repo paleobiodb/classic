@@ -19,6 +19,8 @@ function GDDTaxonInfoApp( gdd_url, taxon_name, panel_id, var_name )
     var snippet_data, snippets_loaded;
 
     var button_more_entries = panel_id + "button1";
+
+    var re_no_results = /no results found/i;
     
     function initApp ( )
     {
@@ -84,6 +86,14 @@ function GDDTaxonInfoApp( gdd_url, taxon_name, panel_id, var_name )
 		}
 	    }
 	    
+	    terms_loaded = 1;
+	    if ( snippets_loaded )
+		goodLoad();
+	}
+
+	else if ( response.error && response.error.message &&
+		  response.error.message.search(re_no_results) >= 0 )
+	{
 	    terms_loaded = 1;
 	    if ( snippets_loaded )
 		goodLoad();
