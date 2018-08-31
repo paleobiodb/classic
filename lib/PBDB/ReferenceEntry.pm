@@ -156,6 +156,13 @@ sub formatRISRef {
 	$output .= risLine('TY', 'NEWS');
     }
     
+    elsif ( $pubtype eq 'museum collection' )
+    {
+	$output.= risLine('TY', 'CTLG');
+	$ref->{museum_acronym} = $ref->{author1last};
+	delete $ref->{author1last};
+    }
+    
     elsif ( $pubtype eq 'unpublished' )
     {
 	$output .= risLine('TY', 'UNPD');
@@ -179,7 +186,8 @@ sub formatRISRef {
     $output .= risYear('PY', $pubyr) if $pubyr > 0;
     $output .= risLine('TI', $reftitle);
     $output .= risLine('T2', $pubtitle);
-    $output .= risLine('M1', $misc) if $misc;
+    $output .= risLine('M3', $misc) if $misc;
+    $output .= risLine('LB', $ref->{museum_acronym}) if $ref->{museum_acronym};
     $output .= risLine('VL', $ref->{pubvol}) if $ref->{pubvol};
     $output .= risLine('IS', $ref->{pubno}) if $ref->{pubno};
     $output .= risLine('PB', $ref->{publisher}) if $ref->{publisher};
@@ -385,32 +393,44 @@ sub displayReferenceForm {
 
     my %form_vars;
 
-	# Pre-populate the form with the search terms:
-	if ( $isNewEntry )	{
-		%form_vars = $q->Vars();
-		delete $form_vars{'reftitle'};
-		delete $form_vars{'pubtitle'};
-		my %query_hash = ("name" => "author1last",
-					  "year" => "pubyr",
-					  "project_name" => "project_name");
-
-		foreach my $s_param (keys %query_hash){
-			if($form_vars{$s_param}) {
-				$form_vars{$query_hash{$s_param}} = $form_vars{$s_param};
-			}
-		}
+    # Pre-populate the form with the search terms:
+    
+    if ( $isNewEntry )
+    {
+	%form_vars = $q->Vars();
+	delete $form_vars{'reftitle'};
+	delete $form_vars{'pubtitle'};
+	my %query_hash = ("name" => "author1last",
+			  "year" => "pubyr",
+			  "project_name" => "project_name");
+	
+	foreach my $s_param (keys %query_hash){
+	    if($form_vars{$s_param}) {
+		$form_vars{$query_hash{$s_param}} = $form_vars{$s_param};
+	    }
 	}
 
-	# Defaults, then database, then a resubmission/form data
-	my %vars = (%defaults,%db_row,%form_vars);
-
-	if ($isNewEntry)	{
-		$vars{"page_title"} = "New reference form";
-	} else	{
-		$vars{"page_title"} = "Reference number $reference_no";
-	}
-
-    return $hbo->populateHTML('js_reference_checkform') . $hbo->populateHTML("enter_ref_form", \%vars);
+	$form_vars{museum_acronym} = $form_vars{author1last} if $form_vars{author1last};
+    }
+    
+    # If this is a museum collection, then unpack the museum fields from the standard reference
+    # fields.
+    
+    if ( $db_row{'publication_type'} eq 'museum collection' )
+    {
+	decodeMuseumFields(\%db_row);
+    }
+    
+    # Defaults, then database, then a resubmission/form data
+    my %vars = (%defaults,%db_row,%form_vars);
+    
+    if ($isNewEntry)	{
+	$vars{"page_title"} = "New reference form";
+    } else	{
+	$vars{"page_title"} = "Reference number $reference_no";
+    }
+    
+    return $hbo->populateHTML("reference_entry_form", \%vars);
 }
 
 #  * Will either add or edit a reference in the database
@@ -450,16 +470,23 @@ sub processReferenceForm {
     
     my %vars = $q->Vars();
 
+    # If the publication type is 'museum collection' then we need to cram the museum info into the
+    # standard reference fields.
 
-    if ($IS_FOSSIL_RECORD && $isNewEntry) {
-        $vars{'publication_type'} = 'book/book chapter';              
-        $vars{'language'} = 'English';
-        $vars{'basis'} = 'second hand';
-        $vars{'project_name'} = 'fossil record';
-    } elsif ($IS_FOSSIL_RECORD) {
-        # do not edit this value
-        delete $vars{'project_name'};
+    if ( $vars{'publication_type'} eq 'museum collection' )
+    {
+	encodeMuseumFields(\%vars);
     }
+    
+    # if ($IS_FOSSIL_RECORD && $isNewEntry) {
+    #     $vars{'publication_type'} = 'book/book chapter';              
+    #     $vars{'language'} = 'English';
+    #     $vars{'basis'} = 'second hand';
+    #     $vars{'project_name'} = 'fossil record';
+    # } elsif ($IS_FOSSIL_RECORD) {
+    #     # do not edit this value
+    #     delete $vars{'project_name'};
+    # }
     
     my $fraud = checkFraud($q);
     if ($fraud) {
@@ -553,6 +580,43 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
     
     return $output;
 }
+
+
+# Put the values from the museum fields into standard reference fields.
+
+sub encodeMuseumFields {
+    
+    my ($field) = @_;
+
+    $field->{reftitle} = $field->{museum_collection};
+    $field->{pubtitle} = $field->{museum_name};
+    $field->{author1last} = $field->{museum_acronym};
+    $field->{basis} = "stated without evidence";
+    
+    $field->{pubcity} = "";
+    $field->{pubcity} .= $field->{museum_city} || '';
+    $field->{pubcity} .= ", ";
+    $field->{pubcity} .= $field->{museum_state} || '';
+    $field->{pubcity} .= ", ";
+    $field->{pubcity} .= $field->{museum_country} || '';
+}
+
+
+sub decodeMuseumFields {
+    
+    my ($field) = @_;
+
+    $field->{museum_collection} = $field->{reftitle};
+    $field->{museum_name} = $field->{pubtitle};
+    $field->{museum_acronym} = $field->{author1last};
+
+    my (@addr) = split(/, */, $field->{pubcity});
+
+    $field->{museum_city} = $addr[0];
+    $field->{museum_state} = $addr[1];
+    $field->{museum_country} = $addr[2];
+}
+
 
 sub checkFraud {
     my $q = shift;
