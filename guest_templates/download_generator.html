@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", dgapp.initApp, false);
 <div align="center">
   <p id="mainURL" class="dlMainURL">URL</p>
     <button type="button" value="test" onClick="dgapp.testMainURL()">Test</button> &nbsp; &nbsp; 
-    <button type="button" value="download" onClick="dgapp.downloadMainURL()">Download</button>
+    <button type="button" value="download" id="btn_download" onClick="dgapp.downloadMainURL()">Download</button>
     <br/>&nbsp;
 </div>
 
@@ -877,6 +877,51 @@ from the download URL until the section is opened again.</p>
   </table>
   
 </div>
+
+
+<!-- Archive options are defined here, in subsection o2.  These are hidden unless specifically made -->
+<!-- visible by the user. -->
+
+<h3 id="ho2" onClick="dgapp.showHideSection('o2'); dgapp.checkArchive();">
+<img id="mo2" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
+<span class="dlSectionHeader">Choose archive options</span>
+<img id="qo2" class="dlHelpMarker" onClick="dgapp.helpClick('o2', event)" src="/JavaScripts/img/hidden_help.png"></h3>
+<input type="hidden" id="vo2">
+
+<div id="o2" style="margin-left: 1em; display: none;">
+    
+  <table width="100%" cellpadding="3">
+
+    <tr class="vis_help_o2"><td colspan="2"><p class="dlHelp">If you fill in the Archive title field below, then the
+      selected data will be stored in an archive file on our server instead of being immediately downloaded. When you
+      click the "Archive" button above, you will be directed to the Archive Management web app. This will allow you to
+      edit the descriptive fields, download the data, and apply for a DOI that you can use to publish your archive.</p>
+      </td></tr>
+    
+    <tr valign="top"><td>Archive title:</td><td>
+      <textarea id="arc_title" rows="2" cols="60" onchange="dgapp.checkArchive()"></textarea>
+    </td></tr>
+    
+    <tr class="vis_help_o2"><td colspan="2"><p class="dlHelp">You may fill in either or both of the following fields,
+      and you may add or update this information later using the Archive Management web app. If you later apply for a
+      DOI and publish this archive, these fields will be reported in conjunction with it. You may want to fill in the
+      Authors field with the names of the author(s) of the paper(s) that this archive is intended to be published
+      with.</p>
+    </td></tr>
+      
+    <tr valign="top"><td>Authors:</td><td>
+      <input id="arc_authors" size="60">
+    </td></tr>
+    
+    <tr valign="top"><td>Description:</td><td>
+      <textarea id="arc_desc" rows="3" cols="60" align="top"></textarea>
+    </td></tr>
+    
+  </table>
+
+</div>
+
+<!-- Parameter sections end here -->
 
 </div>
 

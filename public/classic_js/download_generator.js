@@ -43,6 +43,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
     var non_ref_format = ".csv";
 
     var form_mode = "simple";
+
+    var download_path = "";
+    var download_params = "";
     
     var output_section = 'none';
     var output_order = 'none';
@@ -77,9 +80,10 @@ function DownloadGeneratorApp( data_url, is_contributor )
     var patt_extid = /^(col|occ|clu|spm)[:]\d+$/;
     
     // If the value of data_url starts with a slash, prefix the origin of the current page to get a full URL.
-    
+
+    var short_data_url;
     var full_data_url;
-    
+
     // The following function initializes this application controller object.  It is exported as
     // a method, so that it can be called once the web page is fully loaded.  It must make two
     // API calls to get a list of country and continent codes, and geological time intervals.
@@ -98,7 +102,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	if ( getElementValue("vf1") != "-1" )
 	    showHideSection('f1', 'show');
 	
-	var sections = { vf2: 'f2', vf3: 'f3', vf4: 'f4', vf5: 'f5', vf6: 'f6', vo1: 'o1' };
+	var sections = { vf2: 'f2', vf3: 'f3', vf4: 'f4', vf5: 'f5', vf6: 'f6', vo1: 'o1', vo2: 'o2' };
 	var s;
 	
 	for ( s in sections )
@@ -110,6 +114,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	// Make sure we have a proper URL to use for data service requests.
 	
 	var origin_match;
+
+	short_data_url = data_url;
 	
 	if ( data_url.match( /^\// ) && window.location.origin )
 	    full_data_url = window.location.origin + data_url;
@@ -380,6 +386,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	hideByClass('help_f5');
 	hideByClass('help_f6');
 	hideByClass('help_o1');
+	hideByClass('help_o2');
 	
 	hideByClass('buffer_rule');
 	
@@ -1138,7 +1145,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	else return elt;
     }
-    
+
     // Hide the DOM element with the specified id.
     
     function hideElement ( id )
@@ -2600,7 +2607,30 @@ function DownloadGeneratorApp( data_url, is_contributor )
     }
     
     this.checkLimit = checkLimit;
+
+
+    // This function is called if the "Archive title" field is modified, or if the archive section
+    // is hidden or shown.
     
+    function checkArchive ( )
+    {
+	var title = getElementValue("arc_title");
+	var btn = myGetElement("btn_download");
+	
+	if ( title && visible.o2 )
+	{
+	    btn.textContent = "Create Archive";
+	    btn.onclick = archiveMainURL;
+	}
+	
+	else
+	{
+	    btn.textContent = "Download";
+	    btn.onclick = downloadMainURL;
+	}
+    }
+    
+    this.checkArchive = checkArchive;
     
     // This function is called whenever some element changes that could change the overall state
     // of the application.  The only thing it currently does is to update the main URL, but other
@@ -3157,11 +3187,16 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    // Construct the new URL
 	    
 	    var new_url = full_data_url + my_op + data_format + '?';
+
+	    download_path = short_data_url + my_op + data_format;
+	    download_params = '';
 	    
 	    if ( params.output_metadata )
-		new_url += 'datainfo&rowcount&';
+		download_params = 'datainfo&rowcount&';
+
+	    download_params += param_string;
 	    
-	    new_url += param_string;
+	    new_url += download_params;
 	    
 	    url_elt.textContent = new_url;
 	    url_elt.href = new_url;
@@ -3568,5 +3603,53 @@ function DownloadGeneratorApp( data_url, is_contributor )
     }
     
     this.downloadMainURL = downloadMainURL;
+
+
+    // This function is called when the "Archive" button is activated.  This button takes the
+    // place of the "Download" button when the archive options section is visible and the archive
+    // title is not empty. If the 'confirm_download' flag is true, generate a dialog box before
+    // initiating the download.
+
+    function archiveMainURL ( )
+    {
+	var url = document.getElementById("mainURL").textContent;
+	
+	if ( ! url.match(/http/i) ) return;
+	
+	if ( confirm_download )
+	{
+	    if ( ! confirm("You are about to archive a dataset that might exceed 100 MB.  Continue?") )
+		return;
+	}
+	
+	// Use jQuery to initiate the archive creation process.
+	
+	// $.getJSON(...)
+
+	var archive_params = JSON.stringify({
+	    uri_path: download_path,
+	    uri_args: download_params,
+	    title: getElementValue('arc_title'),
+	    authors: getElementValue('arc_authors'),
+	    description: getElementValue('arc_desc') });
+	
+	$.ajax({ url: '/archives/create',
+                 type: 'POST',
+                 data: archive_params,
+                 contentType: 'application/json; charset=utf-8',                                          
+                 dataType: 'json',
+                 async: false,
+                 success: function(data) {
+		     window.open("/classic/app/archive/list", "archive manager");
+                 },
+                 error: function (xhr, textStatus, error) {
+                     console.log('Error creating archive: ' + textStatus + ' - ' + error);
+                     alert('An error occurred while trying to create the archive: ' + error);
+                 }
+	       });
+	
+    }
+    
+    this.archiveMainURL = archiveMainURL;
 }
 
