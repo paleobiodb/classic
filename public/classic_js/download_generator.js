@@ -1841,7 +1841,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		params.cc = prefix + continent_list + country_list;
 	}
 	
-	// We have detected any errors, display them and set the 'cc' property of the 'param_errors'
+	// If we have detected any errors, display them and set the 'cc' property of the 'param_errors'
 	// object.  Otherwise, clear the error indicator and property.
 	
 	if ( errors.length )
@@ -1854,6 +1854,60 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	{
 	    setErrorMessage("pe_cc", "");
 	    param_errors.cc = 0;
+	}
+	
+	// Check to see if the user specified any states or counties. If so, add the appropriate parameters.
+
+	var state_list = getElementValue("pm_state");
+	var county_list = getElementValue("pm_county");
+
+	var state_ex = getElementValue("pm_state_ex");
+	var county_ex = getElementValue("pm_county_ex");
+	
+	var state_errors = [ ];
+	
+	params.state = '';
+	params.county = '';
+	
+	if ( state_list != '' )
+	{
+	    var prefix = '';
+	    if ( state_ex == 'exclude' ) prefix = '!';
+	    params.state = prefix + state_list.trim();
+
+	    if ( ! params.cc )
+	    {
+		state_errors.push("You must select a country.");
+	    }
+	}
+	
+	if ( county_list != '' )
+	{
+	    var prefix = '';
+	    if ( county_ex == 'exclude' ) prefix = '!';
+	    params.county = prefix + county_list.trim();
+	    
+	    if ( ! params.cc )
+	    {
+		state_errors.push("You must select a country.");
+	    }
+
+	    if ( ! params.state )
+	    {
+		state_errors.push("You must select a state.");
+	    }
+	}
+
+	if ( state_errors.length )
+	{
+	    setErrorMessage("pe_state", state_errors);
+	    param_errors.state = 1;
+	}
+	
+	else
+	{
+	    setErrorMessage("pe_state", "");
+	    param_errors.state = 0;
 	}
 	
 	// Now check to see if the user specified any tectonic plates.  If so, validate the list
@@ -2854,6 +2908,20 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		occs_required = 1;
 		has_main_param = 1;
 	    }
+
+	    if ( params.state && params.state != "" )
+	    {
+		param_list.push("state=" + params.state);
+		occs_required = 1;
+		has_main_param = 1;
+	    }
+
+	    if ( params.county && params.county != "" )
+	    {
+		param_list.push("county=" + params.county);
+		occs_required = 1;
+		has_main_param = 1;
+	    }
 	    
 	    if ( visible.advanced && params.plate && params.plate != "" )
 	    {
@@ -2862,7 +2930,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		has_main_param = 1;
 	    }
 	    
-	    if ( visible.advancd && (param_errors.cc || param_errors.plate) ) errors_found = 1;
+	    if ( visible.advanced && (param_errors.cc || param_errors.state || param_errors.plate) )
+		errors_found = 1;
 	    
 	    if ( params.latmin || params.latmax || params.lngmin || params.lngmax )
 	    {

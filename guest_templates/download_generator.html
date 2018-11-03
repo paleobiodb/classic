@@ -516,7 +516,7 @@ from the download URL until the section is opened again.</p>
       <select id="pm_ccex" onChange="dgapp.checkCC()">
 	<option value="include">select</option>
 	<option value="exclude">exclude</option>
-      </select></span> &nbsp;
+      </select> &nbsp;
       Continent: <select id="pm_continent" name="continent" onChange="dgapp.checkCC()"></select> &nbsp;
      <select id="pm_ccmod" onChange="dgapp.checkCC()">
 	<option value="add">plus</option>
@@ -527,8 +527,8 @@ from the download URL until the section is opened again.</p>
 
     <tr class="vis_mult_cc3"><td><div id="pd_continents"></div></td></tr>
     
-    <tr class="vis_mult_cc2"><td><div id="pd_countries">
-      Countries: <input id="pm_countries" size="60" onchange="dgapp.checkCC()"></div>
+    <tr class="vis_mult_cc2"><td>
+      Countries: <input id="pm_countries" size="60" onchange="dgapp.checkCC()">
       <ul id="pe_cc" class="dlErrmsg"></ul>
     </td></tr>
     
@@ -536,7 +536,27 @@ from the download URL until the section is opened again.</p>
       <p class="dlHelp">If you specify one or more countries but not a continent, then just those countries will
       be selected or excluded.  To specify multiple countries, you must type a list of the 2-letter codes.</p>
     </td></tr>
- 
+
+    <tr class="vis_advanced"><td>
+    <div style="margin-top: 10px">
+      <select id="pm_state_ex" onChange="dgapp.checkCC()">
+	<option value="include">select</option>
+	<option value="exclude">exclude</option>
+      </select> &nbsp;
+      State/province: <input id="pm_state" size="30" onchange="dgapp.checkCC()"> &nbsp;
+      <select id="pm_county_ex" onChange="dgapp.checkCC()">
+	<option value="include">select</option>
+	<option value="exclude">exclude</option>
+      </select> &nbsp;
+      County: <input id="pm_county" size="20" onchange="dgapp.checkCC()"></div>
+      <ul id="pe_state" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_advanced vis_help_f3"><td>
+      <p class="dlHelp">You can specify or exclude one or more states or counties, separated by commas.
+      If you do this, you must specify the country.</p>
+      </td></tr>
+    
     <tr class="vis_advanced"><td>
       <div style="margin-top: 10px">
 	Plate: &nbsp;
