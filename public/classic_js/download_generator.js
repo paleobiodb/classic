@@ -396,12 +396,12 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	if ( is_contributor )
 	{
-	    showByClass('private');
+	    showByClass('loggedin');
 	    // params.private = 1;
 	}
 	
 	else
-	    hideByClass('private');
+	    hideByClass('loggedin');
     }
     
     

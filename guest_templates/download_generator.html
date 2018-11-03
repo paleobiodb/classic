@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", dgapp.initApp, false);
     <input type="radio" name="output_format" value="json" id="rb.json" onClick="dgapp.setFormat('json')"/>JSON<br/>
     <input type="radio" name="output_format" value="ris" id="rb.ris" disabled="1" onClick="dgapp.setFormat('ris')"/>RIS<br/>
 
-    <p id="pd_private" class="vis_private">
+    <p id="pd_private" class="vis_loggedin">
     <input type="radio" name="private_url" value="1" id="rb.private.yes" onClick="dgapp.setPrivate(1)" checked="1"/>Include non-public data<br/>
     <input type="radio" name="private_url" value="0" id="rb.private.no" onClick="dgapp.setPrivate(0)"/>Public data only<br/>
     </p>
@@ -882,6 +882,8 @@ from the download URL until the section is opened again.</p>
 <!-- Archive options are defined here, in subsection o2.  These are hidden unless specifically made -->
 <!-- visible by the user. -->
 
+<div class="vis_loggedin">
+
 <h3 id="ho2" onClick="dgapp.showHideSection('o2'); dgapp.checkArchive();">
 <img id="mo2" class="dlSectionMarker" src="/JavaScripts/img/closed_section.png">
 <span class="dlSectionHeader">Choose archive options</span>
@@ -918,6 +920,8 @@ from the download URL until the section is opened again.</p>
     </td></tr>
     
   </table>
+
+</div>
 
 </div>
 
