@@ -61,7 +61,7 @@
                 <li><a href="/classic/displaySearchRefs?type=view">Published references</a></li>
                 <li><a href="/classic/classificationForm">Classifications of taxa in groups</a></li>
                 <li><a href="/classic/displaySearchStrataForm">Stratigraphic units</a></li>
-                <li><a href="/classic/?page=OSA">Data archives</a></li>
+                <li><a href="/classic/app/archive/list">Data archives</a></li>
               </ul>
             </li>
             [% IF current_user.role AND current_user.role != "guest" %]
