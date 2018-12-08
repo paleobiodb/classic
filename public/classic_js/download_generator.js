@@ -3709,11 +3709,16 @@ function DownloadGeneratorApp( data_url, is_contributor )
                  dataType: 'json',
                  async: false,
                  success: function(data) {
-		     window.open("/classic/app/archive/list", "archive manager");
+		           window.open("/classic/app/archive/list", "archive manager");
                  },
                  error: function (xhr, textStatus, error) {
-                     console.log('Error creating archive: ' + textStatus + ' - ' + error);
-                     alert('An error occurred while trying to create the archive: ' + error);
+                   if (error == 'FORBIDDEN') {
+                       colsole.log('Error creating archive: Missing ORCID');
+                       alert('ORCID required, please set one in "Account settings"';
+                   } else {
+                       console.log('Error creating archive: ' + textStatus + ' - ' + error);
+                       alert('An error occurred while trying to create the archive: ' + error);
+                   }
                  }
 	       });
 	
