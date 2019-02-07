@@ -3714,7 +3714,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
                  error: function (xhr, textStatus, error) {
                    if (error == 'FORBIDDEN') {
                        colsole.log('Error creating archive: Missing ORCID');
-                       alert('ORCID required, please set one in "Account settings"';
+                       alert('ORCID required, please set one in "Account settings"');
                    } else {
                        console.log('Error creating archive: ' + textStatus + ' - ' + error);
                        alert('An error occurred while trying to create the archive: ' + error);
