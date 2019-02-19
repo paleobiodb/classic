@@ -67,6 +67,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
     var id_param_map = { col: "coll_id", clu: "clust_id",
 			  occ: "occ_id", spm: "spec_id" };
     var id_param_index = { col: 0, clu: 1, occ: 2, spm: 3 };
+    var ref_param = { ref_id : 1, ref_title: 1, pub_title: 1, ref_primary: 1,
+		      ref_author: 1 };
     
     // The following regular expressions are used to validate user input.
     
@@ -1174,23 +1176,23 @@ function DownloadGeneratorApp( data_url, is_contributor )
     }
     
     
-    // Show one element from a list, and hide the rest.  The list is given by the argument
-    // 'values', prefixed by 'prefix'.  The value corresponding to 'selected' specifies which
-    // element to show; the rest are hidden.
+    // // Show one element from a list, and hide the rest.  The list is given by the argument
+    // // 'values', prefixed by 'prefix'.  The value corresponding to 'selected' specifies which
+    // // element to show; the rest are hidden.
     
-    function showOneElement ( selected, prefix, values )
-    {
-	for ( var i = 0; i < values.length; i++ )
-	{
-	    var name = values[i].value;
+    // function showOneElement ( selected, prefix, values )
+    // {
+    // 	for ( var i = 0; i < values.length; i++ )
+    // 	{
+    // 	    var name = values[i].value;
 	    
-	    if ( name == selected )
-		showElement(prefix + name);
+    // 	    if ( name == selected )
+    // 		showElement(prefix + name);
 	    
-	    else
-		hideElement(prefix + name);
-	}
-    }
+    // 	    else
+    // 		hideElement(prefix + name);
+    // 	}
+    // }
     
     
     // Set the 'innerHTML' property of the specified element.  If the specified content is not a
@@ -2514,20 +2516,120 @@ function DownloadGeneratorApp( data_url, is_contributor )
     this.checkMetaId = checkMetaId;
     
     
-    // This function is incomplete, and the HTML that would call it is commented out until it can
-    // be reworked later.
+    // This function is called when either the 'pm_ref_select' dropdown menu or the value of the
+    // 'pm_ref_value' field is changed.
     
     function checkRef ( )
     {
-	var ref_select = myGetElement("pm_ref_select");
+	var ref_select = getElementValue( 'pm_ref_select' );
+	var ref_value = getElementValue( 'pm_ref_value' );
 	
-	if ( ref_select )
+	// If the dropdown menu selection is 'ref_id', then we expect one or more identifiers as a
+	// comma-separated list.
+	
+	if ( ref_select && ref_select == "ref_id" )
 	{
-	    var selected = ref_select.value;
-	    if ( selected == "ref_primary" ) select = "ref_author";
+	    // Split the list on commas/whitespace.
 	    
-	    showOneElement(selected, 'pm_', ref_select.options);
+	    var id_strings = ref_value.split(/[\s,]+/);
+	    var param_list = [ ];
+	    var errors = [ ];
+	    
+	    // Check each identifier individually.
+	    
+	    for ( var i=0; i < id_strings.length; i++ )
+	    {
+		// If it is an extended identifier, keep track of all the different
+		// three-character prefixes we encounter while traversing the list using the
+		// object 'id_key' and array 'key_list'.
+		
+		if ( /^ref[:]\d+$/.test( id_strings[i] ) )
+		{
+		    param_list.push(id_strings[i]);
+		}
+		
+		// If it is a numeric identifier, just add it to the parameter list.
+		
+		else if ( patt_int_pos.test( id_strings[i] ) )
+		{
+		    param_list.push('ref:' + id_strings[i]);
+		}
+		
+		// Anything else is an error.
+		
+		else if ( id_strings[i] != '' )
+		{
+		    errors.push("invalid reference identifier '" + id_strings[i] + '"');
+		}
+	    }
+	    
+	    // If we found any errors, display them.
+	    
+	    if ( errors.length )
+	    {
+		params["meta_ref_value"] = '';
+		params["meta_ref_select"] = '';
+		param_errors["meta_ref"] = 1;
+		setErrorMessage("pe_meta_ref", errors);
+	    }
+	    
+	    // Otherwise, construct the proper parameter value by joining all of the identifiers
+	    // we found.
+	    
+	    else
+	    {
+		if ( param_list.length )
+		{
+		    params["meta_ref_value"] = param_list.join(',');
+		    params["meta_ref_select"] = 'ref_id';
+		}
+		
+		else
+		{
+		    params["meta_ref_value"] = '';
+		    params["meta_ref_select"] = '';
+		}
+		
+		setErrorMessage("pe_meta_ref", "");
+		param_errors["meta_ref"] = 0;
+	    }
 	}
+	
+	else if ( ref_select && ref_param[ref_select] )
+	{
+	    if ( ref_value != undefined && ref_value != '' )
+	    {
+		params["meta_ref_value"] = ref_value;
+		params["meta_ref_select"] = ref_select;
+	    }
+
+	    else
+	    {
+		params["meta_ref_value"] = '';
+		params["meta_ref_select"] = '';
+	    }
+	    
+	    param_errors["meta_ref"] = 0;
+	    setErrorMessage("pe_meta_ref", '');
+	}
+	
+	else
+	{
+	    params["meta_ref_select"] = '';
+	    params["meta_ref_value"] = '';
+	    param_errors["meta_ref"] = 0;
+	    setErrorMessage("pe_meta_ref", "");
+	}
+	
+	updateFormState();
+	
+	// var ref_select = myGetElement("pm_ref_select");
+	
+	// if ( ref_select )
+	// {
+	//     var selected = ref_select.value;
+	    
+	// }
     }
     
     this.checkRef = checkRef;
@@ -2737,19 +2839,29 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	var occs_required = 0;
 	var taxon_required = 0;
+	
+	// The following variable indicates that an operation that takes reference parameters must
+	// be generated instead of the default operation for the selected record type.
+	
+	var refs_required = 0;
 
+	// The following variable indicates that we should use the 'refs/list' operation instead
+	// of 'taxa/refs'.
+	
+	var use_ref_list = 0;
+	
 	// The following variable is set to true if certain form elements are filled in, to
 	// indicate that the "all_records" parameter must be added in order to satisfy the
 	// requirements of the API.
 	
 	var all_required = 0;
-
+	
 	// The following variable indicates the API operation (i.e. "occs/list", "taxa/list",
 	// etc.)  to be used.  It is set from the default operation for the selected record type,
 	// but may be modified under certain circumstances.
 	
 	var my_op = data_op;
-
+	
 	// If the "Select by taxonomy" section is visible, then go through the parameters it
 	// contains.  If the "advanced" parameters are visible, then check them too.
 	
@@ -2809,7 +2921,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		    }
 		}
 	    }
-	    	    
+	    
 	    else if ( data_type == "taxa" || data_type == "ops" || data_type == "refs" )
 	    {
 		var taxon_rank = getElementValue("pm_taxon_rank");
@@ -2988,27 +3100,30 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	if ( visible.f5 )
 	{
-	    if ( visible.pd_meta_coll_re || 1 )
-	    {
-		if ( params.coll_re ) {
-		    param_list.push("coll_re=" + params.coll_re);
-		    occs_required = 1;
-		    has_main_param = 1;
-		}
-		
-		if ( param_errors.coll_re ) errors_found = 1;
+	    if ( params.coll_re ) {
+		param_list.push("coll_re=" + params.coll_re);
+		occs_required = 1;
+		has_main_param = 1;
 	    }
 	    
-	    if ( visible.pd_meta_id || 1 )
-	    {
-		if ( params.meta_id_list ) {
-		    param_list.push(params.meta_id_param + "=" + params.meta_id_list);
-		    occs_required = 1;
-		    has_main_param = 1;
-		}
-		
-		if ( param_errors.meta_id ) errors_found = 1;
+	    if ( param_errors.coll_re ) errors_found = 1;
+	    
+	    if ( params.meta_id_list ) {
+		param_list.push(params.meta_id_param + "=" + params.meta_id_list);
+		occs_required = 1;
+		has_main_param = 1;
 	    }
+	    
+	    if ( param_errors.meta_id ) errors_found = 1;
+	    
+	    if ( params.meta_ref_select ) {
+		if ( param_list.length == 0 ) use_ref_list = 1;
+		param_list.push(params.meta_ref_select + '=' + params.meta_ref_value);
+		refs_required = 1;
+		has_main_param = 1;
+	    }
+	    
+	    if ( param_errors.meta_ref ) errors_found = 1;
 	    
 	    if ( visible.meta_specs )
 	    {
@@ -3111,7 +3226,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	if ( data_type == 'refs' || data_type == 'byref' )
 	{
-	    if ( params.reftypes && params.reftypes != "" ) {
+	    if ( params.reftypes && params.reftypes != "" && ! use_ref_list ) {
 		param_list.push("select=" + params.reftypes);
 	    }
 	}
@@ -3190,7 +3305,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	if ( occs_required )
 	{
-	    if ( my_op == 'taxa/list' ) my_op = 'occs/taxa';
+	    if      ( my_op == 'taxa/list' ) my_op = 'occs/taxa';
 	    else if ( my_op == 'taxa/refs' ) my_op = 'occs/refs';
 	    else if ( my_op == 'taxa/byref' ) my_op = 'occs/taxabyref';
 	    else if ( my_op == 'opinions/list' ) my_op = 'occs/opinions';
@@ -3200,11 +3315,23 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	{
 	    if ( my_op == 'opinions/list' ) my_op = 'taxa/opinions';
 	}
+
+	if ( refs_required )
+	{
+	    if      ( my_op == 'occs/list' ) { my_op = 'occs/byref'; all_required = 1; }
+	    else if ( my_op == 'colls/list' ) { my_op = 'colls/byref'; all_required = 1; }
+	    else if ( my_op == 'taxa/list' ) my_op = 'taxa/byref';
+	    else if ( my_op == 'occs/taxa' ) { my_op = 'occs/taxabyref'; all_required = 1; }
+	    else if ( my_op == 'opinions/list' ) { my_op = 'taxa/opinions'; all_required = 1; }
+	    else if ( my_op == 'specs/list' ) { my_op = 'specs/byref'; all_required = 1; }
+	    else if ( my_op == 'strata/list' ) { my_op = 'occs/strata'; all_required = 1; }
+	    else if ( my_op == 'taxa/refs' && use_ref_list ) my_op = 'refs/list';
+	}
 	
 	// If no "significant" parameter has been entered, then see if we need to add the
 	// parameter 'all_records' in order to satisfy the requirements of the API.
 	
-	if ( ! has_main_param )
+	if ( all_required || ! has_main_param )
 	{
 	    var all_records_elt = myGetElement("pm_all_records");
 
@@ -3713,7 +3840,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
                  },
                  error: function (xhr, textStatus, error) {
                    if (error == 'FORBIDDEN') {
-                       colsole.log('Error creating archive: Missing ORCID');
+                       console.log('Error creating archive: Missing ORCID');
                        alert('ORCID required, please set one in "Account settings"');
                    } else {
                        console.log('Error creating archive: ' + textStatus + ' - ' + error);

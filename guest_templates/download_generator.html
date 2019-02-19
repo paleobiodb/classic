@@ -721,17 +721,6 @@ from the download URL until the section is opened again.</p>
       <input id="pm_coll_re" size="60" onChange="dgapp.checkMetaText('coll_re')">
     </td></tr>
 
-    <tr id="pd_meta_id"><td valign="top">
-      <select id="pm_meta_id_select" onChange="dgapp.checkMetaId('type')">
-	<option value="col">Collection</option>
-	<option value="clu">Cluster</option>
-	<option value="occ">Occurrence</option>
-	<option value="spm">Specimen</option>
-      </select> &nbsp; identifier(s):
-          <input id="pm_meta_id_list" size="60" onChange="dgapp.checkMetaId('list')">
-          <ul id="pe_meta_id" class="dlErrmsg"></ul>
-    </td></tr>
-    
     <tr class="vis_help_f5"><td>
       <p class="dlHelp">Anything you put in this field will be applied as a regular expression
       to the collection_name and collection_aka fields.  Records will be returned only if they are
@@ -740,19 +729,42 @@ from the download URL until the section is opened again.</p>
       regular expression syntax, including the backslash character and vertical bar.</p>
     </td></tr>
     
-    <!-- <tr><td valign="top">Bibliographic reference by &nbsp; -->
-    <!--   <select id="pm_ref_select" onChange="dgapp.checkRef()"> -->
-    <!-- 	<option value="ref_id">reference id</option> -->
-    <!-- 	<option value="ref_title">reference title</option> -->
-    <!-- 	<option value="pub_title">publication title</option> -->
-    <!-- 	<option value="ref_primary">primary author</option> -->
-    <!-- 	<option value="ref_author">any author</option> -->
-    <!--   </select> &nbsp; -->
-    <!--   <input id="pm_ref_id" size="60" onChange="dgapp.checkRef()"/> -->
-    <!--   <input id="pm_ref_title" size="60" style="display: none" onChange="dgapp.checkRef()"/> -->
-    <!--   <input id="pm_pub_title" size="60" style="display: none" onChange="dgapp.checkRef()"/> -->
-    <!--   <input id="pm_ref_author" size="60" style="display: none" onChange="dgapp.checkRef()"/> -->
-    <!-- </td></tr> -->
+    <tr id="pd_meta_id"><td valign="top">
+      <select id="pm_meta_id_select" onChange="dgapp.checkMetaId('type')">
+	<option value="col">Collection</option>
+	<option value="clu">Cluster</option>
+	<option value="occ">Occurrence</option>
+	<option value="spm">Specimen</option>
+      </select> &nbsp; identifier(s):
+      <input id="pm_meta_id_list" size="60" onChange="dgapp.checkMetaId('list')">
+      <ul id="pe_meta_id" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_help_f5"><td>
+      <p class="dlHelp">You may select only records associated with a specified record or records,
+      such as all taxa from a specified set of collections, or all collections from a
+      specified geographic cluster. You may enter one or more record identifiers, as a
+      comma-separated list. These can be specified either as numbers, or as Paleobiology
+      Database external identifiers such as "col:1003" or "occ:54023". In the latter case,
+      the identifier must match the type selected in the dropdown menu.</p>
+    </td></tr>
+    
+    <tr><td valign="top">Bibliographic reference &nbsp;
+      <select id="pm_ref_select" onChange="dgapp.checkRef()">
+    	<option value="ref_id">identifier(s)</option>
+    	<option value="ref_title">title</option>
+    	<option value="pub_title">publication title</option>
+    	<option value="ref_primary">primary author</option>
+    	<option value="ref_author">any author</option>
+      </select> &nbsp;
+      <input id="pm_ref_value" size="60" onChange="dgapp.checkRef()"/>
+      <ul id="pe_meta_ref" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_help_f5"><td> <p class="dlHelp">You may select only records associated with a
+      specified bibliographic reference or references. You may specify these using reference identifiers,
+      either as a number or as an identifier of the form "ref:1027". Alternately, you can specify
+      a title, publication title, primary author, or any author.</p> </td></tr>
     
     <tr class="vis_meta_specs"><td valign="top">Specimens
       <select id="pm_specs_crmod" onChange="dgapp.checkMeta('specs')"></select>
