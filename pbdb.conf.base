@@ -5,9 +5,9 @@ HTML_DIR = /data/MyApp/classic/html
 INTERVAL_URL = http://fossilworks.org/cgi-bin/bridge.pl
 ALLOW_LOGIN = 1
 CGI_DEBUG = 8
-ADMIN_EMAIL = # put administrator email here
-DB_USER = # put database username here
-DB_PASSWD = # put database password here
+ADMIN_EMAIL = admin@paleobiodb.org # put administrator email here
+DB_USER = pbdbuser # put database username here
+DB_PASSWD = pbdbpwd # put database password here
 DB_SOCKET = # put path to database socket here
 MESSAGE_FILE = message.txt
 

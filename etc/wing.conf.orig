@@ -18,9 +18,9 @@
       "serializer" : "JSON"
    },
    "db" : [
-      "DBI:mysql:database=myapp",
-      "USERNAME",
-      "PASSWORD",
+      "DBI:mysql:host=db;database=pbdb_wing",
+      "pbdbuser",
+      "pbdbpwd",
       {
          "mysql_enable_utf8" : 1
       },
@@ -41,7 +41,7 @@
    "rpc_limit" : 30,
    "sitename" : "PROJECT.EXAMPLE.COM",
    "smtp" : {
-      "host" : "MAIL.EXAMPLE.COM",
+      "host" : "relay.mail.wisc.edu",
       "port" : 465,
       "sasl_password" : "PASSWORD",
       "sasl_username" : "USER@EXAMPLE.COM",
