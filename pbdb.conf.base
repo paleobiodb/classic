@@ -1,13 +1,14 @@
 HOST_URL = http://localhost/
-DATA_URL = http://localhost:3000/data1.2/
+DATA_URL = http://localhost/data1.2/
 DATA_DIR = /data/MyApp/data
 HTML_DIR = /data/MyApp/classic/html
 INTERVAL_URL = http://fossilworks.org/cgi-bin/bridge.pl
+GDD_URL = https://geodeepdive.org/api/v1/
 ALLOW_LOGIN = 1
-CGI_DEBUG = 8
+CGI_DEBUG = 0
 ADMIN_EMAIL = admin@paleobiodb.org # put administrator email here
 DB_USER = pbdbuser # put database username here
 DB_PASSWD = pbdbpwd # put database password here
-DB_SOCKET = # put path to database socket here
+DB_CONNECTION = db
 MESSAGE_FILE = message.txt
 

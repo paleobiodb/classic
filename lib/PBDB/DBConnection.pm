@@ -7,7 +7,7 @@
 package PBDB::DBConnection;
 use strict;
 use DBI;
-use PBDB::Constants qw($SQL_DB $DB_USER $DB_SOCKET $DB_PASSWD);
+use PBDB::Constants qw($SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD);
 # return a handle to the database (often called $dbh)
 
 sub connect {
