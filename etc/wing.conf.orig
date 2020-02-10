@@ -18,7 +18,7 @@
       "serializer" : "JSON"
    },
    "db" : [
-      "DBI:mysql:host=db;database=pbdb_wing",
+      "DBI:mysql:host=mysql;database=pbdb_wing",
       "pbdbuser",
       "pbdbpwd",
       {

@@ -15,7 +15,6 @@ engines:
     start_tag: '[%'
     EVAL_PERL: 1
 error_template: error
-layout: main
 log4perl:
   config_file: /data/MyApp/etc/log4perl.conf
 logger: log4perl
