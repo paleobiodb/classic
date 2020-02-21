@@ -154,7 +154,7 @@ sub buildDownload {
     my ($refsCount,$nameCount,$taxaCount,$scaleCount,$mainCount) = (0,0,0,0,ref $lumpedResults ? scalar(@$lumpedResults) : $lumpedResults);
     my ($refsFile,$taxaFile,$scaleFile,$mainFile,$collFile,$colls) = ('','','','','',0);
 
-    PBDB::PBDBUtil::autoCreateDir($HTML_DIR."/public/downloads");
+    PBDB::PBDBUtil::autoCreateDir($HTML_DIR."/downloads");
     
     if ( $q->param('time_scale') ) {
         ($scaleCount,$scaleFile) = $self->printScaleFile($allResults);

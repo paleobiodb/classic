@@ -1,7 +1,6 @@
-HOST_URL = http://localhost/
-DATA_URL = http://localhost/data1.2/
+DATA_URL = /data1.2/
 DATA_DIR = /data/MyApp/data
-HTML_DIR = /data/MyApp/classic/html
+HTML_DIR = /data/MyApp
 INTERVAL_URL = http://fossilworks.org/cgi-bin/bridge.pl
 GDD_URL = https://geodeepdive.org/api/v1/
 ALLOW_LOGIN = 1
@@ -11,4 +10,3 @@ DB_USER = pbdbuser # put database username here
 DB_PASSWD = pbdbpwd # put database password here
 DB_CONNECTION = mysql
 MESSAGE_FILE = message.txt
-
