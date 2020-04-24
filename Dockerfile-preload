@@ -54,3 +54,5 @@ RUN apt-get update && \
 
 RUN apt-get install -y vim
 
+RUN cpanm Email::MIME::Kit::Renderer::TT && \
+    cpanm IO::Socket::SSL

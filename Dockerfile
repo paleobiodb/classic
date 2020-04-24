@@ -6,9 +6,9 @@
 
 FROM paleobiodb_classic_preload
 
-COPY ./pbdb-classic/MyApp /data/MyApp
-COPY ./pbdb-classic/Wing /data/Wing
-COPY ./pbdb-new/lib/TableDefs.pm ./pbdb-new/lib/ExternalIdent.pm ./pbdb-new/lib/PBLogger.pm /data/MyApp/lib/
+COPY pbdb-classic/MyApp /data/MyApp
+COPY pbdb-classic/Wing /data/Wing
+COPY pbdb-new/lib/TableDefs.pm pbdb-new/lib/ExternalIdent.pm pbdb-new/lib/PBLogger.pm /data/MyApp/lib/
 
 COPY app-common /var/paleobiodb/pbdb-apps/common
 COPY app-resource-sub /var/paleobiodb/pbdb-apps/resource_sub
