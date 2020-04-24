@@ -85,13 +85,6 @@
       <option value="student"[% IF user.role == 'student' %] selected="1" [% END %]>Student</option>
       <option value="guest"[% IF user.role == 'guest'  || ! user.role %] selected="1"[% END %]>Guest</option>
     </select>
-    <!-- <label class="radio-inline" for="role_aut"><input class="autosave" type="radio" name="role" value="authorizer" id="role_aut"[% IF user.role == "authorizer" %] checked=1[% END %]>Authorizer</label> -->
-    <!-- <br> -->
-    <!-- <label class="radio-inline" for="role_ent"><input class="autosave" type="radio" name="role" value="enterer" id="role_ent"[% IF user.role == "enterer" %] checked=1[% END %]>Enterer</label> -->
-    <!-- <br> -->
-    <!-- <label class="radio-inline" for="role_stu"><input class="autosave" type="radio" name="role" value="student" id="role_stu"[% IF user.role == "student" %] checked=1[% END %]>Student</label> -->
-    <!-- <br> -->
-    <!-- <label class="radio-inline" for="role_gue"><input class="autosave" type="radio" name="role" value="guest" id="role_gue"[% IF user.role == "guest" %] checked=1[% END %]>Guest</label> -->
   </div>
 </div>
 <div class="form-group">
@@ -111,13 +104,37 @@
     <label class="radio-inline" for="admin_no"><input class="autosave" type="radio" name="admin" value="0" id="admin_no"[% UNLESS user.admin %] checked=1[% END %]>No</label>
     </div>
 </div>
-<!-- <div class="form-group"> -->
-<!--     <label class="col-sm-4 control-label">Disabled Account</label> -->
-<!--     <div class="col-sm-8"> -->
-<!--     <label class="radio-inline" for="disabled_yes"><input class="autosave" type="radio" name="disabled" value="1" id="disabled_yes"[% IF user.disabled %] checked=1[% END %]>Yes</label> -->
-<!--     <label class="radio-inline" for="disabled_no"><input class="autosave" type="radio" name="disabled" value="0" id="disabled_no"[% UNLESS user.disabled %] checked=1[% END %]>No</label> -->
-<!--     </div> -->
-<!-- </div> -->
+<br/>
+</fieldset>
+<fieldset>
+<legend>Special Permissions</legend>
+<div class="form-group">
+    <label class="col-sm-4 control-label" for="permission_RESOURCE_QUEUE">Educational Resources</label>
+    <div class="col-sm-8">
+      <select class="form-control autosave" name="permission[RESOURCE_QUEUE]" id="permission_RESOURCE_QUEUE">
+     	<option value="default"[% IF ! user.permission.RESOURCE_QUEUE %] selected[% END %]>none</option>
+        <option value="admin"[% IF user.permission.RESOURCE_QUEUE == 'admin' %] selected[% END %]>admin</option>
+      </select>
+    </div>
+</div>
+<div class="form-group">
+    <label class="col-sm-4 control-label" for="permission_PUBLICATIONS">Official Publications</label>
+    <div class="col-sm-8">
+      <select class="form-control autosave" name="permission[PUBLICATIONS]" id="permission_PUBLICATIONS">
+     	<option value="default"[% IF ! user.permission.PUBLICATIONS %] selected[% END %]>none</option>
+     	<option value="post"[% IF user.permission.PUBLICATIONS == 'post' %] selected[% END %]>post</option>
+     	<option value="admin"[% IF user.permission.PUBLICATIONS == 'admin' %] selected[% END %]>admin</option>          </select>
+    </div>
+</div>
+<div class="form-group">
+    <label class="col-sm-4 control-label" for="permission_TIMESCALE_DATA">Timescales</label>
+    <div class="col-sm-8">
+      <select class="form-control autosave" name="permission[TIMESCALE_DATA]" id="permission_TIMESCALE_DATA">
+     	<option value="default"[% IF ! user.permission.TIMESCALE_DATA %] selected[% END %]>none</option>
+     	<option value="post"[% IF user.permission.TIMESCALE_DATA == 'post' %] selected[% END %]>post</option>
+     	<option value="admin"[% IF user.permission.TIMESCALE_DATA == 'admin' %] selected[% END %]>admin</option>        </select>
+    </div>
+</div>
 </fieldset>
 </form>
 
