@@ -41,11 +41,11 @@
    "rpc_limit" : 30,
    "sitename" : "PROJECT.EXAMPLE.COM",
    "smtp" : {
-      "host" : "relay.mail.wisc.edu",
-      "port" : 465,
-      "sasl_password" : "PASSWORD",
-      "sasl_username" : "USER@EXAMPLE.COM",
-      "ssl" : 1,
+      "host" : "smtp.wiscmail.wisc.edu",
+      "port" : 25,
+      # "sasl_password" : "PASSWORD",
+      # "sasl_username" : "USER@EXAMPLE.COM",
+      # "ssl" : 1,
       "timeout" : 30
    },
    "wingman" : {
