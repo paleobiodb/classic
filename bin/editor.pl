@@ -141,6 +141,12 @@ my %SELECTION_LABEL = ( AUTH => 'authorities',
 
 my %PERSON;
 
+my $TREE_TABLE = 'taxon_trees';
+my $AUTH_TABLE = 'authorities';
+my $OPIN_TABLE = 'opinions';
+my $OPIN_CACHE = 'order_opinions';
+my $NAME_TABLE = 'taxon_names';
+
 # Create a new Term::ReadLine object, for our command loop.
 
 my $TERM = Term::ReadLine->new('PBDB Editor');
@@ -765,6 +771,8 @@ sub do_page {
     
     my ($cmd, $argstring) = @_;
     
+    my $offset;
+    
     if ( $cmd eq 'next' || $cmd eq 'prev' )
     {
 	if ( $argstring && $argstring !~ qr{ ^ \d+ $ }xs )
@@ -772,38 +780,48 @@ sub do_page {
 	    print_msg "INVALID ARGUMENT '$argstring'\n";
 	    return;
 	}
+
+	elsif ( $argstring ne '' )
+	{
+	    $offset = $argstring;
+	}
+	
+	else
+	{
+	    $offset = $SETTINGS{page};
+	}
     }
     
     if ( $cmd eq 'next' )
     {
-	if ( $argstring ne '' )
+	if ( $SELECTION{SHOW_LIST} )
 	{
-	    $SELECTION{OFFSET} += $argstring;
+	    $LIST{OFFSET} += $offset if $LIST{OFFSET} + $offset < $LIST{COUNT};
+	    display_list();
 	}
 	
 	else
 	{
-	    $SELECTION{OFFSET} += $SETTINGS{page};
+	    $SELECTION{OFFSET} += $offset if $SELECTION{OFFSET} + $offset < $SELECTION{SHOW_COUNT};
+	    display_selection();
 	}
-
-	$SELECTION{SHOW_LIST} ? display_list() : display_selection();
     }
     
     elsif ( $cmd eq 'prev' )
     {
-	if ( $argstring ne '' )
+	if ( $SELECTION{SHOW_LIST} )
 	{
-	    $SELECTION{OFFSET} -= $argstring;
+	    $LIST{OFFSET} -= $offset;
+	    $LIST{OFFSET} = 0 if $LIST{OFFSET} < 0;
+	    display_list();
 	}
 
 	else
 	{
-	    $SELECTION{OFFSET} -= $SETTINGS{page};
+	    $SELECTION{OFFSET} -= $offset;
+	    $SELECTION{OFFSET} = 0 if $SELECTION{OFFSET} < 0;
+	    display_selection();
 	}
-	
-	$SELECTION{OFFSET} = 0 if $SELECTION{OFFSET} < 0;
-	
-	$SELECTION{SHOW_LIST} ? display_list() : display_selection();
     }
     
     elsif ( $cmd eq 'show' )
@@ -833,6 +851,7 @@ sub do_page {
 	elsif ( $argstring =~ qr{ ^ pri (m (ary)? )? $ }xsi )
 	{
 	    $SELECTION{SHOW} = $SELECTION{PRIMARY_TYPE};
+	    $SELECTION{SHOW_COUNT} = $SELECTION{"$SELECTION{SHOW}_COUNT"} || 0;
 	    return display_selection();
 	}
 	
@@ -977,6 +996,8 @@ sub parse_selection_type {
 
     my ($args) = @_;
     
+    $args =~ s{^/}{};
+    
     if ( $args =~ qr{ ^ [^a-z] }xsi )
     {
 	return 'INVALID', '';
@@ -990,72 +1011,78 @@ sub parse_selection_type {
     elsif ( $args =~ qr{ ^ (?:vars?|variants|spells?|spellings) (?: $ | \s+ (.*) ) }xsi )
     {
 	my $rest = "/var $1";
-	return 'AUTH', $1;
+	return 'AUTH', $rest;
+    }
+
+    elsif ( $args =~ qr{ ^ (?:ent|entangled) (?: $ | \s+ (.*) ) }xsi )
+    {
+	my $rest = "/ent $1";
+	return 'AUTH', $rest;
     }
     
-    elsif ( $args =~ qr{ ^ (?:syns?|synonyms?) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?:syns?|synonyms?) (?: $ | \s+ (.*) ) }xsi )
     {
 	my $rest = "/syn $1";
 	return 'AUTH', $rest;
     }
     
-    elsif ( $args =~ qr{ ^ (?:child|children) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?:child|children) (?: $ | \s+ (.*) ) }xsi )
     {
 	my $rest = "/child $1";
 	return 'AUTH', $rest;
     }
     
-    elsif ( $args =~ qr{ ^ tt (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? tt (?: $ | \s+ (.*) ) }xsi )
     {
-	return 'TT', $1;
+	return 'AUTH', "/tt $1";
     }
     
-    elsif ( $args =~ qr{ ^ (?:opinions?|opins?|ops?) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?:opinions?|opins?|ops?) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'OPIN', $1;
     }
     
-    elsif ( $args =~ qr{ ^ (class|spell|group) [_/-]? op (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (class|spell|group) [_/-]? op (?: $ | \s+ (.*) ) }xsi )
     {
 	my $rest = "/$1 $2";
 	return 'OPIN', $1;
     }
     
-    elsif ( $args =~ qr{ ^ (?:collections?|colls?|co) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?:collections?|colls?|co) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'COLL', $1;
     }
     
-    elsif ( $args =~ qr{ ^ (?:occurrences?|occs?|oc) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?:occurrences?|occs?|oc) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'OCCS', $1;
     }
     
-    elsif ( $args =~ qr{ ^ (?: reidentifications?|reids?|ri) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?: reidentifications?|reids?|ri) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'REID', $1;
     }
-
-    elsif ( $args =~ qr{ ^ (?: specimens?|specs?|sp) (?: $ | \s+ (.*) ) }xsi )
+    
+    elsif ( $args =~ qr{ ^ [/]? (?: specimens?|specs?|sp) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'SPEC', $1;
     }
-
-    elsif ( $args =~ qr{ ^ (?: measurements?|meas|me) (?: $ | \s+ (.*) ) }xsi )
+    
+    elsif ( $args =~ qr{ ^ [/]? (?: measurements?|meas|me) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'MEAS', $1;
     }
-
-    elsif ( $args =~ qr{ ^ (?: people|persons?|pers|pe) (?: $ | \s+ (.*) ) }xsi )
+    
+    elsif ( $args =~ qr{ ^ [/]? (?: people|persons?|pers|pe) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'PERS', $1;
     }
     
-    elsif ( $args =~ qr{ ^ (?: references?|refs?|re) (?: $ | \s+ (.*) ) }xsi )
+    elsif ( $args =~ qr{ ^ [/]? (?: references?|refs?|re) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'REFS', $1;
     }
-
+    
     else
     {
 	return 'INVALID', '';
@@ -1230,33 +1257,56 @@ sub select_auth {
     my @arglist = parse_selection_args('AUTH', $argstring);
     
     my %auth;
-    my %orig;
-    my %aux;
+    my %opin;
     my @id_list;
     my @error_list;
     my @notfound_list;
     
     # Look for option specifiers at the beginning of the argument list.
     
-    my $variants;
+    my $selection_type = 'authorities';
+    my $selection_from;
+    my $include_variants;
+    my $include_entangled;
     
     while ( $arglist[0] =~ qr{ ^ [/] }xs )
     {
 	my $opt = shift @arglist;
 	
-	if ( $opt =~ qr{ ^ [/] (?:var|all) }xs )
+	if ( $opt =~ qr{ ^ [/] (?:var|spell|all) }xs )
 	{
-	    $variants = 1;
+	    $include_variants = 1;
+	}
+
+	elsif ( $opt =~ qr{ ^ [/] ent }xs )
+	{
+	    $include_variants = 1;
+	    $include_entangled = 1;
 	}
 	
 	elsif ( $opt =~ qr{ ^ [/] syn }xs )
 	{
-	    $table = 'SYN';
+	    $selection_type = 'synonyms';
 	}
 	
 	elsif ( $opt =~ qr{ ^ [/] (?:chil|chld) }xs )
 	{
-	    $table = 'CHLD';
+	    $selection_type = 'children';
+	}
+
+	elsif ( $opt =~ qr{ ^ [/] tt }xs )
+	{
+	    $selection_type = 'taxon_trees';
+	}
+	
+	elsif ( $opt =~ qr{ ^ [/] (?:ops?|opin) }xs )
+	{
+	    $selection_from = 'opin_child';
+	}
+	
+	elsif ( $opt =~ qr{ ^ [/] (?:ops?|opins?|opinions?) [-_]? par }xs )
+	{
+	    $selection_from = 'opin_parent';
 	}
 	
 	else
@@ -1266,125 +1316,146 @@ sub select_auth {
 	}
     }
     
+    # If selection_from is set and there is a current selection, then select names related to
+    # some aspect of the current selection.
+
+    if ( $selection_from )
+    {
+	if ( $selection_from eq 'opin_child' || $selection_from eq 'opin_parent' )
+	{
+	    unshift @arglist, get_selection_taxa($selection_from);
+	}
+    }
+    
+    # If there are no more arguments, there is nothing to select.
+
+    unless ( @arglist )
+    {
+	print_line "Nothing to select.";
+	return;
+    }
+    
     # Then process the rest of the arguments.
     
     foreach my $arg ( @arglist )
     {
-	my ($sql, $type, $id);
+	my ($sql, $type, $id, $selector);
+	
+	# First process the argument.
 	
 	if ( $arg =~ qr{ ^ (\w\w\w[:])? (\d+) $ }xs )
 	{
 	    $type = $1;
 	    $id = $2;
 	    
-	    if ( $type && ($type ne 'txn' && $type ne 'var') )
+	    if ( $type && ($type ne 'txn' && $type ne 'var' && $type ne 'opn') )
 	    {
 		push @error_list, $arg;
 		next;
 	    }
 	    
-	    if ( $table eq 'TT' )
+	    elsif ( $type && $type eq 'opn' )
 	    {
-		$sql = "SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
-			FROM taxon_trees as t WHERE orig_no = '$id'
-			UNION SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
-			FROM taxon_trees as t WHERE spelling_no = '$id'";
+		$selector = "opinion_no = '$id'";
 	    }
 	    
-	    elsif ( $table eq 'SYN' )
+	    elsif ( $selection_type eq 'taxon_trees' )
 	    {
-		$sql = "SELECT distinct t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM taxon_trees as t join taxon_trees as base
-			using (synonym_no) join authorities as a on base.orig_no = a.orig_no
-			WHERE a.taxon_no = '$id'";
-	    }
-	    
-	    elsif ( $table eq 'CHLD' )
-	    {
-		$sql = "SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM taxon_trees as t join taxon_trees as base on t.immpar_no = base.orig_no
-			  join authorities as a on base.orig_no = a.orig_no
-			WHERE a.taxon_no = '$id'
-			UNION SELECTt.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM taxon_trees as t join taxon_trees as base on t.senpar_no = base.orig_no
-			  join authorities as a on base.orig_no = a.orig_no
-			WHERE a.taxon_no = '$id'";
-	    }
-	    
-	    elsif ( $table eq 'AUTH' )
-	    {
-		$sql = "SELECT orig_no, taxon_no, taxon_name, taxon_rank FROM authorities WHERE taxon_no = '$id'";
+		$selector = "orig_no = '$id'";
 	    }
 	    
 	    else
 	    {
-		croak "Invalid table '$table'\n";
+		$selector = "taxon_no = '$id'";
 	    }
 	}
-	
+	    
 	elsif ( $arg !~ qr{ ^ [a-zA-Z()_%\s]+ $ }xs )
 	{
 	    push @error_list, $arg;
+	    next;
+	}
+
+	elsif ( $selection_type eq 'taxon_trees' )
+	{
+	    my $quoted = $DBH->quote($arg);
+	    $selector = "name like $quoted";
 	}
 	
 	else
 	{
-	    my $quoted = $DBH->quote($arg);
-	    
-	    if ( $table eq 'TT' )
+	    $id = resolve_name($arg);
+	}
+	
+	# Then generate the appropriate SQL based on the argument value and selection type.
+	
+	if ( $selection_type eq 'taxon_trees' )
+	{
+	    if ( $id )
 	    {
 		$sql = "SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
-			FROM taxon_trees WHERE name like $quoted";
-	    }
-	    
-	    elsif ( $table eq 'SYN' )
-	    {
-		$sql = "SELECT distinct t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM taxon_trees as t join taxon_trees as base using (synonym_no)
-			    join authorities as a on base.orig_no = a.orig_no
-			WHERE a.taxon_name like $quoted";
-	    }
-	    
-	    elsif ( $table eq 'CHLD' )
-	    {
-		$sql = "SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM taxon_trees as t join taxon_trees as base on t.immpar_no = base.orig_no
-			    join authorities as a on base.orig_no = a.orig_no
-			WHERE a.taxon_name like $quoted
-			UNION SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM taxon_trees as t join taxon_trees as base on t.senpar_no = base.orig_no
-			    join authorities as a on base.orig_no = a.orig_no
-			WHERE a.taxon_name like $quoted";
-	    }
-	    
-	    elsif ( $table eq 'AUTH' )
-	    {
-		$sql = "SELECT orig_no, taxon_no, taxon_name, taxon_rank FROM authorities
-			WHERE taxon_name like $quoted";
+			FROM $TREE_TABLE as t WHERE orig_no = '$id'
+			UNION SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
+			FROM $TREE_TABLE as t WHERE spelling_no = '$id'";
 	    }
 	    
 	    else
 	    {
-		croak "Invalid table '$table'\n";
+		$sql = "SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
+			FROM $TREE_TABLE WHERE $selector";
 	    }
+	}
+	
+	elsif ( $selection_type eq 'synonyms' )
+	{
+	    $sql = "SELECT distinct t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
+		    FROM $TREE_TABLE as t join $TREE_TABLE as base using (synonym_no)
+			join $AUTH_TABLE as a on base.orig_no = a.orig_no
+		    WHERE a.taxon_no = '$id'";
+	}
+	
+	elsif ( $selection_type eq 'children' )
+	{
+	    $sql = "SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
+			FROM $TREE_TABLE as t join $TREE_TABLE as base on t.immpar_no = base.orig_no
+			  join $AUTH_TABLE as a on base.orig_no = a.orig_no
+			WHERE a.$selector
+			UNION SELECTt.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
+			FROM $TREE_TABLE as t join $TREE_TABLE as base on t.senpar_no = base.orig_no
+			  join $AUTH_TABLE as a on base.orig_no = a.orig_no
+			WHERE a.taxon_no = '$id'";
+	}
+	
+	elsif ( $selection_type eq 'authorities' )
+	{
+	    $sql = "SELECT orig_no, taxon_no, taxon_name, taxon_rank FROM $AUTH_TABLE WHERE taxon_no = '$id'";
+	}
+	
+	else
+	{
+	    croak "Invalid selection type '$selection_type'\n";
 	}
 	
 	print_msg $sql if $DEBUG{sql};
 	
 	my ($found) = $DBH->selectall_arrayref($sql, { Slice => { } });
 	
+	my %orig_no;
+	my %taxon_no;
+	
 	if ( $found && @$found )
 	{
 	    foreach my $r ( @$found )
 	    {
-		my $orig_no = $r->{orig_no};
+		$orig_no{$r->{orig_no}} = 1 if $r->{orig_no};
 		my $taxon_no = $r->{taxon_no} || $r->{spelling_no};
+		$taxon_no{$taxon_no} = 1;
 		unless ( $auth{$taxon_no} )
 		{
+		    $r->{primary} = 1;
 		    $auth{$taxon_no} = $r;
 		    push @id_list, $taxon_no;
 		}
-		$orig{$orig_no} = 1;
 	    }
 	}
 	
@@ -1393,7 +1464,111 @@ sub select_auth {
 	    my $display_arg = $id || $arg;
 	    push @notfound_list, $display_arg;
 	}
+	
+	# If we were asked to add variants, then add them now.
+	
+	if ( $include_variants )
+	{
+	    # Find all variants whose orig_no value corresponds to any of the records added above.
+	    
+	    my $idstring = join(',', keys %orig_no);
+	    
+	    my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank
+			FROM $AUTH_TABLE as a WHERE a.orig_no in ($idstring)";
+	    
+	    print_msg $sql if $DEBUG{sql};
+	    
+	    my $result = $DBH->selectall_arrayref($sql, { Slice => {} });
+	    
+	    if ( $result && @$result )
+	    {
+		foreach my $r ( @$result )
+		{
+		    my $taxon_no = $r->{taxon_no};
+		    
+		    unless ( $auth{$taxon_no} )
+		    {
+			$auth{$taxon_no} = $r;
+			place_element(\@id_list, $taxon_no, \%auth, 'orig_no', $r->{orig_no});
+		    }
+		}
+	    }
+	}
+	
+	# If we were asked to include entangled taxa, then add them now.
+
+	if ( $include_entangled )
+	{
+	    # Find all variants whose orig_no value corresponds to any of the records added above.
+	    
+	    my $idstring = join(',', keys %taxon_no);
+	    
+	    my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank,
+			    o.opinion_no, null as child_no, o.child_spelling_no
+			FROM $OPIN_TABLE as o join $AUTH_TABLE as a on a.taxon_no = o.child_no
+			WHERE o.child_spelling_no in ($idstring) and o.child_no <> o.child_spelling_no
+			UNION SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank,
+			    o.opinion_no, o.child_no, null as child_spelling_no
+			FROM $OPIN_TABLE as o join $AUTH_TABLE as a on a.taxon_no = o.child_spelling_no
+			WHERE o.child_no in ($idstring) and o.child_no <> o.child_spelling_no";
+	    
+	    print_msg $sql if $DEBUG{sql};
+	    
+	    my $result = $DBH->selectall_arrayref($sql, { Slice => {} });
+	    
+	    if ( $result && @$result )
+	    {
+		foreach my $r ( @$result )
+		{
+		    my $taxon_no = $r->{taxon_no};
+		    
+		    unless ( $auth{$taxon_no} )
+		    {
+			$auth{$taxon_no} = $r;
+			place_element(\@id_list, $taxon_no, \%auth, 'orig_no', $r->{orig_no});
+		    }
+		    
+		    if ( my $child_no = $r->{child_no} )
+		    {
+			push @{$auth{$taxon_no}{entangled_from}{$child_no}}, $r->{opinion_no};
+		    }
+		    
+		    elsif ( my $childsp_no = $r->{child_spelling_no} )
+		    {
+			push @{$auth{$taxon_no}{entangled_to}{$childsp_no}}, $r->{opinion_no};
+		    }
+		    
+			# my $place = 0;
+			
+			# # Try to stick this new record immediately after the last one on the last
+			# # that has the same orig_no value.
+			
+			# foreach my $i (0..$#id_list)
+			# {
+			#     my $rr = $auth{$id_list[$i]};
+			#     if ( $rr && $rr->{orig_no} && $orig_no && $rr->{orig_no} eq $orig_no )
+			#     {
+			# 	$place = $i + 1;
+			#     }
+			# }
+			
+			# if ( $place )
+			# {
+			#     splice(@id_list, $place, 0, $taxon_no);
+			# }
+			
+			# # If that doesn't work, then just put it at the end.
+			
+			# else
+			# {
+			#     push @id_list, $taxon_no;
+			# }
+		}
+	    }
+	}
     }
+
+    # Report bad arguments and arguments that didn't match anything.
     
     if ( @error_list )
     {
@@ -1408,12 +1583,7 @@ sub select_auth {
 	print_line "NOT FOUND: no $label matched '$nfstring'"
     }
     
-    if ( $table eq 'SYN' || $table eq 'CHLD' )
-    {
-	$table = 'AUTH';
-    }
-    
-    # If none of the arguments actually matched, return now.
+    # If nothing at all was found, return now.
     
     unless ( %auth )
     {
@@ -1432,46 +1602,12 @@ sub select_auth {
 	
 	if ( $command eq 'add' )
 	{
-	    push @{$SELECTION{SELECTORS}}, { ARGSTRING => $argstring,
-					     TABLE => $table,
-					     TYPE => 'AUTH',
+	    push @{$SELECTION{SELECTORS}}, { TYPE => 'AUTH',
+					     ARGSTRING => $argstring,
 					     FOUND => 0 };
 	}
 	
 	return;
-    }
-    
-    # If the 'variants' option was given, find all variants of these names.
-    
-    my $primary_count = scalar(@id_list);
-    my $variant_count = 0;
-    
-    if ( $variants )
-    {
-	my $idstring = join(',', keys %orig);
-	
-	my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank
-		FROM authorities as a WHERE a.orig_no in ($idstring)";
-	
-	print_msg $sql if $DEBUG{sql};
-	
-	my $result = $DBH->selectall_arrayref($sql, { Slice => {} });
-	
-	if ( $result && ref $result eq 'ARRAY' )
-	{
-	    foreach my $r ( @$result )
-	    {
-		my $taxon_no = $r->{taxon_no};
-		
-		unless ( $auth{$taxon_no} )
-		{
-		    push @id_list, $taxon_no;
-		    $variant_count++;
-		    $auth{$taxon_no} = $r;
-		    $aux{$taxon_no} = 1;
-		}
-	    }
-	}
     }
     
     # If the command was 'list', stuff these results into the list.
@@ -1479,13 +1615,11 @@ sub select_auth {
     if ( $command eq 'list' )
     {
 	$LIST{TYPE} = 'AUTH';
-	$LIST{TABLE} = $table;
 	$LIST{ARGSTRING} = $argstring;
 	$LIST{OFFSET} = 0;
 	$SELECTION{SHOW_LIST} = 1;
 	
 	$LIST{ID} = \%auth;
-	$LIST{AUX} = \%aux;
 	$LIST{RESULTS} = \@id_list;
 	$LIST{COUNT} = scalar(@id_list);
 	
@@ -1498,9 +1632,8 @@ sub select_auth {
 
     else
     {
-	my $selector = { ARGSTRING => $argstring,
-			 TYPE => 'AUTH',
-			 TABLE => $table,
+	my $selector = { TYPE => 'AUTH',
+			 ARGSTRING => $argstring,
 			 COUNT => scalar(@id_list),
 			 DUP => 0 };
 	
@@ -1509,30 +1642,56 @@ sub select_auth {
 	$SELECTION{OFFSET} = 0;
 	delete $SELECTION{SHOW_LIST};
 	
-	# Set the primary selection type to 'authorities', unless it is already set.
+	# Set the primary selection type to 'AUTH', unless it is already set.
 	
 	$SELECTION{PRIMARY_TYPE} ||= 'AUTH';
 	
 	# Now add the selected records, unless they duplicate a record that is already
 	# part of the selection. In that case, increment the duplicate count.
 	
+	$SELECTION{AUTH_LIST} ||= [ ];
+	
 	foreach my $id ( @id_list )
 	{
 	    if ( $SELECTION{AUTH}{$id} )
 	    {
 		$selector->{DUP}++;
-		delete $SELECTION{AUTH_AUX}{$id} unless $aux{$id};
 	    }
 	    
 	    else
 	    {
-		push @{$SELECTION{AUTH_LIST}}, $id;
 		$SELECTION{AUTH}{$id} = $auth{$id};
-		$SELECTION{AUTH_AUX}{$id} = 1 if $aux{$id};
+		place_element($SELECTION{AUTH_LIST}, $id, $SELECTION{AUTH}, 'orig_no', $auth{$id}{orig_no});
+		
+		# # Try to place each new record after the last one that has the same orig_no value.
+		
+		# my $place = 0;
+		
+		# foreach my $i (0..$#{$SELECTION{AUTH_LIST}})
+		# {
+		#     my $iid = $SELECTION{AUTH_LIST}[$i];
+		#     my $rr = $SELECTION{AUTH}{$iid};
+		#     if ( $rr && $rr->{orig_no} && $auth{$id}{orig_no} && $rr->{orig_no} eq $auth{$id}{orig_no} )
+		#     {
+		# 	$place = $i + 1;
+		#     }
+		# }
+		
+		# if ( $place )
+		# {
+		#     splice(@{$SELECTION{AUTH_LIST}}, $place, 0, $id);
+		# }
+		
+		# # If that doesn't work, then just put it at the end.
+		
+		# else
+		# {
+		#     push @{$SELECTION{AUTH_LIST}}, $id;
+		# }
 	    }
 	}
 	
-	$SELECTION{AUTH_COUNT} = $SELECTION{AUTH_LIST} ? @{$SELECTION{AUTH_LIST}} : 0;
+	$SELECTION{AUTH_COUNT} = scalar @{$SELECTION{AUTH_LIST}};
 	
 	adjust_selection();
 	display_selection('noheader');
@@ -1553,25 +1712,12 @@ sub select_opin {
     
     # Look for option specifiers at the beginning of the argument list.
     
-    my $op_type = 'all';
+    my %select;
+    my %opin;
     my $default_type = 'opn';
-    my $select_field = 'child_spelling_no';
+    my $include_variants;
+    my $selection_from;
     
-    if ( $table eq 'CLASS' )
-    {
-	$op_type = 'class';
-    }
-    
-    elsif ( $table eq 'GROUP' )
-    {
-	$op_type = 'group';
-    }
-    
-    elsif ( $table eq 'SPELL' )
-    {
-	$op_type = 'spell';
-    }
-
     while ( $arglist[0] =~ qr{ ^ [/] }xs )
     {
 	my $opt = shift @arglist;
@@ -1580,40 +1726,64 @@ sub select_opin {
 	{
 	    $default_type = 'var';
 	}
+
+	elsif ( $opt =~ qr{ ^ [/] ch }xs )
+	{
+	    $select{child_no} = 1;
+	    $select{child_spelling_no} = 1;
+	    $default_type = 'var';
+	}
 	
 	elsif ( $opt =~ qr{ ^ [/] par }xs )
 	{
-	    $select_field = 'parent_spelling_no';
+	    $select{parent_spelling_no} = 1;
+	    $default_type = 'var';
 	}
 	
-	elsif ( $opt =~ qr{ ^ [/] cha }xs )
+	elsif ( $opt =~ qr{ ^ [/] orig }xs )
 	{
-	    $select_field = 'child_no';
+	    $select{child_no} = 1;
+	    $default_type = 'var';
+	}
+	
+	elsif ( $opt =~ qr{ ^ [/] only }xs )
+	{
+	    $select{child_spelling_no} = 1;
+	    $default_type = 'var';
 	}
 	
 	elsif ( $opt =~ qr{ ^ [/] cla }xs )
 	{
-	    $op_type = 'class';
+	    $select{classop} = 1;
+	    $default_type = 'var';
 	}
-
+	
 	elsif ( $opt =~ qr{ ^ [/] gr }xs )
 	{
-	    $op_type = 'group';
+	    $select{groupop} = 1;
+	    $default_type = 'var';
 	}
 	
 	elsif ( $opt =~ qr{ ^ [/] sp }xs )
 	{
-	    $op_type = 'spell';
-	}
-
-	elsif ( $opt =~ qr{ ^ [/] all $ }xs )
-	{
-	    $op_type = 'all';
+	    $select{spellop} = 1;
+	    $default_type = 'var';
 	}
 	
-	if ( $opt =~ qr{ ^ [/] var }xs )
+	elsif ( $opt =~ qr{ ^ [/] all =? }xs )
 	{
-	    $op_type = 'variants';
+	    $select{child_spelling_no} = 1;
+	    $select{child_no} = 1;
+	    $select{classop} = 1;
+	    $select{groupop} = 1;
+	    $select{spellop} = 1;
+	    $default_type = 'var';
+	}
+	
+	elsif ( $opt =~ qr{ ^ [/] var }xs )
+	{
+	    $include_variants = 1;
+	    $default_type = 'var';
 	}
 	
 	else
@@ -1623,116 +1793,152 @@ sub select_opin {
 	}
     }
     
+    # Default is to select by child_no and child_spelling_no.
+
+    unless ( %select )
+    {
+	%select = ( child_spelling_no => 1, child_no => 1 );
+    }
+    
+    # If selection_from is set and there is a current selection, then select names related to
+    # some aspect of the current selection.
+    
+    if ( $selection_from )
+    {
+    	if ( $selection_from eq 'auth' )
+    	{
+    	    unshift @arglist, get_selection_taxa('auth');
+    	}
+    }
+    
+    # If there are no more arguments, there is nothing to select.
+    
+    unless ( @arglist )
+    {
+    	print_line "Nothing to select.";
+    	return;
+    }
+    
     # Then process the rest of the arguments.
     
     foreach my $arg ( @arglist )
     {
-	my $type;
-	my $selector;
+    	my ($type, $id);
 	
-	# From the argument, generate a selector expression.
+    	# From the argument, generate a selector expression.
 	
-	if ( $arg =~ qr{ ^ (\w\w\w[:])? (\d+) $ }xs )
-	{
-	    $type = $1 || $default_type;
-	    my $id = $2;
+    	if ( $arg =~ qr{ ^ (\w\w\w[:])? (\d+) $ }xs )
+    	{
+    	    $type = $1 || $default_type;
+    	    $id = $2;
 	    
-	    if ( $1 && $1 ne 'txn' && $1 ne 'var' && $1 ne 'opn')
-	    {
-		push @error_list, $arg;
-		next;
-	    }
-	    
-	    if ( $type eq 'opn' )
-	    {
-		$selector = "opinion_no = '$id'";
-	    }
-	    
-	    else
-	    {
-		$selector = "taxon_no = '$id'";
-	    }
-	}
+    	    if ( $1 && $1 ne 'txn' && $1 ne 'var' && $1 ne 'opn')
+    	    {
+    		push @error_list, $arg;
+    		next;
+    	    }
+    	}
 	
-	elsif ( $arg !~ qr{ ^ [a-zA-Z()_%\s]+ $ }xs )
-	{
-	    push @error_list, $arg;
-	}
+    	elsif ( $arg !~ qr{ ^ [a-zA-Z():_%\s]+ $ }xs )
+    	{
+    	    push @error_list, $arg;
+    	    next;
+    	}
 	
-	else
-	{
-	    my $quoted = $DBH->quote($arg);
+    	else
+    	{
+    	    $id = resolve_name($arg);
 
-	    $selector = "taxon_name like $quoted";
+    	    unless ( $id )
+    	    {
+    		push @notfound_list, $arg;
+    		return;
+    	    }
+    	}
+	
+    	# Now generate a list of SQL statements that will be unioned together to return a list of
+    	# opinions.
+	
+    	my @sql_list;
+    	my $fields = "o.opinion_no, oo.ri, oo.pubyr";
+	
+    	if ( $type eq 'opn' )
+    	{
+     	    push @sql_list,
+    		"SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+		WHERE opinion_no in ($id)";
+    	}
+	
+    	else
+    	{
+    	    if ( $include_variants )
+    	    {
+    		my $sql = "SELECT group_concat(distinct a.taxon_no)
+    			FROM $AUTH_TABLE as a join $AUTH_TABLE as base using (orig_no)
+    			WHERE base.taxon_no in ($id)";
+		
+    		print_msg $sql if $DEBUG{sql};
+		
+    		($id) = $DBH->selectrow_array($sql);
+    	    }
+	    
+    	    if ( $select{child_no} )
+    	    {
+    		push @sql_list,
+    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+			WHERE o.child_no in ($id)";
+    	    }
+	    
+    	    if ( $select{child_spelling_no} )
+    	    {
+    		push @sql_list,
+    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+			WHERE o.child_spelling_no in ($id)";
+    	    }
+	    
+    	    if ( $select{parent_spelling_no} )
+    	    {
+    		push @sql_list,
+    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+			WHERE o.parent_spelling_no in ($id)";
+    	    }
+	    
+    	    if ( $select{classop} )
+    	    {
+    		push @sql_list,
+    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+			join $TREE_TABLE as t using (opinion_no) join $AUTH_TABLE as a on a.orig_no = t.orig_no
+    		 WHERE a.taxon_no in ($id)";
+    	    }
+	    
+    	    if ( $select{groupop} )
+    	    {
+    		push @sql_list,
+    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+			join $NAME_TABLE as n using (opinion_no)
+    		 WHERE n.taxon_no in ($id)";
+    	    }
+	    
+    	    if ( $select{spellop} )
+    	    {
+    		push @sql_list,
+    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+		     join $NAME_TABLE as n using (opinion_no)
+    		     join $TREE_TABLE as t on n.taxon_no = t.spelling_no
+    		     join $AUTH_TABLE as a on t.orig_no = a.orig_no
+    		 WHERE a.taxon_no in ($id)";
+    	    }
 	}
 	
-	# From $type, $op_type, and $selector, generate an SQL statement.
-	
-	my $sql;
-	
-	if ( $type && $type eq 'opn' )
-	{
-	    $sql = "SELECT o.opinion_no FROM opinions WHERE o.$selector";
-	}
-	
-	elsif ( $op_type eq 'class' )
-	{
-	    $sql = "SELECT t.opinion_no, a.taxon_no, a.orig_no, a.taxon_name
-		    FROM taxon_trees as t join authorities as a using (orig_no)
-		    WHERE a.$selector";
-	}
-	
-	elsif ( $op_type eq 'group' )
-	{
-	    $sql = "SELECT n.opinion_no, n.taxon_no, n.orig_no, a.taxon_name
-		    FROM taxon_names as n join authorities as a using (taxon_no)
-		    WHERE a.$selector";
-
-	    if ( $type eq 'txn' )
-	    {
-		$sql = "SELECT n.opinion_no, n.taxon_no, n.orig_no
-		    FROM taxon_trees as t join authorities as a using (orig_no)
-		        join taxon_names as n on n.taxon_no = t.spelling_no
-		    WHERE a.$selector";
-	    }
-	}
-	
-	elsif ( $op_type eq 'spell' )
-	{
-	    $sql = "SELECT n.opinion_no, a.taxon_no, a.orig_no, a.taxon_name
-		    FROM taxon_trees as t join authorities as a using (orig_no)
-		        join taxon_names as n on n.taxon_no = t.spelling_no
-		    WHERE a.$selector";
-	}
-	
-	elsif ( $op_type eq 'all' )
-	{
-	    $sql = "SELECT o.opinion_no, a.taxon_no, a.orig_no, a.taxon_name
-		    FROM opinions as o join authorities as a on a.taxon_no = o.$select_field
-		    WHERE a.$selector UNION
-		    SELECT t.opinion_no, a.taxon_no, a.orig_no, a.taxon_name
-		    FROM taxon_trees as t join authorities as a using (orig_no)
-		    WHERE a.$selector";
-	}
-	
-	elsif ( $op_type eq 'variants' )
-	{
-	    $sql = "SELECT o.opinion_no, a.taxon_no, a.orig_no, a.taxon_name
-		    FROM opinions as o join authorities as a on a.taxon_no = o.$select_field
-			join authorities as base on a.orig_no = base.orig_no
-		    WHERE base.$selector UNION
-		    SELECT t.opinion_no, a.taxon_no, a.orig_no, a.taxon_name
-		    FROM taxon_trees as t join authorities as a using (orig_no)
-		    WHERE a.$selector";
-	}
+	my $sql = join("\nUNION ", @sql_list);
 	
 	print_msg $sql if $DEBUG{sql};
 	
-	my ($found) = $DBH->selectall_arrayref($sql, { Slice => { } });
+	my $result = $DBH->selectall_arrayref($sql, { Slice => { } });
 	
-	if ( $found && ref $found eq 'ARRAY' )
+	if ( $result && @$result )
 	{
-	    foreach my $r ( @$found )
+	    foreach my $r ( @$result )
 	    {
 		my $opinion_no = $r->{opinion_no};
 		unless ( $opin{$opinion_no} )
@@ -1751,59 +1957,61 @@ sub select_opin {
     
     if ( @error_list )
     {
-	my $errstring = join("', '", @error_list);
-	print_line("SKIPPED: invalid taxon name or id '$errstring'");
+    	my $errstring = join("', '", @error_list);
+    	print_line("SKIPPED: invalid taxon name or id '$errstring'");
     }
     
     if ( @notfound_list )
     {
-	my $nfstring = join("', '", @notfound_list);
-	print_line "NOT FOUND: no opinions matched '$nfstring'"
+    	my $nfstring = join("', '", @notfound_list);
+    	print_line "NOT FOUND: no opinions matched '$nfstring'"
     }
     
     # If none of the arguments actually matched, return now.
     
     unless ( %opin )
     {
-	if ( $command eq 'select' )
-	{
-	    print_msg "No records found. Selection is empty.";
-	}
+    	if ( $command eq 'select' )
+    	{
+    	    print_msg "No records found. Selection is empty.";
+    	}
 	
-	else
-	{
-	    print_msg "No records found.";
-	}
+    	else
+    	{
+    	    print_msg "No records found.";
+    	}
 	
-	# If we were adding to an existing selection, add a selector record indicating no
-	# records were added.
+    	# If we were adding to an existing selection, add a selector record indicating no
+    	# records were added.
 	
-	if ( $command eq 'add' )
-	{
-	    push @{$SELECTION{SELECTORS}}, { ARGSTRING => $argstring,
-					     TABLE => 'OPIN',
-					     TYPE => 'OPIN',
-					     FOUND => 0 };
-	}
+    	if ( $command eq 'add' )
+    	{
+    	    push @{$SELECTION{SELECTORS}}, { ARGSTRING => $argstring,
+    					     TYPE => 'OPIN',
+    					     FOUND => 0 };
+    	}
 	
-	return;
+    	return;
     }
+    
+    # Now sort the opinions by ri and pubyr.
+
+    @id_list = sort { $opin{$b}{ri} <=> $opin{$a}{ri} || $opin{$b}{pubyr} <=> $opin{$a}{pubyr} } @id_list;
     
     # If the command was 'list', stuff these results into the list.
     
     if ( $command eq 'list' )
     {
-	$LIST{TYPE} = 'OPIN';
-	$LIST{TABLE} = 'OPIN';
-	$LIST{ARGSTRING} = $argstring;
-	$LIST{OFFSET} = 0;
-	$SELECTION{SHOW_LIST} = 1;
+    	$LIST{TYPE} = 'OPIN';
+    	$LIST{ARGSTRING} = $argstring;
+    	$LIST{OFFSET} = 0;
+    	$SELECTION{SHOW_LIST} = 1;
 	
-	$LIST{ID} = \%opin;
-	$LIST{RESULTS} = \@id_list;
-	$LIST{COUNT} = scalar(@id_list);
+    	$LIST{ID} = \%opin;
+    	$LIST{RESULTS} = \@id_list;
+    	$LIST{COUNT} = scalar(@id_list);
 	
-	return display_list('noheader');
+    	return display_list('noheader');
     }
     
     # Otherwise, we either establish a new selection or modify the existing one. Establish
@@ -1812,39 +2020,40 @@ sub select_opin {
 
     else
     {
-	my $selector = { ARGSTRING => $argstring,
-			 TYPE => 'OPIN',
-			 TABLE => 'OPIN',
-			 COUNT => scalar(@id_list),
-			 DUP => 0 };
+    	my $selector = { ARGSTRING => $argstring,
+    			 TYPE => 'OPIN',
+    			 COUNT => scalar(@id_list),
+    			 DUP => 0 };
 	
-	push @{$SELECTION{SELECTORS}}, $selector;
-	$SELECTION{COUNT} ||= 0;
-	$SELECTION{OFFSET} = 0;
-	$SELECTION{PRIMARY_TYPE} ||= 'OPIN';
-	delete $SELECTION{SHOW_LIST};
+    	push @{$SELECTION{SELECTORS}}, $selector;
+    	$SELECTION{COUNT} ||= 0;
+    	$SELECTION{OFFSET} = 0;
+    	$SELECTION{PRIMARY_TYPE} ||= 'OPIN';
+    	delete $SELECTION{SHOW_LIST};
 	
-	# Now add the selected records, unless they duplicate a record that is already
-	# part of the selection. In that case, increment the duplicate count.
+    	# Now add the selected records, unless they duplicate a record that is already
+    	# part of the selection. In that case, increment the duplicate count.
 	
-	foreach my $id ( @id_list )
-	{
-	    if ( $SELECTION{OPIN}{$id} )
-	    {
-		$selector->{DUP}++;
-	    }
+    	$SELECTION{OPIN_LIST} ||= [ ];
+	
+    	foreach my $id ( @id_list )
+    	{
+    	    if ( $SELECTION{OPIN}{$id} )
+    	    {
+    		$selector->{DUP}++;
+    	    }
 	    
-	    else
-	    {
-		push @{$SELECTION{OPIN_LIST}}, $id;
-		$SELECTION{OPIN}{$id} = $opin{$id};
-	    }
-	}
+    	    else
+    	    {
+    		push @{$SELECTION{OPIN_LIST}}, $id;
+    		$SELECTION{OPIN}{$id} = $opin{$id};
+    	    }
+    	}
 	
-	$SELECTION{OPIN_COUNT} = $SELECTION{OPIN_LIST} ? @{$SELECTION{OPIN_LIST}} : 0;
+    	$SELECTION{OPIN_COUNT} = scalar @{$SELECTION{OPIN_LIST}};
 	
-	adjust_selection();
-	display_selection('noheader');
+    	adjust_selection();
+    	display_selection('noheader');
     }
 }
 
@@ -1853,6 +2062,114 @@ sub adjust_selection {
     
     $SELECTION{TOTAL_COUNT} = $SELECTION{AUTH_COUNT} +	$SELECTION{OPIN_COUNT} +
 	$SELECTION{OCCS_COUNT} + $SELECTION{COLL_COUNT};
+
+    $SELECTION{SHOW_COUNT} = $SELECTION{"$SELECTION{SHOW}_COUNT"} || 0;
+}
+
+
+sub place_element {
+
+    my ($list_ref, $element, $attrs_ref, $match, $value) = @_;
+    
+    # Try to stick the new element immediately after the last element in the
+    # list that has the matching value in the attrs hash.
+    
+    if ( $match && $value )
+    {
+	my $place = 0;
+	
+	foreach my $i (0..$#$list_ref)
+	{
+	    my $e = $list_ref->[$i];
+	    
+	    if ( $e && $attrs_ref->{$e}{$match} && $attrs_ref->{$e}{$match} eq $value )
+	    {
+		$place = $i + 1;
+	    }
+	}
+	
+	if ( $place )
+	{
+	    splice(@$list_ref, $place, 0, $element);
+	    return;
+	}
+    }
+    
+    # If that doesn't work, then just put it at the end.
+    
+    push @$list_ref, $element;
+}
+
+
+sub resolve_name {
+    
+    my ($name_arg) = @_;
+
+    my $filter = '';
+    my $sql;
+    
+    if ( $name_arg =~ qr{ ^ (sub|super|infra)?
+			    (species|genus|tribe|family|order|class|kingdom|phylum|clade) \s+ (.*) }xs )
+    {
+	$filter .= " AND a.taxon_rank = '$1$2'";
+	$name_arg = $3;
+    }
+    
+    if ( $name_arg =~ qr{ ^ ([a-zA-Z]+)[:] (.*) }xs )
+    {
+	my $quoted = $DBH->quote($2);
+	my $ct_filter = containing_taxon_filter($1) || return '';
+	
+	$filter .= " AND $ct_filter";
+	
+	$sql = "SELECT a.taxon_no FROM $AUTH_TABLE as a join $TREE_TABLE as t using (orig_no)
+		WHERE taxon_name like $quoted $filter";
+    }
+    
+    else
+    {
+	my $quoted = $DBH->quote($name_arg);
+	
+	$sql = "SELECT a.taxon_no FROM $AUTH_TABLE as a
+		WHERE a.taxon_name like $quoted $filter";
+    }
+    
+    print_msg $sql if $DEBUG{sql};
+    
+    my $result = $DBH->selectcol_arrayref($sql);
+    
+    return $result ? join(',', @$result) : '';
+}
+
+
+sub containing_taxon_filter {
+    
+    my ($filter_name) = @_;
+    
+    unless ( length($filter_name >= 5) )
+    {
+	print_line "INVALID ARGUMENT '$filter_name:': containing taxon must have at least 5 letters";
+	return;
+    }
+    
+    my $quoted = $DBH->quote($filter_name);
+    
+    my $sql = "SELECT lft, rgt FROM $TREE_TABLE where name like $quoted and rank > 5";
+    
+    print_msg $sql if $DEBUG{sql};
+    
+    my $result = $DBH->selectall_arrayref($sql, { Slice => { } });
+    
+    return unless $result && @$result;
+    
+    my @clauses;
+    
+    foreach my $r ( @$result )
+    {
+	push @clauses, "t.lft between ($r->{lft} and $r->{rgt})";
+    }
+    
+    return '(' . join(' OR ', @clauses) . ')';
 }
 
 
@@ -1875,7 +2192,7 @@ sub display_list {
     
     unless ( $arg && $arg eq 'noheader' )
     {
-	my $type = $LIST{TABLE} || 'NONE';
+	my $type = $LIST{TYPE} || 'NONE';
 	print_line "List $SELECTION_LABEL{$type}: $LIST{ARGSTRING}";
     }
     
@@ -1910,7 +2227,10 @@ sub display_list {
     
     my @display_list = @{$LIST{RESULTS}}[$offset..$last];
     
-    display_records(\@display_list, { type => $LIST{TYPE}, offset => $offset, attrs => $LIST{ID} });
+    my $display = $LIST{DISPLAY} || $SETTINGS{display} || 'short';
+    
+    display_records(\@display_list, { type => $LIST{TYPE}, offset => $offset,
+				      display => $display, attrs => $LIST{ID} });
 }
 
 
@@ -1935,7 +2255,7 @@ sub display_selection {
 	    
 	    foreach my $selector ( @{$SELECTION{SELECTORS}} )
 	    {
-		my $label = $SELECTION_LABEL{$selector->{TABLE}};
+		my $label = $SELECTION_LABEL{$selector->{TYPE}};
 		print_line sprintf("%-21s %s", "$word $label:", $selector->{ARGSTRING});
 		$word = "Add   ";
 	    }
@@ -2129,6 +2449,17 @@ sub display_records {
 }
 
 
+# output_auth ( id_string, attrs, display )
+#
+# Output a list of authority (taxonomic name) records. The argument $id_string must be a
+# comma-separated list of taxon_no values. The argument $attrs is an optional hash of hashes that
+# contain information already fetched or computed about each taxonomic name. The argument $display
+# specifies the display style. If not empty, it must be either 'long', 'space', or 'short'.
+#
+# The return format is a list interleaving taxon_no values and strings containing formatted
+# output. This is designed to be assigned to an associative array, which is then used to print out
+# the formatted output in some order.
+
 sub output_auth {
     
     my ($id_string, $attrs, $display) = @_;
@@ -2138,57 +2469,134 @@ sub output_auth {
     $display ||= 'short';
     $attrs ||= { };
     
+    # Generate and execute an SQL statement that will fetch information about all the taxonomic
+    # name records in the list. The 'long' display format requires additional information to be
+    # fetched.
+    
     my $long_fields = '';
     my $long_tables = '';
-
+    
     if ( $display eq 'long' )
     {
-	$long_fields = '
-		    n.opinion_no as spell_opinion_no, t.opinion_no as class_opinion_no,
-		    class.author as class_author, class.pubyr as class_pubyr,
-		    spell.author as spell_author, spell.pubyr as spell_pubyr,';
-	$long_tables = '
-		    left join order_opinions as class on class.opinion_no = t.opinion_no
-		    left join order_opinions as spell on spell.opinion_no = n.opinion_no';
+	$long_fields = "
+		    gr.opinion_no as group_op_no, sp.opinion_no as spell_op_no, t.opinion_no as class_op_no,";
+		    # class.author as class_author, class.pubyr as class_pubyr,
+		    # group.author as group_author, group.pubyr as group_pubyr,
+		    # spell.author as spell_author, spell.pubyr as spell_pubyr,";
+	# $long_tables = "
+	# 	    left join $OPIN_CACHE as `class` on class.opinion_no = t.opinion_no
+	# 	    left join $OPIN_CACHE as `group` on group.opinion_no = gr.opinion_no
+	# 	    left join $OPIN_CACHE as `spell` on spell.opinion_no = sp.opinion_no";
     }
     
     my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank, t.name as tree_name, t.rank as tree_rank,
-		    n.spelling_reason, t.spelling_no, t.accepted_no, t.status, $long_fields
+		    sp.spelling_reason, gr.spelling_reason as group_reason, t.spelling_no,
+		    t.accepted_no, t.status, $long_fields
 		    acc.name as accepted_name, ao.taxon_name as orig_name,
 		    par.name as parent_name, syn.name as synonym_name
-		FROM authorities as a left join authorities as ao on ao.taxon_no = a.orig_no
-		    left join taxon_names as n on n.taxon_no = a.taxon_no
-		    left join taxon_trees as t on t.orig_no = a.orig_no
-		    left join taxon_trees as acc on acc.orig_no = t.accepted_no
-		    left join taxon_trees as par on par.orig_no = t.senpar_no
-		    left join taxon_trees as syn on syn.orig_no = t.synonym_no $long_tables
+		FROM $AUTH_TABLE as a left join $AUTH_TABLE as ao on ao.taxon_no = a.orig_no
+		    left join $NAME_TABLE as `gr` on gr.taxon_no = a.taxon_no
+		    left join $TREE_TABLE as t on t.orig_no = a.orig_no
+		    left join $NAME_TABLE as `sp` on sp.taxon_no = t.spelling_no
+		    left join $TREE_TABLE as `acc` on acc.orig_no = t.accepted_no
+		    left join $TREE_TABLE as `par` on par.orig_no = t.senpar_no
+		    left join $TREE_TABLE as `syn` on syn.orig_no = t.synonym_no
 		WHERE a.taxon_no in ($id_string)";
     
     print_msg $sql if $DEBUG{sql};
     
     my $result = $DBH->selectall_arrayref($sql, { Slice => {} });
     
+    # If the display format is 'long', then fetch all of the relevant opinions.
+    
+    my %opinion;
+    
+    if ( $display eq 'long' )
+    {
+	foreach my $r ( @$result )
+	{
+	    foreach my $field ( 'group_op_no', 'spell_op_no', 'class_op_no' )
+	    {
+		$opinion{$r->{$field}} = { } if $r->{$field};
+	    }
+	    
+	    my $taxon_no = $r->{taxon_no};
+	    
+	    if ( $attrs->{$taxon_no}{entangled_from} )
+	    {
+	    	foreach my $id ( keys %{$attrs->{$taxon_no}{entangled_from}} )
+	    	{
+	    	    $opinion{$_} = { } foreach @{$attrs->{$taxon_no}{entangled_from}{$id}};
+	    	}
+	    }
+	    
+	    if ( $attrs->{$taxon_no}{entangled_to} )
+	    {
+	    	foreach my $id (keys %{$attrs->{$taxon_no}{entangled_to}} )
+	    	{
+	    	    $opinion{$_} = { } foreach @{$attrs->{$taxon_no}{entangled_to}{$id}};
+	    	}
+	    }
+	}
+	
+	my $op_string = join(',', keys %opinion);
+	
+	my $sql = "SELECT opinion_no, author, pubyr, ri
+		    FROM $OPIN_CACHE WHERE opinion_no in ($op_string)";
+
+	print_msg $sql if $DEBUG{sql};
+
+	my $result2 = $DBH->selectall_arrayref($sql, { Slice => { } });
+
+	if ( $result2 && @$result2 )
+	{
+	    foreach my $r ( @$result2 )
+	    {
+		$opinion{$r->{opinion_no}} = $r;
+	    }
+	}
+    }
+    
+    # Now generate the output records.
+    
     my @output_list;
+    
+    # For each record, add two values to @output_list. The first is the taxon_no, and the second
+    # is the formatted output string.
     
     foreach my $r ( @$result )
     {
 	my $taxon_no = $r->{taxon_no};
-	my $tree_entry = $taxon_no eq $r->{spelling_no} ? 1 : 0;
+	my $orig_no = $r->{orig_no};
+	my $spelling_no = $r->{spelling_no};
+	
+	my $tree_entry = $spelling_no && $taxon_no eq $spelling_no ? 1 : 0;
 	
 	push @output_list, $taxon_no;
 	
+	# Compute values necessary for generating the formatted output for this record.
+	
 	my $label = $tree_entry ? 'Taxon' : 'Auth ';
 	
-	my $num = $r->{taxon_no} || '###';
-	$num .= " ($r->{orig_no})" if $r->{orig_no} && $r->{orig_no} ne $r->{taxon_no};
+	my $num = $taxon_no || '###';
+	$num .= " ($orig_no)" if $orig_no && $orig_no ne $taxon_no;
 	
 	my $name;
+	my $desc = "$r->{taxon_rank} - ";
 	
 	if ( $tree_entry )
 	{
 	    $name = $r->{tree_name} || 'xxx';
 	    $name .= " [$r->{taxon_name}]" if $r->{taxon_name} && $r->{taxon_name} ne $name;
 	    $name .= " ($r->{orig_name})" if $r->{orig_name} && $r->{orig_name} ne $name;
+	    
+	    if ( my $spelling_reason = $r->{spelling_reason} )
+	    {
+		if ( $spelling_reason !~ /^orig/ || ($spelling_no && $taxon_no ne $spelling_no) )
+		{
+		    $desc .= "$spelling_reason - ";
+		}
+	    }
 	}
 	
 	else
@@ -2196,10 +2604,13 @@ sub output_auth {
 	    $name = $r->{taxon_name} || 'xxx';
 	    $name .= " ($r->{orig_name})" if $r->{orig_name} && $r->{orig_name} ne $r->{taxon_name};
 	    $name .= " => $r->{tree_name}" if $r->{tree_name} && $r->{tree_name} ne $name;
+
+	    if ( my $group_reason = $r->{group_reason} )
+	    {
+		$desc .= "$group_reason - ";
+	    }
 	}
 	
-	my $desc = "$r->{taxon_rank} - ";
-	$desc .= "$r->{spelling_reason} - " if $r->{spelling_reason} && $r->{spelling_reason} !~ /^orig/;
 	$desc .= $r->{status} || 'unclassified';
 	
 	if ( $r->{status} && $r->{status} =~ /belongs/ && $r->{parent_name} )
@@ -2212,28 +2623,142 @@ sub output_auth {
 	    $desc .= " $r->{synonym_name}";
 	}
 	
+	# If the display format is 'long', add extra information about the opinions that were used
+	# to arrange this name in the taxonomic tree.
+	
 	my $opinions = '';
+	my $entangled_to = '';
+	my $entangled_from = '';
 	
 	if ( $display eq 'long' )
 	{
-	    my $class_author = $r->{class_author} || 'xxx';
-	    my $class_pubyr = $r->{class_pubyr} || '?';
-	    my $op_no = $r->{class_opinion_no};
+	    # If this name has an orig_no different from its taxon_no, then it has been grouped
+	    # with at least one other name into a single taxonomic concept. Report the opinion
+	    # that justifies this grouping.
 	    
-	    $opinions .= $op_no ? "$class_author $class_pubyr #$op_no" : "no classification";
+	    my ($group_section, $spell_section, $class_section);
+	    my ($group_label, $spell_label, $class_label);
 	    
-	    my $spell_author = $r->{spell_author} || 'xxx';
-	    my $spell_pubyr = $r->{spell_pubyr} || '?';
-	    my $sp_no = $r->{spell_opinion_no};
+	    if ( $orig_no && $taxon_no ne $orig_no && (my $group_op = $r->{group_op_no}) )
+	    {
+		my $group_author = $opinion{$group_op}{author} || 'xxx';
+		my $group_pubyr = $opinion{$group_op}{pubyr} || '?';
+		$group_section = "$group_author $group_pubyr #$r->{group_op_no}";
+		$group_label = 'G';
+	    }
 	    
-	    $opinions .= " - $spell_author $spell_pubyr #$sp_no"
-		if $sp_no && $r->{spelling_reason} && $r->{spelling_reason} !~ /^orig/;
+	    # One of the names in this taxonomic concept has been selected as the proper
+	    # variant. That one is selected by the spelling_no field. Report the opinion that
+	    # justifies this selection.
+	    
+	    if ( my $spell_op = $r->{spell_op_no} )
+	    {
+		my $spell_author = $opinion{$spell_op}{author} || 'xxx';
+		my $spell_pubyr = $opinion{$spell_op}{pubyr} || '?';
+		$spell_section = "$spell_author $spell_pubyr #$r->{spell_op_no}";
+		$spell_label = 'S';
+	    }
+	    
+	    # If this taxonomic concept is placed within the main taxonomic tree, report the
+	    # opinion that justifies where it is placed.
+	    
+	    if ( my $class_op = $r->{class_op_no} )
+	    {
+		my $class_author = $opinion{$class_op}{author} || 'xxx';
+		my $class_pubyr = $opinion{$class_op}{pubyr} || '?';
+		$class_section = "$class_author $class_pubyr #$r->{class_op_no}";
+		$class_label = 'C';
+	    }
+	    
+	    # A given opinion can have more than one role, so coalesce any identical opinions
+	    # together. If taxon_no is different from orig_no we are supposed to have a grouping
+	    # opinion, though that is be missing for some names.
+	    
+	    if ( $orig_no && $taxon_no ne $orig_no )
+	    {
+		if ( $group_section && $spell_section && $group_section eq $spell_section )
+		{
+		    $group_label .= 'S';
+		    $spell_section = undef;
+		}
+		
+		if ( $group_section && $class_section && $group_section eq $class_section )
+		{
+		    $group_label .= 'C';
+		    $class_section = undef;
+		}
+	    }
+	    
+	    if ( $spell_section && $class_section && $spell_section eq $class_section )
+	    {
+		$spell_label .= 'C';
+		$class_section = undef;
+	    }
+
+	    # Now put the opinions together into a single line.
+	    
+	    $opinions .= "$group_label: $group_section  " if $group_section;
+	    $opinions .= "$spell_label: $spell_section  " if $spell_section;
+	    $opinions .= "$class_label: $class_section  " if $class_section;
+
+	    # Now check for entanglement.
+
+	    if ( $attrs->{$taxon_no}{entangled_from} )
+	    {
+		my @list;
+		
+		foreach my $txid ( keys %{$attrs->{$taxon_no}{entangled_from}} )
+		{
+		    my $name = $attrs->{$txid}{taxon_name} || $txid;
+		    my $sep = '';
+		    my $ops = '';
+		    foreach my $opno ( @{$attrs->{$taxon_no}{entangled_from}{$txid}} )
+		    {
+			my $auth = $opinion{$opno}{author} || 'xxx';
+			my $pubyr = $opinion{$opno}{pubyr} || '?';
+			$ops .= "$sep$auth $pubyr #$opno";
+			$sep = ', ';
+		    }
+		    
+		    push @list, "$name ($ops)";
+		}
+		
+		$entangled_from = 'Entangled from: ' . join(', ', @list);
+	    }
+	    
+	    if ( $attrs->{$taxon_no}{entangled_to} )
+	    {
+		my @list;
+		
+		foreach my $txid ( keys %{$attrs->{$taxon_no}{entangled_to}} )
+		{
+		    my $name = $attrs->{$txid}{taxon_name} || $txid;
+		    my $sep = '';
+		    my $ops = '';
+		    foreach my $opno ( @{$attrs->{$taxon_no}{entangled_to}{$txid}} )
+		    {
+			my $auth = $opinion{$opno}{author} || 'xxx';
+			my $pubyr = $opinion{$opno}{pubyr} || '?';
+			$ops .= "$sep$auth $pubyr #$opno";
+			$sep = ', ';
+		    }
+		    
+		    push @list, "$name ($ops)";
+		}
+
+		$entangled_to = 'Entangled to: ' . join(', ', @list);
+	    }
 	}
 	
 	my $outstring = '';
 	$outstring =  sprintf("      %-5s %-19s%s\n", $label, $num, $name);
 	$outstring .= sprintf("      %-5s %-19s  %s\n", "", "", $desc);
-	$outstring .= sprintf("      %-5s %-19s    %s\n", "", "", $opinions) if $display eq 'long';
+	if ( $display eq 'long' )
+	{
+	    $outstring .= sprintf("      %-5s %-19s    %s\n", "", "", $opinions);
+	    $outstring .= sprintf("      %-5s %-19s    %s\n", "", "", $entangled_from) if $entangled_from;
+	    $outstring .= sprintf("      %-5s %-19s    %s\n", "", "", $entangled_to) if $entangled_to;
+	}
 	$outstring .= "\n" if $display ne 'short';
 	
 	push @output_list, $outstring;
@@ -2242,6 +2767,29 @@ sub output_auth {
     return @output_list;
 }
 
+
+my (%REASON_OUTPUT, %STATUS_OUTPUT, %HIDE_RANK);
+
+BEGIN {
+    %REASON_OUTPUT = ( recombination => 'is recombined as',
+		       correction => 'is corrected to',
+		       misspelling => 'is a misspelling of',
+		       reassignment => 'is reassigned to',
+		       'rank change' => 'is ranked as ' );
+    
+    %STATUS_OUTPUT = ( 'belongs to' => 'belongs to',
+		       'subjective synonym of' => 'is a subjective synonym of',
+		       'objective synonym of' => 'is an objective synonym of',
+		       'invalid subgroup of' => 'is an invalid subgroup of',
+		       'misspelling of' => 'is a misspelling of',
+		       'replaced by' => 'is replaced by',
+		       'nomen dubium' => 'is a nomen dubium in',
+		       'nomen nudum' => 'is a nomen nudum in',
+		       'nomen oblitum' => 'is a nomen oblitum in',
+		       'nomen vanum' => 'is a nomen vanum in' );
+    
+    %HIDE_RANK = ( subspecies => 1, species => 1, subgenus => 1, genus => 1 );
+}
 
 sub output_opin {
     
@@ -2259,14 +2807,15 @@ sub output_opin {
 		    asp.orig_no as child_orig_no, o.parent_spelling_no, ap.orig_no as parent_orig_no,
 		    o.status, o.basis, o.spelling_reason, o.ref_has_opinion, oo.author, oo.pubyr, oo.ri,
 		    ac.taxon_name as child_name, asp.taxon_name as spelling_name, ap.taxon_name as parent_name,
+		    ac.taxon_rank as child_rank, asp.taxon_rank as spelling_rank, ap.taxon_rank as parent_rank,
 		    t.name as class_tree_name, tn.name as spell_tree_name
-		FROM opinions as o join order_opinions as `oo` using (opinion_no)
-		    left join authorities as `ac` on ac.taxon_no = o.child_no
-		    left join authorities as `asp` on asp.taxon_no = o.child_spelling_no
-		    left join authorities as `ap` on ap.taxon_no = o.parent_spelling_no
-		    left join taxon_trees as t on t.opinion_no = o.opinion_no
-		    left join taxon_names as n on n.opinion_no = o.opinion_no
-		    left join taxon_trees as tn on tn.spelling_no = n.taxon_no
+		FROM $OPIN_TABLE as o join $OPIN_CACHE as `oo` using (opinion_no)
+		    left join $AUTH_TABLE as `ac` on ac.taxon_no = o.child_no
+		    left join $AUTH_TABLE as `asp` on asp.taxon_no = o.child_spelling_no
+		    left join $AUTH_TABLE as `ap` on ap.taxon_no = o.parent_spelling_no
+		    left join $TREE_TABLE as t on t.opinion_no = o.opinion_no
+		    left join $NAME_TABLE as n on n.opinion_no = o.opinion_no
+		    left join $TREE_TABLE as tn on tn.spelling_no = n.taxon_no
 		WHERE o.opinion_no in ($id_string)";
     
     print_msg $sql if $DEBUG{sql};
@@ -2286,24 +2835,63 @@ sub output_opin {
 	$label .= 'S' if $r->{spell_tree_name};
 	
 	my $num = $r->{opinion_no} || '###';
-
-	my $spell_reason = $r->{spelling_reason} || 'something';
+	
+	my $reason = $r->{spelling_reason} || 'something';
 	my $child_name = $r->{child_name} || 'xxx';
+	my $child_rank = $r->{child_rank} || 'rrr';
+	my $child_no = $r->{child_no};
 	my $spell_name = $r->{spelling_name} || 'xxx';
-	my $spell_line = "$child_name $spell_reason $spell_name";
+	my $spell_rank = $r->{spelling_rank} || 'rrr';
+	my $spell_no = $r->{spelling_no};
 	
-	my $status = $r->{status} || '???';
+	my $child_rstr = (!$child_rank || $HIDE_RANK{$child_rank}) ? '' : "$child_rank, ";
+	my $child_desc = "$child_name ($child_rstr$child_no)";
+
+	my $spell_rstr = (!$spell_rank || $HIDE_RANK{$spell_rank}) ? '' : "$spell_rank, ";
+	my $spell_desc = "$spell_name ($spell_rstr$spell_no)";
+	
+	my $description = '';
+	
+	if ( $reason eq 'misspelling' )
+	{
+	    $description .= "$spell_name ($spell_no) is a misspelling of $child_name ($child_no)";
+	}
+
+	elsif ( $reason eq 'original spelling' )
+	{
+	    $description .= "$spell_desc is original name and rank";
+	}
+
+	else
+	{
+	    my $reason_label = $REASON_OUTPUT{$reason} || $reason || 'xxx';
+	    $description .= "$child_desc $reason_label $spell_desc";
+	}
+	
 	my $parent_name = $r->{parent_name} || 'xxx';
+	my $parent_rank = $r->{parent_rank};
 	
-	my $class_line = "$spell_name $status $parent_name";
+	my $status_label = $STATUS_OUTPUT{$r->{status}} || $r->{status} || '???';
+	
+	my $parent_rstr = (!$parent_rank || $HIDE_RANK{$parent_rank}) ? '' : "$parent_rank, ";
+	my $parent_desc = "$parent_name ($parent_rstr$r->{parent_spelling_no})";
+	
+	$description .= ", and $status_label $parent_desc";
 	
 	if ( $display eq 'long' )
 	{
 	}
+
+	my $author = $r->{author} || 'xxx';
+	my $pubyr = $r->{pubyr} || '?';
+	
+	my $attribution = "$author $pubyr - $r->{ri}";
+
+	$attribution .= " - $r->{basis}" if $r->{basis};
 	
 	my $outstring = '';
-	$outstring =  sprintf("      %-10s %-10s%s\n", $label, $num, $class_line);
-	$outstring .= sprintf("      %-10s %-10s%s\n", "", "", $spell_line);
+	$outstring =  sprintf("      %-10s %-10s%s\n", $label, $num, $description);
+	$outstring .= sprintf("      %-10s %-10s%s\n", "", "", $attribution);
 	$outstring .= "\n" if $display ne 'short';
 	
 	push @output_list, $outstring;
@@ -2825,13 +3413,13 @@ sub output_opin {
 #     }
     
 #     $sql = "	SELECT $fields
-# 		FROM authorities as a JOIN authorities as base using (orig_no)
-# 			LEFT JOIN taxon_trees as t using (orig_no)
+# 		FROM $AUTH_TABLE as a JOIN $AUTH_TABLE as base using (orig_no)
+# 			LEFT JOIN $TREE_TABLE as t using (orig_no)
 # 			LEFT JOIN taxon_attrs as v using (orig_no)
 # 			LEFT JOIN taxon_ints as ph using (ints_no)
 # 			LEFT JOIN refs as r on r.reference_no = a.reference_no
-# 			LEFT JOIN taxon_trees as pt on pt.orig_no = t.$SETTINGS{immpar}
-# 			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+# 			LEFT JOIN $TREE_TABLE as pt on pt.orig_no = t.$SETTINGS{immpar}
+# 			LEFT JOIN $TREE_TABLE as at on at.orig_no = t.$SETTINGS{accepted}
 # 		WHERE $where_clause
 # 		GROUP BY a.taxon_no";
         
@@ -2983,7 +3571,7 @@ sub output_opin {
 #     # they must be deleted or updated first.
     
 #     my $op_res = $dbh->selectall_arrayref("
-# 		SELECT opinion_no, orig_no, child_spelling_no FROM order_opinions
+# 		SELECT opinion_no, orig_no, child_spelling_no FROM $OPIN_CACHE
 # 		WHERE orig_no = $taxon_no or child_spelling_no = $taxon_no", { Slice => {} });
     
 #     my ($op_string);
@@ -3057,7 +3645,7 @@ sub output_opin {
 #     if ( $taxon_no eq $orig_no )
 #     {
 # 	my $dependent_nos = $dbh->selectcol_arrayref("
-# 		SELECT orig_no FROM taxon_trees
+# 		SELECT orig_no FROM $TREE_TABLE
 # 		WHERE ($SETTINGS{immpar} = $orig_no or $SETTINGS{senpar} = $orig_no or $SETTINGS{accepted} = $orig_no)
 # 			and orig_no <> $orig_no");
 	
@@ -3077,10 +3665,10 @@ sub output_opin {
 #     else
 #     {
 # 	my $result = $dbh->do("
-# 		UPDATE taxon_trees SET spelling_no = orig_no
+# 		UPDATE $TREE_TABLE SET spelling_no = orig_no
 # 		WHERE orig_no = $orig_no and spelling_no = $taxon_no");
 	
-# 	print_msg("RESET spelling_no for taxon_trees entry: $orig_no") if $result;
+# 	print_msg("RESET spelling_no for $TREE_TABLE entry: $orig_no") if $result;
 #     }
     
 #     # If we get here, then all of the preconditions for deleting the authority
@@ -3578,7 +4166,7 @@ sub output_opin {
 # 	my $opinion_no = $options->{by_selection} ? ($keyval->{opinion_no} || $keyval->{class_no}): $keyval;
 	
 # 	$sql = "SELECT $fields
-# 		FROM opinions as o join order_opinions as oo using (opinion_no)
+# 		FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
 # 			LEFT JOIN authorities as ac on ac.taxon_no = o.child_spelling_no
 # 			LEFT JOIN refs as rc on rc.reference_no = ac.reference_no
 # 			LEFT JOIN authorities as ap on ap.taxon_no = o.parent_spelling_no
@@ -3597,8 +4185,8 @@ sub output_opin {
 # 	my $order_clause = $options->{all} ? "ORDER BY if(o.opinion_no = t.opinion_no, 0, 1)" : "";
 	
 # 	$sql = "SELECT $fields
-# 		FROM authorities as base JOIN opinions as o on (o.child_no = base.taxon_no or o.child_spelling_no = base.taxon_no)
-# 			JOIN order_opinions as oo using (opinion_no)
+# 		FROM authorities as base JOIN $OPIN_TABLE as o on (o.child_no = base.taxon_no or o.child_spelling_no = base.taxon_no)
+# 			JOIN $OPIN_CACHE as oo using (opinion_no)
 # 			LEFT JOIN authorities as ac on ac.taxon_no = o.child_spelling_no
 # 			LEFT JOIN taxon_trees as t on t.orig_no = ac.orig_no
 # 			LEFT JOIN refs as rc on rc.reference_no = ac.reference_no
