@@ -24,10 +24,6 @@ RUN apt-get update && \
     cpanm Email::MIME::Kit && \
     cpanm Email::Sender && \
     cpanm Config::JSON && \
-    cpanm Ouch && \
-    cpanm Log::Log4perl && \
-    cpanm Plugin::Tiny && \
-    cpanm Beanstalk::Client && \
     cpanm DateTime && \
     cpanm DateTime::Format::MySQL && \
     cpanm DBIx::Class::UUIDColumns && \
@@ -35,6 +31,12 @@ RUN apt-get update && \
     cpanm DBIx::Class::InflateColumn::Serializer && \
     cpanm Data::GUID && \
     cpanm Crypt::Eksblowfish::Bcrypt && \
+    cpanm Ouch
+    
+RUN cpanm --force Plugin::Tiny && \
+    cpanm Log::Log4perl && \
+    cpanm Plugin::Tiny && \
+    cpanm Beanstalk::Client && \
     cpanm String::Random && \
     cpanm Cache::FastMmap && \
     cpanm Data::Serializer && \

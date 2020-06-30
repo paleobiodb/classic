@@ -10,12 +10,12 @@ COPY pbdb-classic/MyApp /data/MyApp
 COPY pbdb-classic/Wing /data/Wing
 COPY pbdb-new/lib/TableDefs.pm pbdb-new/lib/ExternalIdent.pm pbdb-new/lib/PBLogger.pm /data/MyApp/lib/
 
-COPY app-common /var/paleobiodb/pbdb-apps/common
-COPY app-resource-sub /var/paleobiodb/pbdb-apps/resource_sub
-COPY app-archive /var/paleobiodb/pbdb-apps/archive
-COPY app-test /var/paleobiodb/pbdb-apps/test
+COPY pbdb-app/ /data/MyApp/resources
 
-RUN ln -s /var/paleobiodb/pbdb-apps /data/MyApp/resources
+COPY pbdb-new /var/paleomacro/pbdb-new
+
+# RUN ln -s /var/paleomacro/pbdb-app /data/MyApp/resources
+
 
 ENV WING_CONFIG=/data/MyApp/etc/wing.conf
 
