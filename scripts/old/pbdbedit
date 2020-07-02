@@ -1,0 +1,3311 @@
+#!/opt/local/bin/perl
+# 
+# The purpose of this program is to provide easy single-record editing for the
+# Paleobiology Database, allowing for updating, deleting and insertion of
+# records with consistency checks and writing the proper datalog entries.
+# 
+# This is intended to replace (for the most part) editing the database via the
+# mysql command line, which in particular does not write datalog entries.
+
+
+use strict;
+
+use lib '../cgi-bin';
+use lib '../newlib';
+
+use TaxonDefs qw(%RANK_STRING %TAXON_TABLE);
+use TableDefs qw($OCC_MATRIX $OCCURRENCES $REIDS);
+use TaxonTables qw(fixOpinionCache);
+use OccurrenceTables qw(updateOccurrenceMatrix);
+
+use DBTransactionManager;
+use Session;
+
+use Term::ReadLine;
+use Term::ReadPassword;
+use Try::Tiny;
+use Carp qw(carp croak);
+use Storable;
+use Getopt::Long;
+
+my $PROMPT = "PBDB %> ";
+my $CMD_COUNT = 1;
+my $DONE;
+
+my %DEBUG;
+my %SETTINGS = ( limit => 100 );
+my %SELECTION;
+my @SELECT_LIST;
+my $SELECT_TABLE;
+my %UNDO_SEL;
+
+my $STATE_FILE = "$ENV{HOME}/.pbdb-state";
+my $STORED = { };
+
+my %COLUMN_INFO;
+my %COLUMN_TYPE;
+
+my %TABLE = (
+    authorities => [ 'authorities', 'taxon_no' ],
+    auth => [ 'authorities', 'taxon_no' ],
+    authname => [ 'authorities', 'taxon_name' ],
+    authorig => [ 'authorities', 'orig_no' ],
+    opinions => [ 'opinions', 'opinion_no' ],
+    op => [ 'opinions', 'opinion_no' ],
+    oporig => [ 'opinions', 'orig_no' ],
+    opname => [ 'opinions', 'taxon_name' ],
+    taxon_trees => [ 'taxon_trees', 'orig_no' ],
+    tt => [ 'taxon_trees', 'orig_no' ],
+    t => [ 'taxon_trees', 'orig_no' ],
+    taxa => [ 'taxon_trees', 'orig_no' ],
+    ttname => [ 'taxon_trees', 'taxon_name' ],
+    occurrences => [ 'occurrences', 'occurrence_no' ],
+    occ => [ 'occurrences', 'occurrence_no' ],
+    occtaxon => [ 'occurrences', 'taxon_no' ],
+    occorig => [ 'occurrences', 'orig_no' ],
+    occname => [ 'occurrences', 'taxon_name' ],
+    reidentifications => [ 'reidentifications', 'reid_no' ],
+    reid => [ 'reidentifications', 'reid_no' ],
+    reocc => [ 'reidentifications', 'occurrence_no' ],
+    collections => [ 'collections', 'collection_no' ],
+    colls => [ 'collections', 'collection_no' ],
+    collname => [ 'collections', 'collection_name' ],
+    specimens => [ 'specimens', 'specimen_no' ],
+    spec => [ 'specimens', 'specimen_no' ],
+    specoccs => [ 'specimens', 'occurrence_no' ],
+    specorig => [ 'specimens', 'orig_no' ],
+    specname => [ 'specimens', 'taxon_name' ],
+    references => [ 'refs', 'reference_no' ],
+    ref => [ 'refs', 'reference_no' ],
+    secondary_refs => [ 'secondary_refs', 'collection_no' ],
+    secrefs => [ 'secondary_refs', 'collection_no' ],
+    secref => [ 'secondary_refs', 'collectino_no' ],
+    person => [ 'person', 'person_no' ],
+    people => [ 'person', 'person_no' ],
+    personname => [ 'person', 'name' ],
+);
+
+my %PRIMARY_KEY = (
+    authorities => 'taxon_no',
+    taxa_tree_cache => 'taxon_no',
+    taxon_trees => 'orig_no',
+    opinions => 'opinion_no',
+    order_opinions => 'opinion_no',
+    occurrences => 'occurrence_no',
+    reidentifications => 'reid_no',
+    collections => 'collection_no',
+    specimens => 'specimen_no',
+    refs => 'reference_no',
+    person => 'person_no');
+
+my %ACTION = (
+    authorities => { query => \&query_auth, list => \&list_auth,
+		     update => \&update_auth, delete => \&delete_auth,
+		     aux_del => \&aux_del_auth, aux_add => \&aux_add_auth },
+    taxon_trees => { query => \&query_tt, list => \&list_tt, update => \&update_tt,
+		     unlink => \&unlink_tt },
+    opinions => { query => \&query_ops, list => \&list_ops,
+		  update => \&update_opinion, delete => \&delete_opinion,
+		  aux_update => \&aux_update_opinion, aux_add => \&aux_update_opinion,
+		  aux_del => \&aux_del_opinion },
+    occurrences => { query => \&query_occs, list => \&list_occs,
+		     update => \&update_occ, delete => \&delete_occ,
+		     aux_update => \&aux_update_occ, aux_add => \&aux_add_occ,
+		     aux_del => \&aux_del_occ },
+    reidentifications => { query => \&query_reids, list => \&list_reids,
+			   update => \&update_reid, delete => \&delete_reid,
+			   aux_update => \&aux_update_occ, aux_add => \&aux_update_occ,
+			   aux_del => \&aux_update_occ }
+);
+
+my %PERSON;
+my $AUTHORIZER;
+my $ENTERER;
+
+sub print_msg ($);
+sub print_line ($);
+
+# Make a database connection.
+
+my $dbt = DBTransactionManager->new();
+
+# Make sure that we can write to the datalog file.
+
+unless ( DBTransactionManager::checkLogAccess )
+{
+    die "Could not write to the datalog file: $!\n";
+}
+
+# Try to load the undo list.
+
+load_state();
+
+# Parse the options list, if any
+
+GetOptions("auth=s" => \$AUTHORIZER, "ent=s", \$ENTERER);
+
+# Try to determine the authorizer and enterer names under which to log in, and
+# ask for a password.  Then attempt to log in to the database using those
+# credentials.
+
+$DB::single = 1;
+
+my $session = try_login($dbt);
+my $dbh = $dbt->{dbh};
+
+preload_people($dbh);
+check_fields($dbh);
+
+# If that succeeds, we then enter a command loop.
+
+my $TERM = Term::ReadLine->new('PBDB Editor');
+my $OUT = $TERM->OUT || \*STDOUT;
+
+if ( ref $STORED->{HISTORY} eq 'ARRAY' )
+{
+    foreach my $h ( @{$STORED->{HISTORY}} )
+    {
+	$TERM->add_history($h);
+    }
+}
+
+
+print_msg "\nPBDB Editor:\n-----------\n";
+
+try {
+    while ( !$DONE )
+    {
+	my $prompt = $PROMPT;
+	$prompt =~ s/%/$CMD_COUNT++/e;
+	
+	my $input = $TERM->readline($prompt);
+	last unless defined $input;
+	
+	warn $@ if $@;
+	
+	try {
+	    handle_command($dbt, $input) if $input =~ /\S/;
+	}
+	    
+	catch {
+	    print_msg($_);
+	};
+    }
+}
+
+catch {
+    save_state($TERM);
+    die $_;
+};
+
+save_state($TERM);
+print_msg "Done.";
+exit;
+
+
+
+sub handle_command {
+
+    my ($dbt, $input) = @_;
+    
+    my ($command, $rest);
+    
+    if ( $input =~ qr{ ^ \s* (\S*) \s+ (.*) }xs )
+    {
+	$command = $1;
+	$rest = $2;
+    }
+    
+    else
+    {
+	$command = $input;
+	$rest = '';
+	
+	$command =~ s/^\s+//;
+    }
+    
+    return unless $command ne '';
+    
+    try {
+	if ( $command =~ qr{ ^ q (uit)? $ }xsi )
+	{
+	    $DONE = 1;
+	    return;
+	}
+	
+	elsif ( $command =~ qr{ ^ l (ist)? $ }xsi )
+	{
+	    return do_list($dbt, $session, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ d (el (ete)? )? $ }xsi )
+	{
+	    return do_delete($dbt, $session, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ unl (ink)? $ }xsi )
+	{
+	    return do_unlink($dbt, $session, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ i (ns (ert)? )? $ }xsi )
+	{
+	    return print_msg("INSERT: not yet implemented");
+	    # return do_insert($dbt, $session, $rest);	# still unimplemented
+	}
+	
+	elsif ( $command =~ qr{ ^ u (pd (ate)? )? $ }xsi )
+	{
+	    return do_update($dbt, $session, 0, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ f (ix)? $ }xsi )
+	{
+	    return do_update($dbt, $session, 1, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ undo $ }xsi )
+	{
+	    return do_undo($dbt, $session, 1, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ redo $ }xsi )
+	{
+	    return do_undo($dbt, $session, 2, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ deb (ug)? $ }xsi )
+	{
+	    return do_debug($dbh, $rest);
+	}
+	
+	elsif ( $command =~ qr{ ^ clear $ }xsi )
+	{
+	    return do_clear($dbh, $rest);
+	}
+	
+	else
+	{
+	    return print_msg "UNKNOWN COMMAND: $command";
+	}
+    }
+    
+    catch {
+	print_msg $_;
+    };
+}
+
+
+sub print_msg ($) {
+    
+    my ($msg) = @_;
+    
+    print $OUT "$msg\n\n";
+}
+
+
+sub print_line ($) {
+    
+    my ($line) = @_;
+    
+    print $OUT "$line\n";
+}
+
+
+sub ask_yorn ($) {
+    
+    my ($prompt) = @_;
+    
+    while (1)
+    {
+	print $OUT "$prompt ";
+	my $answer = <STDIN>;
+	
+	if ( lc $answer eq 'y' || lc $answer eq 'yes' )
+	{
+	    return 1;
+	}
+	
+	elsif ( lc $answer eq 'n' || lc $answer eq 'no' )
+	{
+	    return 0;
+	}
+	
+	else
+	{
+	    $prompt = "Please answer Y or N:";
+	}
+    }
+}
+
+
+sub clear_selection ($) {
+
+    my ($table) = @_;
+    
+    croak "You must specify a selection table" unless $table;
+    
+    %SELECTION = ();
+    @SELECT_LIST = ();
+    $SELECT_TABLE = $table;
+}
+
+
+sub add_to_selection {
+
+    my ($label, $record) = @_;
+    
+    croak "Invalid selection label" unless $label =~ qr{ ^ [a-z][a-z]? $ }xs;
+    croak "Invalid selection record" unless ref $record eq 'HASH';
+    croak "Selection label already exists" if $SELECTION{$label};
+    
+    $SELECTION{$label} = $record;
+    push @SELECT_LIST, $label;
+}
+
+
+sub do_debug {
+    
+    my ($dbh, $rest) = @_;
+    
+    if ( $rest =~ qr{ ^ sql \s* $ }xsi )
+    {
+	$DEBUG{sql} = 1;
+    }
+    
+    elsif ( $rest =~ qr{ ^ nosql \s* $ }xsi )
+    {
+	$DEBUG{sql} = undef;
+    }
+    
+    elsif ( $rest eq '' )
+    {
+	$DB::single = 1;
+	my $a = 1;
+    }
+    
+    else
+    {
+	print_msg "ERROR: unknown debug flag '$rest'";
+    }
+}
+
+
+sub do_clear {
+    
+    my ($dbh, $rest) = @_;
+    
+    if ( $rest =~ qr{ ^ history \s* $ }xsi )
+    {
+	if ( ref $STORED->{HISTORY} eq 'ARRAY' )
+	{
+	    @{$STORED->{HISTORY}} = ();
+	    eval {
+		$TERM->clear_history;
+	    };
+	}
+    }
+    
+    elsif ( $rest =~ qr{ ^ undo \s* $ }xsi )
+    {
+	if ( ref $STORED->{UNDO_LIST} eq 'ARRAY' )
+	{
+	    @{$STORED->{UNDO_LIST}} = ();
+	}
+    }
+    
+    else
+    {
+	print_msg "ERROR: unknown argument '$rest'";
+    }
+}
+
+
+sub do_list {
+    
+    my ($dbt, $session, $args) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    # Check to see if we're listing undo records
+    
+    if ( $args =~ qr{ ^ undo (?: \s+ | $ ) (.* ) }xsi )
+    {
+	my $rest = $1;
+	return list_undo($dbh, $rest);
+    }
+    
+    # Otherwise check for a valid arg pattern
+    
+    unless ( $args =~ qr{ ^ (\w+) \s+ (\S[^/]*) (.*) }xsi )
+    {
+	return print_msg "INVALID ARGUMENTS: '$args'";
+    }
+    
+    my $table_key = $1;
+    my $keyval = $2;
+    my $rest = $3;
+    
+    $keyval =~ s/\s+$//;
+    
+    unless ( $TABLE{$table_key} && ref $TABLE{$table_key} eq 'ARRAY' )
+    {
+	return print_msg "UNKNOWN TABLE: $table_key";
+    }
+    
+    unless ( $keyval )
+    {
+	return print_msg "YOU MUST SPECIFY A KEY VALUE";
+    }
+    
+    my ($table, $key) = @{$TABLE{$table_key}};
+    my ($sql, $result, $by_name);
+    
+    my $options = { };
+    $options = options_for_list($rest) if $rest;
+    
+    if ( $keyval =~ qr{ ^ [0-9,\s]+ $ }xs )
+    {
+	$options->{by_name} = undef;
+    }
+    
+    elsif ( $keyval =~ qr{ ^ ( [a-z][a-z]? ) [>] $ }xs )
+    {
+	$options->{by_selection} = 1;
+	$options->{by_name} = undef;
+	$keyval = $SELECTION{$1};
+	
+	unless ( ref $keyval eq 'HASH' )
+	{
+	    return print_msg("No such record.");
+	}
+    }
+    
+    else
+    {
+	$options->{by_name} = 1;
+	
+	# if ( $args[0] =~ qr{ ^ [a-zA-Z] }xs )
+	# {
+	#     $keyval .= " " . shift @args;
+	# }
+	
+	$keyval =~ s/\./%/;
+	$keyval = $dbh->quote($keyval);
+    }
+    
+    if ( my $query_sub = $ACTION{$table}{query} )
+    {
+	$sql = &$query_sub($dbh, $key, $keyval, $options);
+    }
+    
+    else
+    {
+	return print_msg("UNIMPLEMENTED: '$table'");
+    }
+    
+    # Now that we have determined what SQL query to make, execute it and
+    # display the results.
+    
+    if ( $DEBUG{sql} )
+    {
+	print_line "";
+	print_line $sql;
+    }
+    
+    if ( $options->{limit} )
+    {
+	$sql .= " LIMIT " . $options->{limit} if $options->{limit} > 0;
+    }
+    
+    elsif ( $SETTINGS{limit} )
+    {
+	$sql .= " LIMIT " . $SETTINGS{limit};
+    }
+    
+    $result = $dbh->selectall_arrayref($sql, { Slice => {} });
+    
+    unless ( ref $result eq 'ARRAY' && @$result )
+    {
+	return print_msg "NOTHING FOUND.";
+    }
+    
+    # Now process the results and print them.
+    
+    if ( my $list_sub = $ACTION{$table}{list} )
+    {
+	&$list_sub($dbh, $result);
+	print_line "";
+    }
+    
+    else
+    {
+	print_msg "ERROR: UNIMPLEMENTED '$table'";
+    }
+    
+    return;
+}
+
+
+sub options_for_list {
+    
+    my ($rest) = @_;
+    
+    my @opts = split /\s+/, $rest;
+    my $options = { };
+    
+    while ( @opts )
+    {
+	my $opt = shift @opts;
+	
+	if ( $opt =~ qr{ ^ /all $ }xsi )
+	{
+	    $options->{all} = 1;
+	}
+	
+	elsif ( $opt =~ qr{ ^ /limit $ }xsi )
+	{
+	    my $limit = shift @opts;
+	    die "ERROR: you must include a positive value for /limit"
+		unless defined $limit && ($limit > 0 || lc $limit eq 'all');
+	    $options->{limit} = $limit;
+	}
+	
+	else
+	{
+	    die "ERROR: unknown option '$opt'";
+	}
+    }
+    
+    return $options;
+}
+
+
+sub set_field {
+    
+    my ($r, $s, $field, $value) = @_;
+    
+    my $field_key = "field_$field";
+    my $field_len = length($value);
+    my $width_key = "width_$field";
+    
+    $r->{$field_key} = $value;
+    $s->{$width_key} = $field_len
+	if !defined $s->{$width_key} || $field_len > $s->{$width_key};
+}
+
+
+sub get_date {
+    
+    my ($datetime) = @_;
+    
+    if ( $datetime =~ qr{ ^ ( \d\d\d\d-\d\d-\d\d ) }xsi )
+    {
+	return $1;
+    }
+    
+    else
+    {
+	return 'unknown';
+    }
+}
+
+
+sub do_update {
+
+    my ($dbt, $session, $is_fix, $args) = @_;
+    
+    unless ( $SELECT_TABLE && @SELECT_LIST )
+    {
+	print_msg("NOTHING TO UPDATE.");
+	return;
+    }
+    
+    unless ( $args =~ qr{ ^ ( [,a-z]+ ) \s* (.*) }xs )
+    {
+	print_msg("INVALID ARGUMENTS: '$args'");
+	return;
+    }
+    
+    my $selector = $1;
+    my $rest = $2;
+    my $dbh = $dbt->dbh;
+    
+    unless ( $COLUMN_INFO{$SELECT_TABLE} )
+    {
+	fetch_column_info($dbh, $SELECT_TABLE);
+    }
+    
+    my @update_keys;
+    
+    foreach my $a ( split( qr{\s*,\s*}, $selector ) )
+    {
+	next unless $a;
+	
+	unless ( ref $SELECTION{$a} eq 'HASH' )
+	{
+	    return print_msg("INVALID SELECTOR: '$a'");
+	}
+	
+	push @update_keys, $a;
+    }
+    
+    my %update_values;
+    
+    $update_values{IS_FIX} = 1 if $is_fix;
+    
+    $rest =~ s{ set \s* }{}xsi;
+    
+    while ( $rest =~ /\S/ )
+    {
+	if ( $rest =~ qr{ ^ ( \w+ ) \s* = \s* ' ( [^']* ) ' [,\s]* (.*) }xsi )
+	{
+	    my $arg = $1;
+	    my $value = $dbh->quote($2);
+	    $rest = $3;
+	    $update_values{$arg} = $value;
+	}
+	
+	elsif ( $rest =~ qr{ ^ ( \w+ ) \s* = \s* " ( [^"]* ) " [,\s]* (.*) }xsi )
+	{
+	    my $arg = $1;
+	    my $value = $dbh->quote($2);
+	    $rest = $3;
+	    $update_values{$arg} = $value;
+	}
+	
+	elsif ( $rest =~ qr{ ^ ( \w+ ) \s* = \s* ( [\S]* ) (.*) }xsi )
+	{
+	    my $arg = $1;
+	    my $value = $2;
+	    $rest = $3;
+	    $value =~ s/,+$//;
+	    
+	    unless ( $value =~ qr{ ^ -? [0-9]+ (?: [.][0-9]+ )? $ }xsi || 
+		     $COLUMN_TYPE{$SELECT_TABLE}{$value} )
+	    {
+		return print_msg("ARGUMENT '$arg' must be quoted unless the value is numeric");
+	    }
+	    
+	    $update_values{$arg} = $value;
+	}
+	
+	else
+	{
+	    return print_msg("INVALID UPDATE ARGS: '$rest'");
+	}
+	
+	$rest =~ s/^[,\s]+//;
+    }
+    
+    foreach my $k ( keys %update_values )
+    {
+	if ( $COLUMN_TYPE{$SELECT_TABLE}{$k} =~ qr{int}xsi )
+	{
+	    my $value = $update_values{$k};
+	    
+	    unless ( $value =~ qr{ ^ -? [0-9]+ $ }xsi || $COLUMN_TYPE{$SELECT_TABLE}{$value} =~ qr{int}xsi )
+	    {
+		print_msg("ARGUMENT '$k' must have an integer value.");
+		return;
+	    }
+	}
+    }
+    
+    foreach my $a (@update_keys)
+    {
+	my $r = $SELECTION{$a};
+	my $update_sub = $ACTION{$SELECT_TABLE}{update};
+	
+	if ( $update_sub )
+	{
+	    &$update_sub($dbt, $session, $r, \%update_values);
+	}
+	
+	else
+	{
+	    return print_msg("UNIMPLEMENTED: $SELECT_TABLE");
+	}
+    }
+}
+
+
+sub do_delete {
+    
+    my ($dbt, $session, $rest) = @_;
+    
+    unless ( $SELECT_TABLE && @SELECT_LIST )
+    {
+	print_msg("NOTHING TO DELETE.");
+	return;
+    }
+    
+    unless ( $rest =~ qr{ ^ ( [,a-z]+ ) \s* (.*) }xs )
+    {
+	print_msg("INVALID ARGUMENTS: '$rest'");
+	return;
+    }
+    
+    my $selector = $1;
+    my $rest = $2;
+    
+    unless ( $COLUMN_INFO{$SELECT_TABLE} )
+    {
+	my $dbh = $dbt->dbh;
+	fetch_column_info($dbh, $SELECT_TABLE);
+    }
+    
+    my @delete_keys;
+    
+    foreach my $a ( split( qr{\s*,\s*}, $selector ) )
+    {
+	next unless $a;
+	
+	unless ( ref $SELECTION{$a} eq 'HASH' )
+	{
+	    return print_msg("INVALID SELECTOR: '$a'");
+	}
+	
+	push @delete_keys, $a;
+    }
+    
+    foreach my $a (@delete_keys)
+    {
+	my $r = $SELECTION{$a};
+	my $delete_sub = $ACTION{$SELECT_TABLE}{delete};
+	
+	if ( $delete_sub )
+	{
+	    &$delete_sub($dbt, $session, $r);
+	}
+	
+	else
+	{
+	    return print_msg("CANNOT DELETE FROM $SELECT_TABLE");
+	}
+    }
+}
+
+
+sub do_unlink {
+
+    my ($dbt, $session, $rest) = @_;
+    
+    unless ( $SELECT_TABLE && @SELECT_LIST )
+    {
+	print_msg("NOTHING TO UNLINK.");
+	return;
+    }
+    
+    unless ( $rest =~ qr{ ^ ( \w+ ) \s+ ( [,a-z]+ ) \s* (.*) }xsi )
+    {
+	print_msg("INVALID ARGUMENTS: '$rest'");
+	return;
+    }
+    
+    my $table_key = $1;
+    my $selector = $2;
+    my $rest = $3;
+    
+    unless ( $TABLE{$table_key} && ref $TABLE{$table_key} eq 'ARRAY' )
+    {
+	return print_msg "UNKNOWN TABLE: $table_key";
+    }
+    
+    my ($target, $key) = @{$TABLE{$table_key}};
+    
+    unless ( $COLUMN_INFO{$target} )
+    {
+	my $dbh = $dbt->dbh;
+	fetch_column_info($dbh, $target);
+    }
+    
+    my @unlink_keys;
+    
+    foreach my $a ( split( qr{\s*,\s*}, $selector ) )
+    {
+	next unless $a;
+	
+	unless ( ref $SELECTION{$a} eq 'HASH' )
+	{
+	    return print_msg("INVALID SELECTOR: '$a'");
+	}
+	
+	push @unlink_keys, $a;
+    }
+    
+    foreach my $a (@unlink_keys)
+    {
+	my $r = $SELECTION{$a};
+	my $unlink_sub = $ACTION{$target}{unlink};
+	
+	if ( $unlink_sub )
+	{
+	    &$unlink_sub($dbt, $session, $r);
+	}
+	
+	else
+	{
+	    return print_msg("CANNOT DELETE FROM $target");
+	}
+    }
+
+
+}
+
+
+sub do_undo {
+    
+    my ($dbt, $session, $option, $rest) = @_;
+    
+    unless ( $rest =~ qr{ ^ ( [a-z][a-z]? ) $ }xsi )
+    {
+	return print_msg("ERROR: invalid selector '$rest'");
+    }
+    
+    my $selector = $1;
+    my $r = $UNDO_SEL{$selector};
+    
+    unless ( ref $r eq 'HASH' )
+    {
+	return print_msg("ERROR: no undo record found for '$selector'");
+    }
+    
+    if ( $option eq '1' )
+    {
+	return execute_undo($dbt, $session, $r);
+    }
+    
+    elsif ( $option eq '2' )
+    {
+	return execute_redo($dbt, $session, $r);
+    }
+    
+    else
+    {
+	return print_msg("ERROR: unknown option '$option'");
+    }
+}
+
+
+sub query_auth {
+    
+    my ($dbh, $key, $keyval, $options) = @_;
+    
+    my $fields = "a.*, t.status, t.spelling_no, t.opinion_no, t.synonym_no, t.$SETTINGS{accepted} as accepted_no, 
+		t.$SETTINGS{immpar} as immpar_no, t.$SETTINGS{senpar} as senpar_no, t.lft, t.rgt,
+		pt.name as parent_name, at.name as accepted_name, v.taxon_size,
+		r.author1last as r_author1last, r.author2last as r_author2last,
+		r.otherauthors as r_otherauthors, r.pubyr as r_pubyr";
+    my $sql;
+    
+    my $where_clause;
+    
+    if ( $options->{by_name} )
+    {
+	$where_clause = "base.taxon_name like $keyval";
+    }
+    
+    elsif ( $options->{by_selection} )
+    {
+	my $taxon_no = $keyval->{child_spelling_no} || $keyval->{spelling_no} || $keyval->{taxon_no} || $keyval->{orig_no};
+	$where_clause = "base.taxon_no = $taxon_no";
+    }
+    
+    else
+    {
+	$where_clause = "base.$key in ($keyval)";
+    }
+    
+    $sql = "	SELECT $fields
+		FROM authorities as a JOIN authorities as base using (orig_no)
+			LEFT JOIN taxon_trees as t using (orig_no)
+			LEFT JOIN taxon_attrs as v using (orig_no)
+			LEFT JOIN taxon_ints as ph using (ints_no)
+			LEFT JOIN refs as r on r.reference_no = a.reference_no
+			LEFT JOIN taxon_trees as pt on pt.orig_no = t.$SETTINGS{immpar}
+			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+		WHERE $where_clause
+		GROUP BY a.taxon_no";
+        
+    return $sql;
+}
+
+
+sub list_auth {
+
+    my ($dbh, $result) = @_;
+    
+    # First assemble print fields and determine maximum widths.
+    
+    my $s = { };
+    
+    clear_selection('authorities');
+    my $l = 'a';
+    
+    foreach my $r ( @$result )
+    {
+	my $taxon_name = $r->{taxon_name};
+	my $taxon_rank = $r->{taxon_rank};
+	my $taxon_no = $r->{taxon_no};
+	my $orig_no = $r->{orig_no};
+	my $opinion_no = $r->{opinion_no};
+	
+	my $status = $r->{status};
+	
+	my $attribution = auth_attribution($r);
+	
+	my $other_name = $status eq 'belongs to' ? $r->{parent_name} : $r->{accepted_name};
+	my $other_no = $status eq 'belongs to' ? $r->{immpar_no} : $r->{accepted_no};
+
+	$other_name .= " ($other_no)";
+	$other_name .= " [in $r->{parent_name} ($r->{immpar_no})]"
+	    if defined $r->{parent_name} && defined $r->{accepted_name} && $status ne 'belongs to' &&
+		$r->{parent_name} ne $r->{accepted_name};
+	
+	my $opinion = "<$r->{opinion_no}>";
+	
+	$r->{current} = 1 if $r->{taxon_no} eq $r->{spelling_no};
+	my $cflag = $r->{current} ? '*' : ' ';
+	
+	my $id_string = $taxon_no;
+	$id_string .= " ($orig_no)" if $taxon_no ne $orig_no;
+	
+	my $auth_name = $PERSON{$r->{authorizer_no}};
+	my $ent_name = $PERSON{$r->{enterer_no}};
+	my $mod_name = $PERSON{$r->{modifier_no}};
+	
+	my $authent_string = $auth_name;
+	$authent_string .= " ($ent_name)" if $ent_name ne $auth_name;
+	$authent_string .= " / $mod_name" if $mod_name && $mod_name ne $ent_name;
+	
+	my $date_string = get_date($r->{created}) . ' : ' . get_date($r->{modified});
+	
+	set_field($r, $s, "basic", "$taxon_name [$attribution] : $id_string $cflag ");
+	set_field($r, $s, "rank", $taxon_rank);
+	set_field($r, $s, "status", "$status $other_name");
+	set_field($r, $s, "opinion", $opinion);
+	set_field($r, $s, "authent", $authent_string);
+	set_field($r, $s, "crmod", $date_string);
+    }
+    
+    foreach my $r ( @$result )
+    {
+	print_record($l, make_fields($r, $s, "basic", "   ", "rank", "  ", "status", "  ", "opinion"),
+		         make_fields($r, $s, "authent"),
+			 make_fields($r, $s, "crmod"));
+	add_to_selection($l, $r);
+	$l++;
+    }
+}
+
+
+sub update_auth {
+
+    my ($dbt, $session, $r, $updates) = @_;
+    
+    my $taxon_no = $r->{taxon_no};
+    my $dbh = $dbt->dbh;
+    
+    unless ( $taxon_no && $taxon_no =~ qr{ ^ [0-9]+ $ }xs )
+    {
+	return print_msg("ERROR: BAD TAXON_NO '$taxon_no'");
+    }
+    
+    set_modifier($dbt, $session, $updates);
+    
+    my $auth_entry = get_record($dbh, 'authorities', $taxon_no);
+    my $action_sql = make_update_sql($dbh, 'authorities', $taxon_no, $updates);
+    my $undo_sql = make_update_undo_sql($dbh, 'authorities', $taxon_no, $updates, $auth_entry);
+    
+    # $dbt->updateRecord($session, 'authorities', 'taxon_no', $taxon_no,
+    # $updates);
+    
+    # my $errmsg = $dbt->last_errmsg;
+    
+    # if ( $errmsg )
+    # {
+    # 	print_msg("ERROR: $errmsg");
+    # 	return;
+    # }
+    
+    # my ($action_sql, $undo_sql) = $dbt->last_sql;
+    
+    my $event_type = $updates->{IS_FIX} ? 'FIX' : 'UPDATE';
+    
+    my $updated = execute_sql($dbh, $action_sql);
+    
+    unless ( $updated )
+    {
+	print_msg("Update failed for '$taxon_no'.");
+	return;
+    }
+    
+    log_event($session, $event_type, 'authorities', $taxon_no, $action_sql, $undo_sql);
+    add_undo($r, $event_type, 'authorities', $action_sql, $undo_sql);
+    
+    my $report_which = "$taxon_no \"$r->{taxon_name}\"";
+    
+    print_msg("UPDATED authorities: $report_which");
+    
+    return 1;
+}
+
+
+sub delete_auth {
+    
+    my ($dbt, $session, $r) = @_;
+    
+    my $taxon_no = $r->{taxon_no};
+    my $orig_no = $r->{orig_no};
+    my $spelling_no = $r->{spelling_no};
+    my $taxon_name = $r->{taxon_name};
+    my $taxon_size = $r->{taxon_size};
+    
+    my $dbh = $dbt->{dbh};
+    
+    # First make sure we actually have a valid taxon.
+    
+    unless ( $taxon_no =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	print_msg("ERROR: BAD TAXON_NO '$taxon_no'");
+	return;
+    }
+    
+    # Then see if this is the child_no or orig_no for any opinions.  If so,
+    # they must be deleted or updated first.
+    
+    my $op_res = $dbh->selectall_arrayref("
+		SELECT opinion_no, orig_no, child_spelling_no FROM order_opinions
+		WHERE orig_no = $taxon_no or child_spelling_no = $taxon_no", { Slice => {} });
+    
+    my ($op_string);
+    
+    if ( ref $op_res eq 'ARRAY' && @$op_res )
+    {
+	my @ops;
+	
+	foreach my $r ( @$op_res )
+	{
+	    push @ops, $r->{opinion_no};
+	}
+	
+	$op_string = join(', ', @ops);
+	
+	if ( $op_string )
+	{
+	    print_msg("CANNOT DELETE: OPINIONS: $op_string");
+	    return;
+	}
+    }
+    
+    # Then see if this is the orig_no for any other taxa.
+    
+    my $linked_res = $dbh->selectall_arrayref("
+		SELECT taxon_no, taxon_name FROM authorities
+		WHERE orig_no = $taxon_no and taxon_no <> $taxon_no", { Slice => {} });
+    
+    my ($linked_string, $linked_taxa);
+    
+    if ( ref $linked_res eq 'ARRAY' && @$linked_res )
+    {
+	my (@names, @taxa);
+	
+	foreach my $r ( @$linked_res )
+	{
+	    next if $r->{taxon_no} eq $taxon_no;	# ignore the taxon to
+                                                        # be deleted, of course
+	    push @names, "$r->{taxon_name} ($r->{taxon_no})";
+	    #push @taxa, $a->{taxon_no};
+	}
+	
+	$linked_string = join(', ', @names);
+	#$linked_taxa = join(', ', @taxa);
+	
+	if ( $linked_string )
+	{
+	    print_msg("CANNOT DELETE: ORIG_NO: $linked_string");
+	    return;
+	}
+    }
+    
+    # Then see if this is the taxon_no for any occurrences.
+    
+    my $occs_list = $dbh->selectcol_arrayref("
+		SELECT occurrence_no FROM occ_matrix
+		WHERE taxon_no = $taxon_no", { Slice => {} });
+    
+    if ( ref $occs_list eq 'ARRAY' && @$occs_list )
+    {
+	my $occs_string = join(', ', @$occs_list);
+	
+	print_msg("CANNOT DELETE: OCCURRENCES: $occs_string");
+	return;
+    }
+    
+    # If this is the orig_no we are deleting, and if it has children and/or
+    # junior synonyms, then confirm.  These will all have to be detached from
+    # the hierarchy if this taxon is deleted.
+    
+    if ( $taxon_no eq $orig_no )
+    {
+	my $dependent_nos = $dbh->selectcol_arrayref("
+		SELECT orig_no FROM taxon_trees
+		WHERE ($SETTINGS{immpar} = $orig_no or $SETTINGS{senpar} = $orig_no or $SETTINGS{accepted} = $orig_no)
+			and orig_no <> $orig_no");
+	
+	my @dependents = ref $dependent_nos eq 'ARRAY' ? @$dependent_nos : ();
+	
+	if ( @dependents )
+	{
+	    my $dep_string = join(', ', @dependents);
+	    print_msg("CANNOT DELETE: DEPENDENTS: $dep_string");
+	    return;
+	}
+    }
+    
+    # Otherwise, we may need to set the spelling_no field to something else.  We
+    # set it to orig_no for now.
+    
+    else
+    {
+	my $result = $dbh->do("
+		UPDATE taxon_trees SET spelling_no = orig_no
+		WHERE orig_no = $orig_no and spelling_no = $taxon_no");
+	
+	print_msg("RESET spelling_no for taxon_trees entry: $orig_no") if $result;
+    }
+    
+    # If we get here, then all of the preconditions for deleting the authority
+    # record are met.  We also need to delete the taxa_tree_cache entry
+    # corresponding to this authority record, and also the taxon_trees entry
+    # if $taxon_no == $orig_no.
+    
+    # $dbt->deleteRecord($session, 'authorities', 'taxon_no', $taxon_no);
+    
+    # my $errmsg = $dbt->last_errmsg;
+    
+    # if ( $errmsg )
+    # {
+    # 	print_msg("ERROR: $errmsg");
+    # 	return;
+    # }
+    
+    # my ($action_sql, $undo_sql) = $dbt->last_sql;
+    
+    my $auth_entry = get_record($dbh, 'authorities', $taxon_no);
+    my $ttc_entry = get_record($dbh, 'taxa_tree_cache', $taxon_no);
+    my $tt_entry = get_record($dbh, 'taxon_trees', $taxon_no);
+    
+    # First delete the authority record and log it.
+    
+    my $action_sql = make_delete_sql($dbh, 'authorities', $taxon_no);
+    my $undo_sql = make_replace_sql($dbh, 'authorities', $auth_entry);
+    
+    my $deleted_auth = execute_sql($dbh, $action_sql);
+    
+    unless ( $deleted_auth )
+    {
+	print_msg("Delete failed: '$taxon_no'");
+	return;
+    }
+    
+    log_event($session, 'DELETE', 'authorities', $taxon_no, $action_sql, $undo_sql);
+    
+    my $string = "$taxon_name : $orig_no";
+    $string .= " ($taxon_no)" if $taxon_no ne $orig_no;
+    
+    print_msg("DELETED authority: $string");
+    
+    # Then delete one or possibly both auxiliary records.  These sub-actions
+    # are not logged, since they are derived algorithmically from the
+    # authority and opinion tables.  But we need to add them to the undo
+    # record so that we can undo this action if requested later.  The
+    # taxon_trees entry is only deleted if one actually exists (i.e. if
+    # $taxon_no == $orig_no).
+    
+    $r->{TTC_ENTRY} = get_record($dbh, 'taxa_tree_cache', $taxon_no);
+    $r->{TT_ENTRY} = get_record($dbh, 'taxon_trees', $taxon_no);
+    
+    my $undo = add_undo($r, 'DELETE', 'authorities', $action_sql, $undo_sql);
+    
+    do_aux_delete($dbh, $undo);
+    
+    return 1;
+}
+
+
+sub aux_del_auth {
+    
+    my ($dbh, $r) = @_;
+    
+    my $taxon_no = $r->{taxon_no};
+    
+    my $ttc_delete_sql = make_delete_sql($dbh, 'taxa_tree_cache', $taxon_no);
+    my $tt_delete_sql = make_delete_sql($dbh, 'taxon_trees', $taxon_no);
+    
+    if ( execute_sql($dbh, $ttc_delete_sql) )
+    {
+	print_msg("DELETED taxa_tree_cache: $taxon_no");
+    }
+    
+    if ( $r->{TT_ENTRY} && execute_sql($dbh, $tt_delete_sql) )
+    {
+	print_msg("DELETED taxon_trees: $taxon_no");
+    }
+}
+
+
+sub aux_add_auth {
+    
+    my ($dbh, $r) = @_;
+    
+    my $taxon_no = $r->{taxon_no};
+    
+    if ( $r->{TTC_ENTRY} )
+    {
+	my $ttc_sql = make_replace_sql($dbh, 'taxa_tree_cache', $r->{TTC_ENTRY});
+	
+	if ( execute_sql($dbh, $ttc_sql) )
+	{
+	    print_msg("RECREATED taxa_tree_cache: $taxon_no");
+	}
+    }
+    
+    if ( $r->{TT_ENTRY} )
+    {
+	my $tt_sql = make_replace_sql($dbh, 'taxon_trees', $r->{TT_ENTRY});
+	
+	if ( execute_sql($dbh, $tt_sql) )
+	{
+	    print_msg("RECREATED taxon_trees: $taxon_no");
+	}
+    }
+}
+
+
+sub auth_attribution {
+    
+    my ($r) = @_;
+    
+    return 'unknown' unless defined $r->{ref_is_authority} || defined $r->{ac_ref_is_authority};
+    
+    my $prefix = '';
+    
+    if ( $r->{ac_ref_is_authority} )
+    {
+	$prefix = 'rc_';
+    }
+    
+    elsif ( $r->{ref_is_authority} )
+    {
+	$prefix = 'r_';
+    }
+    
+    elsif ( $r->{ac_author1last} )
+    {
+	$prefix = 'ac_';
+    }
+    
+    my $attr = $r->{"${prefix}author1last"};
+    my $pubyr = $r->{"${prefix}pubyr"};
+    
+    if ( $r->{"${prefix}otherauthors"} )
+    {
+	$attr .= " et. al.";
+    }
+    
+    elsif ( $r->{"${prefix}author2last"} )
+    {
+	$attr .= " and $r->{rc_author2last}";
+    }
+    
+    # elsif ( $r->{ref_is_authority} )
+    # {
+    # 	$attr = $r->{r_author1last};
+    # 	$pubyr = $r->{r_pubyr};
+	
+    # 	if ( $r->{r_otherauthors} )
+    # 	{
+    # 	    $attr .= " et. al.";
+    # 	}
+	
+    # 	elsif ( $r->{r_author2last} )
+    # 	{
+    # 	    $attr .= " and $r->{r_author2last}";
+    # 	}
+    # }
+    
+    # elsif ( $r->{ac_author1last} )
+    # {
+    # 	$attr = $r->{ac_author1last};
+    # 	$pubyr = $r->{ac_pubyr};
+	
+    # 	if ( $r->{ac_otherauthors} )
+    # 	{
+    # 	    $attr .= "et. al.";
+    # 	}
+	
+    # 	elsif ( $r->{ac_author2last} )
+    # 	{
+    # 	    $attr .= " and $r->{ac_author2last}";
+    # 	}
+    # }
+    
+    # else
+    # {
+    # 	$attr = $r->{author1last};
+    # 	$pubyr = $r->{pubyr};
+	
+    # 	if ( $r->{otherauthors} )
+    # 	{
+    # 	    $attr .= "et. al.";
+    # 	}
+	
+    # 	elsif ( $r->{author2last} )
+    # 	{
+    # 	    $attr .= " and $r->{author2last}";
+    # 	}
+    # }
+    
+    if ( $attr && $pubyr )
+    {
+	return "$attr $pubyr";
+    }
+    
+    elsif ( $pubyr )
+    {
+	return $pubyr;
+    }
+    
+    elsif ( $attr )
+    {
+	return $attr;
+    }
+    
+    else
+    {
+	return 'unknown';
+    }
+}
+
+
+sub query_tt {
+    
+    my ($dbh, $key, $keyval, $options) = @_;    
+    
+    my $fields = "t.orig_no, t.spelling_no, t.name as taxon_name, t.rank as taxon_rank, t.opinion_no as class_no,
+		t.status, t.spelling_no, t.synonym_no, t.$SETTINGS{accepted} as accepted_no, t.lft, t.rgt, 
+		pt.name as parent_name, t.$SETTINGS{immpar} as immpar_no, t.$SETTINGS{senpar} as senpar_no, at.name as accepted_name";
+    my $sql;
+    
+    my $where_clause;
+    
+    if ( $options->{by_name} || $key eq 'taxon_name' )
+    {
+	$where_clause = "t.name like $keyval";
+    }
+    
+    elsif ( $options->{by_selection} )
+    {
+	my $orig_no = $keyval->{child_no} || $keyval->{orig_no} || $keyval->{taxon_no};
+	$where_clause = "t.orig_no = $orig_no";
+    }
+    
+    else
+    {
+	$where_clause = "t.orig_no = $keyval";
+    }
+    
+    $sql = "	SELECT $fields
+		FROM taxon_trees as t
+			LEFT JOIN taxon_attrs as v using (orig_no)
+			LEFT JOIN taxon_ints as ph using (ints_no)
+			LEFT JOIN taxon_trees as pt on pt.orig_no = t.$SETTINGS{immpar}
+			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+		WHERE $where_clause
+		GROUP BY t.orig_no";
+    
+    return $sql;
+}
+
+
+sub list_tt {
+
+    my ($dbh, $result) = @_;
+    
+    # First assemble print fields and determine maximum widths.
+    
+    my $s = { };
+    
+    clear_selection('taxon_trees');
+    my $l = 'a';
+    
+    foreach my $r ( @$result )
+    {
+	my $taxon_name = $r->{taxon_name};
+	my $taxon_rank = $RANK_STRING{$r->{taxon_rank}};
+	my $orig_no = $r->{orig_no};
+	my $spelling_no = $r->{spelling_no};
+	
+	my $status = $r->{status};
+	
+	my $other_name = $status eq 'belongs to' ? $r->{parent_name} : $r->{accepted_name};
+	my $other_no = $status eq 'belongs to' ? $r->{immpar_no} : $r->{accepted_no};
+	
+	$other_name .= " ($other_no)";
+	$other_name .= " [in $r->{parent_name} ($r->{immpar_no})]"
+	    if defined $r->{parent_name} && defined $r->{accepted_name} && $status =~ qr{synonym|replaced} &&
+		$r->{parent_name} ne $r->{accepted_name};
+	
+	my $id_string = "$taxon_name : $orig_no";
+	$id_string .= " ($spelling_no)" if $spelling_no ne $orig_no;
+	
+	my $opinion = "<$r->{class_no}>";
+	
+	set_field($r, $s, "basic", $id_string);
+	set_field($r, $s, "rank", $taxon_rank);
+	set_field($r, $s, "status", "$status $other_name");
+	set_field($r, $s, "opinion", $opinion);
+    }
+    
+    foreach my $r ( @$result )
+    {
+	print_record($l, make_fields($r, $s, "basic", "   ", "rank", "  ", "status", "  ", "opinion"));
+	add_to_selection($l, $r);
+	$l++;
+    }
+}
+
+
+sub update_tt {
+
+    my ($dbt, $session, $r, $updates) = @_;
+    
+    my $orig_no = $r->{orig_no};
+    my $dbh = $dbt->dbh;
+    
+    unless ( $orig_no && $orig_no =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	print_msg("ERROR: BAD ORIG_NO '$orig_no'");
+	return;
+    }
+    
+    my $tt_entry = get_record($dbh, 'taxon_trees', $r->{orig_no});
+    my $action_sql = make_update_sql($dbh, 'taxon_trees', $r->{orig_no}, $updates);
+    my $undo_sql = make_update_undo_sql($dbh, 'taxon_trees', $r->{orig_no}, $updates, $tt_entry);
+    
+    my $updated = execute_sql($dbh, $action_sql);
+    
+    unless ( $updated )
+    {
+	print_msg("Update failed.");
+	return;
+    }
+    
+    add_undo($r, 'FIX', 'taxon_trees', $action_sql, $undo_sql);
+    
+    print_msg("UPDATED taxon_trees: $orig_no");
+    
+    return 1;
+}
+
+
+sub unlink_tt {
+    
+    my ($dbt, $session, $r, $substitute) = @_;
+    
+    my $orig_no = $r->{orig_no};
+    my $dbh = $dbt->dbh;
+    
+    unless ( $orig_no && $orig_no =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	print_msg("ERROR: BAD ORIG_NO '$orig_no'");
+	return;
+    }
+    
+    unlink_tt_aspect($dbt, $session, $r, $SETTINGS{accepted}, $substitute);
+    unlink_tt_aspect($dbt, $session, $r, 'synonym_no', $substitute);
+    unlink_tt_aspect($dbt, $session, $r, $SETTINGS{immpar}, $substitute);
+    unlink_tt_aspect($dbt, $session, $r, $SETTINGS{senpar}, $substitute);    
+    
+    # my ($synonym) = $dbh->selectcol_arrayref("
+    # 		SELECT orig_no FROM taxon_trees WHERE synonym_no = $orig_no");
+    
+    # if ( ref $synonym eq 'ARRAY' && @$synonym )
+    # {
+    # 	my $key_list = join(',', @$synonym);
+    # 	my %updates = ( synonym_no => 0 );
+    # 	my %undos = ( synonym_no => $orig_no );
+	
+    # 	my $action_sql = make_multifix_sql($dbh, 'taxon_trees', $key_list, \%updates);
+    # 	my $undo_sql = make_multifix_sql($dbh, 'taxon_trees', $key_list, \%undos);
+	
+    # 	my $unlinked = execute_sql($dbh, $action_sql);
+	
+    # 	unless ( $unlinked )
+    # 	{
+    # 	    print_msg("Unlink failed for 'synonym_no'.");
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    log_event($session, 'FIX', 'taxon_trees', $key_list, $action_sql, $undo_sql);
+    # 	    add_undo($r, 'FIX', 'taxon_trees', $action_sql, $undo_sql);
+    # 	    print_msg("UNLINKED taxon_trees for 'synonym_no': $key_list");
+    # 	}
+    # }    
+    
+    # my ($parent) = $dbh->selectcol_arrayref("
+    # 		SELECT orig_no FROM taxon_trees WHERE $SETTINGS{immpar} = $orig_no");
+    
+    # if ( ref $parent eq 'ARRAY' && @$parent )
+    # {
+    # 	my $key_list = join(',', @$parent);
+    # 	my %updates = ( $SETTINGS{immpar} => 0 );
+    # 	my %undos = ( $SETTINGS{immpar} => $orig_no );
+	
+    # 	my $action_sql = make_multifix_sql($dbh, 'taxon_trees', $key_list, \%updates);
+    # 	my $undo_sql = make_multifix_sql($dbh, 'taxon_trees', $key_list, \%undos);
+	
+    # 	my $unlinked = execute_sql($dbh, $action_sql);
+	
+    # 	unless ( $unlinked )
+    # 	{
+    # 	    print_msg("Unlink failed for '$SETTINGS{immpar}'.");
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    log_event($session, 'FIX', 'taxon_trees', $key_list, $action_sql, $undo_sql);
+    # 	    add_undo($r, 'FIX', 'taxon_trees', $action_sql, $undo_sql);
+    # 	    print_msg("UNLINKED taxon_trees for '$SETTINGS{immpar}': $orig_no");
+    # 	}
+    # }    
+    
+    # my ($senpar) = $dbh->selectcol_arrayref("
+    # 		SELECT orig_no FROM taxon_trees WHERE $SETTINGS{senpar} = $orig_no");
+    
+    # if ( ref $parent eq 'ARRAY' && @$parent )
+    # {
+    # 	my $key_list = join(',', @$parent);
+    # 	my %updates = ( $SETTINGS{senpar} => 0 );
+    # 	my %undos = ( $SETTINGS{senpar} => $orig_no );
+	
+    # 	my $action_sql = make_multifix_sql($dbh, 'taxon_trees', $key_list, \%updates);
+    # 	my $undo_sql = make_multifix_sql($dbh, 'taxon_trees', $key_list, \%undos);
+	
+    # 	my $unlinked = execute_sql($dbh, $action_sql);
+	
+    # 	unless ( $unlinked )
+    # 	{
+    # 	    print_msg("Unlink failed for '$SETTINGS{senpar}'.");
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    log_event($session, 'FIX', 'taxon_trees', $key_list, $action_sql, $undo_sql);
+    # 	    add_undo($r, 'FIX', 'taxon_trees', $action_sql, $undo_sql);
+    # 	    print_msg("UNLINKED taxon_trees for '$SETTINGS{senpar}': $key_list");
+    # 	}
+    # }    
+    
+    return 1;
+}
+
+
+sub unlink_tt_aspect {
+
+    my ($dbt, $session, $r, $linkfield, $substitute) = @_;
+    
+    my $orig_no = $r->{orig_no};
+    my $dbh = $dbt->dbh;
+    
+    $substitute //= 0;
+    
+    my ($list) = $dbh->selectcol_arrayref("
+		SELECT orig_no FROM taxon_trees WHERE $linkfield = $orig_no");
+    
+    return unless ref $list eq 'ARRAY' && @$list;
+    
+    my %updates = ( $linkfield => $substitute );
+    my %undos = ( $linkfield => $orig_no );
+    my $key_string = join(',', @$list);
+    
+    my $action_sql = make_multifix_sql($dbh, 'taxon_trees', $key_string, \%updates);
+    my $undo_sql = make_multifix_sql($dbh, 'taxon_trees', $key_string, \%undos);
+    
+    my $unlinked = execute_sql($dbh, $action_sql);
+    
+    unless ( $unlinked )
+    {
+	return print_msg("Unlink failed for '$linkfield'.");
+    }
+    
+    else
+    {
+	log_event($session, 'FIX', 'taxon_trees', $orig_no, $action_sql, $undo_sql);
+	add_undo($r, 'FIX', 'taxon_trees', $action_sql, $undo_sql);
+	print_msg("UNLINKED taxon_trees for '$linkfield': $key_string");
+    }
+    
+    return 1;
+}
+
+
+sub query_ops {
+    
+    my ($dbh, $key, $keyval, $options) = @_;    
+    
+    my $fields = "o.*, oo.orig_no as oo_orig_no, oo.ri, oo.pubyr as oo_pubyr, oo.parent_no as oo_parent_no,
+		ac.orig_no, t.name as current_name, t.opinion_no as class_no,
+		ac.taxon_name as child_name, ac.taxon_rank as child_rank, ac.ref_is_authority as ac_ref_is_authority,
+		ac.author1last as ac_author1last, ac.author2last as ac_author2last, ac.otherauthors as ac_otherauthors,
+		ac.pubyr as ac_pubyr, rc.author1last as rc_author1last, rc.author2last as rc_author2last,
+		rc.otherauthors as rc_otherauthors, rc.pubyr as rc_pubyr,
+		ap.taxon_name as parent_name";
+    my $sql;
+    
+    if ( $key eq 'opinion_no' && ! $options->{by_name} )
+    {
+	my $opinion_no = $options->{by_selection} ? ($keyval->{opinion_no} || $keyval->{class_no}): $keyval;
+	
+	$sql = "SELECT $fields
+		FROM opinions as o join order_opinions as oo using (opinion_no)
+			LEFT JOIN authorities as ac on ac.taxon_no = o.child_spelling_no
+			LEFT JOIN refs as rc on rc.reference_no = ac.reference_no
+			LEFT JOIN authorities as ap on ap.taxon_no = o.parent_spelling_no
+			LEFT JOIN taxon_trees as t on t.orig_no = ac.orig_no
+		WHERE o.opinion_no in ($opinion_no)
+		GROUP BY o.opinion_no";
+    }
+    
+    else
+    {
+	my $where_clause = ($options->{by_name} || $key eq 'taxon_name') ? "base.taxon_name like $keyval" : 
+	    "base.taxon_no in ($keyval)";
+	
+	$where_clause .= " and o.opinion_no = t.opinion_no" unless $options->{all};
+	
+	my $order_clause = $options->{all} ? "ORDER BY if(o.opinion_no = t.opinion_no, 0, 1)" : "";
+	
+	$sql = "SELECT $fields
+		FROM authorities as base JOIN opinions as o on (o.child_no = base.taxon_no or o.child_spelling_no = base.taxon_no)
+			JOIN order_opinions as oo using (opinion_no)
+			LEFT JOIN authorities as ac on ac.taxon_no = o.child_spelling_no
+			LEFT JOIN taxon_trees as t on t.orig_no = ac.orig_no
+			LEFT JOIN refs as rc on rc.reference_no = ac.reference_no
+			LEFT JOIN authorities as ap on ap.taxon_no = o.parent_spelling_no
+		WHERE $where_clause
+		GROUP BY o.opinion_no $order_clause";
+    }
+    
+    return $sql;
+}
+
+
+sub list_ops {
+
+    my ($dbh, $result) = @_;
+    
+    # First assemble print fields and determine maximum widths.
+    
+    my $s = { };
+    
+    clear_selection('opinions');
+    my $l = 'a';
+    
+    foreach my $r ( @$result )
+    {
+	my $child_name = $r->{child_name};
+	my $child_rank = $r->{child_rank};
+	my $parent_name = $r->{parent_name};
+	my $status = $r->{status};
+	$status .= " ($r->{spelling_reason})" if $r->{spelling_reason} && $r->{spelling_reason} ne 'original spelling';
+	my $spelling_no = $r->{spelling_no};
+	
+	my $child_attr = auth_attribution($r);
+	
+	my $child = "$r->{child_name} [$child_attr] : $r->{child_spelling_no}";
+	$child .= " ($r->{child_no})" if $r->{child_spelling_no} ne $r->{child_no};
+	$child .= " (* $r->{oo_orig_no} *)" if $r->{oo_orig_no} ne $r->{orig_no};
+	
+	my $parent_name = "$r->{parent_name} : $r->{parent_no}";
+	$parent_name .= " (* $r->{oo_parent_no} *)" if $r->{oo_parent_no} ne $r->{parent_no};
+	
+	my $author_string = "$r->{author} $r->{pubyr}";
+	
+	my $flag = $r->{opinion_no} eq $r->{class_no} ? "  [*]  " : "       ";
+	
+	my $auth_name = $PERSON{$r->{authorizer_no}};
+	my $ent_name = $PERSON{$r->{enterer_no}};
+	my $mod_name = $PERSON{$r->{modifier_no}};
+	
+	my $authent_string = $auth_name;
+	$authent_string .= " ($ent_name)" if $ent_name ne $auth_name;
+	$authent_string .= " / $mod_name" if $mod_name && $mod_name ne $ent_name;
+	
+	my $date_string = get_date($r->{created}) . ' : ' . get_date($r->{modified});
+	
+	set_field($r, $s, "id", $r->{opinion_no});
+	set_field($r, $s, "child", $child);
+	set_field($r, $s, "flag", $flag);
+	set_field($r, $s, "status", $status);
+	set_field($r, $s, "parent", $parent_name);
+	set_field($r, $s, "rank", $child_rank);
+	set_field($r, $s, "author", $author_string);
+	set_field($r, $s, "authent", $authent_string);
+	set_field($r, $s, "crmod", $date_string);
+    }
+    
+    foreach my $r ( @$result )
+    {
+	print_record($l, make_fields($r, $s, "id", "  ", "child", "flag", "status", "   ", "parent"),
+		         make_fields($r, $s, ">child", "rank", "   ", "author"),
+			 make_fields($r, $s, "authent"),
+			 make_fields($r, $s, "crmod"));
+	add_to_selection($l, $r);
+	$l++;
+    }
+}
+
+
+sub update_opinion {
+    
+    my ($dbt, $session, $r, $updates) = @_;
+    
+    my $opinion_no = $r->{opinion_no};
+    my $dbh = $dbt->dbh;
+    
+    unless ( $opinion_no && $opinion_no =~ qr{ ^ [0-9]+ $ }xs )
+    {
+	return print_msg("ERROR: BAD OPINION_NO '$opinion_no'");
+    }
+    
+    set_modifier($dbt, $session, $updates);
+    
+    my $op_entry = get_record($dbh, 'opinions', $opinion_no);
+    my $action_sql = make_update_sql($dbh, 'opinions', $opinion_no, $updates);
+    my $undo_sql = make_update_undo_sql($dbh, 'opinions', $opinion_no, $updates, $op_entry);
+    
+    my $event_type = $updates->{IS_FIX} ? 'FIX' : 'UPDATE';
+    
+    my $updated = execute_sql($dbh, $action_sql);
+    
+    unless ( $updated )
+    {
+	print_msg("Update failed for '$opinion_no'.");
+	return;
+    }
+    
+    log_event($session, $event_type, 'opinions', $opinion_no, $action_sql, $undo_sql);
+    
+    print_msg("Updated opinion: $opinion_no");
+    
+    my $undo = add_undo($r, $event_type, 'opinions', $action_sql, $undo_sql);
+    
+    do_aux_update($dbh, $undo);
+    
+    return 1;
+}
+
+
+sub aux_update_opinion {
+
+    my ($dbh, $r) = @_;
+    
+    my $opinion_no = $r->{opinion_no};
+    
+    fixOpinionCache($dbh, 'order_opinions', 'taxon_trees', $opinion_no);
+}
+
+
+sub delete_opinion {
+    
+    my ($dbt, $session, $r) = @_;
+    
+    my $opinion_no = $r->{opinion_no};
+    my $child_name = $r->{child_name};
+    my $dbh = $dbt->{dbh};
+    
+    # First make sure we actually have a valid opinion.
+    
+    unless ( $opinion_no && $opinion_no =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	print_msg("ERROR: BAD OPINION_NO '$opinion_no'");
+	return;
+    }
+    
+    # Then see if this is the classification opinion for any taxa.
+    # If so, they must be deleted or updated first.
+    
+    my $op_res = $dbh->selectall_arrayref("
+		SELECT orig_no, name FROM taxon_trees
+		WHERE opinion_no = $opinion_no", { Slice => {} });
+    
+    my ($op_string);
+    
+    if ( ref $op_res eq 'ARRAY' && @$op_res )
+    {
+	my @taxa;
+	
+	foreach my $r ( @$op_res )
+	{
+	    push @taxa, $r->{taxon_no} . " (" . $r->{orig_no} . ")";
+	}
+	
+	$op_string = join(', ', @taxa);
+	
+	if ( $op_string )
+	{
+	    print_msg("CANNOT DELETE: CLASSIFICATIONS: $op_string");
+	    return;
+	}
+    }
+    
+    # If we get here then we have passed all of the preconditions for deleting
+    # an opinion record.
+    
+    my $op_entry = get_record($dbh, 'opinions', $opinion_no);
+    my $action_sql = make_delete_sql($dbh, 'opinions', $opinion_no);
+    my $undo_sql = make_replace_sql($dbh, 'opinions', $op_entry);
+    
+    my $deleted_main = execute_sql($dbh, $action_sql);
+    
+    unless ( $deleted_main )
+    {
+	print_msg("Delete failed: '$opinion_no'");
+	return;
+    }
+    
+    my $string = "$opinion_no : $r->{child_name} ($r->{child_spelling_no}) ";
+    $string .= "$r->{status} ";
+    $string .= "$r->{parent_name} ($r->{parent_spelling_no})";
+    
+    print_msg("DELETED opinion: $string");
+    
+    log_event($session, 'DELETE', 'opinions', $opinion_no, $action_sql, $undo_sql);
+    
+    my $undo = add_undo($r, 'DELETE', 'opinions', [$action_sql], [$undo_sql]);
+    
+    do_aux_delete($dbh, $undo);
+    
+    return 1;
+}
+
+
+sub aux_del_opinion {	# add aux_add_opinion
+
+    my ($dbh, $r) = @_;
+    
+    my $opinion_no = $r->{opinion_no};
+    
+    my $delete_sql = make_delete_sql($dbh, 'order_opinions', $opinion_no);
+    
+    if ( execute_sql($dbh, $delete_sql) )
+    {
+	print_msg("DELETED order_opinions: $opinion_no");
+    }
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
+sub occ_or_reid_ident {
+    
+    my ($r) = @_;
+    
+    my $ident = $r->{genus_name};
+    my $check = $r->{genus_name};
+    
+    $ident .= " $r->{genus_reso}" if $r->{genus_reso};
+    
+    if ( $r->{subgenus_name} )
+    {
+	$ident .= " ($r->{subgenus_name}";
+	$ident .= " $r->{subgenus_reso}" if $r->{subgenus_reso};
+	$ident .= ")";
+	$check .= " ($r->{subgenus_name})";
+    }
+    
+    if ( $r->{species_name} )
+    {
+	$ident .= " $r->{species_name}";
+	$ident .= " $r->{species_reso}" if $r->{species_reso};
+	$check .= " $r->{species_name}";
+    }
+    
+    return ($ident, $check);
+}
+
+
+sub query_occs {
+    
+    my ($dbh, $key, $keyval, $options) = @_;    
+    
+    my $fields = "o.*, t.name as current_name, t.$SETTINGS{accepted} as accepted_no, at.name as accepted_name";
+    
+    my $sql;
+    
+    if ( $key eq 'taxon_name' || $options->{by_name} )
+    {
+	$sql = "SELECT $fields
+		FROM authorities as base JOIN $OCC_MATRIX as o using (orig_no)
+			JOIN $OCCURRENCES as oo using (occurrence_no)
+			LEFT JOIN authorities as a on a.taxon_no = o.taxon_no
+			LEFT JOIN taxon_trees as t on t.orig_no = o.orig_no
+			LEFT JOIN taxon_trees as at on at.orig_no = t.accepted_no
+		WHERE base.taxon_name like $keyval
+		GROUP BY o.occurrence_no";
+    }
+    
+    elsif ( $key eq 'occurrence_no' || $key eq 'orig_no' || $key eq 'taxon_no' )
+    {
+	my $value = $keyval;
+	
+	if ( $options->{by_selection} )
+	{
+	    $value = $keyval->{$key};
+	    return print_msg("No value found for '$key'") unless $value;
+	}
+	
+	$sql = "SELECT $fields
+		FROM $OCC_MATRIX as o join $OCCURRENCES as oo using (occurrence_no)
+			LEFT JOIN authorities as a on a.taxon_no = o.taxon_no
+			LEFT JOIN taxon_trees as t on t.orig_no = o.orig_no
+			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+		WHERE o.$key in ($value)
+		GROUP BY o.occurrence_no";
+    }
+    
+    else
+    {
+	croak "Invalid key '$key'";
+    }
+    
+    return $sql;
+}
+
+
+sub list_occs {
+
+    my ($dbh, $result) = @_;
+    
+    # First assemble print fields and determine maximum widths.
+    
+    my $s = { };
+    
+    clear_selection('occurrences');
+    my $l = 'a';
+    
+    foreach my $r ( @$result )
+    {
+	my ($ident, $check) = occ_or_reid_ident($r);
+	my $orig_no = $r->{orig_no};
+	my $taxon_no = $r->{taxon_no};
+	
+	$ident .= " : $orig_no";
+	$ident .= " ($taxon_no)" if $taxon_no ne $orig_no;
+	
+	my $accepted = $r->{accepted_name};
+	$accepted .= " ($r->{accepted_no})" if $r->{accepted_no} ne $orig_no;
+	
+	my $auth_name = $PERSON{$r->{authorizer_no}};
+	my $ent_name = $PERSON{$r->{enterer_no}};
+	my $mod_name = $PERSON{$r->{modifier_no}};
+	
+	my $authent_string = $auth_name;
+	$authent_string .= " ($ent_name)" if $ent_name ne $auth_name;
+	$authent_string .= " / $mod_name" if $mod_name && $mod_name ne $ent_name;
+	
+	my $date_string = get_date($r->{created}) . ' : ' . get_date($r->{modified});
+	
+	set_field($r, $s, "id", $r->{occurrence_no});
+	set_field($r, $s, "ident", $ident);
+	set_field($r, $s, "accepted", $accepted);
+	set_field($r, $s, "authent", $authent_string);
+	set_field($r, $s, "crmod", $date_string);
+
+    }
+    
+    foreach my $r ( @$result )
+    {
+	print_record($l, make_fields($r, $s, "id", "  ", "ident", "   ", "accepted"),
+			 make_fields($r, $s, "authent"),
+		         make_fields($r, $s, "crmod"));
+	add_to_selection($l, $r);
+	$l++;
+    }
+}
+
+
+sub update_occ {
+    
+    my ($dbt, $session, $r, $updates) = @_;
+    
+    my $occurrence_no = $r->{occurrence_no};
+    my $dbh = $dbt->dbh;
+    
+    unless ( $occurrence_no && $occurrence_no =~ qr{ ^ [0-9]+ $ }xs )
+    {
+	return print_msg("CANNOT UPDATE RECORD: occurrence_no = '$occurrence_no'");
+    }
+    
+    set_modifier($dbt, $session, $updates);
+    
+    my $occ_entry = get_record($dbh, 'occurrences', $occurrence_no);
+    my $action_sql = make_update_sql($dbh, 'occurrences', $occurrence_no, $updates);
+    my $undo_sql = make_update_undo_sql($dbh, 'occurrences', $occurrence_no, $updates, $occ_entry);
+    
+    my $event_type = $updates->{IS_FIX} ? 'FIX' : 'UPDATE';
+    
+    my $updated = execute_sql($dbh, $action_sql);
+    
+    unless ( $updated )
+    {
+	print_msg("Update failed for '$occurrence_no'.");
+	return;
+    }
+    
+    print_msg("UPDATED occurrence: $occurrence_no");
+    
+    log_event($session, $event_type, 'occurrences', $occurrence_no, $action_sql, $undo_sql);
+    
+    my $undo = add_undo($r, $event_type, 'occurrences', [$action_sql], [$undo_sql]);
+    
+    do_aux_update($dbh, $undo);
+    
+    return 1;
+}
+
+
+sub aux_update_occ {
+    
+    my ($dbh, $r) = @_;
+    
+    my $occurrence_no = $r->{occurrence_no};
+    updateOccurrenceMatrix($dbh, $occurrence_no);
+    
+    print_msg("UPDATED $OCC_MATRIX: $occurrence_no");
+}
+
+
+sub delete_occ {
+    
+    my ($dbt, $session, $r) = @_;
+
+    my $occurrence_no = $r->{occurrence_no};
+    my $dbh = $dbt->{dbh};
+    
+    # First make sure we actually have a valid occurrence id.
+    
+    unless ( $occurrence_no && $occurrence_no =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	print_msg("ERROR: BAD OCCURRENCE_NO '$occurrence_no'");
+	return;
+    }
+    
+    # First check to make sure there are no reidentifications for this
+    # occurrence.
+    
+    my $occ_res = $dbh->selectall_arrayref("
+		SELECT * FROM reidentifications WHERE occurrence_no = $occurrence_no");
+    
+    if ( ref $occ_res eq 'ARRAY' && @$occ_res )
+    {
+	my @reids;
+	
+	foreach my $r ( @$occ_res )
+	{
+	    my $name = join(' ', grep { $_ } ($r->{genus_name}, $r->{genus_reso},
+					      $r->{subgenus_name}, $r->{subgenus_reso},
+					      $r->{species_name}, $r->{species_reso}));
+	    push @reids, "$name ($r->{reid_no})";
+	}
+	
+	my $reid_string = join(', ', @reids);
+	
+	if ( $reid_string )
+	{
+	    print_msg("CANNOT DELETE: REIDS: $reid_string");
+	    return;
+	}
+    }
+    
+    # If we get here then we have passed all of the preconditions for deleting
+    # an occurrence record.
+    
+    my $occ_entry = get_record($dbh, 'occurrences', $occurrence_no);
+    my $action_sql = make_delete_sql($dbh, 'occurrences', $occurrence_no);
+    my $undo_sql = make_replace_sql($dbh, 'occurrences', $occ_entry);
+    
+    my $deleted_main = execute_sql($dbh, $action_sql);
+    
+    unless ( $deleted_main )
+    {
+	print_msg("Delete failed: '$occurrence_no'");
+	return;
+    }
+    
+    print_msg("DELETED occurrence: $occurrence_no");
+    
+    log_event($session, 'DELETE', 'occurrences', $occurrence_no, $action_sql, $undo_sql);
+    
+    my $undo = add_undo($r, 'DELETE', 'occurrences', [$action_sql], [$undo_sql]);
+    
+    do_aux_delete($dbh, $undo);
+    
+    return 1;
+}
+
+
+sub aux_del_occ {
+
+    my ($dbh, $r) = @_;
+        
+    my $occurrence_no = $r->{occurrence_no};
+    
+    my $delete_sql = make_delete_sql($dbh, $OCC_MATRIX, $occurrence_no);
+    
+    if ( execute_sql($dbh, $delete_sql) )
+    {
+	print_msg("DELETED $OCC_MATRIX: $occurrence_no");
+    }
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
+sub query_reids {
+    
+    my ($dbh, $key, $keyval, $options) = @_;    
+    
+    my $fields = "re.*, t.orig_no, t.name as current_name, t.$SETTINGS{accepted} as accepted_no, at.name as accepted_name";
+    
+    my $sql;
+    my $value = $keyval;
+    
+    if ( $options->{by_selection} )
+    {
+	$value = $keyval->{$key};
+	return print_msg("No value found for '$key'") unless $value;
+    }
+    
+    if ( $key eq 'taxon_name' || $options->{by_name} )
+    {
+	$sql = "SELECT $fields
+		FROM authorities as base JOIN authorities as a using (orig_no)
+			JOIN $REIDS as re on reid.taxon_no = a.taxon_no
+			LEFT JOIN taxon_trees as t on t.orig_no = a.orig_no
+			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+		WHERE base.taxon_name like $value
+		GROUP BY re.reid_no";
+    }
+    
+    elsif ( $key eq 'orig_no' )
+    {
+	$sql = "SELECT $fields
+		FROM $REIDS as re JOIN authorities as a using (taxon_no)
+			LEFT JOIN taxon_trees as t on t.orig_no = a.orig_no
+			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+		WHERE a.orig_no in ($value)
+		GROUP BY re.reid_no";
+
+    }
+    
+    elsif ( $key eq 'occurrence_no' || $key eq 'reid_no' || $key eq 'taxon_no' )
+    {
+	$sql = "SELECT $fields
+		FROM $REIDS as re
+			LEFT JOIN authorities as a on a.taxon_no = re.taxon_no
+			LEFT JOIN taxon_trees as t on t.orig_no = a.orig_no
+			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
+		WHERE re.$key in ($value)
+		GROUP BY re.reid_no";
+    }
+    
+    else
+    {
+	croak "Invalid key '$key'";
+    }
+    
+    return $sql;
+}
+
+
+sub list_reids {
+
+    my ($dbh, $result) = @_;
+    
+    # First assemble print fields and determine maximum widths.
+    
+    my $s = { };
+    
+    clear_selection('reidentifications');
+    my $l = 'a';
+    
+    foreach my $r ( @$result )
+    {
+	my $id_string = $r->{reid_no};
+	$id_string .= " [$r->{occurrence_no}]";
+	
+	my ($ident, $check) = occ_or_reid_ident($r);
+	my $orig_no = $r->{orig_no};
+	my $taxon_no = $r->{taxon_no};
+	
+	$ident .= " : $orig_no";
+	$ident .= " ($taxon_no)" if $taxon_no ne $orig_no;
+	
+	my $accepted = $r->{accepted_name};
+	$accepted .= " ($r->{accepted_no})" if $r->{accepted_no} ne $orig_no;
+	
+	my $auth_name = $PERSON{$r->{authorizer_no}};
+	my $ent_name = $PERSON{$r->{enterer_no}};
+	my $mod_name = $PERSON{$r->{modifier_no}};
+	
+	my $authent_string = $auth_name;
+	$authent_string .= " ($ent_name)" if $ent_name ne $auth_name;
+	$authent_string .= " / $mod_name" if $mod_name && $mod_name ne $ent_name;
+	
+	my $date_string = get_date($r->{created}) . ' : ' . get_date($r->{modified});
+	
+	set_field($r, $s, "id", $id_string);
+	set_field($r, $s, "ident", $ident);
+	set_field($r, $s, "accepted", $accepted);
+	set_field($r, $s, "authent", $authent_string);
+	set_field($r, $s, "crmod", $date_string);
+    }
+    
+    foreach my $r ( @$result )
+    {
+	print_record($l, make_fields($r, $s, "id", "  ", "ident", "   ", "accepted"),
+			 make_fields($r, $s, "authent"),
+		         make_fields($r, $s, "crmod"));
+	add_to_selection($l, $r);
+	$l++;
+    }
+}
+
+
+sub update_reid {
+    
+    my ($dbt, $session, $r, $updates) = @_;
+    
+    my $reid_no = $r->{reid_no};
+    my $occurrence_no = $r->{occurrence_no};
+    my $dbh = $dbt->dbh;
+    
+    unless ( $reid_no && $reid_no =~ qr{ ^ [0-9]+ $ }xs )
+    {
+	return print_msg("CANNOT UPDATE RECORD: reid_no = '$reid_no'");
+    }
+    
+    set_modifier($dbt, $session, $updates);
+    
+    my $reid_entry = get_record($dbh, 'reidentifications', $reid_no);
+    my $action_sql = make_update_sql($dbh, 'reidentifications', $reid_no, $updates);
+    my $undo_sql = make_update_undo_sql($dbh, 'reidentifications', $reid_no, $updates, $reid_entry);
+    
+    my $event_type = $updates->{IS_FIX} ? 'FIX' : 'UPDATE';
+    
+    my $updated = execute_sql($dbh, $action_sql);
+    
+    unless ( $updated )
+    {
+	print_msg("Update failed for '$reid_no'.");
+	return;
+    }
+    
+    log_event($session, $event_type, 'reidentifications', $reid_no, $action_sql, $undo_sql);
+    
+    my $undo = add_undo($r, $event_type, 'reidentifications', $action_sql, $undo_sql);
+    
+    do_aux_update($dbh, $undo);
+    
+    print_msg("UPDATED reidentification: $reid_no [$occurrence_no]");
+    
+    return 1;
+}
+
+
+sub delete_reid {
+    
+    my ($dbt, $session, $r) = @_;
+
+    my $reid_no = $r->{reid_no};
+    my $dbh = $dbt->{dbh};
+    
+    # First make sure we actually have a valid reid id.
+    
+    unless ( $reid_no && $reid_no =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	print_msg("ERROR: BAD REID_NO '$reid_no'");
+	return;
+    }
+    
+    # There are no preconditions for deleting a reidentification record.
+    
+    my $reid_entry = get_record($dbh, 'reidentifications', $reid_no);
+    my $action_sql = make_delete_sql($dbh, 'reidentifications', $reid_no);
+    my $undo_sql = make_replace_sql($dbh, 'reidentifications', $reid_entry);
+    
+    my $deleted_main = execute_sql($dbh, $action_sql);
+    
+    unless ( $deleted_main )
+    {
+	print_msg("Delete failed: '$reid_no'");
+	return;
+    }
+    
+    log_event($session, 'DELETE', 'reidentifications', $reid_no, $action_sql, $undo_sql);
+    
+    my $undo = add_undo($r, 'DELETE', 'reidentifications', [$action_sql], [$undo_sql]);
+    
+    do_aux_update($dbh, $undo);
+
+    print_msg("DELETED reidentification: $reid_no");
+    
+    return 1;
+}
+
+
+sub do_aux_update {
+    
+    my ($dbh, $r) = @_;
+    
+    my $table = $r->{TABLE};
+    
+    if ( my $aux_update_sub = $ACTION{$table}{aux_update} )
+    {
+	return &$aux_update_sub($dbh, $r);
+    }
+}
+
+
+sub do_aux_add {
+
+    my ($dbh, $r) = @_;
+    
+    my $table = $r->{TABLE};
+    
+    if ( my $aux_add_sub = ($ACTION{$table}{aux_add} || $ACTION{$table}{aux_update}) )
+    {
+	return &$aux_add_sub($dbh, $r);
+    }
+}
+
+
+sub do_aux_delete {
+
+    my ($dbh, $r) = @_;
+    
+    my $table = $r->{TABLE};
+    
+    if ( my $aux_del_sub = $ACTION{$table}{aux_del} )
+    {
+	return &$aux_del_sub($dbh, $r);
+    }
+}
+
+
+sub make_fields {
+
+    my ($r, $s, @fields) = @_;
+    
+    my $line = '';
+    
+    foreach my $f (@fields)
+    {
+	if ( $f =~ qr{ ^ > (\w+) }xsi )
+	{
+	    my $tab = $s->{"left_$1"};
+	    
+	    if ( $tab && length($line) < $tab )
+	    {
+		my $pad = $tab - length($line);
+		$line .= ' ' x $pad;
+	    }
+	}
+	
+	elsif ( $f =~ qr{ ^ \w+ $ }xsi )
+	{
+	    $s->{"left_$f"} = length($line);
+	    
+	    my $field_val = $r->{"field_$f"};
+	    my $width_val = $s->{"width_$f"};
+	    my $pad = $width_val - length($field_val);
+	    my $padding = $pad > 0 ? ' ' x $pad : '';
+	    
+	    $line .= $field_val . $padding;
+	}
+	
+	else
+	{
+	    $line .= $f;
+	}
+    }
+    
+    return $line;
+}
+
+
+sub print_record {
+
+    my ($flag, @lines) = @_;
+    
+    print_line "";
+    foreach my $line (@lines)
+    {
+	print_line "$flag> $line";
+    }
+}
+
+
+sub preload_people {
+    
+    my ($dbh) = @_;
+    
+    my $result = $dbh->selectall_arrayref(" SELECT person_no, name FROM person", { Slice => {} });
+    
+    foreach my $r ( @$result )
+    {
+	my $person_no = $r->{person_no};
+	my $name = $r->{name};
+	
+	$PERSON{$person_no} = $name;
+    }
+}
+
+
+sub check_fields {
+    
+    my ($dbh) = @_;
+    
+    my ($table, $tree_table_fields) = $dbh->selectrow_array("SHOW CREATE TABLE `taxon_trees`");
+    
+    if ( $tree_table_fields =~ qr{ `accepted_no` }xs )
+    {
+	$SETTINGS{accepted} = 'accepted_no';
+    }
+    
+    else
+    {
+	$SETTINGS{accepted} = 'synonym_no';
+    }
+    
+    if ( $tree_table_fields =~ qr{ `senpar_no` }xs )
+    {
+	$SETTINGS{senpar} = 'senpar_no';
+    }
+    
+    else
+    {
+	$SETTINGS{senpar} = 'parsen_no';
+    }
+    
+    if ( $tree_table_fields =~ qr{ `immpar_no` }xs )
+    {
+	$SETTINGS{immpar} = 'immpar_no';
+    }
+    
+    else
+    {
+	$SETTINGS{immpar} = 'parent_no';
+    }
+}
+
+
+sub try_login {
+    
+    my ($dbt) = @_;
+    
+    my $authorizer = $AUTHORIZER || $ENV{PBDBAuthorizer};
+    my $enterer = $ENTERER || $AUTHORIZER || $ENV{PBDBEnterer} || $ENV{PBDBAuthorizer};
+    
+    die "To log in, set the environment variable 'PBDBAuthorizer' to your authorizer name.\n"
+	unless $authorizer;
+    
+    my $session = Session->new($dbt);
+    
+    die "Could not establish a database session\n" unless $session;
+    
+    my $password;
+    
+    while ( ! $password )
+    {
+	$password = read_password('PBDB password: ');
+    }
+    
+    my $result = $session->processLogin($authorizer, $enterer, $password);
+    
+    die "Could not log in: invalid name or password for '$authorizer'.\n" unless $result;
+    
+    return $session;
+}
+
+
+sub get_record {
+    
+    my ($dbh, $table, $key_value) = @_;
+    
+    my $primary_key = $PRIMARY_KEY{$table};
+    
+    croak("Invalid table '$table'") unless $primary_key;
+    croak("invalid primary key value '$key_value'") unless 
+	$key_value && $key_value =~ qr{ ^ \d+ $ }xsi;
+    
+    my $sql = "SELECT * FROM $table WHERE $primary_key = $key_value";
+    
+    my $record = $dbh->selectrow_hashref($sql);
+    
+    return $record;
+}
+
+
+sub make_replace_sql {
+
+    my ($dbh, $table, $r) = @_;
+    
+    my $primary_key = $PRIMARY_KEY{$table};
+    my $key_value = $r->{$primary_key};
+    
+    croak("Invalid table '$table'") unless $primary_key;
+    croak("Invalid primary key value '$key_value'") unless 
+	$r->{$primary_key} && $r->{$primary_key} =~ qr{ ^ \d+ $ }xsi;
+    
+    unless ( $COLUMN_INFO{$table} )
+    {
+	fetch_column_info($dbh, $table);
+    }
+    
+    my (@insertFields, @insertValues);
+    
+    foreach my $col ( @{$COLUMN_INFO{$table}} )
+    {
+	my $field = $col->{COLUMN_NAME};
+	my $type = $col->{TYPE_NAME};
+	my $is_nullable = $col->{IS_NULLABLE};
+	my $default = $col->{COLUMN_DEF};
+	
+	my $value = $r->{$field};
+	
+	unless ( defined $value )
+	{
+	    $value = $is_nullable ? 'NULL' : $default;
+	}
+	
+	else
+	{
+	    $value = $dbh->quote($value);
+	}
+	
+	push @insertFields, $field;
+	push @insertValues, $value;
+    }
+    
+    my $field_string = join(',', @insertFields);
+    my $value_string = join(',', @insertValues);
+    
+    my $insertSQL = "REPLACE INTO $table ($field_string)
+		VALUES ($value_string)";
+    
+    return $insertSQL;
+}
+
+
+sub make_update_sql {
+
+    my ($dbh, $table, $key_value, $updates) = @_;
+    
+    my $primary_key = $PRIMARY_KEY{$table};
+    
+    die "Invalid table '$table'" unless $primary_key;
+    die "Invalid primary key value '$key_value'" unless 
+	$key_value && $key_value =~ qr{ ^ \d+ $ }xsi;
+    
+    unless ( $COLUMN_INFO{$table} )
+    {
+	fetch_column_info($dbh, $table);
+    }
+    
+    if ( $updates->{authorizer_no} )
+    {
+	$updates->{authorizer} = $PERSON{$updates->{authorizer_no}};
+    }
+    
+    if ( $updates->{enterer_no} )
+    {
+	$updates->{enterer} = $PERSON{$updates->{enterer_no}};
+    }
+    
+    my (@updateTerms);
+    
+ COL:
+    foreach my $col ( @{$COLUMN_INFO{$table}} )
+    {
+	my $field = $col->{COLUMN_NAME};
+	my $type = $col->{TYPE_NAME};
+	my $is_nullable = $col->{IS_NULLABLE};
+	my $default = $col->{COLUMN_DEF};
+	
+	my $value;
+	
+	if ( $field eq 'modifier_no' )
+	{
+	    next COL if $updates->{IS_FIX};
+	    $value = $session->get('enterer_no');
+	    $value = $dbh->quote($value);
+	}
+	
+	elsif ( $field eq 'modifier' )
+	{
+	    next COL if $updates->{IS_FIX};
+	    $value = $session->get('enterer');
+	    $value = $dbh->quote($value);
+	}
+	
+	elsif ( $field eq 'modified' )
+	{
+	    $value = $updates->{IS_FIX} ? 'modified' : 'NOW()';
+	}
+	
+	else
+	{
+	    next COL unless exists $updates->{$field};
+	    $value = $updates->{$field};
+	    
+	    unless ( defined $value )
+	    {
+		$value = $is_nullable ? 'NULL' : $default;
+	    }
+	}
+	
+	push @updateTerms, "$field=$value";
+    }
+    
+    unless ( @updateTerms )
+    {
+	die "ERROR: no updates specified\n";
+    }
+    
+    my $update_string = join(',', @updateTerms);
+    
+    unless ( $key_value =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	$key_value = $dbh->quote($key_value);
+    }
+    
+    my $sql = "UPDATE $table
+		SET $update_string
+		WHERE $primary_key=$key_value";
+    
+    return $sql;
+}
+
+
+sub make_update_undo_sql {
+
+    my ($dbh, $table, $key_value, $updates, $r) = @_;
+    
+    my $primary_key = $PRIMARY_KEY{$table};
+    
+    die "Invalid table '$table'" unless $primary_key;
+    die "Invalid primary key value '$key_value'" unless 
+	$key_value && $key_value =~ qr{ ^ \d+ $ }xsi;
+    
+    unless ( $COLUMN_INFO{$table} )
+    {
+	fetch_column_info($dbh, $table);
+    }
+    
+    my ($additional_updates) = { modifier => 1, modifier_no => 1, modified => 1};
+    
+    if ( $updates->{authorizer_no} )
+    {
+	$additional_updates->{authorizer} = 1;
+    }
+    
+    if ( $updates->{enterer_no} )
+    {
+	$additional_updates->{enterer} = 1;
+    }
+    
+    my (@updateTerms);
+    
+ COL:
+    foreach my $col ( @{$COLUMN_INFO{$table}} )
+    {
+	my $field = $col->{COLUMN_NAME};
+	my $type = $col->{TYPE_NAME};
+	my $is_nullable = $col->{IS_NULLABLE};
+	my $default = $col->{COLUMN_DEF};
+	
+	if ( exists $updates->{$field} || exists $additional_updates->{$field} )
+	{
+	    my $value = $dbh->quote($r->{$field});
+	    push @updateTerms, "$field=$value";
+	}
+    }
+    
+    my $update_string = join(',', @updateTerms);
+    
+    unless ( $key_value =~ qr{ ^ [0-9]+ $ }xsi )
+    {
+	$key_value = $dbh->quote($key_value);
+    }
+    
+    my $sql = "UPDATE $table
+		SET $update_string
+		WHERE $primary_key=$key_value";
+    
+    return $sql;
+}
+
+
+sub make_multifix_sql {
+
+    my ($dbh, $table, $key_value, $updates) = @_;
+    
+    my $primary_key = $PRIMARY_KEY{$table};
+    
+    die "Invalid table '$table'" unless $primary_key;
+    die "Invalid primary key value '$key_value'" unless 
+	$key_value && $key_value =~ qr{ ^ [\d,]+ $ }xsi;
+    
+    unless ( $COLUMN_INFO{$table} )
+    {
+	fetch_column_info($dbh, $table);
+    }
+    
+    if ( $updates->{authorizer_no} )
+    {
+	$updates->{authorizer} = $PERSON{$updates->{authorizer_no}};
+    }
+    
+    if ( $updates->{enterer_no} )
+    {
+	$updates->{enterer} = $PERSON{$updates->{enterer_no}};
+    }
+    
+    my (@updateTerms);
+    
+ COL:
+    foreach my $col ( @{$COLUMN_INFO{$table}} )
+    {
+	my $field = $col->{COLUMN_NAME};
+	my $type = $col->{TYPE_NAME};
+	my $is_nullable = $col->{IS_NULLABLE};
+	my $default = $col->{COLUMN_DEF};
+	
+	my $value;
+	
+	if ( $field eq 'modifier_no' )
+	{
+	    next COL if $updates->{IS_FIX};
+	    $value = $session->get('enterer_no');
+	    $value = $dbh->quote($value);
+	}
+	
+	elsif ( $field eq 'modifier' )
+	{
+	    next COL if $updates->{IS_FIX};
+	    $value = $session->get('enterer');
+	    $value = $dbh->quote($value);
+	}
+	
+	elsif ( $field eq 'modified' )
+	{
+	    $value = $updates->{IS_FIX} ? 'modified' : 'NOW()';
+	}
+	
+	else
+	{
+	    next COL unless exists $updates->{$field};
+	    $value = $updates->{$field};
+	    
+	    unless ( defined $value )
+	    {
+		$value = $is_nullable ? 'NULL' : $default;
+	    }
+	}
+	
+	push @updateTerms, "$field=$value";
+    }
+    
+    unless ( @updateTerms )
+    {
+	die "ERROR: no updates specified\n";
+    }
+    
+    my $update_string = join(',', @updateTerms);
+    
+    my $sql = "UPDATE $table
+		SET $update_string
+		WHERE $primary_key in ($key_value)";
+    
+    return $sql;
+}
+
+
+sub make_delete_sql {
+    
+    my ($dbh, $table, $key_value) = @_;
+    
+    my $primary_key = $PRIMARY_KEY{$table};
+    
+    die "Invalid table '$table'" unless $primary_key;
+    die "Invalid primary key value '$key_value'" unless 
+	$key_value && $key_value =~ qr{ ^ \d+ $ }xsi;
+    
+    my $sql = "DELETE FROM $table
+		WHERE $primary_key = $key_value";
+    
+    return $sql;
+}
+
+
+sub set_modifier {
+    
+    my ($dbt, $session, $updates) = @_;
+    
+    $updates->{MODIFIER_NO} = $session->get('enterer_no');
+    $updates->{MODIFIER} = $session->get('enterer');
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
+sub execute_sql {
+    
+    my ($dbh, $sql) = @_;
+    
+    my $result;
+    
+    if ( $DEBUG{sql} )
+    {
+	print_line("");
+	print_line($sql);
+    }
+    
+    try {
+	$result = $dbh->do($sql);
+    }
+    
+    catch {
+	print_msg($sql);
+	die $_;
+    };
+    
+    return $result;
+}
+
+
+sub log_event {
+    
+    my ($session, $type, $table, $key_value, $action_sql, $undo_sql) = @_;
+    
+    croak "Invalid table '$table'" unless $PRIMARY_KEY{$table};
+    croak "Invalid type '$type'"
+	unless $type =~ qr{ ^ (?: UNDO_ | REDO_ )?
+			      (?: UPDATE | FIX | DELETE | INSERT ) $ }xs;
+    
+    DBTransactionManager::logEvent(
+	{ stmt => $type, 
+	  table => $table, 
+	  key => $PRIMARY_KEY{$table}, 
+	  keyval => $key_value, 
+	  auth_no => $session->get('authorizer_no'),
+	  ent_no => $session->get('enterer_no'),
+	  sql => $action_sql,
+	  undo_sql => $undo_sql});
+    
+    my $a = 1;	# we can stop here when debugging.
+}
+
+
+sub fetch_column_info {
+    
+    my ($dbh, $table) = @_;
+    
+    my $sth = $dbh->column_info(undef, $Constants::DB, $table, '%');
+    
+    my @defs;
+    my %type;
+    
+    while ( my $row = $sth->fetchrow_hashref() )
+    {
+	my $name = $row->{COLUMN_NAME};
+	my $type = $row->{TYPE_NAME};
+	
+	push @defs, $row;
+	$type{$name} = $type;
+    }
+    
+    $COLUMN_INFO{$table} = \@defs;
+    $COLUMN_TYPE{$table} = \%type;
+}
+
+
+sub add_undo {
+    
+    my ($r, $action, $table, $action_arg, $undo_arg) = @_;
+    
+    my $undo_record = { %$r };
+    
+    my $action_list = ref $action_arg eq 'ARRAY' ? $action_arg : defined $action_arg ? [ $action_arg ] : [];
+    my $undo_list = ref $undo_arg eq 'ARRAY' ? $undo_arg : defined $undo_arg ? [ $undo_arg ] : [];
+    
+    $undo_record->{TABLE} = $table;
+    $undo_record->{ACTION} = $action;
+    $undo_record->{ACTION_LIST} = $action_list;
+    $undo_record->{UNDO_LIST} = $undo_list;
+    
+    foreach my $s ( @$action_list )
+    {
+	$s = reformat_sql($s);
+    }
+    
+    foreach my $s ( @$undo_list )
+    {
+	$s = reformat_sql($s);
+    }
+    
+    push @{$STORED->{UNDO_LIST}}, $undo_record;
+    return $undo_record;
+}
+
+
+sub list_undo {
+    
+    my ($dbh, $rest) = @_;
+    
+    unless ( ref $STORED->{UNDO_LIST} eq 'ARRAY' )
+    {
+	return print_msg("NOTHING TO UNDO.");
+    }
+    
+    %UNDO_SEL = ();
+    
+    my $start = -5;
+    my $end = -1;
+    
+    my $options = { };
+    
+    if ( $rest =~ qr{ ^ ( [0-9]+ ) \s* (.*) }xsi )
+    {
+	$start = -1 * $1;
+	$end = $start + 4;
+	$rest = '';
+    }
+    
+    while ( $rest =~ qr{ ^ / (\w+) \s* (.*) }xsi )
+    {
+	my $arg = lc $1;
+	$rest = $2;
+	
+	if ( $arg eq 'full' )
+	{
+	    $options->{full} = 1;
+	}
+	
+	else
+	{
+	    return print_msg("INVALID OPTION '$arg'");
+	}
+    }
+    
+    if ( $rest )
+    {
+	return print_msg("ERROR: invalid argument '$rest'");
+    }
+    
+    my @list = @{$STORED->{UNDO_LIST}}[$start..$end];
+    
+    my $l = 'a';
+    
+    foreach my $r (@list)
+    {
+	next unless ref $r eq 'HASH';
+	list_undo_record($dbh, $l, $r, $options);
+	$UNDO_SEL{$l} = $r;
+	$l++;
+    }
+    
+    print_msg("");
+}
+
+
+sub list_undo_record {
+
+    my ($dbh, $l, $r, $options) = @_;
+    
+    my $table = $r->{TABLE} || '[unknown]';
+    my $action = $r->{ACTION} || '[unknown]';
+    my $primary_key = $PRIMARY_KEY{$table};
+    
+    unless ( $primary_key && $r->{$primary_key} )
+    {
+	return print_record($l, "Invalid entry");
+    }
+    
+    my @lines;
+    
+    my $value = $r->{$primary_key};
+    my $header = "$action $table : $value";
+    $header .= "   [[UNDONE]]" if $r->{UNDONE};
+    
+    push @lines, $header;
+    
+    if ( $options->{full} )
+    {
+	if ( ref $r->{ACTION_LIST} eq 'ARRAY' )
+	{
+	    foreach my $line (@{$r->{ACTION_LIST}})
+	    {
+		push @lines, "ACTION:" . reformat_sql($line);
+	    }
+	}
+	
+	if ( ref $r->{UNDO_LIST} eq 'ARRAY' )
+	{
+	    foreach my $line (@{$r->{UNDO_LIST}} )
+	    {
+		push @lines, "UNDO:" . reformat_sql($line);
+	    }
+	}
+	
+	if ( ref $r->{TTC_ENTRY} eq 'HASH' )
+	{
+	    my $sql = make_replace_sql($dbh, 'taxa_tree_cache', $r->{TTC_ENTRY});
+	    push @lines, "TTC: " . reformat_sql($sql);
+	}
+	
+	if ( ref $r->{TT_ENTRY} eq 'HASH' )
+	{
+	    my $sql = make_replace_sql($dbh, 'taxon_trees', $r->{TT_ENTRY});
+	    push @lines, "TT: " . reformat_sql($sql);
+	}
+    }
+    
+    print_record($l, @lines);
+}
+
+
+sub execute_undo {
+    
+    my ($dbt, $session, $r) = @_;
+    
+    my $dbh = $dbt->dbh;
+    my $action_list = $r->{ACTION_LIST};
+    my $undo_list = $r->{UNDO_LIST};
+    my $table = $r->{TABLE};
+    my $action = $r->{ACTION};
+    
+    unless ( ref $undo_list eq 'ARRAY' && @$undo_list )
+    {
+	return print_msg("No actions to undo.");
+    }
+    
+    foreach my $i ( 0..$#$undo_list )
+    {
+	my $undo_sql = $undo_list->[$i];
+	my $action_sql = $action_list->[$i];
+	
+	my $result;
+	$undo_sql =~ s{ ^ INSERT }{REPLACE}xs;
+	
+	print_msg(">> $undo_sql");
+	
+	try {
+	    $result = $dbh->do($undo_sql);
+	}
+	
+	catch {
+	    print_msg("ERROR: $_");
+	};
+	
+	unless ( $result )
+	{
+	    print_msg("No changes were made to the database.");
+	}
+	
+	# Now we log the undo action.  Note that $undo_sql and $action_sql are
+	# swapped in the call below, since the action we are taking is the
+	# undo and the "undo" of that would be the original action.
+	
+	my $type = "UNDO_$action";
+	my $primary_key = $PRIMARY_KEY{$table};
+	my $key_value = $r->{$primary_key};
+	
+	log_event($session, $type, $table, $key_value, $undo_sql, $action_sql);
+    }
+    
+    # If any auxiliary actions need to be taken, do them now.  Note that the
+    # "undo" of an add is a delete and vice versa.
+    
+    if ( $action eq 'UPDATE' )
+    {
+	do_aux_update($dbh, $r);
+    }
+    
+    elsif ( $action eq 'DELETE' )
+    {
+	do_aux_add($dbh, $r);
+    }
+    
+    elsif ( $action eq 'INSERT' )
+    {
+	do_aux_delete($dbh, $r);
+    }
+    
+    $r->{UNDONE} = 1;
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
+sub execute_redo {
+    
+    my ($dbt, $session, $r) = @_;
+    
+    my $dbh = $dbt->dbh;
+    my $redo_list = $r->{ACTION_LIST};
+    my $undo_list = $r->{UNDO_LIST};
+    my $table = $r->{TABLE};
+    my $action = $r->{ACTION};
+    
+    unless ( ref $redo_list eq 'ARRAY' && @$redo_list )
+    {
+	return print_msg("No actions to undo.");
+    }
+    
+    foreach my $i ( 0..$#$undo_list )
+    {
+	my $action_sql = $redo_list->[$i];
+	my $undo_sql = $undo_list->[$i];
+	my $result;
+	
+	$action_sql =~ s{ ^ INSERT }{REPLACE}xs;
+	
+	print_msg(">> $action_sql");
+	
+	try {
+	    $result = $dbh->do($action_sql);
+	}
+	
+	catch {
+	    print_msg("ERROR: $_");
+	};
+	
+	unless ( $result )
+	{
+	    print_msg("No changes were made to the database.");
+	}
+	
+	# Now we log the redo action.
+	
+	my $type = "REDO_$action";
+	my $primary_key = $PRIMARY_KEY{$table};
+	my $key_value = $r->{$primary_key};
+	
+	log_event($session, $type, $table, $key_value, $action_sql, $undo_sql);
+    }
+    
+    # If any auxiliary actions need to be taken, do them now.
+    
+    if ( $action eq 'UPDATE' )
+    {
+	do_aux_update($dbh, $r);
+    }
+    
+    elsif ( $action eq 'DELETE' )
+    {
+	do_aux_delete($dbh, $r);
+    }
+    
+    elsif ( $action eq 'INSERT' )
+    {
+	do_aux_add($dbh, $r);
+    }
+    
+    # if ( $table eq 'opinions' )
+    # {
+    # 	my $opinion_no = $r->{opinion_no};
+    # 	my ($sql, $result);
+	
+    # 	if ( $action eq 'DELETE' )
+    # 	{
+    # 	    $sql = "DELETE FROM $TAXON_TABLE{taxon_trees}{opcache} WHERE opinion_no = $opinion_no";
+    # 	    $result = $dbh->do($sql);
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    fixOpinionCache($dbh, $TAXON_TABLE{taxon_trees}{opcache}, 'taxon_trees', $opinion_no);
+    # 	}
+    # }
+    
+    # elsif ( $table eq 'occurrences' )
+    # {
+    # 	my $occurrence_no = $r->{occurrence_no};
+    # 	my ($sql, $result);
+	
+    # 	if ( $action eq 'DELETE' )
+    # 	{
+    # 	    $sql = "DELETE FROM $OCC_MATRIX WHERE occurrence_no = $occurrence_no";
+    # 	    $result = $dbh->do($sql);
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    updateOccurrenceMatrix($dbh, $occurrence_no);
+    # 	}
+    # }
+    
+    $r->{UNDONE} = 0;
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+
+sub reformat_sql {
+    
+    my ($line) = @_;
+    
+    $line =~ s{ ^ \s* }{}xs;
+    $line =~ s{ ^ \s* }{\t}xmg;
+    return "\n" . $line;
+}
+
+
+sub load_state {
+    
+    unless ( $ENV{HOME} )
+    {
+	die "Cannot determine home directory.\n";
+    }
+    
+    if ( -e $STATE_FILE )
+    {
+	die "Cannot read '$STATE_FILE': $!" unless -r $STATE_FILE;
+	
+	$STORED = retrieve($STATE_FILE);
+	
+	%SETTINGS = %{$STORED->{SETTINGS}} if ref $STORED->{SETTINGS} eq 'HASH';
+	%DEBUG = %{$STORED->{DEBUG}} if ref $STORED->{DEBUG} eq 'HASH';
+    }
+}
+
+
+sub save_state {
+    
+    my ($term) = @_;
+    
+    my @history = $term->GetHistory;
+    
+    $STORED->{HISTORY} = \@history;
+    $STORED->{SETTINGS} = \%SETTINGS;
+    $STORED->{DEBUG} = \%DEBUG;
+    
+    store($STORED, $STATE_FILE) if ref $STORED;
+}
