@@ -1058,17 +1058,32 @@ sub basicCollectionSearch {
 	my $NO = $q->param($COLLECTION_NO);
 	my $NAME = $q->param($NAME_FIELD);
 	my $qs = $q->param('quick_search');
-	
-	if ( $NAME =~ /^[0-9]+$/ )	{
-		$NO = $NAME;
-		$NAME = "";
-	}
-	
-	if ( ! $q->param($COLLECTION_NO) && ! $q->param($NAME_FIELD) && $q->param('quick_search') )	{
-		if ( $q->param('quick_search') =~ /^[0-9]+$/ )	{
-			$NO = $q->param('quick_search');
+
+    if ( $NO && $NO !~ /^[0-9]+$/xi )
+    {
+	return PBDB::displaySearchColls($q, $s, $dbt, $hbo, "Invalid parameter value '$NO' for 'collection_no'\n");
+    }
+
+    if ( $NAME =~ /^[0-9]+$/ )	{
+	$NO = $NAME;
+	$NAME = "";
+    }
+
+    elsif ( $NAME =~ /[-+'"0-9]/ )
+    {
+	return PBDB::displaySearchColls($q, $s, $dbt, $hbo, "Invalid parameter value '$NAME' for 'collection_name'\n");
+    }
+
+    my $QS = $q->param('quick_search');
+    
+	if ( ! $q->param($COLLECTION_NO) && ! $q->param($NAME_FIELD) && $QS )	{
+		if ( $QS =~ /^[0-9]+$/ )	{
+		    $NO = $QS;
+		} elsif ( $QS =~ /[-+'"0-9]/ ) {
+		    return PBDB::displaySearchColls($q, $s, $dbt, $hbo,
+					     "Invalid parameter value '$QS' for 'quick_search'\n");
 		} else	{
-			$NAME = $q->param('quick_search');
+		    $NAME = $QS;
 		}
 	}
         my $collection_list = $q->param('collection_list');
@@ -1204,7 +1219,7 @@ sub basicCollectionSearch {
 			$q->param('collection_no' => $q->param('last_collection') );
 			$q->param('type' => 'view');
 			$q->param('basic' => 'yes');
-			PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
+			return PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
 			return;
 		}
 	}
@@ -1269,7 +1284,7 @@ sub basicCollectionInfo	{
 	# if the collection is protected, pretend the search failed
 	if ( ! $okToRead )	{
 		$q->param('type' => 'view');
-		PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
+		return PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
 		return;
 	}
 
