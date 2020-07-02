@@ -1,5 +1,7 @@
 ---
 appname: MyApp
+web_workers: 2
+rest_workers: 2
 behind_proxy: 1
 charset: UTF-8
 engines:

@@ -14,7 +14,7 @@ use MyApp::Web;
 $DB::single = 1;
 $DB::deep = 500;
     
-if ( $ARGV[0] =~ /^get$|^post$|^debug$/i )
+if ( $ARGV[0] && $ARGV[0] =~ /^get$|^post$|^debug$/i )
 {
     set apphandler => 'Debug';
     set logger => 'console';

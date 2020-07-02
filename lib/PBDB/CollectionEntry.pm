@@ -3,7 +3,7 @@
 package PBDB::CollectionEntry;
 use strict;
 
-use lib '/data/MyApp/new-lib';
+use lib '/data/MyApp/lib/PBData';
 use TableDefs qw($INTERVAL_DATA);
 use PBDB::PBDBUtil;
 use PBDB::Taxon;

@@ -1,16 +1,32 @@
-#!/opt/local/bin/perl
+#!/usr/bin/env perl
+#
+# This script provides necessary functionality for the Paleobiology Database. It must be
+# run as a daemon. It checks for database updates of taxa and/or opinions, and adjusts the
+# taxonomic hierarchy to match. It uses the two database tables 'tc_mutex' and 'tc_sync' to
+# coordinate this activity and make sure that only a single thread is working at any given
+# time.
+#
+# Updated by Michael McClennen for the CCI environment, 2020-07-01. Added command-line options
+# to specify a log file and which userid and groupid to run as.
+
+
 package taxa_cached;
 
+# use FindBin qw($Bin);
+# use lib ($Bin."/../cgi-bin");
 
-use FindBin qw($Bin);
-use lib ($Bin."/../cgi-bin");
 use strict;	
+
+use lib 'lib';
 
 # CPAN modules
 use Class::Date qw(date localdate gmdate now);
 use POSIX qw(setsid);
-use DBTransactionManager;
-use TaxaCache;
+use Getopt::Long;
+
+# PBDB modules
+use PBDB::DBTransactionManager;
+use PBDB::TaxaCache;
 
 BEGIN {
     $SIG{'HUP'}  = \&doUpdate;
@@ -22,14 +38,80 @@ BEGIN {
     $SIG{'TERM'} = sub { $taxa_cached::time_to_die = 1;};
 }
 
+# Start by parsing options.
+
+my ($opt_user, $opt_group, $opt_logfile);
+
+GetOptions( "user=s" => \$opt_user,
+	    "group=s" => \$opt_group,
+	    "log=s" => \$opt_logfile );
+
+# The arguments 'user' and 'group' specify a real and effective user and group for this process to
+# become. These arguments are ignored unless the effective userid starts out as 0. We have to set
+# the group first, because the operation is not permitted unless we start out as root.
+
+if ( $opt_group && $> == 0 )
+{
+    my ($groupid, $dummy);
+
+    if ( $opt_group =~ /^\d+$/ )
+    {
+	$groupid = $opt_group;
+    }
+
+    else
+    {
+	($dummy, $dummy, $groupid) = getgrnam($opt_group);
+	die "Unknown group '$groupid': $!\n" unless $groupid;
+    }
+    
+    if ( $groupid )
+    {
+	$( = $groupid;
+	$) = $groupid;
+	die "Could not change groupid to $opt_group: $!\n" unless $( == $groupid;
+    }
+}
+
+if ( $opt_user && $> == 0 )
+{
+    my ($userid, $dummy);
+    
+    if ( $opt_user =~ /^\d+$/ )
+    {
+	$userid = $opt_user;
+    }
+
+    else
+    {
+	($dummy, $dummy, $userid) = getpwnam($opt_user);
+	die "Unknown user '$userid': $!\n" unless $userid;
+    }
+    
+    if ( $userid )
+    {
+	$< = $userid;
+	$> = $userid;
+	die "Could not change userid to $userid: $!\n" unless $< == $userid;
+    }
+}
+
+# The argument 'log' specifies that output should be written to the specified file.
+
+if ( $opt_logfile )
+{
+    open(STDOUT, ">>", $opt_logfile);
+    open(STDERR, ">>&STDOUT");
+}
+
 #daemonize();
 
 my $DEBUG = 1;
 my $POLL_TIME = 2;
-my $dbt = new DBTransactionManager();
+my $dbt = new PBDB::DBTransactionManager();
 my $dbh = $dbt->dbh;
 
-$taxa_cached::sync_time = TaxaCache::getSyncTime($dbt);
+$taxa_cached::sync_time = PBDB::TaxaCache::getSyncTime($dbt);
 $taxa_cached::in_update = 0;
 $taxa_cached::time_to_die = 0;
 
@@ -77,7 +159,7 @@ sub doUpdate {
         my $taxon_no = $taxon_nos[$i];
         my $ts = $to_update{$taxon_no};
         print "updating $taxon_no:$ts\n" if ($DEBUG);
-        TaxaCache::updateCache($dbt,$taxon_no);
+        PBDB::TaxaCache::updateCache($dbt,$taxon_no);
         my $ts = $to_update{$taxon_no};
 
         my $next_ts = undef;
@@ -88,7 +170,7 @@ sub doUpdate {
         # If the next record was updated in the same second as current, wait on
         # updating the tc_sync table
         unless ($next_ts && $next_ts eq $ts) {
-            TaxaCache::setSyncTime($dbt,$ts);
+            PBDB::TaxaCache::setSyncTime($dbt,$ts);
             $taxa_cached::sync_time = $ts;
             print "new sync time $taxa_cached::sync_time\n" if ($DEBUG);
         }

@@ -1,0 +1,111 @@
+#!/usr/bin/env perl
+#
+# This script is designed to be the entry point for the 'classic' service container in
+# the dockerized version of the Paleobiology Database. It starts three separate daemons:
+# 
+#   - the main web application (web.psgi)
+#   - the associated data service (rest.psgi)
+#   - the taxonomy processing daemonn (taxa_cached.pl)
+#
+# These three together provide all necessary functionality for the Classic interface to
+# the Paleobiology Database.
+#
+# I have chosen to run all three of these separate services in a single container because they use
+# a common codebase and all are necessary for the Classic service. The first incarnation of this
+# project ran them in separate containers, but I judged that the added complexity was unnecessary.
+# Despite the fact that Docker standard practice is to run each service in its own container, in
+# this case it makes the most sense to combine them.
+#
+# Author: Michael McClennen
+# Created: 2020-07-02
+
+use strict;
+
+use YAML::Any qw(LoadFile);
+
+# The following variables can be changed if the main directory is ever moved.
+
+my ($MAIN_DIR) = '/data/MyApp';
+my ($WING_DIR) = '/data/Wing';
+
+# Set the necessary environment variables
+
+$ENV{WING_HOME} = $WING_DIR;
+$ENV{WING_APP} = $MAIN_DIR;
+$ENV{WING_CONFIG} = "$MAIN_DIR/etc/wing.conf";
+$ENV{PATH} = "$WING_DIR/bin:$ENV{PATH}";
+$ENV{ANY_MOOSE} = 'Moose';
+
+# Read the main configuration file, and supply defaults for any missing entries. Throw an
+# exception if the configuration file is not found, which will prevent the container from starting
+# up.
+
+my $config = LoadFile("$MAIN_DIR/config.yml") || die "Could not read $MAIN_DIR/config.yml: $!\n";
+
+my $ww = $config->{web_workers} || 5;
+my $rw = $config->{rest_workers} || 2;
+
+my $web_log = $config->{web_log} || 'web_log';
+my $rest_log = $config->{rest_log} || 'rest_log';
+my $error_log = $config->{main_log} || 'main_log';
+my $taxa_log = $config->{taxa_cached_log} || 'taxa_cached_log';
+my $taxa_pid = 'taxa_cached.pid';
+
+# If we are running as root, then all of the processes we spawn should run as www-data instead.
+# In this case, make sure that all of the log files exist and have the proper ownership.
+
+my $run_as = '';
+
+if ( $< == 0 )
+{
+    print STDOUT "Switching uid to www-data\n";
+    
+    my ($dummy, $dummy, $uid, $gid) = getpwnam('www-data');
+
+    if ( $uid && $gid )
+    {
+	$run_as = "--user www-data --group www-data";
+	
+	foreach my $logfile ( $web_log, $rest_log, $error_log, $taxa_log, $taxa_pid )
+	{
+	    my $filename = "/data/MyApp/logs/$logfile";
+	    open (my $out1, ">>", $filename) || print STDOUT "ERROR: could not open $filename: $!\n";
+	    close $out1;
+	    chown($uid, $gid, $filename) || print STDOUT "ERROR: could not chown $filename: $!\n";
+	}
+    }
+    
+    else
+    {
+	print STDOUT "ERROR: getpwnam('www-data'): $!\n";
+    }
+}
+
+# Do a final check before starting: try to run the main web app, and make sure it actually
+# produces useful output. If this fails, we would like to know it immediately rather than
+# continually spawning failed processes.
+
+print STDOUT "Checking that the web application runs properly...\n";
+
+my $precheck = `perl bin/debug_web.psgi GET /classic/`;
+
+unless ( $precheck && $precheck =~ qr{DOCTYPE html}m )
+{
+    print STDOUT "The application debug_web.psgi was not able to run successfully, terminating container.\n";
+    exit;
+}
+
+print STDOUT "Passed.\n";
+
+# If we get here, there is a good chance that everything is fine. So start all three sub-services.
+
+system("start_server --port 6000 -- starman --workers $rw $run_as --access-log=logs/$rest_log --preload-app bin/rest.psgi &");
+system("start_server --port 6001 -- starman --workers $ww $run_as --access-log=logs/$web_log --preload-app bin/web.psgi &");
+system("start_server --interval=10 --pid-file=logs/$taxa_pid --log-file=logs/$taxa_log -- bin/taxa_cached.pl $run_as &");
+
+print STDOUT "Started all services.\n";
+
+while ( 1 )
+{
+    sleep 3600;
+}

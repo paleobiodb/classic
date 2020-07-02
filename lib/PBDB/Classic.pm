@@ -60,6 +60,8 @@ use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request);
 use PBDB::Constants qw($WRITE_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
 
+use lib '/data/MyApp/lib/PBData';
+
 use ExternalIdent;
 use PBLogger;
 
