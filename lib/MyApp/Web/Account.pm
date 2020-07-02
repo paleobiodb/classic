@@ -378,7 +378,7 @@ get '/account/captcha.gif' => sub {
     
     my $random_choice = int rand ( scalar(@CAPTCHA_IMAGE) );
     my $image_name = $CAPTCHA_IMAGE[$random_choice];
-    my $remote_addr = request->remote_address;
+    my $remote_addr = request->remote_address || request->env->{REMOTE_ADDR};
     my $image_data;
     
     content_type 'image/gif';
@@ -399,7 +399,7 @@ sub verify_captcha {
     
     my ($verify_text) = @_;
     
-    my $remote_addr = request->remote_address;
+    my $remote_addr = request->remote_address || request->env->{REMOTE_ADDR};
     
     open(TMPFILE, "<", "/data/MyApp/captcha/temp/$remote_addr") || die "could not open file '$remote_addr': $!";
     my ($image_name) = <TMPFILE>;    
