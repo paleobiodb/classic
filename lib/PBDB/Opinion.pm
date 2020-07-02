@@ -1698,12 +1698,12 @@ sub displayOpinionChoiceForm {
             if ( $row->{'opinion_no'} == $row->{'current_opinion'} )	{
                 $opinion = "<b>$opinion</b>";
             }
-            if ( $o->{'reference_no'} != 6930 )	{
+            # if ( $o->{'reference_no'} != 6930 )	{
                 $output .= "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=$row->{opinion_no}", $opinion) . "$authority" . "</li>";
-            } else	{
-                $output .= qq|<li>$opinion $authority*</li>|;
-                $sepkoski = qq|<br>\n*Opinions from Sepkoski's Compendium cannot be edited.|;
-            }
+            # } else	{
+            #     $output .= qq|<li>$opinion $authority*</li>|;
+            #     $sepkoski = qq|<br>\n*Opinions from Sepkoski's Compendium cannot be edited.|;
+            # }
         }
         $output .= "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=-1", "Create a <b>new</b> opinion record") . "</li>";
         $output .= qq|</ul></div>\n|;
