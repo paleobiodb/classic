@@ -6,8 +6,8 @@ use base 'Exporter';
 use FindBin;
 
 our @EXPORT_OK = qw($READ_URL $WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL
-		    $INTERVAL_URL $HOST_URL $HTML_DIR $DATA_DIR
-		    $SQL_DB $DB_TYPE $DB_USER $DB_SOCKET $DB_PASSWD $IS_FOSSIL_RECORD
+		    $INTERVAL_URL $HTML_DIR $DATA_DIR
+		    $SQL_DB $DB_TYPE $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD $IS_FOSSIL_RECORD
 		    $TAXA_TREE_CACHE $TAXA_LIST_CACHE $IP_MAIN $IP_BACKUP $DB
 		    $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO
 		    $ALLOW_LOGIN $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ADMIN_EMAIL
@@ -20,7 +20,6 @@ our($READ_URL, $WRITE_URL, $APP_DIR);
 $PBDB::Constants::conf = read_conf();
 my $conf = $PBDB::Constants::conf;
 
-$PBDB::Constants::HOST_URL	= $conf->{'HOST_URL'};
 $PBDB::Constants::DATA_URL	= $conf->{'DATA_URL'};
 $PBDB::Constants::GDD_URL	= $conf->{'GDD_URL'};
 $PBDB::Constants::TEST_DATA_URL = $conf->{'TEST_DATA_URL'};
@@ -31,6 +30,7 @@ $PBDB::Constants::DATA_DIR      = $conf->{'DATA_DIR'};
 $PBDB::Constants::WEBAPP_DIR	= $conf->{'WEBAPP_DIR'} || "$APP_DIR/resources";
 $PBDB::Constants::WEBAPP_PATH	= $conf->{'WEBAPP_PATH'} || "$READ_URL/resources";
 $PBDB::Constants::DB_SOCKET     = $conf->{'DB_SOCKET'};
+$PBDB::Constants::DB_CONNECTION	= $conf->{'DB_CONNECTION'};
 $PBDB::Constants::DB_PASSWD     = $conf->{'DB_PASSWD'};
 $PBDB::Constants::DB_USER	= $conf->{'DB_USER'} || 'pbdbuser';
 $PBDB::Constants::ALLOW_LOGIN	= $conf->{'ALLOW_LOGIN'};

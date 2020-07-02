@@ -1,0 +1,5 @@
+# .gitignore for pbdb-classic
+
+*~
+.tramp-history
+

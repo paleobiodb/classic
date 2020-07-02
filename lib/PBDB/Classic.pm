@@ -22,7 +22,7 @@ use PBDB::HTMLBuilder;
 use PBDB::DBConnection;
 use PBDB::DBTransactionManager;
 use PBDB::Session;
-use PBDB::Report;
+# use PBDB::Report;
 
 # Autoloaded libs
 use PBDB::Person;
@@ -58,7 +58,7 @@ use PBDB::Taxon;  # slated for removal
 use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request);
-use PBDB::Constants qw($WRITE_URL $HOST_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
+use PBDB::Constants qw($WRITE_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
 
 use ExternalIdent;
 use PBLogger;
@@ -921,50 +921,50 @@ sub displayDownloadResults {
 }
 
 
-sub emailDownloadFiles	{
+# sub emailDownloadFiles	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
+#     my $output = $hbo->stdIncludes( $PAGE_TOP );
     
-    my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
-    $output .= $m->emailDownloadFiles();
+#     my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
+#     $output .= $m->emailDownloadFiles();
     
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    return $output;
-}
+#     return $output;
+# }
 
 # JA 28.7.08
-sub displayDownloadMeasurementsForm	{
+# sub displayDownloadMeasurementsForm	{
     
-    my ($q, $s, $dbt, $hbo, $message) = @_;
+#     my ($q, $s, $dbt, $hbo, $message) = @_;
     
-    my %vars = $q->Vars();
-    $vars{'error_message'} = $message;
+#     my %vars = $q->Vars();
+#     $vars{'error_message'} = $message;
     
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-    $output .= $hbo->populateHTML('download_measurements_form',\%vars);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $output = $hbo->stdIncludes($PAGE_TOP);
+#     $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
+#     $output .= $hbo->populateHTML('download_measurements_form',\%vars);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
-    return $output;
-}
+#     return $output;
+# }
 
-sub displayDownloadMeasurementsResults	{
+# sub displayDownloadMeasurementsResults	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-	return if PBDB::PBDBUtil::checkForBot();
+# 	return if PBDB::PBDBUtil::checkForBot();
     
-    logRequest($s,$q);
+#     logRequest($s,$q);
     
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    $output .= PBDB::Measurement::displayDownloadMeasurementsResults($q,$s,$dbt,$hbo);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $output = $hbo->stdIncludes($PAGE_TOP);
+#     $output .= PBDB::Measurement::displayDownloadMeasurementsResults($q,$s,$dbt,$hbo);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    return $output;
-}
+#     return $output;
+# }
 
 sub displayDownloadTaxonomyForm {
     
@@ -1022,80 +1022,80 @@ sub displayReportForm {
     return $output;
 }
 
-sub displayReportResults {
+# sub displayReportResults {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    logRequest($s,$q);
+#     logRequest($s,$q);
     
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
+#     my $output = $hbo->stdIncludes( $PAGE_TOP );
     
-    my $r = PBDB::Report->new($dbt,$q,$s);
-    $output .= $r->PBDB::Report::buildReport();
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $r = PBDB::Report->new($dbt,$q,$s);
+#     $output .= $r->PBDB::Report::buildReport();
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
-    return $output;
-}
+#     return $output;
+# }
 
-sub displayMostCommonTaxa	{
+# sub displayMostCommonTaxa	{
     
-    my ($q, $s, $dbt, $hbo, $dataRowsRef) = @_;
+#     my ($q, $s, $dbt, $hbo, $dataRowsRef) = @_;
     
-    # my $dataRowsRef = shift;
+#     # my $dataRowsRef = shift;
     
-    logRequest($s,$q);
+#     logRequest($s,$q);
     
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
+#     my $output = $hbo->stdIncludes( $PAGE_TOP );
     
-    my $r = PBDB::Report->new($dbt,$q,$s);
-    $output .= $r->findMostCommonTaxa($dataRowsRef);
+#     my $r = PBDB::Report->new($dbt,$q,$s);
+#     $output .= $r->findMostCommonTaxa($dataRowsRef);
     
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    return $output;
-}
+#     return $output;
+# }
 
-sub displayCountForm	{
+# sub displayCountForm	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
-    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
-    $output .= $hbo->populateHTML('taxon_count_form');
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $output = $hbo->stdIncludes( $PAGE_TOP );
+#     $output .= PBDB::Person::makeAuthEntJavascript($dbt);
+#     $output .= $hbo->populateHTML('taxon_count_form');
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    return $output;
-}
+#     return $output;
+# }
 
-sub fastTaxonCount	{
+# sub fastTaxonCount	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    return if PBDB::PBDBUtil::checkForBot();
-    logRequest($s,$q);
+#     return if PBDB::PBDBUtil::checkForBot();
+#     logRequest($s,$q);
     
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
-    $output .= PBDB::Report::fastTaxonCount($dbt,$q,$s,$hbo);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $output = $hbo->stdIncludes( $PAGE_TOP );
+#     $output .= PBDB::Report::fastTaxonCount($dbt,$q,$s,$hbo);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    return $output;
-}
+#     return $output;
+# }
 
 
-sub countNames	{
+# sub countNames	{
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    logRequest($s,$q);
+#     logRequest($s,$q);
     
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
+#     my $output = $hbo->stdIncludes( $PAGE_TOP );
     
-    my $r = PBDB::Report->new($dbt,$q,$s);
-    $output .= $r->countNames();
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $r = PBDB::Report->new($dbt,$q,$s);
+#     $output .= $r->countNames();
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 
-    return $output;
-}
+#     return $output;
+# }
 
 # sub displayCurveForm {
 #     my $std_page_top = $hbo->stdIncludes($PAGE_TOP);
@@ -1656,7 +1656,7 @@ sub displayCollResults {
         : ($type eq "view") ? "displayCollectionDetails"
         : ($type eq "edit_occurrence") ? "displayOccurrenceAddEdit"
         : ($type eq "occurrence_list") ? "displayOccurrenceListForm"
-        : ($type eq "analyze_abundance") ? "rarefyAbundances"
+#        : ($type eq "analyze_abundance") ? "rarefyAbundances"
         : ($type eq "reid") ? "displayOccsForReID"
         : ($type eq "reclassify_occurrence") ?  "startDisplayOccurrenceReclassify"
         : ($type eq "most_common") ? "displayMostCommonTaxa"
@@ -2408,19 +2408,19 @@ sub displayCollectionDetails {
     return $output;
 }
 
-sub rarefyAbundances {
+# sub rarefyAbundances {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    return if PBDB::PBDBUtil::checkForBot();
-    logRequest($s,$q);
+#     return if PBDB::PBDBUtil::checkForBot();
+#     logRequest($s,$q);
 
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    $output .= PBDB::Collection::rarefyAbundances($dbt,$q,$s,$hbo);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+#     my $output = $hbo->stdIncludes($PAGE_TOP);
+#     $output .= PBDB::Collection::rarefyAbundances($dbt,$q,$s,$hbo);
+#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
-    return $output;
-}
+#     return $output;
+# }
 
 sub displayCollectionEcology	{
     
@@ -6105,53 +6105,56 @@ sub displayTaxonomicNamesAndOpinions {
 sub logRequest {
     
     my ($q, $s, $dbt, $hbo) = @_;
-    
-    # my ($s,$q) = @_;
-    
-    if ( $HOST_URL !~ /paleobackup\.nceas\.ucsb\.edu/ && $HOST_URL !~ /paleodb\.org/ )  {
-        return;
-    }
-    my $status = open LOG, ">>/var/log/apache2/request_log";
-    if (!$status) {
-        $status = open LOG, ">>/var/log/httpd/request_log";
-    }
-    if (!$status) {
-        carp "Could not open request_log";
-    } else {
-        my $date = now();
 
-        my $ip = $ENV{'REMOTE_ADDR'};
-        $ip ||= 'localhost';
-
-        my $user = $s->get('enterer');
-        if (!$user) { $user = 'Guest'; }
-
-        my $postdata = "";
-        my @fields = $q->param();
-        foreach my $field (@fields) {
-            my @values = $q->param($field);
-            foreach my $value (@values) {
-                if ($value !~ /^$/) {
-                    # Escape these to make it easier to parse later
-                    $value =~ s/&/\\A/g;
-                    $value =~ s/\\/\\\\/g;
-                    $postdata .= "$field=$value&";
-                }
-            }
-        } 
-        $postdata =~ s/&$//;
-        $postdata =~ s/[\n\r\t]/ /g;
-
-        # make the file "hot" to ensure that the buffer is flushed properly.
-        # see http://perl.plover.com/FAQs/Buffering.html for more info on this.
-        my $ofh = select LOG;
-        $| = 1;
-        select $ofh;
-
-        my $line = "$ip\t$date\t$user\t$postdata\n";
-        print LOG $line;
-    }
+    return;
 }
+
+#     # my ($s,$q) = @_;
+    
+#     if ( $HOST_URL !~ /paleobackup\.nceas\.ucsb\.edu/ && $HOST_URL !~ /paleodb\.org/ )  {
+#         return;
+#     }
+#     my $status = open LOG, ">>/var/log/apache2/request_log";
+#     if (!$status) {
+#         $status = open LOG, ">>/var/log/httpd/request_log";
+#     }
+#     if (!$status) {
+#         carp "Could not open request_log";
+#     } else {
+#         my $date = now();
+
+#         my $ip = $ENV{'REMOTE_ADDR'};
+#         $ip ||= 'localhost';
+
+#         my $user = $s->get('enterer');
+#         if (!$user) { $user = 'Guest'; }
+
+#         my $postdata = "";
+#         my @fields = $q->param();
+#         foreach my $field (@fields) {
+#             my @values = $q->param($field);
+#             foreach my $value (@values) {
+#                 if ($value !~ /^$/) {
+#                     # Escape these to make it easier to parse later
+#                     $value =~ s/&/\\A/g;
+#                     $value =~ s/\\/\\\\/g;
+#                     $postdata .= "$field=$value&";
+#                 }
+#             }
+#         } 
+#         $postdata =~ s/&$//;
+#         $postdata =~ s/[\n\r\t]/ /g;
+
+#         # make the file "hot" to ensure that the buffer is flushed properly.
+#         # see http://perl.plover.com/FAQs/Buffering.html for more info on this.
+#         my $ofh = select LOG;
+#         $| = 1;
+#         select $ofh;
+
+#         my $line = "$ip\t$date\t$user\t$postdata\n";
+#         print LOG $line;
+#     }
+# }
 
 # These next functin simply provide simple links to all of our taxon/collection pages
 # so they can be indexed by search engines

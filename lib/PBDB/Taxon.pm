@@ -23,7 +23,7 @@ use PBDB::TaxaCache;
 use PBDB::Classification;
 use PBDB::TaxonInfo;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $HOST_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
+use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
 
 use PBDB::Opinion;
 use PBDB::Reference;
@@ -1609,42 +1609,42 @@ sub setOccurrencesTaxonNoByTaxon {
             $counts{$row->{'person_no'}} += $row->{'cnt'};
         }
 
-        while (my ($person_no,$email) = each %emails) {
-            my $name = $names{$person_no};
-            my $link = "$WRITE_URL?action=displayCollResults&type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$person_no";
-            my %headers = ('Subject'=> 'Please reclassify your occurrences','From'=>'alroy');
-            if ($HOST_URL =~ /paleodb\.org/) {
-                if ($email) {
-                    $headers{'To'} = $email; 
-                } else {
-                    # This will happen if email is blank, such as with Sepkoski
-                    $headers{'To'} = 'alroy@nceas.ucsb.edu';
-                }
-            } else {
-                # DEBUGGING EMAIL ADDRESS
-                $headers{'To'} = 'schroeter@nceas.ucsb.edu';
-            }
-            my $taxon_count = scalar(@taxon_nos);
-            my $occ_count = $counts{$person_no};
-            my $body = <<END_OF_MESSAGE;
-Dear $name:
+#         while (my ($person_no,$email) = each %emails) {
+#             my $name = $names{$person_no};
+#             my $link = "$WRITE_URL?action=displayCollResults&type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$person_no";
+#             my %headers = ('Subject'=> 'Please reclassify your occurrences','From'=>'alroy');
+#             if ($HOST_URL =~ /paleodb\.org/) {
+#                 if ($email) {
+#                     $headers{'To'} = $email; 
+#                 } else {
+#                     # This will happen if email is blank, such as with Sepkoski
+#                     $headers{'To'} = 'alroy@nceas.ucsb.edu';
+#                 }
+#             } else {
+#                 # DEBUGGING EMAIL ADDRESS
+#                 $headers{'To'} = 'schroeter@nceas.ucsb.edu';
+#             }
+#             my $taxon_count = scalar(@taxon_nos);
+#             my $occ_count = $counts{$person_no};
+#             my $body = <<END_OF_MESSAGE;
+# Dear $name:
 
-This is an automated message from the Paleobiology Database. Please don't reply to this message directly, but rather send replies to the database administrator (admin\@paleobiodb.org).
+# This is an automated message from the Paleobiology Database. Please don't reply to this message directly, but rather send replies to the database administrator (admin\@paleobiodb.org).
 
-This message has been sent to you because the taxonomic name $taxon_name has just been entered into the database, and other taxa with the same name already have been entered. So, we have more than one version. This taxonomic name is tied to $occ_count occurrences and reidentifications you own. We can't be sure which version of the name these records should be tied to, so the records must be manually reclassified to choose between them. 
+# This message has been sent to you because the taxonomic name $taxon_name has just been entered into the database, and other taxa with the same name already have been entered. So, we have more than one version. This taxonomic name is tied to $occ_count occurrences and reidentifications you own. We can't be sure which version of the name these records should be tied to, so the records must be manually reclassified to choose between them. 
 
-To fix your records, Please click this link while logged in:
-http://paleodb.org/cgi-bin/$link
+# To fix your records, Please click this link while logged in:
+# http://paleodb.org/cgi-bin/$link
 
-Or log in, go to the main menu, click "Reclassify occurrences" and enter $taxon_name into the taxon name field.
-END_OF_MESSAGE
-            unless ($no_email) {
-                my $mailer = new Mail::Mailer;
-                $mailer->open(\%headers);
-                print $mailer $body; 
-                $mailer->close;
-            }
-        }
+# Or log in, go to the main menu, click "Reclassify occurrences" and enter $taxon_name into the taxon name field.
+# END_OF_MESSAGE
+#             unless ($no_email) {
+#                 my $mailer = new Mail::Mailer;
+#                 $mailer->open(\%headers);
+#                 print $mailer $body; 
+#                 $mailer->close;
+#             }
+#         }
         
         # Deal with homonym issue
         # Default behavior changed: leave occurrences classified by default, since whoever entered them in the first

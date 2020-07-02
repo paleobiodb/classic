@@ -470,6 +470,29 @@ around update => sub {
 	
 	$dbh->do($sql);
     }
+
+    # Now we need to look for permission-setting parameters.
+
+    my $params = Dancer::request->params;
+
+    foreach my $k ( keys %$params )
+    {
+	if ( $k =~ /^permission[[](.*)[]]$/ )
+	{
+	    next unless $params->{$k};
+	    my $table = $1;
+	    my $perm = $params->{$k} eq 'default' ? '' : $params->{$k};
+	    # ouch(400, "Error: Permission test");
+	    my $quoted_table = $dbh->quote($table);
+	    my $quoted_perm = $dbh->quote($params->{$k});
+	    my $sql = "
+		INSERT INTO `pbdb`.`table_permissions` (person_no, table_name, permission)
+		VALUES ($person_no, $quoted_table, $quoted_perm)
+		ON DUPLICATE KEY UPDATE permission=$quoted_perm";
+	    
+	    $dbh->do($sql);
+	}
+    }
 };
 
 
@@ -496,6 +519,26 @@ around describe => sub {
 		WHERE person_no = $authorizer_no LIMIT 1");
 	
 	$out->{authorizer_name} = $authorizer_name;
+    }
+    print STDERR "In 'around describe'\n";
+    if ( $person_no )
+    {
+	my $sql = "
+		SELECT table_name, permission FROM pbdb.table_permissions
+		WHERE person_no = $person_no";
+	
+	my ($permissions) = $dbh->selectall_arrayref($sql, { Slice => { } });
+
+	if ( $permissions )
+	{
+	    foreach my $record ( @$permissions )
+	    {
+		if ( $record->{table_name} && $record->{permission} )
+		{
+		    $out->{permission}{$record->{table_name}} = $record->{permission};
+		}
+	    }
+	}
     }
     
     # my $quoted = $dbh->quote($out->{id});

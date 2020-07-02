@@ -1,1 +1,0 @@
-cpanm iTransact::Lite

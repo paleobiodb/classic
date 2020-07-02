@@ -6,7 +6,7 @@ use strict;
 use PBDB::AuthorNames;  # not used
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+use PBDB::Constants qw($WRITE_URL $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 use PBDB::Nexusfile;  # not used
 # three calls to Reference functions will eventually need to be replaced
 use PBDB::Reference;

@@ -3812,6 +3812,12 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	if ( ! url.match(/http/i) ) return;
 	
+	if ( params.private )
+	{
+	    alert("You must choose the 'Public data only' option in order to create a publicly available archive");
+	    return;
+	}
+	
 	if ( confirm_download )
 	{
 	    if ( ! confirm("You are about to archive a dataset that might exceed 100 MB.  Continue?") )
@@ -3821,7 +3827,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	// Use jQuery to initiate the archive creation process.
 	
 	// $.getJSON(...)
-
+	
 	var archive_params = JSON.stringify({
 	    uri_path: download_path,
 	    uri_args: download_params,

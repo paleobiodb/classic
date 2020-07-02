@@ -29,7 +29,7 @@ use PBDB::Debug qw(dbg);
 use URI::Escape;
 use Encode;
 use PBDB::Debug;
-use PBDB::Constants qw($WRITE_URL $HTML_DIR $HOST_URL $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+use PBDB::Constants qw($WRITE_URL $HTML_DIR $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
 
 # This function has been generalized to use by a number of different modules
 # as a generic way of getting back collection results, including maps, collection search, confidence, and taxon_info
@@ -1942,189 +1942,189 @@ sub jsonCollection	{
 }
 
 # JA 21.2.03
-sub rarefyAbundances	{
-    my ($dbt,$q,$s,$hbo) = @_;
-    my $dbh = $dbt->dbh;
-    my $output = '';
+# sub rarefyAbundances	{
+#     my ($dbt,$q,$s,$hbo) = @_;
+#     my $dbh = $dbt->dbh;
+#     my $output = '';
 
-    my $collection_no = $q->numeric_param('collection_no');
-    my $sql = "SELECT collection_name FROM collections WHERE collection_no=$collection_no";
-    my $collection_name=${$dbt->getData($sql)}[0]->{'collection_name'};
+#     my $collection_no = $q->numeric_param('collection_no');
+#     my $sql = "SELECT collection_name FROM collections WHERE collection_no=$collection_no";
+#     my $collection_name=${$dbt->getData($sql)}[0]->{'collection_name'};
 
-	$sql = "SELECT abund_value FROM occurrences WHERE collection_no=$collection_no and abund_value>0";
+# 	$sql = "SELECT abund_value FROM occurrences WHERE collection_no=$collection_no and abund_value>0";
 	
-	my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
-	$sth->execute();
-	my @ids = ();
-	my $abundsum;
-	my $abundmax;
-	my $ntaxa;
-	my @abund;
-	while ( my @abundrow = $sth->fetchrow_array() )	{
-		push @abund , $abundrow[0];
-		$abundsum = $abundsum + $abundrow[0];
-		if ( $abundrow[0] > $abundmax )	{
-			$abundmax = $abundrow[0];
-		}
-		$ntaxa++;
-		foreach my $i (1 .. $abundrow[0]) {
-			push @ids , $ntaxa;
-        }
-	}
-	$sth->finish();
+# 	my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
+# 	$sth->execute();
+# 	my @ids = ();
+# 	my $abundsum;
+# 	my $abundmax;
+# 	my $ntaxa;
+# 	my @abund;
+# 	while ( my @abundrow = $sth->fetchrow_array() )	{
+# 		push @abund , $abundrow[0];
+# 		$abundsum = $abundsum + $abundrow[0];
+# 		if ( $abundrow[0] > $abundmax )	{
+# 			$abundmax = $abundrow[0];
+# 		}
+# 		$ntaxa++;
+# 		foreach my $i (1 .. $abundrow[0]) {
+# 			push @ids , $ntaxa;
+#         }
+# 	}
+# 	$sth->finish();
 
-	if ( $ntaxa < 2 ) 	{
-		my $reason = "it includes no abundance data";
-		if ( $ntaxa == 1 )	{
-			$reason = "only one taxon has abundance data";
-		}	
-		$output .= "<center><p>Diversity statistics not available</p>\n<p class=\"medium\">Statistics for $collection_name (PBDB collection " . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_no) . "cannot<br>be computed because $reason</p></center>\n\n";
-    		$output .= "<p><div align=\"center\"><b>" . makeAnchor("displaySearchColls", "type=analyze_abundance", "Search again") . "</a></b></div></p>";
-		return;
-	}
+# 	if ( $ntaxa < 2 ) 	{
+# 		my $reason = "it includes no abundance data";
+# 		if ( $ntaxa == 1 )	{
+# 			$reason = "only one taxon has abundance data";
+# 		}	
+# 		$output .= "<center><p>Diversity statistics not available</p>\n<p class=\"medium\">Statistics for $collection_name (PBDB collection " . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_no) . "cannot<br>be computed because $reason</p></center>\n\n";
+#     		$output .= "<p><div align=\"center\"><b>" . makeAnchor("displaySearchColls", "type=analyze_abundance", "Search again") . "</a></b></div></p>";
+# 		return;
+# 	}
 
-	# compute Berger-Parker, Shannon-Wiener, and PIE indices
-	my $bpd = $abundmax / $abundsum;
-	my $swh;
-	my $pie;
-	for my $ab ( @abund )	{
-		my $p = $ab / $abundsum;
-		$swh = $swh + ( $p * log($p) );
-		$pie += $p**2;
-	}
-	$swh = $swh * -1;
-	$pie = 1 - $pie;
-	# Hurlbert's sample size correction (identical to Lande 1996's
-	# correction of 1 - Simpson's concentration)
-	# WARNING: this line was wrong through 28.4.11 because it used ntaxa
-	#  instead of abundsum
-	$pie = $pie * $abundsum / ( $abundsum - 1 );
-	# compute Fisher's alpha using May 1975 eqns. 3.12 and F.13
-	my $alpha = 100;
-	my $lastalpha;
-	while ( abs($alpha - $lastalpha) > 0.001 )	{
-		$lastalpha = $alpha;
-		$alpha = $ntaxa / log(1 + ($abundsum / $alpha));
-	}
-	# compute PIelou's J index
-	my $pj = $swh / log($ntaxa);
-	# compute Buzas-Gibson index
-	my $bge = exp($swh) / $ntaxa;
+# 	# compute Berger-Parker, Shannon-Wiener, and PIE indices
+# 	my $bpd = $abundmax / $abundsum;
+# 	my $swh;
+# 	my $pie;
+# 	for my $ab ( @abund )	{
+# 		my $p = $ab / $abundsum;
+# 		$swh = $swh + ( $p * log($p) );
+# 		$pie += $p**2;
+# 	}
+# 	$swh = $swh * -1;
+# 	$pie = 1 - $pie;
+# 	# Hurlbert's sample size correction (identical to Lande 1996's
+# 	# correction of 1 - Simpson's concentration)
+# 	# WARNING: this line was wrong through 28.4.11 because it used ntaxa
+# 	#  instead of abundsum
+# 	$pie = $pie * $abundsum / ( $abundsum - 1 );
+# 	# compute Fisher's alpha using May 1975 eqns. 3.12 and F.13
+# 	my $alpha = 100;
+# 	my $lastalpha;
+# 	while ( abs($alpha - $lastalpha) > 0.001 )	{
+# 		$lastalpha = $alpha;
+# 		$alpha = $ntaxa / log(1 + ($abundsum / $alpha));
+# 	}
+# 	# compute PIelou's J index
+# 	my $pj = $swh / log($ntaxa);
+# 	# compute Buzas-Gibson index
+# 	my $bge = exp($swh) / $ntaxa;
 
-	# abundances have to be sorted and transformed to frequencies
-	#  in order to test the distribution against the log series JA 14.5.04
-	@abund = sort { $b <=> $a } @abund;
-	my @freq;
-	for my $i (0..$ntaxa-1)	{
-		$freq[$i] = $abund[$i] / $abundsum;
-	}
+# 	# abundances have to be sorted and transformed to frequencies
+# 	#  in order to test the distribution against the log series JA 14.5.04
+# 	@abund = sort { $b <=> $a } @abund;
+# 	my @freq;
+# 	for my $i (0..$ntaxa-1)	{
+# 		$freq[$i] = $abund[$i] / $abundsum;
+# 	}
 
-	# now we need to get freq i out of alpha and gamma (Euler's constant)
-	# start with May 1975 eqn. F.10
-	#  i = -a log(a * freq i) - gamma, so
-	#  (i + gamma)/-a = log(a * freq i), so
-	#  exp((i +gamma)/-a) / a = freq i
-	my $gamma = 0.577215664901532860606512090082;
+# 	# now we need to get freq i out of alpha and gamma (Euler's constant)
+# 	# start with May 1975 eqn. F.10
+# 	#  i = -a log(a * freq i) - gamma, so
+# 	#  (i + gamma)/-a = log(a * freq i), so
+# 	#  exp((i +gamma)/-a) / a = freq i
+# 	my $gamma = 0.577215664901532860606512090082;
 
-	# note that we only get the right estimates if we start i at 0
-	my $estfreq;
-	my $sumestfreq;
-	my $sumfreq;
-	my $logseriesksd;
-	for my $i (0..$ntaxa-1)	{
-		my $estfreq = ($i + $gamma) / (-1 * $alpha);
-		$estfreq = exp($estfreq) / $alpha;
-		$sumestfreq = $sumestfreq + $estfreq;
-		$sumfreq = $sumfreq + $freq[$i];
-		my $freqdiff = abs($sumfreq - $sumestfreq);
-		if ( $freqdiff > $logseriesksd )	{
-			$logseriesksd = $freqdiff;
-		}
-	}
+# 	# note that we only get the right estimates if we start i at 0
+# 	my $estfreq;
+# 	my $sumestfreq;
+# 	my $sumfreq;
+# 	my $logseriesksd;
+# 	for my $i (0..$ntaxa-1)	{
+# 		my $estfreq = ($i + $gamma) / (-1 * $alpha);
+# 		$estfreq = exp($estfreq) / $alpha;
+# 		$sumestfreq = $sumestfreq + $estfreq;
+# 		$sumfreq = $sumfreq + $freq[$i];
+# 		my $freqdiff = abs($sumfreq - $sumestfreq);
+# 		if ( $freqdiff > $logseriesksd )	{
+# 			$logseriesksd = $freqdiff;
+# 		}
+# 	}
 
 
-	$output .= "<center>\n";
-	$output .= "<div class=\"displayPanel\" style=\"width: 38em; margin-top: 2em;\">\n";
-	$output .= "<span class=\"displayPanelHeader\"><span class=\"large\">Diversity statistics for" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_name) . "</a></span></span>\n\n";
-	$output .= "<div class=\"displayPanelContent\" style=\"width: 38em; padding-top: 1em;\">\n";
-	$output .= "<table><tr><td align=\"left\">\n";
-	$output .= "<div>Total richness: $ntaxa taxa<br>\n";
-	$output .= "Total number of specimens: $abundsum taxa<br>\n";
-	$output .= "<div style=\"margin-left: 1em; text-indent: -1em;\">Abundances: <span class=\"verysmall\">".join(', ',@abund)."</span></div>\n";
-	$output .= sprintf "Frequency of most common taxon (Berger-Parker <i>d</i>): %.3f<br>\n",$bpd;
-	$output .= sprintf "Shannon's <i>H</i>: %.3f<br>\n",$swh;
-	$output .= sprintf "Hurlbert's <i>PIE</i>: %.3f<br>\n",$pie;
-	$output .= sprintf "Fisher's <i>alpha</i>*: %.2f<br>\n",$alpha;
-	$output .= sprintf "Kolmogorov-Smirnov <i>D</i>, data vs. log series**: %.3f",$logseriesksd;
-	if ( $logseriesksd > 1.031 / $ntaxa**0.5 )	{
-		$output .= " (<i>p</i> < 0.01)<br>\n";
-	} elsif ( $logseriesksd > 0.886 / $ntaxa**0.5 )	{
-		$output .= " (<i>p</i> < 0.05)<br>\n";
-	} else	{
-		$output .= " (not significant)<br>\n";
-	}
-	$output .= sprintf "Pielou's <i>J</i> (evenness): %.3f<br>\n",$pj;
-	$output .= sprintf "Buzas-Gibson <i>E</i> (evenness): %.3f</p>\n",$bge;
-	$output .= "<div class=small><p>* = solved recursively based on richness and total abundance<br>\n** = test of whether the distribution differs from a log series</div></div></center>\n";
-	$output .= "</td></tr></table>\n</div>\n</div>\n\n";
+# 	$output .= "<center>\n";
+# 	$output .= "<div class=\"displayPanel\" style=\"width: 38em; margin-top: 2em;\">\n";
+# 	$output .= "<span class=\"displayPanelHeader\"><span class=\"large\">Diversity statistics for" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_name) . "</a></span></span>\n\n";
+# 	$output .= "<div class=\"displayPanelContent\" style=\"width: 38em; padding-top: 1em;\">\n";
+# 	$output .= "<table><tr><td align=\"left\">\n";
+# 	$output .= "<div>Total richness: $ntaxa taxa<br>\n";
+# 	$output .= "Total number of specimens: $abundsum taxa<br>\n";
+# 	$output .= "<div style=\"margin-left: 1em; text-indent: -1em;\">Abundances: <span class=\"verysmall\">".join(', ',@abund)."</span></div>\n";
+# 	$output .= sprintf "Frequency of most common taxon (Berger-Parker <i>d</i>): %.3f<br>\n",$bpd;
+# 	$output .= sprintf "Shannon's <i>H</i>: %.3f<br>\n",$swh;
+# 	$output .= sprintf "Hurlbert's <i>PIE</i>: %.3f<br>\n",$pie;
+# 	$output .= sprintf "Fisher's <i>alpha</i>*: %.2f<br>\n",$alpha;
+# 	$output .= sprintf "Kolmogorov-Smirnov <i>D</i>, data vs. log series**: %.3f",$logseriesksd;
+# 	if ( $logseriesksd > 1.031 / $ntaxa**0.5 )	{
+# 		$output .= " (<i>p</i> < 0.01)<br>\n";
+# 	} elsif ( $logseriesksd > 0.886 / $ntaxa**0.5 )	{
+# 		$output .= " (<i>p</i> < 0.05)<br>\n";
+# 	} else	{
+# 		$output .= " (not significant)<br>\n";
+# 	}
+# 	$output .= sprintf "Pielou's <i>J</i> (evenness): %.3f<br>\n",$pj;
+# 	$output .= sprintf "Buzas-Gibson <i>E</i> (evenness): %.3f</p>\n",$bge;
+# 	$output .= "<div class=small><p>* = solved recursively based on richness and total abundance<br>\n** = test of whether the distribution differs from a log series</div></div></center>\n";
+# 	$output .= "</td></tr></table>\n</div>\n</div>\n\n";
 
-	# rarefy the abundances
-	my $maxtrials = 200;
-    my @sampledTaxa;
-    my @richnesses;
-	for my $trial (1..$maxtrials)	{
-		my @tempids = @ids;
-		my @seen = ();
-		my $running = 0;
-		for my $n (0..$#ids)	{
-			my $x = int(rand() * ($#tempids + 1));
-			my $id = splice @tempids, $x, 1;
-			$sampledTaxa[$n] = $sampledTaxa[$n] + $running;
-			if ( $seen[$id] < $trial )	{
-				$sampledTaxa[$n]++;
-				$running++;
-			}
-			push @{$richnesses[$n]} , $running;
-			$seen[$id] = $trial;
-		}
-	}
+# 	# rarefy the abundances
+# 	my $maxtrials = 200;
+#     my @sampledTaxa;
+#     my @richnesses;
+# 	for my $trial (1..$maxtrials)	{
+# 		my @tempids = @ids;
+# 		my @seen = ();
+# 		my $running = 0;
+# 		for my $n (0..$#ids)	{
+# 			my $x = int(rand() * ($#tempids + 1));
+# 			my $id = splice @tempids, $x, 1;
+# 			$sampledTaxa[$n] = $sampledTaxa[$n] + $running;
+# 			if ( $seen[$id] < $trial )	{
+# 				$sampledTaxa[$n]++;
+# 				$running++;
+# 			}
+# 			push @{$richnesses[$n]} , $running;
+# 			$seen[$id] = $trial;
+# 		}
+# 	}
 
-	my @slevels = (1,2,3,4,5,7,10,15,20,25,30,35,40,45,50,
-	      55,60,65,70,75,80,85,90,95,100,
-	      150,200,250,300,350,400,450,500,550,600,650,
-	      700,750,800,850,900,950,1000,
-	      1500,2000,2500,3000,3500,4000,4500,5000,5500,
-	      6000,6500,7000,7500,8000,8500,9000,9500,10000);
-    my %isalevel;
-	for my $sl (@slevels)	{
-		$isalevel{$sl} = "Y";
-	}
+# 	my @slevels = (1,2,3,4,5,7,10,15,20,25,30,35,40,45,50,
+# 	      55,60,65,70,75,80,85,90,95,100,
+# 	      150,200,250,300,350,400,450,500,550,600,650,
+# 	      700,750,800,850,900,950,1000,
+# 	      1500,2000,2500,3000,3500,4000,4500,5000,5500,
+# 	      6000,6500,7000,7500,8000,8500,9000,9500,10000);
+#     my %isalevel;
+# 	for my $sl (@slevels)	{
+# 		$isalevel{$sl} = "Y";
+# 	}
 
-	$output .= "<div class=\"displayPanel\" style=\"width: 38em; margin-top: 2em;\">\n";
-	$output .= "<span class=\"displayPanelHeader\"><span class=\"large\" >Rarefaction curve for" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_name) . "</a></span></span>\n\n";
-	$output .= "<div class=\"displayPanelContent\">\n";
+# 	$output .= "<div class=\"displayPanel\" style=\"width: 38em; margin-top: 2em;\">\n";
+# 	$output .= "<span class=\"displayPanelHeader\"><span class=\"large\" >Rarefaction curve for" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", $collection_name) . "</a></span></span>\n\n";
+# 	$output .= "<div class=\"displayPanelContent\">\n";
 
-    PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/rarefaction");
-	open OUT,">$HTML_DIR/public/rarefaction/rarefaction.csv";
-	$output .= "<center><table>\n";
-	$output .= "<tr class=\"small\"><td><u>Specimens</u></td><td><u>Species (mean)</u></td><td><u>Species (median)</u></td><td><u>95% confidence limits</u></td></tr>\n";
-	print OUT "Specimens\tSpecies (mean)\tSpecies (median)\tLower CI\tUpper CI\n";
-	for my $n (0..$#ids)	{
-		if ( $n == $#ids || $isalevel{$n+1} eq "Y" )	{
-			my @distrib = sort { $a <=> $b } @{$richnesses[$n]};
-			$output .= sprintf "<tr class=\"small\"><td align=center>%d</td> <td align=center>%.1f</td> <td align=center>%d</td> <td align=center>%d - %d</td></tr>\n",$n + 1,$sampledTaxa[$n] / $maxtrials,$distrib[99],$distrib[4],$distrib[195];
-			printf OUT "%d\t%.1f\t%d\t%d\t%d\n",$n + 1,$sampledTaxa[$n] / $maxtrials,$distrib[99],$distrib[4],$distrib[195];
-		}
-	}
-	close OUT;
-	$output .= "</table></center>\n</div>\n</div>\n<p>\n\n";
-	$output .= "<p><i>Results are based on 200 random sampling trials.<br>\n";
-	$output .= "The data can be downloaded from a <a href=\"$HOST_URL/public/rarefaction/rarefaction.csv\">tab-delimited text file</a>.</i></p></center>\n\n";
+#     PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/rarefaction");
+# 	open OUT,">$HTML_DIR/public/rarefaction/rarefaction.csv";
+# 	$output .= "<center><table>\n";
+# 	$output .= "<tr class=\"small\"><td><u>Specimens</u></td><td><u>Species (mean)</u></td><td><u>Species (median)</u></td><td><u>95% confidence limits</u></td></tr>\n";
+# 	print OUT "Specimens\tSpecies (mean)\tSpecies (median)\tLower CI\tUpper CI\n";
+# 	for my $n (0..$#ids)	{
+# 		if ( $n == $#ids || $isalevel{$n+1} eq "Y" )	{
+# 			my @distrib = sort { $a <=> $b } @{$richnesses[$n]};
+# 			$output .= sprintf "<tr class=\"small\"><td align=center>%d</td> <td align=center>%.1f</td> <td align=center>%d</td> <td align=center>%d - %d</td></tr>\n",$n + 1,$sampledTaxa[$n] / $maxtrials,$distrib[99],$distrib[4],$distrib[195];
+# 			printf OUT "%d\t%.1f\t%d\t%d\t%d\n",$n + 1,$sampledTaxa[$n] / $maxtrials,$distrib[99],$distrib[4],$distrib[195];
+# 		}
+# 	}
+# 	close OUT;
+# 	$output .= "</table></center>\n</div>\n</div>\n<p>\n\n";
+# 	$output .= "<p><i>Results are based on 200 random sampling trials.<br>\n";
+# 	$output .= "The data can be downloaded from a <a href=\"$HOST_URL/public/rarefaction/rarefaction.csv\">tab-delimited text file</a>.</i></p></center>\n\n";
 
-    $output .= "<p><div align=\"center\"><b>" . makeAnchor("displaySearchColls", "type=analyze_abundance", "Search again") ."</b></div></p>";
+#     $output .= "<p><div align=\"center\"><b>" . makeAnchor("displaySearchColls", "type=analyze_abundance", "Search again") ."</b></div></p>";
     
-    return $output;
-}
+#     return $output;
+# }
 
 # JA 6.1.08
 # WARNING: clumsy pseudo-join of coll and occ lists is needed because

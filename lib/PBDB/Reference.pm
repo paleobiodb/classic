@@ -1194,33 +1194,33 @@ sub getReferencesXML {
     return $output;
 }
    
-sub printRefsCSV {
-    my @data = @{$_[0]};
-    my $authname = $_[1];
-    $authname =~ s/\. //;
-    # Dump the refs to a flat file JA 1.7.02
-    my $csv = Text::CSV_XS->new({'binary'=>1});
-    PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/references");
-    open REFOUTPUT,">$HTML_DIR/public/references/${authname}_refs.csv";
+# sub printRefsCSV {
+#     my @data = @{$_[0]};
+#     my $authname = $_[1];
+#     $authname =~ s/\. //;
+#     # Dump the refs to a flat file JA 1.7.02
+#     my $csv = Text::CSV_XS->new({'binary'=>1});
+#     PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/references");
+#     open REFOUTPUT,">$HTML_DIR/public/references/${authname}_refs.csv";
 
-    my @fields = qw(authorizer enterer modifier reference_no author1init author1last author2init author2last otherauthors pubyr reftitle pubtitle pubvol pubno firstpage lastpage publication_type basis language doi comments created modified); 
-    if ($csv->combine(@fields)) {
-        print REFOUTPUT $csv->string(),"\n";
-    }
-    for my $row (@data)	{
-        my @row;
-        foreach (@fields) {
-            push @row, $row->{$_};
-        }
-        if ($csv->combine(@row))	{
-            print REFOUTPUT $csv->string(),"\n";
-        } else {
-            # print "ERR";
-        }
-    }
-    close REFOUTPUT;
+#     my @fields = qw(authorizer enterer modifier reference_no author1init author1last author2init author2last otherauthors pubyr reftitle pubtitle pubvol pubno firstpage lastpage publication_type basis language doi comments created modified); 
+#     if ($csv->combine(@fields)) {
+#         print REFOUTPUT $csv->string(),"\n";
+#     }
+#     for my $row (@data)	{
+#         my @row;
+#         foreach (@fields) {
+#             push @row, $row->{$_};
+#         }
+#         if ($csv->combine(@row))	{
+#             print REFOUTPUT $csv->string(),"\n";
+#         } else {
+#             # print "ERR";
+#         }
+#     }
+#     close REFOUTPUT;
 
-} 
+# } 
 
 # JA 17-18.3.09
 sub getTitleWordOdds	{

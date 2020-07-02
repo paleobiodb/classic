@@ -7,20 +7,21 @@
 package PBDB::DBConnection;
 use strict;
 use DBI;
-use PBDB::Constants qw($SQL_DB $DB_USER $DB_SOCKET $DB_PASSWD);
+use PBDB::Constants qw($SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD);
 # return a handle to the database (often called $dbh)
 
 sub connect {
     my $driver =   "mysql";
-    my $hostName = "localhost";
-
+    
     my $dsn;
     if ( $DB_SOCKET )	{
-        $dsn = "DBI:$driver:database=$SQL_DB;host=$hostName;mysql_socket=$DB_SOCKET;mysql_enable_utf8=1";
+        $dsn = "DBI:$driver:database=$SQL_DB;host=localhost;mysql_socket=$DB_SOCKET;mysql_enable_utf8=1";
+    } elsif ( $DB_CONNECTION )	{
+        $dsn = "DBI:$driver:database=$SQL_DB;$DB_CONNECTION;mysql_enable_utf8=1";
     } else	{
-        $dsn = "DBI:$driver:database=$SQL_DB;host=$hostName;mysql_enable_utf8=1";
+        die("Database connection information not found.");
     }
-
+    
     my $connection;
     if ( $DB_PASSWD )	{
         $connection = DBI->connect($dsn, $DB_USER, $DB_PASSWD, {RaiseError=>1});
