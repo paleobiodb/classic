@@ -16,6 +16,10 @@ our @EXPORT_OK = qw($READ_URL $WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL
 
 our($READ_URL, $WRITE_URL, $APP_DIR);
 
+BEGIN {
+    $PBDB::Constants::APP_DIR = '/data/MyApp';
+}
+
 # general constants
 $PBDB::Constants::conf = read_conf();
 my $conf = $PBDB::Constants::conf;
@@ -73,13 +77,13 @@ if ( $DEBUG_USER )
 }
 
 sub read_conf {
-    my $base_dir = $FindBin::RealBin;
+    # my $base_dir = $FindBin::RealBin;
     
     # $base_dir =~ s/\/(upload|cgi-bin|scripts|html)(\/.*)*$/\/config/;
-    $base_dir =~ s{ /bin | /scripts }{}xs;
-    $PBDB::Constants::APP_DIR = $base_dir;
+    # $base_dir =~ s{ /bin | /scripts }{}xs;
+    # $PBDB::Constants::APP_DIR = $base_dir;
     # $PBDB::Constants::APP_DIR =~ s/\/config$//;
-    my $filename = "$base_dir/pbdb.conf";
+    my $filename = "$APP_DIR/pbdb.conf";
     my $cf;
     open $cf, "<$filename" or die "Can not open $filename\n";
     my %conf = ();

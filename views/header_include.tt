@@ -108,7 +108,7 @@
 		  <hr>
 		  <li><a href="/account">Account settings</a></li>
 		  [% IF current_user.admin %]
-		  <li><a href="/classic/app/resource_sub/manager">Manage resources</a></li>
+		  <li><a href="/classic/app/resource-sub/manager">Manage resources</a></li>
 		  <li><a href="/classic/app/archive/manage">Manage archives</a></li>
 		  <li><a href="/admin/users">Manage database users</a></li>
 		  [% END %]

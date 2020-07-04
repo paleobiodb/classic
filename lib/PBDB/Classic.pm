@@ -63,11 +63,11 @@ use PBDB::Constants qw($WRITE_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TR
 use lib '/data/MyApp/lib/PBData';
 
 use ExternalIdent;
-use PBLogger;
+# use PBLogger;
 
 
-my $logger = PBLogger->new;
-
+# my $logger = PBLogger->new;
+my $logger;
 
 get '/classic' => sub {
 
@@ -170,9 +170,11 @@ sub classic_request {
 	croak "Test error!!!";
     }
     
-    # print STDERR "Action: $action\n";
+    print STDERR "Action: $action\n";
     
     my $wing_session = get_session();
+    
+    error("Wing session: $wing_session");
     
     my ($user, $session_id, $user_id, $enterer_no, $authorizer_no, $is_admin, $role);
     
@@ -191,7 +193,7 @@ sub classic_request {
 	}
     }
     
-    # print STDERR "SESSION ID = $session_id\n";
+    error("SESSION ID = $session_id");
     
     my $q = PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
     
@@ -345,6 +347,8 @@ sub classic_request {
     
     my $print_output;
     my $return_output;
+
+    no warnings 'once';
     
     open(SAVE_STDOUT, '>&STDOUT');
     

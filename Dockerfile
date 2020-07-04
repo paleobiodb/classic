@@ -8,10 +8,13 @@ FROM paleobiodb_classic_preload
 
 COPY pbdb-classic/MyApp /data/MyApp
 COPY pbdb-classic/Wing /data/Wing
+COPY pbdb-classic/Wing/bin/wing /usr/local/bin/
 COPY pbdb-new/lib /data/MyApp/lib/PBData
 COPY pbdb-app/ /data/MyApp/resources
 
 ENV WING_CONFIG=/data/MyApp/etc/wing.conf
+ENV WING_HOME=/data/Wing
+ENV WING_APP=/data/MyApp
 
 WORKDIR /data/MyApp
 

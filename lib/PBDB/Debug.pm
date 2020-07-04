@@ -125,7 +125,12 @@ sub save_request {
     
     my ($q) = @_;
     
-    my $savedir_path = &get_savedir_path;
+    # Do nothing unless the value of $CGI_DEBUG is greater than zero and the directory
+    # $APP_DIR/saves exists. Return silently if either of these is not true.
+
+    my $SAVE_DIR = "$APP_DIR/saves";
+    
+    return unless $CGI_DEBUG && -d $SAVE_DIR;
     
     my ($save_fh, $save_path);
     
@@ -133,7 +138,7 @@ sub save_request {
     
     if ( my $name = $q->param('debug_name') )
     {
-	$save_path = ">$savedir_path/$name.txt";
+	$save_path = ">$SAVE_DIR/$name.txt";
     }
     
     # Otherwise, rename each of the save files q<n>.txt for n=1,2...$CGI_DEBUG-1 to
@@ -144,13 +149,13 @@ sub save_request {
 	for ( my $index = $CGI_DEBUG-1; $index > 0; $index-- )
 	{
 	    my $next = $index + 1;
-	    rename("$savedir_path/q$index.txt", "$savedir_path/q$next.txt");
+	    rename("$SAVE_DIR/q$index.txt", "$SAVE_DIR/q$next.txt");
 	}
 	
 	# Now save the CGI state, including the session cookie and path info, to
 	# /saves/q1.txt
 	
-	$save_path = ">$savedir_path/q1.txt";
+	$save_path = ">$SAVE_DIR/q1.txt";
     }
     
     # Prepare to write the save file.
@@ -289,7 +294,7 @@ sub load_request {
     
     my ($arg) = @_;
     
-    my $savedir_path = &get_savedir_path();
+    my $SAVE_DIR = "$APP_DIR/saves";
     
     my ($q, $save_fh, $line, $print_args);
     
@@ -304,7 +309,7 @@ sub load_request {
 	$arg = "q$arg";
     }
     
-    my $save_path = "$savedir_path/$arg.txt";
+    my $save_path = "$SAVE_DIR/$arg.txt";
     
     die "Bad debug argument: $arg\n" unless -e $save_path;
     
@@ -375,13 +380,13 @@ sub load_request {
 # 
 # Return a path to the save directory for this server
 
-sub get_savedir_path {
+# sub get_savedir_path {
 
-    my $script_path = $ENV{PWD} . '/' . $0;
-    my $savedir_path = $script_path;
-    $savedir_path =~ s{/cgi-bin/.*|/bin/.*}{/saves};
+#     my $script_path = $ENV{PWD} . '/' . $0;
+#     my $savedir_path = $script_path;
+#     $savedir_path =~ s{/cgi-bin/.*|/bin/.*}{/saves};
     
-    return $savedir_path;
-}
+#     return $savedir_path;
+# }
 
 1;

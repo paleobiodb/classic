@@ -90,8 +90,8 @@ if ( $opt_user && $> == 0 )
     
     if ( $userid )
     {
-	$< = $userid;
 	$> = $userid;
+	$< = $userid;
 	die "Could not change userid to $userid: $!\n" unless $< == $userid;
     }
 }

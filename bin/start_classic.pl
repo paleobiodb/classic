@@ -49,37 +49,59 @@ my $web_log = $config->{web_log} || 'web_log';
 my $rest_log = $config->{rest_log} || 'rest_log';
 my $error_log = $config->{main_log} || 'main_log';
 my $taxa_log = $config->{taxa_cached_log} || 'taxa_cached_log';
-my $taxa_pid = 'taxa_cached.pid';
 
-# If we are running as root, then all of the processes we spawn should run as www-data instead.
-# In this case, make sure that all of the log files exist and have the proper ownership.
+# my $process_uid = $config->{process_uid};
 
 my $run_as = '';
 
-if ( $< == 0 )
-{
-    print STDOUT "Switching uid to www-data\n";
-    
-    my ($dummy, $dummy, $uid, $gid) = getpwnam('www-data');
+# I have decided against running the sub-processes under a different uid. They should just run as
+# root, like any other Docker process.
 
-    if ( $uid && $gid )
-    {
-	$run_as = "--user www-data --group www-data";
-	
-	foreach my $logfile ( $web_log, $rest_log, $error_log, $taxa_log, $taxa_pid )
-	{
-	    my $filename = "/data/MyApp/logs/$logfile";
-	    open (my $out1, ">>", $filename) || print STDOUT "ERROR: could not open $filename: $!\n";
-	    close $out1;
-	    chown($uid, $gid, $filename) || print STDOUT "ERROR: could not chown $filename: $!\n";
-	}
-    }
+# # If we are running as root, then all of the processes we spawn should run as www-data instead.
+# # In this case, make sure that all of the log files exist and have the proper ownership.
+
+# if ( $< == 0 )
+# {
+#     my $process_username = 'www-data';
+#     my $dummy;
+#     my $uid;
+#     my $gid;
     
-    else
-    {
-	print STDOUT "ERROR: getpwnam('www-data'): $!\n";
-    }
-}
+#     if ( $process_uid )
+#     {
+# 	($process_username, $dummy, $uid, $gid) = getpwuid(
+    
+#     my ($dummy, $dummy, $uid, $gid) = getpwnam('www-data');
+    
+#     if ( $process_uid && $uid ne $process_uid )
+#     {
+# 	system("groupmod -g $process_uid www-data");
+# 	system("usermod -u $process_uid -g $process_uid www-data");
+
+# 	$uid = $process_uid;
+# 	$gid = $process_uid;
+#     }
+    
+#     if ( $uid && $gid )
+#     {
+# 	print STDOUT "Switching uid to www-data\n";
+	
+# 	$run_as = "--user $uid --group $gid;
+	
+# 	foreach my $logfile ( $web_log, $rest_log, $error_log, $taxa_log )
+# 	{
+# 	    my $filename = "/data/MyApp/logs/$logfile";
+# 	    open (my $out1, ">>", $filename) || print STDOUT "ERROR: could not open $filename: $!\n";
+# 	    close $out1;
+# 	    chown($uid, $gid, $filename) || print STDOUT "ERROR: could not chown $filename: $!\n";
+# 	}
+#     }
+    
+#     else
+#     {
+# 	print STDOUT "ERROR: getpwnam('www-data'): $!\n";
+#     }
+# }
 
 # Do a final check before starting: try to run the main web app, and make sure it actually
 # produces useful output. If this fails, we would like to know it immediately rather than
@@ -99,9 +121,9 @@ print STDOUT "Passed.\n";
 
 # If we get here, there is a good chance that everything is fine. So start all three sub-services.
 
-system("start_server --port 6000 -- starman --workers $rw $run_as --access-log=logs/$rest_log --preload-app bin/rest.psgi &");
-system("start_server --port 6001 -- starman --workers $ww $run_as --access-log=logs/$web_log --preload-app bin/web.psgi &");
-system("start_server --interval=10 --pid-file=logs/$taxa_pid --log-file=logs/$taxa_log -- bin/taxa_cached.pl $run_as &");
+system("start_server --port 6000 --pid-file=classic_rest.pid -- starman --workers $rw $run_as --access-log=logs/$rest_log --preload-app bin/rest.psgi &");
+system("start_server --port 6001 --pid-file=classic_web.pid -- starman --workers $ww $run_as --access-log=logs/$web_log --preload-app bin/web.psgi &");
+system("start_server --interval=10 --pid-file=taxa_cached.pid --log-file=logs/$taxa_log -- bin/taxa_cached.pl $run_as &");
 
 print STDOUT "Started all services.\n";
 

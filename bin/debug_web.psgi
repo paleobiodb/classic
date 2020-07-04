@@ -10,7 +10,9 @@ use MyApp::Web;
 # $env->{'psgix.harakiri'} = 1;
 
     # my $request = Dancer::Request->new();
-    
+
+no warnings 'once';
+
 $DB::single = 1;
 $DB::deep = 500;
     
