@@ -6,9 +6,9 @@
 
 FROM paleobiodb_classic_preload
 
-COPY pbdb-classic/MyApp /data/MyApp
-COPY pbdb-classic/Wing /data/Wing
-COPY pbdb-classic/Wing/bin/wing /usr/local/bin/
+COPY pbdb-classic /data/MyApp
+COPY pbdb-wing /data/Wing
+COPY pbdb-wing/bin/wing /usr/local/bin/
 COPY pbdb-new/lib /data/MyApp/lib/PBData
 COPY pbdb-app/ /data/MyApp/resources
 
