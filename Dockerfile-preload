@@ -5,12 +5,13 @@
 # takes 45 minutes or more to build. The main Dockerfile then uses this to build
 # the final image by copying in the source code and other local content.
 
-FROM perl:5.26-threaded AS paleobiodb_classic_preload
+FROM perl:5.32-threaded AS paleobiodb_classic_preload
 
 RUN apt-get update && \
     apt-get -y install apt-utils && \
     apt-get -y install mariadb-client && \
     apt-get -y install beanstalkd && \
+    apt-get install -y vim && \
     cpanm DBI && \
     cpanm DBD::mysql && \
     cpanm Dancer && \
@@ -22,6 +23,7 @@ RUN apt-get update && \
     cpanm YAML && \
     cpanm Email::Sender::Simple && \
     cpanm Email::MIME::Kit && \
+    cpanm Email::MIME::Kit::Renderer::TT && \
     cpanm Email::Sender && \
     cpanm Config::JSON && \
     cpanm DateTime && \
@@ -29,6 +31,7 @@ RUN apt-get update && \
     cpanm DBIx::Class::UUIDColumns && \
     cpanm DBIx::Class::TimeStamp && \
     cpanm DBIx::Class::InflateColumn::Serializer && \
+    cpanm DBIx::Class::DeploymentHandler && \
     cpanm Data::GUID && \
     cpanm Crypt::Eksblowfish::Bcrypt && \
     cpanm Ouch
@@ -52,9 +55,7 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm Plack::Middleware::CrossOrigin && \
     cpanm Net::Server::SS::PreFork && \
     cpanm Template::Toolkit && \
-    cpanm Dancer::Logger::Log4perl
-
-RUN apt-get install -y vim
-
-RUN cpanm Email::MIME::Kit::Renderer::TT && \
-    cpanm IO::Socket::SSL
+    cpanm Dancer::Logger::Log4perl && \
+    cpanm App::Cmd::Setup && \
+    cpanm IO::Socket::SSL && \
+    cpanm --force Term::ReadLine::Gnu
