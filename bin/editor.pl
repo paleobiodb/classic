@@ -11,7 +11,7 @@
 use strict;
 
 use lib 'lib';
-use lib 'pbdb-new/lib';
+use lib 'lib/PBData';
 
 # use CoreFunction qw(connectDB);
 use TaxonDefs qw(%RANK_STRING %TAXON_TABLE);
