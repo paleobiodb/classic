@@ -51,6 +51,10 @@ post '/login' => sub {
     if (! $user->is_password_valid($password)) {
 	return template 'account/login', { error_message => 'Password incorrect.'};
     }
+
+    # Check if the user wishes to keep this session persistent.
+    
+    my $persistent = params->{persistent};
     
     # check for a valid authorizer and make sure that the account is not disabled.
     
@@ -78,7 +82,7 @@ post '/login' => sub {
 	    {
 		$user->login_role('enterer');
 		$user->login_authorizer_no($authorizer_no);
-		return login($user);
+		return login($user, $persistent);
 	    }
 	}
 	
@@ -86,7 +90,7 @@ post '/login' => sub {
 	{
 	    $user->login_role('authorizer');
 	    $user->login_authorizer_no($authorizer_no);
-	    return login($user);
+	    return login($user, $persistent);
 	}
     }
 
@@ -95,7 +99,7 @@ post '/login' => sub {
 	$user->set_column('authorizer_no', $person_no);
 	$user->login_role('authorizer');
 	$user->login_authorizer_no($person_no);
-	return login($user);
+	return login($user, $persistent);
     }
     
     elsif ( ($role eq 'enterer' || $role eq 'student') && $person_no )
@@ -109,7 +113,7 @@ post '/login' => sub {
 	    $user->set_column('authorizer_no', $authorizer_no);
 	    $user->login_role($role);
 	    $user->login_authorizer_no($authorizer_no);
-	    return login($user);
+	    return login($user, $persistent);
 	}
 	
 	else
@@ -120,46 +124,7 @@ post '/login' => sub {
     
     $user->login_role('guest');
     $user->login_authorizer_no(0);
-    return login($user);
-    
-    # if ( my $auth_name = params->{authorizer} )
-    # {
-    # 	my $auth = find_user($auth_name);
-	
-    # 	if ( !defined $auth || $auth eq 'NONE' )
-    # 	{
-    # 	    return template 'account/login', { error_message => 'Authorizer not found.' };
-    # 	}
-
-    # 	elsif ( $auth eq 'MULTIPLE' )
-    # 	{
-    # 	    return template 'account/login', { error_message => 'Authorizer is ambiguous.' };
-    # 	}
-
-    # 	unless ( authorizer_ok($user, $auth) )
-    # 	{
-    # 	    return template 'account/login', { error_message => 'You do not have permission from that authorizer.' };
-    # 	}
-	
-    # 	$user->login_role('enterer');
-    # 	$user->login_authorizer_no($auth->person_no);
-    # 	return login($user);
-    # }
-    
-    # elsif ( $user->role =~ /authorizer/ )
-    # {
-    # 	$user->login_role('authorizer');
-    # 	$user->login_authorizer_no($user->person_no);
-    # 	return login($user);
-    # }
-    
-    # elsif ( $user->role =~ /admin/ )
-    # {
-    # 	$user->login_role('guest');
-    # 	$user->login_authorizer_no(0);
-    # 	return login($user);
-    # }
-    
+    return login($user, $persistent);
 };
 
 
@@ -299,9 +264,13 @@ sub find_user {
 
 sub login {
     
-    my ($user) = @_;
+    my ($user, $persistent) = @_;
     
-    my $session = $user->start_session({ api_key_id => Wing->config->get('default_api_key'), ip_address => request->remote_address });
+    my $expire_days = $persistent && $persistent eq 'on' ? 30 : 1;
+    
+    print STDERR "Logging in with expire_days = $expire_days\n";
+    
+    my $session = $user->start_session({ api_key_id => Wing->config->get('default_api_key'), ip_address => request->remote_address, expire_days =>  $expire_days });
     set_cookie session_id   => $session->id,
                 expires     => '+5y',
                 http_only   => 0,
@@ -317,20 +286,11 @@ sub login {
 	return redirect "/classic/" . params->{action};
     }
     
-    if (params->{sso_id}) {
-        my $cookie = cookies->{sso_id};
-        my $sso_id = $cookie->value if defined $cookie;
-        $sso_id ||= params->{sso_id};
-        my $sso = Wing::SSO->new(id => $sso_id, db => Wing->db());
-        $sso->user_id($user->id);
-        $sso->store;
-        if ($sso->has_requested_permissions) {
-            return redirect $sso->redirect;
-        }
-        else {
-            return redirect '/sso/authorize?sso_id='.$sso->id;
-        }
+    else
+    {
+	return redirect "/classic/";
     }
+    
     my $cookie = cookies->{redirect_after};
     my $uri = $cookie->value if defined $cookie;
     $uri ||= params->{redirect_after} || '/classic';

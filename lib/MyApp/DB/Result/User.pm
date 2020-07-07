@@ -139,37 +139,37 @@ after insert => sub {
     $self->log_trend('users_created', 1, $self->username.' / '.$self->id);
 };
 
-around start_session => sub {
+# around start_session => sub {
     
-    my ($orig, $self, $options) = @_;
+#     my ($orig, $self, $options) = @_;
     
-    my $session = $orig->($self, $options);
+#     my $session = $orig->($self, $options);
     
-    # Generate a PBDB session record using the login parameters, provided that $authorizer_no is
-    # not zero or empty.  In the latter case, the person logging in will have no PBDB privileges
-    # but will have Wing administrator privileges.
+#     # Generate a PBDB session record using the login parameters, provided that $authorizer_no is
+#     # not zero or empty.  In the latter case, the person logging in will have no PBDB privileges
+#     # but will have Wing administrator privileges.
     
-    my $session_id = $session->id;
-    my $enterer_no = $session->user->person_no;
-    my $authorizer_no = $self->login_authorizer_no;
-    my $login_role = $self->login_role;
+#     my $session_id = $session->id;
+#     my $enterer_no = $session->user->person_no;
+#     my $authorizer_no = $self->login_authorizer_no;
+#     my $login_role = $self->login_role;
     
-    if ( $authorizer_no )
-    {
-	PBDB::Session->start_login_session($session_id, $enterer_no, $authorizer_no, $login_role);
-    }
+#     if ( $authorizer_no )
+#     {
+# 	PBDB::Session->start_login_session($session_id, $enterer_no, $authorizer_no, $login_role);
+#     }
     
-    # Return Wing session reference.
+#     # Return Wing session reference.
     
-    return $session;
-};
+#     return $session;
+# };
 
-before end_session => sub {
+# before end_session => sub {
     
-    my ($self) = @_;
-    my $session = $self->current_session;
-    PBDB::Session->end_login_session($session->id);
-};
+#     my ($self) = @_;
+#     my $session = $self->current_session;
+#     PBDB::Session->end_login_session($session->id);
+# };
 
 
 # Do a bunch of checks before creating a new user.
@@ -520,7 +520,7 @@ around describe => sub {
 	
 	$out->{authorizer_name} = $authorizer_name;
     }
-    print STDERR "In 'around describe'\n";
+    # print STDERR "In 'around describe'\n";
     if ( $person_no )
     {
 	my $sql = "

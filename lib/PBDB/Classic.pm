@@ -117,12 +117,12 @@ get '/cgi-bin/bridge.pl' => sub {
 	my $uri = request->uri;
 	$uri =~ s{^/cgi-bin/bridge.pl}{/classic/$action};
 	
-	redirect $uri, 302;
+	redirect $uri, 301;
     }
     
     else
     {
-	redirect "/classic", 302;
+	redirect "/classic", 301;
     }
 };
 
@@ -170,46 +170,63 @@ sub classic_request {
 	croak "Test error!!!";
     }
     
-    print STDERR "Action: $action\n";
+    # Get a database connection handle.
+    
+    my $dbt = PBDB::DBTransactionManager->new();
+    
+    # Determine the remote address from which this request came. If X-Real-IP is set, use
+    # that. Otherwise, the remote address will just be a dummy one set up by docker. We have to
+    # check for request->headers first, in case we are running for test or debugging purposes
+    # from the command line and there are no headers.
+    
+    my $remote_addr;
+    
+    if ( request->headers )
+    {
+	$remote_addr = request->header('X-Real-IP') || request->env->{REMOTE_ADDR};
+    }
+    
+    else
+    {
+	$remote_addr = request->env->{REMOTE_ADDR};
+    }
+    
+    # Create a PBDB session record, starting with the info we get from Wing. This gives us info about
+    # the user who made the request and about the current login session.
     
     my $wing_session = get_session();
     
-    error("Wing session: $wing_session");
+    my $user = $wing_session ? $wing_session->user : undef;
     
-    my ($user, $session_id, $user_id, $enterer_no, $authorizer_no, $is_admin, $role);
-    
-    if ( $wing_session )
+    my $s = PBDB::Session->new($dbt, $wing_session, $remote_addr);
+
+    # If the session was invalid, redirect to the login page. This may occur, for example, if too
+    # long a period of time has elapsed since the last activity. It may also occur if the user
+    # changed their password.
+
+    if ( $s->{reason} )
     {
-	$user = $wing_session->user;
-	$session_id = $wing_session->id;
-	
-	if ( $user )
-	{
-	    $authorizer_no = $user->get_column('authorizer_no');
-	    $enterer_no = $user->get_column('person_no');
-	    $is_admin = $user->get_column('admin');
-	    $role = $user->get_column('role');
-	    $user_id = $user->get_column('id');
-	}
+	return redirect "/login?reason=$s->{reason}", 303;
     }
     
-    error("SESSION ID = $session_id");
+    # Create a PBDB request record. This tells us about the parameters of the current request.
     
     my $q = PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
+    
+    # If we are not running under debug mode, and if the $CGI_DEBUG flag is on, then save this
+    # request for later debugging.
     
     my $apphandler = config->{apphandler} || '';
     
     if ( $CGI_DEBUG && $apphandler && $apphandler ne 'Debug' )
     {
-	if ( ! $DEBUG_USER || $DEBUG_USERID{$enterer_no} )
+	if ( ! $DEBUG_USER || $DEBUG_USERID{$s->{enterer_no}} )
 	{
 	    save_request($q);
 	}
     }
     
-    my $dbt = PBDB::DBTransactionManager->new();
-    
-    my $s = PBDB::Session->new($dbt, $session_id, $user_id, $authorizer_no, $enterer_no, $role, $is_admin);
+    # Now start processing the request.
     
     if ( $action eq 'menu' )
     {
@@ -233,22 +250,14 @@ sub classic_request {
     
     if ( param('redirectMain') )
     {
-	return redirect $WRITE_URL;
+	return redirect '/classic', 303;
     }
     
-    # Figure out authorizer name and reference number and name.
+    # Figure out reference number and name, if there is one saved for this session.
     
-    my $authorizer_name = '';
     my $reference_no = $s->{reference_no};
     my $reference_name = '';
     my $dbh = $dbt->{dbh};
-    
-    if ( $authorizer_no && $authorizer_no ne $s->{enterer_no} )
-    {
-	($authorizer_name) = $dbh->selectrow_array("
-		SELECT real_name FROM pbdb_wing.users
-		WHERE person_no = $authorizer_no LIMIT 1");
-    }
     
     if ( $action =~ /displayRefResults|displaySearchRefs/ && params->{type} eq 'select' )
     {
@@ -332,9 +341,9 @@ sub classic_request {
     my $vars = {};
     if ($user) {
         $vars->{current_user} = $user;
-	$vars->{authorizer_no} = $authorizer_no;
+	$vars->{authorizer_no} = $s->{authorizer_no};
 	$vars->{enterer_no} = $s->{enterer_no};
-	$vars->{authorizer_name} = $authorizer_name;
+	$vars->{authorizer_name} = $s->{authorizer_name};
 	$vars->{reference_name} = $reference_name;
 	$vars->{reference_no} = $reference_no;
 	# $vars->{current_user}{display_name} = 'FOO';
@@ -347,7 +356,7 @@ sub classic_request {
     
     my $print_output;
     my $return_output;
-
+    
     no warnings 'once';
     
     open(SAVE_STDOUT, '>&STDOUT');
@@ -365,7 +374,9 @@ sub classic_request {
     
     if ( $@ )
     {
-	if ( $@ =~ /^Undefined subroutine &PBDB::$action/ )
+	error("MESSAGE: $@");
+	
+	if ( $@ =~ /^Undefined subroutine.*$action/i )
 	{
 	    ouch 404, "Page not found", { path => request->path };
 	}
@@ -475,7 +486,7 @@ sub displayPreferencesPage {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
         # login( "Please log in first.");
         # return;
     }
@@ -492,7 +503,7 @@ sub setPreferences {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
         # login( "Please log in first.");
         # return;
     }
@@ -870,13 +881,13 @@ sub webapp {
     
     if ( $app->requires_member && ! $s->isDBMember() )
     {
-	redirect "/login?app=$app_name", 303;
+	redirect "/login?app=$app_name&reason=login", 303;
     }
 
     if ( $app->requires_login && ! $s->isLoggedIn() )
     {
 	$app_name .= "/$file_name" if $file_name;
-	redirect "/login?app=$app_name", 303;
+	redirect "/login?app=$app_name&reason=login", 303;
     }
     
     my $output = $app->stdIncludes($PAGE_TOP);
@@ -1266,7 +1277,7 @@ sub displayReferenceForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
 	# login( "Please log in first.");
 	# return;
     }
@@ -1499,7 +1510,7 @@ sub displaySearchCollsForAdd	{
     
 
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
 	# login( "Please log in first.");
 	# return;
     }
@@ -2372,7 +2383,7 @@ sub displayCollectionForm {
     
     # Have to be logged in
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
         # login("Please log in first.");
         # return;
     }
@@ -2389,7 +2400,7 @@ sub processCollectionForm {
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
         # login("Please log in first.");
         # return;
     }
@@ -3017,7 +3028,7 @@ sub reviewOpinionsForm	{
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
 	# login( "Please log in first.");
 	# return;
     }
@@ -3034,7 +3045,7 @@ sub reviewOpinions	{
     my ($q, $s, $dbt, $hbo) = @_;
     
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
 	# login( "Please log in first.");
 	# return;
     }
@@ -3204,7 +3215,7 @@ sub searchOccurrenceMisspellingForm {
     if (!$s->isDBMember()) {
         # have to be logged in
         # $s->enqueue_action("searchOccurrenceMisspellingForm" );
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
         # login( "Please log in first." );
         # return;
     }
@@ -5464,7 +5475,7 @@ sub displayReIDCollsAndOccsSearchForm {
     
     # Have to be logged in
     if (!$s->isDBMember()) {
-	redirect '/login', 301;
+	redirect '/login?reason=login', 303;
 	# login( "Please log in first.",'displayReIDCollsAndOccsSearchForm');
 	# return;
     }

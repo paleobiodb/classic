@@ -5,46 +5,6 @@ use Digest::MD5;
 use URI::Escape;
 # use CGI::Cookie;
 use PBDB::Constants qw($WRITE_URL $IP_MAIN $IP_BACKUP makeAnchor);
-use Dancer ();
-
-
-# start_login_session ( session_id, enterer_no, authorizer_no, login_role )
-# 
-# This is called from User.pm (MyApp/DB/Result/User.pm) when a login session is initiated.  The
-# code from here has been moved to 'new' below.
-
-sub start_login_session {
-    
-    my ($class, $session_id, $enterer_no, $authorizer_no, $login_role) = @_;
-    
-    # Actually, we no longer need to do anything in this routine.
-    
-    my $a = 1;	# we can stop here when debugging
-}
-
-
-# end_login_session ( session_id )
-# 
-# This is called from User.pm (MyApp/DB/Result/User.pm) when a user logs out.  Their entry in the
-# PBDB session table is removed.
-
-sub end_login_session {
-    
-    my ($class, $session_id) = @_;
-    
-    return unless $session_id;
-    
-    my $dbh = PBDB::DBConnection::connect();
-    
-    my $quoted_id = $dbh->quote($session_id);
-    
-    my $sql = "DELETE FROM session_data WHERE session_id = $quoted_id";
-    
-    my $result = $dbh->do($sql);
-    
-    my $a = 1;	# we can stop here when debugging
-}
-
 
 # new ( dbt, session_id, authorizer_no, enterer_no, role, is_admin )
 # 
@@ -56,85 +16,83 @@ sub end_login_session {
 
 sub new {
     
-    my ($class, $dbt, $session_id, $user_id, $authorizer_no, $enterer_no, $role, $is_admin) = @_;
-    my $dbh = $dbt->dbh;
-    my $self;
+    my ($class, $dbt, $wing_session, $remote_addr) = @_;
     
-    $is_admin ||= 0;
+    # If we don't have a Wing login session, then the user hasn't logged in. So we create and
+    # return a record that specifies the role of "anonymous", which is not able to do anything
+    # except browse.
     
-    my $result;
-    
-    # If we don't have a Wing session identifier, then there is no need to add anything to
-    # session_data.  We just create a record that specifies the role of "anonymous", which is not able
-    # to do anything except browse.
-    
-    unless ( $session_id )
+    unless ( $wing_session )
     {
-    	my $s = { dbt => $dbt,
-    		  session_id => '',
-		  user_id => '',
-    		  role => 'anonymous',
-    		  roles => 'anonymous',
-    		  authorizer_no => 0,
-    		  enterer_no => 0,
-    		};
-	
-	# 	print STDERR "SESSION: not logged in\n";
-	
-    	return bless $s;
+	return anonymous_session($dbt);
     }
     
-    # Make sure the role is 'guest' unless the user has an authorizer_no.
+    # Otherwise, get the session id from the Wing session record. We will either retrieve the
+    # corresponding session record from the 'session_data' table, or else create a new one.
     
-    $role = 'guest' unless $authorizer_no;    
+    my $session_id = $wing_session->id;
+    my $session_user = $wing_session->user;
     
-    # We first need to see if there is an existing record in the 'session_data' table.  If
-    # so, we fetch it.  We are currently using only some of the fields in this table.  The
-    # 'authorizer_no', 'authorizer', 'enterer' and 'superuser' fields of the session record are
-    # set using information that comes from Wing.
-    
+    my $dbh = $dbt->dbh;
     my $quoted_id = $dbh->quote($session_id);
-    my $sql = "	SELECT session_id, user_id, queue, authorizer_no, enterer_no, reference_no,
-			marine_invertebrate, micropaleontology,	paleobotany, taphonomy, vertebrate
-		FROM session_data WHERE session_id = $quoted_id";
+    my $sql = "	SELECT s.*, timestampdiff(day,s.record_date,now()) as days_old, a.real_name as authorizer_name
+		FROM session_data as s left join pbdb_wing.users as a on a.person_no = s.authorizer_no
+		WHERE session_id = $quoted_id";
     
     my ($session_record) = $dbh->selectrow_hashref( $sql, { Slice => { } } );
     
-    # If there is already a record in the 'session_data' table, check that the values match the
-    # authorization information we have gotten from Wing.
+    # If there is already a record in the 'session_data' table, use it as the basis for the
+    # session record.
     
     if ( $session_record )
     {
-	if ( ! $session_record->{user_id} || $session_record->{user_id} ne $user_id )
+	# If for some reason the pbdb session record does not have the same user id as wing
+	# session record, return an anonymous session record. This should not actually ever
+	# happen, and if it does it means something has gone wrong.
+	
+	unless ( $session_record->{user_id} && $session_user->id eq $session_record->{user_id} )
 	{
-	    my $quoted_user = $dbh->quote($user_id);
-	    
-	    $sql = "
-		UPDATE session_data SET user_id = $quoted_user
-		WHERE session_id = $quoted_id";
-	    
-	    $result = $dbh->do($sql);
+	    error('Wing session and PBDB session have different values for user_id');
+	    return anonymous_session($dbt);
 	}
 	
-	# If either the enterer_no or the authorizer_no do not match, update the session_data
-	# entry. This probably means that the user is using the Wing facility for becoming another
-	# user for testing purposes.
+	# If the record_date on the login session is more than expire_days days ago, then too much
+	# time has elapsed since the last activity on this session. Redirect to the login page.
 	
-	if ( $enterer_no && $session_record->{enterer_no} ne $enterer_no )
+	if ( $session_record->{days_old} && $session_record->{expire_days} &&
+	     $session_record->{days_old} >= $session_record->{expire_days} )
 	{
-	    my $quoted_enterer = $dbh->quote($enterer_no);
-	    
-	    $sql = "
-		UPDATE session_data SET enterer_no = $quoted_enterer
-		WHERE session_id = $quoted_id";
-	    
-	    $result = $dbh->do($sql);
+	    $wing_session->end;
+	    return error_session($dbt, 'expired');
 	}
 	
-	# Same with the authorizer_no. This may also happen if the user switched from one to
-	# another of their available authorizers.
+	# If the password_hash value in the session record is different from the current one for
+	# the user, that means that the user changed their password and this session should be
+	# treated as expired. The password_hash field is not otherwise needed.
 	
-	if ( $authorizer_no && $session_record->{authorizer_no} ne $authorizer_no )
+	if ( $session_record->{password_hash} && $session_record->{password_hash} ne $session_user->password )
+	{
+	    $wing_session->end;
+	    return error_session($dbt, 'pwchange');
+	}
+	
+	delete $session_record->{password_hash};
+	
+	# If the superuser value does not match, also expire this login session. Redirect to the
+	# login page.
+
+	if ( $session_record->{superuser} && ! $session_user->get_column('admin') )
+	{
+	    $wing_session->end;
+	    return error_session($dbt, 'admin');
+	}
+	
+	# If the authorizer_no does not match, update the session_data entry. This may happen if
+	# the user switched from one to another of their available authorizers.
+	
+	my $authorizer_no = $session_user->get_column('authorizer_no') || 0;
+	
+	if ( $authorizer_no ne $session_record->{authorizer_no} )
 	{
 	    my $quoted_authorizer = $dbh->quote($authorizer_no);
 	    
@@ -142,102 +100,116 @@ sub new {
 		UPDATE session_data SET authorizer_no = $quoted_authorizer
 		WHERE session_id = $quoted_id";
 	    
-	    $result = $dbh->do($sql);
+	    my $result = $dbh->do($sql);
+
+	    my $a = 1; # we can stop here when debugging
 	}
+	
+	# Otherwise, just do a dummy update so that record_date is updated.
+	
+	else
+	{
+	    $dbh->do("UPDATE session_data SET record_date = now() WHERE session_id = $quoted_id");
+	}
+	
+	# Make sure the role is 'guest' unless the user has an authorizer_no.
+	
+	$session_record->{role} = 'guest' unless $authorizer_no;
     }
     
-    # If there is not an existing record, then we must make one.  Some of the fields are fetched
-    # from the 'person' table corresponding to the authorizer.
+    # If there is not an existing record, then make one using the information passed to us by
+    # wing.
     
     else
     {
+	my $user_id = $session_user->get_column('id');
+	my $password_hash = $session_user->get_column('password');
+	my $role = $session_user->get_column('role');
+	my $expire_days = $wing_session->expire_days || 1;
+	my $enterer_no = $session_user->get_column('person_no') || 0;
+	my $authorizer_no = $session_user->get_column('authorizer_no') || 0;
+	my $superuser = $session_user->get_column('admin') || 0;
+	
+	my $quoted_user = $dbh->quote($user_id);
+	my $quoted_pw = $dbh->quote($password_hash);
+	my $quoted_ip = $dbh->quote($remote_addr);
 	my $quoted_role = $dbh->quote($role);
-	my $quoted_user = $dbh->quote($user_id || '');
-	my $quoted_enterer = $dbh->quote($enterer_no || 0);
-	my $quoted_authorizer = $dbh->quote($authorizer_no || 0);
-	my $quoted_admin = $dbh->quote($is_admin || 0);
+	my $quoted_exp = $dbh->quote($expire_days);
+	my $quoted_ent = $dbh->quote($enterer_no);
+	my $quoted_auth = $dbh->quote($authorizer_no);
+	my $quoted_sup = $dbh->quote($superuser);
 	
 	my $sql = "
-		INSERT INTO session_data (session_id, user_id, enterer_no, authorizer_no, role, superuser)
-		VALUES ($quoted_id, $quoted_user, $quoted_enterer, $quoted_authorizer, $quoted_role, $quoted_admin)";
+		INSERT INTO session_data (session_id, user_id, password_hash, ip_address, role,
+		    expire_days, superuser, enterer_no, authorizer_no)
+		VALUES ($quoted_id, $quoted_user, $quoted_pw, $quoted_ip, $quoted_role,
+		    $quoted_exp, $quoted_sup, $quoted_ent, $quoted_auth)";
 	
 	$dbh->do($sql);
-	
-	# $sql = "UPDATE session_data JOIN person as auth on auth.person_no = session_data.authorizer_no
-	# 		JOIN person as ent on ent.person_no = session_data.enterer_no
-	# 	SET session_data.authorizer = auth.name, session_data.enterer = ent.name";
-	
-	# $dbh->do($sql);
 	
 	# Create a session record with these values.
 	
 	$session_record = { session_id => $session_id,
 			    user_id => $user_id,
-			    reference_no => 0,
-			    queue => '' };
+			    ip_address => $remote_addr,
+			    role => $role,
+			    superuser => $superuser,
+			    authorizer_no => $authorizer_no,
+			    enterer_no => $enterer_no };
 	
-	# Try to set the field of the session record corresponding to each research group we
-	# found, but wrap it in an eval so that any errors are ignored.  This whole system of
-	# fixed research group field names is terrible and needs to be replaced anyway.
+	# Take some time to delete stale records from the session_data cache. But wrap this in an
+	# eval so it doesn't cause the database to fail if this statement fails for some reason.
 	
-	if ( $enterer_no )
-	{
-	    $sql = "SELECT research_group FROM person WHERE person_no = $quoted_enterer";
-	    my ($group_list) = $dbh->selectrow_array($sql);
-	    
-	    foreach my $group ( split qr{,}, $group_list )
-	    {
-		next unless $group;
-		
-		$session_record->{$group} = 1;
-		
-		$sql = "UPDATE session_data SET $group = 1 WHERE session_id = $quoted_id";
-		
-		eval {
-		    $dbh->do($sql);
-		};
-	    }
-	}
+	$sql = "DELETE FROM session_data WHERE timestampdiff(day,record_date,now()) > expire_days";
 	
-	# print STDERR "SESSION: new\n";
+	eval {
+	    $dbh->do($sql);
+	};
     }
+    
+    # Add a few defaults.
+
+    $session_record->{queue} //= '';
+    $session_record->{reference_no} //= 0;
     
     # Fill in 'dbt' using the parameter we were passed.
     
     $session_record->{dbt} = $dbt;
     
-    # Now fill in the data we get from Wing.
-    
-    $session_record->{user_id} = $user_id;
-    $session_record->{enterer_no} = $enterer_no || 0;
-    $session_record->{authorizer_no} = $authorizer_no || 0;
-    $session_record->{role} = $role || 'guest';
-    $session_record->{superuser} = $is_admin || 0;
-    
     return bless $session_record;
 }
 
 
+sub error_session {
 
-# Cleans stale entries from the session_data table.
-# 48 hours is the current time considered
-sub houseCleaning {
-	my $self = shift;
-    my $dbh = $self->{'dbt'}->dbh;
+    my ($dbt, $reason) = @_;
 
-	# COULD ALSO USE 'DATE_SUB'
-	my $sql = 	"DELETE FROM session_data ".
-			" WHERE record_date < DATE_ADD( now(), INTERVAL -2 DAY)";
-	$dbh->do( $sql ) || die ( "$sql<HR>$!" );
+    my $s = { dbt => $dbt,
+	      session_id => '',
+	      user_id => '',
+	      role => 'anonymous',
+	      reason => $reason,
+	      authorizer_no => 0,
+	      enterer_no => 0 };
 
-	# COULD ALSO USE 'DATE_SUB'
-	# Nix the Guest users @ 1 day
-	$sql = 	"DELETE FROM session_data ".
-			" WHERE record_date < DATE_ADD( now(), INTERVAL -1 DAY) ".
-			"	AND authorizer = 'Guest' ";
-	$dbh->do( $sql ) || die ( "$sql<HR>$!" );
-	1;
+    return bless $s;
 }
+
+
+sub anonymous_session {
+
+    my ($dbt) = @_;
+    
+    my $s = { dbt => $dbt,
+	      session_id => '',
+	      user_id => '',
+	      role => 'anonymous',
+	      authorizer_no => 0,
+	      enterer_no => 0 };
+    
+    return bless $s;
+}
+
 
 # Sets the reference_no
 sub setReferenceNo {
