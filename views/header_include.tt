@@ -26,7 +26,7 @@
   </head>
 
   <body>
-      <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
+      <nav class="navbar navbar-inverse navbar-static-top" style="background-color: #340000" role="navigation">
       <div class="container">
 
   <!-- Brand and toggle get grouped for better mobile display --> 
@@ -46,8 +46,8 @@
                 <li><a href="/#/faq">FAQ</a></li>
                 <li><a target="_blank" href="https://github.com/paleobiodb/PBDB_changelog/blob/master/README.md">Recent Changes</a></li>
                 <li><a href="/#/people">People</a></li>
-                <li><a href="https://training.paleobiodb.org/#/support">Funding</a></li>
-                <li><a href="https://training.paleobiodb.org/#/project">Project Development</a></li>
+                <li><a href="/#/support">Funding</a></li>
+                <li><a href="/#/project">Project Development</a></li>
                 <li><a href="/#/publications">Official Publications</a></li>
                 <li><a href="/#/contact">Contact Us</a></li>
               </ul>
