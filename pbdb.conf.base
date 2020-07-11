@@ -8,5 +8,5 @@ CGI_DEBUG = 0
 ADMIN_EMAIL = admin@paleobiodb.org # put administrator email here
 DB_USER = pbdbuser # put database username here
 DB_PASSWD = pbdbpwd # put database password here
-DB_CONNECTION = mysql
+DB_CONNECTION = mariadb
 MESSAGE_FILE = message.txt
