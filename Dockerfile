@@ -4,7 +4,7 @@
 # The image 'paleobiodb_classic_preload' can be built using the file 'Dockerfile-preload'.
 # See that file for more information.
 
-FROM paleobiodb_classic_preload
+FROM paleomacro_classic_preload
 
 COPY pbdb-classic /data/MyApp
 COPY pbdb-wing /data/Wing
