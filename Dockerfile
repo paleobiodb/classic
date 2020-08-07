@@ -25,13 +25,15 @@ ENV WING_APP=/data/MyApp
 # To build this container with the proper timezone setting, use --build-arg TZ=xxx
 # where xxx is the timezone in which the server is located. The 'pbdb build' command
 # will do this automatically. Without any argument it will default to UTC, with no
-# local time available. 
+# local time available. To override the language setting, use --build-arg LANG=xxx.
 
 ARG TZ=Etc/UTC
 
 RUN echo $TZ > /etc/timezone && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata
+
+ENV LANG=en_US.UTF-8
 
 EXPOSE 6000 6001
 

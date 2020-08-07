@@ -64,5 +64,11 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm --force Term::ReadLine::Gnu
 
 RUN apt-get -y install locales && \
-    apt-get -y install tzdata && \
-    locale-gen --purge en_US.UTF-8
+    apt-get -y install tzdata
+
+ARG LANG=en_US.UTF-8
+
+RUN echo "$LANG UTF-8" > "/etc/locale.gen" && \
+    locale-gen
+
+
