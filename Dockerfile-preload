@@ -1,9 +1,12 @@
 # 
-# Paleobiology Database - classic backend image
+# Paleobiology Database - Classic backend image
 # 
-# This file builds the preload image, which has a bunch of necessary packages and
-# takes 45 minutes or more to build. The main Dockerfile then uses this to build
-# the final image by copying in the source code and other local content.
+# This file is used to build the preload image for the Paleobiology Database Classic
+# backend service. It installs a long list of necessary packages, and takes 45 minutes
+# or more to build. The Dockerfile found in this directory then uses the preload image
+# as a base to build the Classic backend container image very quickly by copying in the
+# source code, configuration file and other local content. You can build this preload
+# image locally using the command 'pbdb build classic preload'.
 
 FROM perl:5.32-threaded AS paleomacro_classic_preload
 
@@ -59,3 +62,7 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm App::Cmd::Setup && \
     cpanm IO::Socket::SSL && \
     cpanm --force Term::ReadLine::Gnu
+
+RUN apt-get -y install locales && \
+    apt-get -y install tzdata && \
+    locale-gen --purge en_US.UTF-8
