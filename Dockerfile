@@ -12,15 +12,9 @@
 
 FROM paleomacro_classic_preload
 
-COPY pbdb-classic /data/MyApp
-COPY pbdb-wing /data/Wing
-COPY pbdb-wing/bin/wing /usr/local/bin/
-COPY pbdb-new/lib /data/MyApp/lib/PBData
-COPY pbdb-app/ /data/MyApp/resources
+EXPOSE 6000 6001
 
-ENV WING_CONFIG=/data/MyApp/etc/wing.conf
-ENV WING_HOME=/data/Wing
-ENV WING_APP=/data/MyApp
+WORKDIR /data/MyApp
 
 # To build this container with the proper timezone setting, use --build-arg TZ=xxx
 # where xxx is the timezone in which the server is located. The 'pbdb build' command
@@ -35,11 +29,19 @@ RUN echo $TZ > /etc/timezone && \
 
 ENV LANG=en_US.UTF-8
 
-EXPOSE 6000 6001
+ENV TZ=$TZ
 
-WORKDIR /data/MyApp
+ENV WING_CONFIG=/data/MyApp/etc/wing.conf
+ENV WING_HOME=/data/Wing
+ENV WING_APP=/data/MyApp
 
 CMD perl placeholder.pl
+
+COPY pbdb-classic /data/MyApp
+COPY pbdb-wing /data/Wing
+COPY pbdb-wing/bin/wing /usr/local/bin/
+COPY pbdb-new/lib /data/MyApp/lib/PBData
+COPY pbdb-app/ /data/MyApp/resources
 
 LABEL maintainer="mmcclenn@geology.wisc.edu"
 LABEL version="1.0"
