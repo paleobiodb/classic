@@ -9,4 +9,5 @@ ADMIN_EMAIL = admin@paleobiodb.org # put administrator email here
 DB_USER = pbdbuser # put database username here
 DB_PASSWD = pbdbpwd # put database password here
 DB_CONNECTION = mariadb
+PBDB_SITE = 
 MESSAGE_FILE = message.txt
