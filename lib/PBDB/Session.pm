@@ -4,7 +4,7 @@ use strict;
 use Digest::MD5;
 use URI::Escape;
 # use CGI::Cookie;
-use PBDB::Constants qw($WRITE_URL $IP_MAIN $IP_BACKUP makeAnchor);
+use PBDB::Constants qw(makeAnchor);
 
 # new ( dbt, session_id, authorizer_no, enterer_no, role, is_admin )
 # 

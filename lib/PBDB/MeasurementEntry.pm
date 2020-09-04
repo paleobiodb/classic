@@ -6,7 +6,7 @@ use PBDB::TaxaCache;
 use PBDB::Reference;
 use PBDB::Debug;
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
+use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs makeFormPostTag);
 
 use strict;
 
@@ -129,10 +129,9 @@ sub submitSpecimenSearch {
             $collection_header = "";
             $knownUnknown = "";
         }
-        $output .= qq|
-        <center><p class="pageTitle" style="font-size: 1.2em;">Matching $things</p></center>
-        <form method="POST\" action="$READ_URL">
-        <input type="hidden\" name="action" value="displaySpecimenList">
+        $output .= qq|<center><p class="pageTitle" style="font-size: 1.2em;">Matching $things</p></center>\n|;
+	$output .= makeFormPostTag();
+	$output .= qq |<input type="hidden\" name="action" value="displaySpecimenList">
         <div align="center" class="small" style="margin: 1em;">
         <table cellspacing="0" cellpadding="6" style="border: 1px solid lightgray;">
         <tr><th><span style="margin-right: 1em">Occurrence</span></th><th>$collection_header</th><th>Measurements</th></tr>
@@ -285,7 +284,7 @@ sub displaySpecimenList {
   <div class="displayPanelContent">
 |;
     
-    $output .= "<form name=\"specimenList\" method=\"POST\" action=\"$WRITE_URL\">\n";
+    $output .= makeFormPostTag('specimenList');
     $output .= "<input type=hidden name=\"action\" value=\"populateMeasurementForm\">\n";
     $output .= <<HIDDEN_FIELDS;
 <input type=hidden name="delete_specimen_no" value="">

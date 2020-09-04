@@ -6,7 +6,7 @@ use HTML::Entities qw(encode_entities);
 use Data::Dumper;
 use PBDB::Reference;
 use PBDB::Person; # not used?
-use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $MESSAGE_FILE);
+use PBDB::Constants qw($WRITE_URL $MESSAGE_FILE);
 
 use Encode;
 
@@ -219,8 +219,7 @@ sub populateHTML {
     # Add in some other basic vars from session
     my $s = $self->{'s'};
     $vars->{'is_contributor'} = 1 if ($s->isDBMember());
-    $vars->{'is_fossil_record'} = 1 if ($IS_FOSSIL_RECORD);
-
+    
     # Basic sanitizing
     $template =~ s/\.htm(l)?$//;
     $template =~ s/[^\/A-Za-z0-9_-]//g;
@@ -349,7 +348,7 @@ sub parseTemplate {
     # Hack, simpler this way
     $txt =~ s/<span\s+id=(['"]?)(\w+)\1?>\s*<\/span>/%%$2%%/gis;
     $txt =~ s/\$exec_url/classic/gis;
-    $txt =~ s/%%READ_URL%%/$READ_URL/gis;
+    $txt =~ s/%%READ_URL%%/$WRITE_URL/gis;
     $txt =~ s/%%WRITE_URL%%/$WRITE_URL/gis;
 
     my %select_counter; #Keeps track of how many times we've seen a <select> with the same name

@@ -3,7 +3,7 @@ package PBDB::PrintHierarchy;
 
 use PBDB::TaxonInfo;
 use PBDB::Reference;
-use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM $TAXA_TREE_CACHE makeAnchor);
+use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeFormPostTag);
 use strict;
 
 
@@ -76,95 +76,91 @@ sub classify {
 	# references require special handling because they may classify
 	#  multiple taxa and because parent-child relations are drawn directly
 	#  from opinions instead of taxa_tree_cache
-	if ( ! $taxon_no && $reference_no )	{
-		my $sql = "SELECT child_spelling_no,parent_spelling_no FROM opinions WHERE reference_no=".$reference_no." AND ref_has_opinion='YES'";
-		my @opinions = @{$dbt->getData($sql)};
-		if ( ! @opinions )	{
-			# print $hbo->stdIncludes($PAGE_TOP);
-			return classificationForm($hbo, $s, 'No newly expressed taxonomic opinions are tied to this reference');
-			# print $hbo->stdIncludes($PAGE_BOTTOM);
-		}
-		my %isChild;
-		$isChild{$_->{'child_spelling_no'}}++ foreach @opinions;
-		$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE o.reference_no=$reference_no AND ref_has_opinion='YES' AND child_spelling_no=a.taxon_no AND a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no";
-		@taxa = @{$dbt->getData($sql)};
-		# some parents may be completely unclassified
-		my $non_opinion_fields = $fields;
-		$non_opinion_fields =~ s/,status//;
-		$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE o.reference_no=$reference_no AND ref_has_opinion='YES' AND parent_spelling_no=a.taxon_no AND a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND parent_spelling_no NOT IN (".join(',',keys %isChild).") GROUP BY parent_spelling_no";
-		push @taxa , @{$dbt->getData($sql)};
-		my %parent;
-		$parent{$_->{'child_spelling_no'}} = $_->{'parent_spelling_no'} foreach @opinions;
-		for my $i ( 0..$#taxa )	{
-			push @{$children{$parent{$taxa[$i]->{'taxon_no'}}}} , $taxa[$i];
-			if ( ! $parent{$taxa[$i]->{'taxon_no'}} )	{
-				push @parents , $taxa[$i];
-			}
-		}
-		$sql = "SELECT * FROM refs WHERE reference_no=".$reference_no;
-		$title = PBDB::TaxonInfo::formatShortAuthor( ${$dbt->getData($sql)}[0] );
+    if ( ! $taxon_no && $reference_no )
+    {
+	my $sql = "SELECT child_spelling_no,parent_spelling_no FROM opinions WHERE reference_no=".$reference_no." AND ref_has_opinion='YES'";
+	my @opinions = @{$dbt->getData($sql)};
+	if ( ! @opinions )
+	{
+	    return classificationForm($hbo, $s, 'No newly expressed taxonomic opinions are tied to this reference');
+	}
+	my %isChild;
+	$isChild{$_->{'child_spelling_no'}}++ foreach @opinions;
+	$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE o.reference_no=$reference_no AND ref_has_opinion='YES' AND child_spelling_no=a.taxon_no AND a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no";
+	@taxa = @{$dbt->getData($sql)};
+	# some parents may be completely unclassified
+	my $non_opinion_fields = $fields;
+	$non_opinion_fields =~ s/,status//;
+	$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE o.reference_no=$reference_no AND ref_has_opinion='YES' AND parent_spelling_no=a.taxon_no AND a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND parent_spelling_no NOT IN (".join(',',keys %isChild).") GROUP BY parent_spelling_no";
+	push @taxa , @{$dbt->getData($sql)};
+	my %parent;
+	$parent{$_->{'child_spelling_no'}} = $_->{'parent_spelling_no'} foreach @opinions;
+	for my $i ( 0..$#taxa )	{
+	    push @{$children{$parent{$taxa[$i]->{'taxon_no'}}}} , $taxa[$i];
+	    if ( ! $parent{$taxa[$i]->{'taxon_no'}} )	{
+		push @parents , $taxa[$i];
+	    }
+	}
+	$sql = "SELECT * FROM refs WHERE reference_no=".$reference_no;
+	$title = PBDB::TaxonInfo::formatShortAuthor( ${$dbt->getData($sql)}[0] );
 	# try to get a taxon_no for a common name
-	} elsif ( ! $taxon_no && $q->param('common_name') )	{
-		my $common = $q->param('common_name');
-		my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND common_name='".$common."' ORDER BY rgt-lft DESC LIMIT 1";
-		$taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
-		if ( ! $taxon_no && $common =~ /s$/ )	{
-			$common =~ s/s$//;
-			$sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND common_name='".$common."' ORDER BY rgt-lft DESC LIMIT 1";
-			$taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
-		}
-	# ditto for a standard taxonomic name
-	} elsif ( ! $taxon_no && $q->param('taxon_name') )	{
-	    my $quoted_name = $dbh->quote($q->param('taxon_name'));
-	    my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_name ORDER BY rgt-lft DESC LIMIT 1";
+    } elsif ( ! $taxon_no && $q->param('common_name') )	{
+	my $common = $q->param('common_name');
+	my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND common_name='".$common."' ORDER BY rgt-lft DESC LIMIT 1";
+	$taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
+	if ( ! $taxon_no && $common =~ /s$/ )	{
+	    $common =~ s/s$//;
+	    $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND common_name='".$common."' ORDER BY rgt-lft DESC LIMIT 1";
 	    $taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
 	}
-
-	if ( ! $taxon_no && ! @taxa )	{
-		if ( ! $q->param('boxes_only') )	{
-			# print $hbo->stdIncludes($PAGE_TOP);
-			return classificationForm($hbo, $s, 'Nothing matched the search term');
-			# print $hbo->stdIncludes($PAGE_BOTTOM);
-		}
-		return;
+	# ditto for a standard taxonomic name
+    } elsif ( ! $taxon_no && $q->param('taxon_name') )	{
+	my $quoted_name = $dbh->quote($q->param('taxon_name'));
+	my $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_name ORDER BY rgt-lft DESC LIMIT 1";
+	$taxon_no = ${$dbt->getData($sql)}[0]->{'taxon_no'};
+    }
+    
+    if ( ! $taxon_no && ! @taxa )	{
+	if ( ! $q->param('boxes_only') )	{
+	    return classificationForm($hbo, $s, 'Nothing matched the search term');
 	}
-
-	# grab all children of the parent taxon
-	if ( $taxon_no )	{
-		my $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND a.taxon_no=".$taxon_no;
-		my $range = ${$dbt->getData($sql)}[0];
-		if ( $range->{'lft'} + 1 == $range->{'rgt'} )	{
-			if ( ! $q->param('boxes_only') )	{
-				# print $hbo->stdIncludes($PAGE_TOP);
-				return classificationForm($hbo, $s, 'Nothing is classified within this taxon');
-				# print $hbo->stdIncludes($PAGE_BOTTOM);
-			}
-			return;
-		} elsif ( $range->{rgt} - $range->{lft} > 1000000 ) {
-		    return "<p><i>A full classification of the subtaxa is too large to display here</i></p>\n";
-		}
-
-		$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no AND t.taxon_no=t.spelling_no AND lft>=".$range->{'lft'}." AND lft<=".$range->{'rgt'}." ORDER BY lft";
-		@taxa = @{$dbt->getData($sql)};
-		$title = "the ".$taxa[0]->{'taxon_rank'}." ".PBDB::TaxonInfo::italicize( $taxa[0] );
-		$title =~ s/unranked //;
-
-		push @parents , $taxa[0];
-		for my $i ( 1..$#taxa )	{
-			my $isChild = 0;
-			for my $pre ( reverse 0..$i-1 )	{
-				if ( $taxa[$pre]->{'rgt'} > $taxa[$i]->{'lft'} )	{
-					push @{$children{$taxa[$pre]->{'taxon_no'}}} , $taxa[$i];
-					$isChild++;
-					last;
-				}
-			}
-			if ( $isChild == 0 )	{
-				push @parents , $taxa[$i];
-			}
-		}
+	return;
+    }
+    
+    # grab all children of the parent taxon
+    if ( $taxon_no )	{
+	my $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND a.taxon_no=".$taxon_no;
+	my $range = ${$dbt->getData($sql)}[0];
+	if ( $range->{'lft'} + 1 == $range->{'rgt'} )	{
+	    if ( ! $q->param('boxes_only') )	{
+		return classificationForm($hbo, $s, 'Nothing is classified within this taxon');
+	    }
+	    return;
+	} elsif ( $range->{rgt} - $range->{lft} > 1000000 ) {
+	    return "<p><i>A full classification of the subtaxa is too large to display here</i></p>\n";
 	}
-
+	
+	$sql = "SELECT $fields FROM authorities a,$TAXA_TREE_CACHE t,opinions o,refs r WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND a.reference_no=r.reference_no AND t.taxon_no=t.spelling_no AND lft>=".$range->{'lft'}." AND lft<=".$range->{'rgt'}." ORDER BY lft";
+	@taxa = @{$dbt->getData($sql)};
+	$title = "the ".$taxa[0]->{'taxon_rank'}." ".PBDB::TaxonInfo::italicize( $taxa[0] );
+	$title =~ s/unranked //;
+	
+	push @parents , $taxa[0];
+	for my $i ( 1..$#taxa )	{
+	    my $isChild = 0;
+	    for my $pre ( reverse 0..$i-1 )	{
+		if ( $taxa[$pre]->{'rgt'} > $taxa[$i]->{'lft'} )	{
+		    push @{$children{$taxa[$pre]->{'taxon_no'}}} , $taxa[$i];
+		    $isChild++;
+		    last;
+		}
+	    }
+	    if ( $isChild == 0 )	{
+		push @parents , $taxa[$i];
+	    }
+	}
+    }
+    
 	# put valid and invalid children in separate arrays
 	my (%valids,%invalids);
 	for my $t ( @taxa )	{
@@ -183,79 +179,67 @@ sub classify {
 			@{$valids{$t->{'taxon_no'}}} = sort { $a->{'taxon_name'} cmp $b->{'taxon_name'} } @{$valids{$t->{'taxon_no'}}};
 		}
 	}
-
-	# if ( ! $q->param('boxes_only') )	{
-	# 	print $hbo->stdIncludes($PAGE_TOP);
-	# 	chmod 0664, "$HTML_DIR/public/classification/classification.csv";
-	# 	open OUT, ">$HTML_DIR/public/classification/classification.csv";
-	# 	print OUT "taxon_rank,taxon_name,author,common_name,status,extant\n";
-	# }
-	$output .= $hbo->populateHTML('js_classification');
-	if ( ! $q->param('boxes_only') )	{
-		$output .= "<center><p class=\"pageTitle\">Classification of $title</p></center>\n\n";
-	}
-
-	$output .= "<div class=\"verysmall\" style=\"width: 50em; margin-left: auto; margin-right: auto;\">\n\n";
+    
+    $output .= $hbo->populateHTML('js_classification');
+    if ( ! $q->param('boxes_only') )	{
+	$output .= "<center><p class=\"pageTitle\">Classification of $title</p></center>\n\n";
+    }
+    
+    $output .= "<div class=\"verysmall\" style=\"width: 50em; margin-left: auto; margin-right: auto;\">\n\n";
+    
+    # Create an object to keep track of taxon counts across recursive invocations of
+    # &traverse. 
+    
+    my $counts = { children => \%children,
+		   valids => \%valids,
+		   invalids => \%invalids,
+		   at_level => undef,
+		   max_depth => 0,
+		   shown_depth => 0,
+		   sum_children => 0 };
+    
+    # don't display every name, only the top-level ones
+    
+    for my $p ( @parents )	
+    {
+	$counts->{at_level} = [ ];
+	$counts->{shown_depth} = 9999;
+	$counts->{sum_children} = 0;
 	
-	# Create an object to keep track of taxon counts across recursive invocations of
-	# &traverse. 
+	traverse( $counts, $p, 1 );
 	
-	my $counts = { children => \%children,
-		       valids => \%valids,
-		       invalids => \%invalids,
-		       at_level => undef,
-		       max_depth => 0,
-		       shown_depth => 0,
-		       sum_children => 0 };
-	
-	# don't display every name, only the top-level ones
-	
-	for my $p ( @parents )	
+	for my $i ( 1..9 )
 	{
-	    $counts->{at_level} = [ ];
-	    $counts->{shown_depth} = 9999;
-	    $counts->{sum_children} = 0;
-	    
-	    traverse( $counts, $p, 1 );
-	    
-	    for my $i ( 1..9 )
+	    $counts->{sum_children} += $counts->{at_level}[$i];
+	    if ( $counts->{sum_children} >= 10 && $i > 1 )
 	    {
-		$counts->{sum_children} += $counts->{at_level}[$i];
-		if ( $counts->{sum_children} >= 10 && $i > 1 )
-		{
-		    $counts->{shown_depth} = $i;
-		    if ( $counts->{sum_children} <= 30 )	{
-			$counts->{shown_depth} = $i + 1;
-		    }
-		    last;
+		$counts->{shown_depth} = $i;
+		if ( $counts->{sum_children} <= 30 )	{
+		    $counts->{shown_depth} = $i + 1;
 		}
+		last;
 	    }
-	    
-	    $output .= printBox( $counts, $p, 1 );
 	}
 	
-	$output .= "\n</div>\n\n";
-	
-	if ( ! $q->param('boxes_only') )	{
-		$output .= qq|<form method="POST" action="$READ_URL" name="doDownloadTaxonomy">
-<input type="hidden" name="action" value="displayDownloadTaxonomyResults">
-|;
- 		if ( $taxon_no ) {
-			$output .= qq|<input type="hidden" name="taxon_no" value="$taxon_no">|;
-		}
-		if ( $reference_no ) {
-			$output .= qq|<input type="hidden" name="reference_no" value="$reference_no">|;
-		}
-		$output .= "</form>\n";
-		return $output;
-		# print '<center><p class="tiny" style="padding-bottom: 3em;">';
-		# print '<a href="/public/classification/classification.csv">Download</a></b> this list of taxonomic names';
-		# print ' - <a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download</a> authority and opinion data for these taxa';
-		# print " - " . makeAnchor("classify", "", "See another classification") . "</p></center>";
-		# print $hbo->stdIncludes($PAGE_BOTTOM);
-		# close OUT;
+	$output .= printBox( $counts, $p, 1 );
+    }
+    
+    $output .= "\n</div>\n\n";
+    
+    if ( ! $q->param('boxes_only') )	{
+	$output .= makeFormPostTag('doDownloadTaxonomy');
+	$output .= qq|<input type="hidden" name="action" value="displayDownloadTaxonomyResults">\n|;
+	if ( $taxon_no ) {
+	    $output .= qq|<input type="hidden" name="taxon_no" value="$taxon_no">\n|;
 	}
-	return $#taxa + 1;
+	if ( $reference_no ) {
+	    $output .= qq|<input type="hidden" name="reference_no" value="$reference_no">\n|;
+	}
+	$output .= "</form>\n";
+	return $output;
+    }
+    
+    return $#taxa + 1;
 }
 
 

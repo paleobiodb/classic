@@ -11,7 +11,7 @@ use strict;
 
 use PBDB::Nexusfile;
 use PBDB::NexusfileWrite;  # not used
-use PBDB::Constants qw($READ_URL $WRITE_URL $HTML_DIR $PAGE_TOP $PAGE_BOTTOM);
+use PBDB::Constants qw(makeURL makeAnchor);
 
 use Encode;
 use Data::Dumper qw(Dumper);
@@ -830,7 +830,7 @@ sub describeFileTable {
     
     if ( $s->get('authorizer_no') == $nexusfile->{authorizer_no} or $s->get('superuser') )
     {
-	$third = qq%[<a href="$READ_URL?a=editNexusFile&nexusfile_no=$nexusfile_no">edit</a>]%;
+	$third = '[' . makeAnchor('editNexusFile', "nexusfile_no=$nexusfile_no", 'edit') . ']';
     }
     
     return $first, $second, $third;
@@ -862,7 +862,7 @@ sub generateTaxonLink {
     my $taxon_name = $t->{taxon_name};
     my $match_name = $t->{match_name};
     
-    my $url = "$READ_URL?a=basicTaxonInfo&taxon_no=$t->{taxon_no}";
+    my $url = makeURL('basicTaxonInfo', "taxon_no=$t->{taxon_no}");
     
     my (@good, @rest, %match, $line);
     
@@ -923,9 +923,7 @@ sub generateTaxonAddLink {
     
     # Construct the link and return it.
     
-    my $href="$READ_URL?a=displayAuthorityForm&taxon_no=-1&taxon_name=$name";
-    
-    return qq%<a href="$href">add this taxon</a>%;
+    return makeAnchor('displayAuthorityForm', "taxon_no=-1&taxon_name=$name", 'add this taxon');
 }
 
 # generateURL ( nexusfile )
@@ -944,7 +942,7 @@ sub generateURL {
     #$filename =~ s/ /%20/g;
     #$filename =~ s/&/%26/g;
     
-    return "$READ_URL?a=getNexusFile&nexusfile_no=$nexusfile_no";
+    return makeURL('getNexusFile', "nexusfile_no=$nexusfile_no");
 }
 
 

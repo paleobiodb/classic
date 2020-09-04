@@ -1,7 +1,7 @@
 
 package PBDB::Review;
 
-use PBDB::Constants qw($READ_URL $HTML_DIR $TAXA_TREE_CACHE);
+use PBDB::Constants qw($HTML_DIR $TAXA_TREE_CACHE makeURL);
 
 use PBDB::Map;
 use PBDB::Debug;
@@ -456,16 +456,25 @@ sub showReview	{
 	# anchors not dealt with yet
 
 	# special handling for properly formatted collection links
-    #jpjenk: how to handle following section?
-	$text =~ s/\[\[collection /<a href="$READ_URL\?a=basicCollectionSearch&amp;collection_no=/g;
-	# special handling for properly formatted taxon links
-	$text =~ s/\[\[taxon /<a href="$READ_URL\?a=basicTaxonInfo&amp;taxon_name=/g;
-	# give up and try a basic search
-	$text =~ s/\[\[/<a href="$READ_URL\?a=quickSearch&amp;quick_search=/g;
 
+	my $collection_stem = makeURL('basicCollectionSearch', 'collection_no=');
+	my $taxon_stem = makeURL('basicTaxonInfo', 'taxon_name=');
+	my $quick_stem = makeURL('quickSearch', 'quick_search=');
+
+	$collection_stem =~ s/">//;
+	$taxon_stem =~ s/">//;
+	$quick_stem =~ s/">//;
+	
+	#jpjenk: how to handle following section?
+	$text =~ s/\[\[collection /$collection_stem/g;
+	# special handling for properly formatted taxon links
+	$text =~ s/\[\[taxon /$taxon_stem/g;
+	# give up and try a basic search
+	$text =~ s/\[\[/$quick_stem/g;
+	
 	$text =~ s/\]\]/<\/a>/g;
 	$text =~ s/\|/">/g;
-
+	
 	# reference parsing
 	my ($nref,@refs);
 	my @bits = split /<ref>/,$text;

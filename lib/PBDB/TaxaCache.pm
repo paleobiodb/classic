@@ -26,7 +26,7 @@ package PBDB::TaxaCache;
 
 # use Data::Dumper;
 use PBDB::TaxonInfo;
-use PBDB::Constants qw($TAXA_TREE_CACHE $TAXA_LIST_CACHE $IS_FOSSIL_RECORD);
+use PBDB::Constants qw($TAXA_TREE_CACHE $TAXA_LIST_CACHE);
 use Carp qw(carp);
 
 use strict;
@@ -236,9 +236,6 @@ sub setSyncTime {
     my ($dbt,$time) = @_;
     my $dbh = $dbt->dbh;
     my $sync_id = 1;
-    if ($IS_FOSSIL_RECORD) {
-        $sync_id = 2;
-    }
     my $sql = "REPLACE INTO tc_sync (sync_id,sync_time) VALUES ($sync_id,'$time')";
     $dbh->do($sql); 
 }
@@ -460,10 +457,15 @@ sub updateCache {
 #  pass-throughs on the while loop less likely (because the only remaining
 #  DELETE FROM tc_mutex call is the one at the very end of this function and
 #  there is no check on the record's created time)
-    while(1) {
-        if ( @{$dbt->getData("SELECT * FROM tc_mutex")} )	{
+    while (1)
+    {
+        if ( @{$dbt->getData("SELECT * FROM tc_mutex WHERE created > NOW() - INTERVAL 2 minute")} )
+	{
             sleep(1);
-        } else {
+        }
+	
+	else
+	{
             $dbh->do("INSERT INTO tc_mutex (mutex_id,created) VALUES ($$,NOW())");
             last;
         }

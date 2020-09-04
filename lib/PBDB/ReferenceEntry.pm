@@ -6,7 +6,7 @@ use strict;
 use PBDB::AuthorNames;  # not used
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+use PBDB::Constants qw(makeAnchor makeURL);
 use PBDB::Nexusfile;  # not used
 # three calls to Reference functions will eventually need to be replaced
 use PBDB::Reference;
@@ -379,11 +379,7 @@ sub displayReferenceForm {
         'basis'=>'stated without evidence',
         'language'=>'English'
     );
-
-    if ($IS_FOSSIL_RECORD) {
-        $defaults{'pubtitle'} = "Fossil Record 3";
-    }
-
+    
     my %db_row = ();
     if (!$isNewEntry) {
 	    my $sql = "SELECT * FROM refs WHERE reference_no=$reference_no";
@@ -478,16 +474,6 @@ sub processReferenceForm {
 	encodeMuseumFields(\%vars);
     }
     
-    # if ($IS_FOSSIL_RECORD && $isNewEntry) {
-    #     $vars{'publication_type'} = 'book/book chapter';              
-    #     $vars{'language'} = 'English';
-    #     $vars{'basis'} = 'second hand';
-    #     $vars{'project_name'} = 'fossil record';
-    # } elsif ($IS_FOSSIL_RECORD) {
-    #     # do not edit this value
-    #     delete $vars{'project_name'};
-    # }
-    
     my $fraud = checkFraud($q);
     if ($fraud) {
         if ($fraud eq 'Gupta') {
@@ -545,6 +531,17 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
 
         # print a list of all the things the user should now do, with links to
         #  popup windows JA 28.7.06
+	
+	my $authoritySearchURL = makeURL('displayAuthorityTaxonSearchForm');
+	my $opinionSearchURL = makeURL('displayOpinionSearchForm');
+	my $nexusFileURL = makeURL('uploadNexusFile');
+	my $searchCollsURL = makeURL('displaySearchColls', 'type=edit');
+	my $newCollsURL = makeURL('displaySearchCollsForAdd');
+	my $searchOccsURL = makeURL('displayOccurrenceAddEdit');
+	my $searchReidURL = makeURL('displayReIDCollsAndOccsSearchForm');
+	my $ecoTaphURL = makeURL('startStartEcologyTaphonomySearch');
+	my $searchSpecimenURL = makeURL('displaySpecimenSearchForm');
+	
         my $box_header = ($dupe || !$isNewEntry) ? "Full reference" : "New reference";
         $output .= "<div class=\"displayPanel\" align=\"left\" style=\"margin: 1em;\"><span class=\"displayPanelHeader\">$box_header</span><table><tr><td valign=top>$formatted_ref <small>" . makeAnchor("displayRefResults", "type=edit&reference_no=$reference_no", "edit") . "</small></td></tr></table></span></div>";
         
@@ -555,21 +552,21 @@ any further data from the reference.<br><br> "DATA NOT ENTERED: SEE |.$s->get('a
 |;
 	$output .= qq|
         <ul class="small" style="text-align: left;">
-            <li>Add or edit all the <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayAuthorityTaxonSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">taxonomic names</a>, especially if they are new or newly combined</li>
-            <li>Add or edit all the new or second-hand <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayOpinionSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">taxonomic opinions</a> about classification or synonymy</li>
-	    <li>Add <a href="#" onClick="popup = window.open('$WRITE_URL?a=uploadNexusFile', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">phylogenetic character matrices</a> describing these taxa</li>
-            <li>Edit <a href="#" onClick="popup = window.open('$WRITE_URL?a=displaySearchColls&type=edit', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">existing collections</a> if new details are given</li>
-            <li>Add all the <a href="#" onClick="popup = window.open('$WRITE_URL?a=displaySearchCollsForAdd', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">new collections</a></li>
-            <li>Add all new <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayOccurrenceAddEdit', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">occurrences</a> in existing or new collections</li>
-            <li>Add all new <a href="#" onClick="popup = window.open('$WRITE_URL?a=displayReIDCollsAndOccsSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">reidentifications</a> of existing occurrences</li>
-            <li>Add <a href="#" onClick="popup = window.open('$WRITE_URL?a=startStartEcologyTaphonomySearch', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">ecological/taphonomic data</a></li>
-	    <li>Add <a href="#" onClick="popup = window.open('$WRITE_URL?a=displaySpecimenSearchForm', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">specimen measurements</a></li>
+            <li>Add or edit all the <a href="#" onClick="popup = window.open('$authoritySearchURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">taxonomic names</a>, especially if they are new or newly combined</li>
+            <li>Add or edit all the new or second-hand <a href="#" onClick="popup = window.open('$opinionSearchURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">taxonomic opinions</a> about classification or synonymy</li>
+	    <li>Add <a href="#" onClick="popup = window.open('$nexusFileURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">phylogenetic character matrices</a> describing these taxa</li>
+            <li>Edit <a href="#" onClick="popup = window.open('$searchCollsURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">existing collections</a> if new details are given</li>
+            <li>Add all the <a href="#" onClick="popup = window.open('$newCollsURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">new collections</a></li>
+            <li>Add all new <a href="#" onClick="popup = window.open('$searchOccsURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">occurrences</a> in existing or new collections</li>
+            <li>Add all new <a href="#" onClick="popup = window.open('$searchReidURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">reidentifications</a> of existing occurrences</li>
+            <li>Add <a href="#" onClick="popup = window.open('$ecoTaphURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">ecological/taphonomic data</a></li>
+	    <li>Add <a href="#" onClick="popup = window.open('$searchSpecimenURL', 'blah', 'left=100,top=100,height=700,width=700,toolbar=yes,scrollbars=yes,resizable=yes');">specimen measurements</a></li>
         <ul>
 |; #jpjenk-question: onClick handling
 	$output .= "</div>\n";
-	
+
+	$output .= makeFormPostTag();
 	$output .= qq|
-<form method="POST" action="$WRITE_URL">
 <input type="hidden" name="action" value="displayRefResults">
 <input type="hidden" name="reference_no" value="$reference_no">
 <input type="submit" value="Use this reference">

@@ -58,12 +58,17 @@ use PBDB::Taxon;  # slated for removal
 use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request);
-use PBDB::Constants qw($WRITE_URL $HTML_DIR $DATA_DIR $IS_FOSSIL_RECORD $TAXA_TREE_CACHE $DB $PAGE_TOP $PAGE_BOTTOM $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ALLOW_LOGIN makeAnchor);
+use PBDB::Constants qw($WRITE_URL $PBDB_SITE $CGI_DEBUG $DEBUG_USER %DEBUG_USERID
+		       $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO 
+		       makeAnchor);
 
 use lib '/data/MyApp/lib/PBData';
 
 use ExternalIdent;
 # use PBLogger;
+
+our ($PAGE_TOP) = 'std_page_top';
+our ($PAGE_BOTTOM) = 'std_page_bottom';
 
 
 # my $logger = PBLogger->new;
@@ -225,6 +230,13 @@ sub classic_request {
 	    save_request($q);
 	}
     }
+
+    # If this is a request from a mobile device, substitute a different page top and bottom.
+    
+    # if ( $ENV{'HTTP_USER_AGENT'} =~ /Mobile/i && $ENV{'HTTP_USER_AGENT'} !~ /iPad/i )	{
+    # 	local $PAGE_TOP = 'mobile_top';
+    # 	local $PAGE_BOTTOM = 'mobile_bottom';
+    # }
     
     # Now start processing the request.
     
@@ -338,7 +350,8 @@ sub classic_request {
     
     my $action_sub = \&{"PBDB::$action"}; # Hack so use strict doesn't break
     
-    my $vars = {};
+    my $vars = { pbdb_site => $PBDB_SITE,
+	         options => MyApp::DB::Result::Classic->field_options };
     if ($user) {
         $vars->{current_user} = $user;
 	$vars->{authorizer_no} = $s->{authorizer_no};
@@ -349,7 +362,7 @@ sub classic_request {
 	# $vars->{current_user}{display_name} = 'FOO';
 	# $Data::Dumper::Maxdepth = 3;
 	# print STDERR "CURRENT_USER = " . Data::Dumper::Dumper($user) . "\n";
-        $vars->{options} = MyApp::DB::Result::Classic->field_options;
+        # $vars->{options} = ;
     }
     
     my $output = template 'header_include', $vars;

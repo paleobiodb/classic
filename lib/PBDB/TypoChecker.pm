@@ -6,7 +6,7 @@ use PBDB::CollectionEntry;
 use PBDB::Person;
 use PBDB::PBDBUtil;
 use PBDB::Permissions;
-use PBDB::Constants qw($READ_URL $WRITE_URL makeAnchor makeAnchorWithAttrs);
+use PBDB::Constants qw(makeAnchor makeAnchorWithAttrs makeFormPostTag);
 use strict;
 
 $TypoChecker::edit_distance = 3;
@@ -208,7 +208,7 @@ sub occurrenceMisspellingForm {
             $output .= '<p class="pageTitle">Possibly misspelled/partially classified occurrences</p>';
         }
         $output .= "</div>\n\n";
-        $output .= qq|<form action="$WRITE_URL" method="POST">|;
+        $output .= makeFormPostTag();
         $output .= '<input type="hidden" name="action" value="submitOccurrenceMisspelling">';
         my $page_no = $q->numeric_param('page_no') || 0;
         $output .= '<input type="hidden" name="page_no" value="'.($page_no+1).'">';

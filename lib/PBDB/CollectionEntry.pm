@@ -20,7 +20,8 @@ use PBDB::Reclassify;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;    
-use PBDB::Constants qw($WRITE_URL $INTERVAL_URL $HTML_DIR $TAXA_TREE_CACHE $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCE_NO
+		       makeAnchor makeFormPostTag);
 
 # this is a shell function that will have to be replaced with something new
 #  because PBDB::Collection::getCollections is going with Fossilworks JA 4.6.13
@@ -1414,7 +1415,7 @@ sub buildTaxonomicList {
         }
 
         if ($are_reclassifications) {
-            $return .= "<form action=\"$WRITE_URL\" method=\"post\">\n";
+	    $return .= makeFormPostTag();
             $return .= "<input type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n"; 
             if ($options{$COLLECTION_NO}) {
                 $return .= "<input type=\"hidden\" name=\"$COLLECTION_NO\" value=\"$options{$COLLECTION_NO}\">\n"; 

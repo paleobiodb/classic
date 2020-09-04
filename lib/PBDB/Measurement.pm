@@ -12,7 +12,7 @@ use PBDB::Reference;
 use PBDB::TimeLookup;
 use PBDB::Download;
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($READ_URL $HTML_DIR $TAXA_TREE_CACHE);
+use PBDB::Constants qw($HTML_DIR $TAXA_TREE_CACHE);
 
 my @specimen_fields   =('specimens_measured','specimen_coverage','specimen_id','specimen_side','sex','specimen_part','measurement_source','magnification','is_type','comments');
 my @measurement_types =('mass','length','width','height','circumference','diagonal','diameter','inflation','d13C','d18O');

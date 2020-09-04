@@ -6,7 +6,7 @@ use PBDB::PBDBUtil;
 use URI::Escape;
 use HTML::Entities;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $DB $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+use PBDB::Constants qw($OCCURRENCE_NO makeAnchor makeFormPostTag);
 
 # in memory of our dearly departed Ryan Poling
 
@@ -111,7 +111,7 @@ sub displayOccurrenceReclassify	{
 	# tick through the occurrences
 	# NOTE: the list will be in data entry order, nothing fancy here
 	if ( @occrefs )	{
-		$output .= "<form action=\"$WRITE_URL\" method=\"post\">\n";
+		$output .= makeFormPostTag();
 		$output .= "<input id=\"action\" type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n";
 		if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
 		    $output .= "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
@@ -319,8 +319,6 @@ sub processReclassifyForm	{
 	my @new_reid_taxa = $q->param('reid_taxon_no');
 	my @reids = $q->param('reid_no');
 
-	$output .= $hbo->stdIncludes($PAGE_TOP);
-
 	$output .= "<center>\n\n";
 
     if ($q->numeric_param('collection_no')) {
@@ -444,8 +442,7 @@ sub processReclassifyForm	{
     }
 
 	$output .= "</center>\n\n";
-	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+	
         return $output;
 }
 

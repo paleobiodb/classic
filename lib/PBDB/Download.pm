@@ -14,7 +14,7 @@ use PBDB::Permissions;
 use URI::Escape;
 use Mail::Mailer;
 use Class::Date qw(now);
-use PBDB::Constants qw($READ_URL $HTML_DIR $DATA_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($HTML_DIR $DATA_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
 
 use strict;
 
@@ -312,7 +312,9 @@ sub buildDownload {
             $fileNames .= "/".$scaleFile;
         }
         $output .= "</div>\n\n";
-        $output .= "<p>You can also e-mail the files.<br>\n<nobr><form method=\"post\" action=$READ_URL>Address: <input type=\"hidden\" name=\"action\" value=\"emailDownloadFiles\"><input type=\"hidden\" name=\"filenames\" value=\"$fileNames\"><input name=\"email\" size=\"20\"> <input type=\"submit\" value=\"e-mail\"></form></nobr></p>\n\n";
+        $output .= "<p>You can also e-mail the files.<br>\n<nobr>";
+	$output .= makeFormPostTag();
+	$output .= "Address: <input type=\"hidden\" name=\"action\" value=\"emailDownloadFiles\"><input type=\"hidden\" name=\"filenames\" value=\"$fileNames\"><input name=\"email\" size=\"20\"> <input type=\"submit\" value=\"e-mail\"></form></nobr></p>\n\n";
     } else	{
         $output .= "</div>\n\n";
         $output .= "<p><i>No occurrences met the search criteria</i></p>";

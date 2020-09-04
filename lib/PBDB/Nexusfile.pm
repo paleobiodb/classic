@@ -14,8 +14,6 @@ use strict;
 use Encode;
 use Carp qw(carp croak);
 
-use PBDB::Constants qw($HTML_DIR $READ_URL);
-
 our ($SQL_STRING, $ERROR_STRING);
 
 

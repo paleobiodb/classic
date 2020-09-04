@@ -15,7 +15,7 @@ use PBDB::TaxonInfo;
 use PBDB::Collection;
 use Digest::MD5;
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($WRITE_URL $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE);
+use PBDB::Constants qw($DATA_DIR $HTML_DIR $TAXA_TREE_CACHE);
 
 our (@ALL_ROT);
 

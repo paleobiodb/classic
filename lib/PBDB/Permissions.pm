@@ -11,7 +11,7 @@ use strict;
 use Carp qw(carp);
 use PBDB::Person;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL);
+use PBDB::Constants qw(makeFormPostTag);
 
 #session and date objcts
 use fields qw(s dbt);
@@ -381,7 +381,7 @@ sub displayPermissionListForm {
     $output .= qq|<div class="displayPanel" align="left">\n|;
     $output .= qq|<span class="displayPanelHeader medium">Designated heir</span>\n|;
     $output .= qq|<div class="displayPanelContent" align="center">\n|;
-    $output .= qq|<form method="POST" action="$WRITE_URL">|;
+    $output .= makeFormPostTag();
     $output .= qq|<input type="hidden" name="action" value="submitHeir">|;
     $output .= qq|<table cellpadding=0 cellspacing=3>|;
     $output .= qq|<tr><td>Designate who will manage your data <br>if you leave the database: </td><td><input type="text" name="heir_reversed" value="$heir_reversed" onKeyUp="doComplete(event,this,authorizerNames())"> <input type="submit" name="submit_heir" value="Go"></td></tr>|;
@@ -430,7 +430,7 @@ sub displayPermissionListForm {
         $output .= qq|</div>\n</div>\n\n<div class="displayPanel" align="left">\n|;
         $output .= qq|<span class="displayPanelHeader medium">Permitted modifiers</span>\n|;
         $output .= qq|<div class="displayPanelContent" align="center">\n|;
-        $output .= qq|<form method="POST" action="$WRITE_URL">|;
+        $output .= makeFormPostTag();
         $output .= qq|<input type="hidden" name="action" value="submitPermissionList">|;
         $output .= qq|<input type="hidden" name="submit_type" value="add">|;
         $output .= qq|<input type="hidden" name="action_for" value="$person_no">|;
@@ -440,7 +440,7 @@ sub displayPermissionListForm {
         $output .= qq|</table>|;
         $output .= qq|</form>|;
 
-        $output .= qq|<form method="POST" action="$WRITE_URL">|;
+        $output .= makeFormPostTag();
         $output .= qq|<input type="hidden" name="action" value="submitPermissionList">|;
         $output .= qq|<input type="hidden" name="action_for" value="$person_no">|;
         $output .= qq|<input type="hidden" name="submit_type" value="delete">|;

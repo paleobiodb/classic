@@ -5,7 +5,7 @@ package PBDB::EcologyEntry;
 use strict;
 
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($WRITE_URL makeAnchor);
+use PBDB::Constants qw(makeAnchor);
 use PBDB::Reference;
 
 # written by JA 27-31.7,1.8.03

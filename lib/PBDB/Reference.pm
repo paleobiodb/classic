@@ -11,9 +11,8 @@ use strict;
 use PBDB::AuthorNames;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $HTML_DIR $TAXA_TREE_CACHE 
-		       $DB $COLLECTIONS $COLLECTION_NO $PAGE_TOP $PAGE_BOTTOM makeAnchor 
-		       makeAnchorWithAttrs makeATag);
+use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTION_NO makeAnchor
+		       makeAnchorWithAttrs makeATag makeFormPostTag);
 use PBDB::Download;
 use PBDB::Person;
 # calls to these two modules need to be removed eventually
@@ -438,8 +437,6 @@ sub displayRefResults {
 	$output .= "<div style=\"margin: 1.5em; margin-bottom: 1em; padding: 1em; border: 1px solid #E0E0E0;\">\n";
 	$output .= "<table border=0 cellpadding=5 cellspacing=0>\n";
 	    
-	# my $exec_url = ($type =~ /view/) ? "" : $WRITE_URL;
-	    
 	# Only print the last 30 rows that were found JA 26.7.02
 	my $dark;
 	for (my $i=$offset;$i < $offset + 30 && $i < scalar(@data); $i++)
@@ -528,16 +525,16 @@ sub displayRefResults {
 	    
 	if ($type eq 'add')
 	{
-	    $output .= "<div align=\"center\">";
-	    $output .= "<form method=\"POST\" action=\"$WRITE_URL\">";
-	    $output .= "<input type=\"hidden\" name=\"action\" value=\"displayReferenceForm\">";
+	    $output .= "<div align=\"center\">\n";
+	    $output .= makeFormPostTag();
+	    $output .= "<input type=\"hidden\" name=\"action\" value=\"displayReferenceForm\">\n";
 	    foreach my $f ("name","year","reftitle","project_name")
 	    {
-		$output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">";
+		$output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
 	    }
-	    $output .= "<input type=submit value=\"Add reference\"></center>";
-	    $output .= "</form>";
-	    $output .= "</div>";
+	    $output .= "<input type=submit value=\"Add reference\"></center>\n";
+	    $output .= "</form>\n";
+	    $output .= "</div>\n";
 	}
 	
 	return $output;
@@ -1194,34 +1191,6 @@ sub getReferencesXML {
     return $output;
 }
    
-# sub printRefsCSV {
-#     my @data = @{$_[0]};
-#     my $authname = $_[1];
-#     $authname =~ s/\. //;
-#     # Dump the refs to a flat file JA 1.7.02
-#     my $csv = Text::CSV_XS->new({'binary'=>1});
-#     PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/references");
-#     open REFOUTPUT,">$HTML_DIR/public/references/${authname}_refs.csv";
-
-#     my @fields = qw(authorizer enterer modifier reference_no author1init author1last author2init author2last otherauthors pubyr reftitle pubtitle pubvol pubno firstpage lastpage publication_type basis language doi comments created modified); 
-#     if ($csv->combine(@fields)) {
-#         print REFOUTPUT $csv->string(),"\n";
-#     }
-#     for my $row (@data)	{
-#         my @row;
-#         foreach (@fields) {
-#             push @row, $row->{$_};
-#         }
-#         if ($csv->combine(@row))	{
-#             print REFOUTPUT $csv->string(),"\n";
-#         } else {
-#             # print "ERR";
-#         }
-#     }
-#     close REFOUTPUT;
-
-# } 
-
 # JA 17-18.3.09
 sub getTitleWordOdds	{
     my ($dbt,$q,$s,$hbo) = @_;

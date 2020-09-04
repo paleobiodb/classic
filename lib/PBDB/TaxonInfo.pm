@@ -14,9 +14,8 @@ use PBDB::EcologyEntry;
 use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($READ_URL $INTERVAL_URL $SQL_DB $IS_FOSSIL_RECORD $GDD_URL
-		       $PAGE_TOP $PAGE_BOTTOM $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeATag makeAnchor 
-		       makeAnchorWithAttrs makeURL);
+use PBDB::Constants qw($INTERVAL_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE
+		       makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeURL);
 
 use strict;
 
@@ -444,9 +443,13 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
 	}
     	$output .= displaySynonymyList($dbt, $taxon_no);
         if ( $taxon_no )	{
-            $output .= "<p>Is something missing? <a href=\"$READ_URL?page=join_us\">Join the Paleobiology Database</a> and enter the data</p>\n";
+            $output .= "<p>Is something missing? ";
+	    $output .= makePageAnchor('join_us', 'Join the Paleobiology Database');
+	    $output .= " and enter the data</p>\n";
         } else	{
-            $output .= "<p>Please <a href=\"$READ_URL?page=join_us\">join the Paleobiology Database</a> and enter some data</p>\n";
+            $output .= "<p>Please ";
+	    $output .= makePageAnchor('join_us', 'join the Paleobiology Database');
+	    $output .= " and enter some data</p>\n";
         }
         $output .= "</div>\n</div>\n</div>\n";
         $output .= '</center>';
@@ -1871,17 +1874,8 @@ sub getSynonymyParagraph	{
         }
         $text =~ s/; $/\./;
     }
-
-    if ($taxon->{'first_occurrence'} && $IS_FOSSIL_RECORD) {
-        $text .= "<br><br>";
-        my $andlast = ($taxon->{'last_occurrence'} eq '') ? " and last" : "";
-        $text .= "First$andlast occurrence: ".$taxon->{'first_occurrence'}."<br>";
-        if ($taxon->{'last_occurrence'} ne '') {
-            $text .= "Last occurrence: ".$taxon->{'last_occurrence'}."<br>";
-        }
-    }
     
-	return $text;
+    return $text;
 
     # Only used in this function, just a simple utility to print out a formatted list of references
     sub printReferenceList {
@@ -2159,13 +2153,7 @@ sub getMostRecentClassification {
     if ( $options->{'use_synonyms'} !~ /no/ && !$options->{reference_no})	{
         push @synonyms , getJuniorSynonyms($dbt,$child_no,"equal");
     }
-
-    my $fossil_record_sort;
-    my $fossil_record_field;
-    if ($IS_FOSSIL_RECORD) {
-        $fossil_record_field = "IF(project_name IS NOT NULL,FIND_IN_SET('fossil record',r.project_name),0) is_fossil_record, ";
-        $fossil_record_sort = "is_fossil_record DESC, ";
-    }
+    
     my $strat_fields;
     if ($options->{strat_range}) {
         $strat_fields = 'o.max_interval_no,o.min_interval_no,';
@@ -2175,7 +2163,6 @@ sub getMostRecentClassification {
             . " IF(o.pubyr IS NOT NULL AND o.pubyr != '' AND o.pubyr != '0000', o.author1last, r.author1last) as author1last, "
             . " IF(o.pubyr IS NOT NULL AND o.pubyr != '' AND o.pubyr != '0000', o.author2last, r.author2last) as author2last, "
             . " IF(o.pubyr IS NOT NULL AND o.pubyr != '' AND o.pubyr != '0000', o.otherauthors, r.otherauthors) as otherauthors, "
-            . $fossil_record_field
             . $strat_fields
             . $reliability
             . " FROM opinions o" 
@@ -2200,7 +2187,7 @@ sub getMostRecentClassification {
     if ($options->{strat_range}) {
         $sql .= " AND o.max_interval_no IS NOT NULL and o.max_interval_no != 0";
     }
-    $sql .= ") ORDER BY $fossil_record_sort reliability_index DESC, pubyr DESC, opinion_no DESC";
+    $sql .= ") ORDER BY reliability_index DESC, pubyr DESC, opinion_no DESC";
 
     my @rows = @{$dbt->getData($sql)};
 
@@ -2940,8 +2927,6 @@ sub displayFirstAppearance	{
 		beginFirstAppearance($hbo,$q,$error_message);
 	}
 	
-	# print $hbo->stdIncludes($PAGE_TOP);
-
 	# MAIN TABLE HITS
 
 	$sql = "SELECT a.taxon_no,taxon_name,taxon_rank,extant,preservation,lft,rgt,synonym_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND lft>=".$nos[0]->{'lft'}." AND rgt<=".$nos[0]->{'rgt'}.$exclude." ORDER BY lft";
@@ -3503,7 +3488,6 @@ sub displayFirstAppearance	{
 	$output .= makeAnchor("displayTaxonInfoResults", "taxon_no=$nos[0]{taxon_no}", "See more details about $name") . "</div>\n";
 	$output .= "</div>\n";
 
-        # print $hbo->stdIncludes($PAGE_BOTTOM);
 	return $output;
 }
 
@@ -3655,7 +3639,7 @@ sub basicTaxonInfo	{
 		# the name may be bona fide but completely unclassified, so
 		#  see if it has occurrences
 		my $occ;
-		if ( ! @taxon_nos && $error eq "" && $SQL_DB eq "pbdb" )	{
+		if ( ! @taxon_nos && $error eq "" )	{
 			my ($g,$s) = split / /,$taxon_name;
 			my $name_clause = "genus_name='".$g."'";
 			my $name_clause = "(genus_name='".$g."' OR subgenus_name='".$g."')";
@@ -3717,9 +3701,7 @@ sub basicTaxonInfo	{
 		    $output .= listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		}
 	} else	{ # this should never happen
-	    # print $hbo->stdIncludes($PAGE_TOP);
 	    return "<p>You must enter a taxon name.</p>\n\n";
-	    # print $hbo->stdIncludes($PAGE_BOTTOM);
 	}
 
     if ( $q->param('do_redirect') && $taxon_no && $taxon_no =~ /^\d+$/ )
@@ -3769,7 +3751,6 @@ sub basicTaxonInfo	{
 	} else	{
 		$page_title->{'title'} .= $taxon_name;
 	}
-	# print $hbo->stdIncludes($PAGE_TOP,$page_title);
 
 	my $taxon = getMostRecentSpelling($dbt,$taxon_no);
 	if ( $taxon->{'taxon_no'} != $taxon_no )	{
@@ -4057,7 +4038,7 @@ sub basicTaxonInfo	{
 
 	# ECOLOGY SECTION
 
-	if ( $taxon_no && $SQL_DB eq "pbdb" )	{
+	if ( $taxon_no )	{
 		my $eco_hash = PBDB::Ecology::getEcology($dbt,$class_hash,['locomotion','life_habit','diet1','diet2'],'get_basis');
 		my $ecotaphVals = $eco_hash->{$taxon_no};
 
@@ -4083,7 +4064,7 @@ sub basicTaxonInfo	{
 
 	my @specimens;
 	my $specimen_count;
-	if ( $taxon_no && $auth->{'taxon_rank'} eq "species" && $SQL_DB eq "pbdb" )	{
+	if ( $taxon_no && $auth->{'taxon_rank'} eq "species" )	{
 		@specimens = PBDB::Measurement::getMeasurements($dbt,{'taxon_list'=>\@all_spellings,'get_global_specimens'=>1});
 		if ( @specimens )	{
 			my $p_table = PBDB::Measurement::getMeasurementTable(\@specimens);
@@ -4116,7 +4097,7 @@ sub basicTaxonInfo	{
 	# DISTRIBUTION SECTION
 
 	my @occs;
-	if ( $is_real_user > 0 && $SQL_DB eq "pbdb" && $auth->{'rgt'} - $auth->{'lft'} < 20000 )	{
+	if ( $is_real_user > 0 && $auth->{'rgt'} - $auth->{'lft'} < 20000 )	{
 
 		# taxon_string is needed for maps and taxon_param for links
 		my $taxon_string = $taxon_no;
@@ -4278,71 +4259,15 @@ sub basicTaxonInfo	{
 				$output .= "</p>\n\n<p><i>There is no taxonomic or distributional information about '$taxon_name' in the database</i></p>\n\n";
 			}
 		}
-
-	# MAP SECTION
-
-# 		if ( @occs && $auth->{'rgt'} - $auth->{'lft'} < 20000 )	{
-# 			require GD;
-# 			my $im = new GD::Image(1,1,1);
-# 			my $GIF_DIR = $HTML_DIR."/public/maps";
-#        			open(PNG,">$GIF_DIR/taxon".$taxon_string.".png");
-# 			binmode(PNG);
-# 			print PNG $im->png;
-# 			close PNG;
-# 			chmod 0664, "$GIF_DIR/taxon".$taxon_string.".png";
-
-# 			$output .= qq|
-# <script language="Javascript" type="text/javascript">
-# <!--
-
-# var swapID;
-# var eraseID;
-# function requestMap()	{
-# 	document.getElementById('taxonImage').src = '$HOST_URL/?a=displayMapOnly&amp;display_header=NO&amp;$taxon_param';
-# 	document.getElementById('mapLink').innerHTML = '';
-# 	document.getElementById('moreMapLinkText').innerHTML = '';
-# 	document.getElementById('pleaseWait').innerHTML = '<i>Please wait for the map to be generated</i>';
-# 	swapID = setInterval( "swapInMap()" , 2000 );
-# 	// there's no way to erase the message before the image is fully loaded,
-# 	//  so check frequently to see if it has been
-# 	eraseID = setInterval( "erasePleaseWait()" , 100 );
-# 	return(true);
-# }
-
-# function swapInMap()	{
-# 	document.getElementById('pleaseWait').innerHTML += ' .';
-# 	document.getElementById('taxonImage').src = '/public/maps/taxon$taxon_string.png?' + (new Date()).getTime();
-# 	if ( document.getElementById('taxonImage').clientWidth > 100 )	{
-# 		clearInterval( swapID );
-# 	}
-# 	return(true);
-# }
-
-# function erasePleaseWait()	{
-# 	if ( document.getElementById('taxonImage').clientWidth > 100 )	{
-# 		document.getElementById('pleaseWait').style.display = 'none';
-# 		clearInterval( eraseID );
-# 	}
-# 	return(true);
-# }
-
-# // -->
-# </script>
-
-# |;
-
-# 		}
-
 	}
-
-
+    
         my $taxon_name = $taxon->{'taxon_name'};
         my $taxon_rank = $taxon->{'taxon_rank'};
 
 	if ( $is_real_user > 0 && ( @occs || $taxon_no ) )	{
-		if ( $taxon_no && $SQL_DB eq "pbdb" )	{
+		if ( $taxon_no )	{
 			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
-		} elsif ( $SQL_DB eq "pbdb" )	{
+		} else	{
 			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 		}
 		if ( $s->isDBMember() && $taxon_no && $s->get('role') =~ /authorizer|student|technician/ )	{
@@ -4430,8 +4355,6 @@ sub basicTaxonInfo	{
               })
           </script>
           |;
-
-    # print $hbo->stdIncludes($PAGE_BOTTOM);
 
     return $output;
 }
@@ -4541,7 +4464,6 @@ sub listTaxonChoices	{
 	if ( $numbersOnly == 0 )	{
 		@results = @{$data};
 	} else	{
-		# print $hbo->stdIncludes($PAGE_TOP);
 		my $sql = "SELECT a.*,IF (ref_is_authority='YES',r.author1last,a.author1last) author1last,IF (ref_is_authority='YES',r.author2last,a.author2last) author2last,IF (ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF (ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,refs r WHERE a.reference_no=r.reference_no AND taxon_no IN (".join(',',@{$data}).")";
 		@results = @{$dbt->getData($sql)};
 	}
@@ -4576,7 +4498,6 @@ sub listTaxonChoices	{
 </div>
 |;
 	if ( $numbersOnly > 0 )	{
-		# print $hbo->stdIncludes($PAGE_TOP);
 		return;
 	}
 

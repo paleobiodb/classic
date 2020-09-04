@@ -14,7 +14,7 @@ use URI::Escape;
 use Memoize;
 use PBDB::Reference;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $HTML_DIR makeAnchor);
+use PBDB::Constants qw($HTML_DIR makeAnchor);
 
 memoize('chiSquaredDensity');
 memoize('factorial');
@@ -39,7 +39,8 @@ sub displayHomonymForm {
     my $pl1 = scalar(@homonym_names) > 1 ? "s" : "";
     my $pl2 = scalar(@homonym_names) > 1 ? "" : "s";
     $output .= "<center><p class=\"medium\">The following taxonomic name$pl1 belong$pl2 to multiple taxonomic <br>hierarchies.  Please choose the one$pl1 you want.</p>";
-    $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"buildListForm\">";
+    $output .= makeFormPostTag();
+    $output .= "<input type=\"hidden\" name=\"action\" value=\"buildListForm\">\n";
     $output .= "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param('taxon_resolution')."\">\n";
     $output .= "<input type=\"hidden\" name=\"input_type\" value=\"taxon\">\n";
                        
@@ -452,7 +453,8 @@ sub buildList    {
         if ($q->param('taxon_resolution') =~/genus|species/) {
             $output .= "<div align=\"center\"><p class=\"pageTitle\">Confidence interval taxon list</p></div><br>\n";
             $output .= "<div class=\"displayPanel\" style=\"margin-left: 2em; margin-right: 2em; padding-top: 1em;\">\n";
-            $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
+	    $output .= makeFormPostTag();
+            $output .= "<input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
             $output .= "<input type=\"hidden\" name=\"input_type\" value=\"taxon\">\n";
             $output .= "<center>\n";
 
@@ -563,7 +565,8 @@ sub displayStratTaxa {
         $output .= optionsForm($q, $s, $dbt, \%occ_list);
     } else {
         $output .= "<div align=\"center\"><p class=\"pageTitle\">Stratigraphic section taxon list</p></div><br>\n";
-        $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
+	$output .= makeFormPostTag();
+	$output .= "<input type=\"hidden\" name=\"action\" value=\"showOptionsForm\">\n";
         $output .= "<center><table cellpadding=5 border=0>\n";
         $output .= "<tr><td><input type=checkbox checked=checked onClick=\"checkAll(this,'sp_checkbox');\"> Check all</td></tr>\n";
         $output .= "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
@@ -583,7 +586,6 @@ sub displayStratTaxa {
         $output .= "</center></table><br>\n";
         $output .= "<center><span class=\"tiny\">(To remove taxon from list for analysis, uncheck before pressing 'Submit')</span><br><br>\n";
         $output .= "<input type=\"submit\" value=\"Submit\">";
-        #print "<A HREF=\"/cgi-bin/$READ_URL?action=displayFirstForm\"><input type=\"button\" value=\"Start again\"></A>";
         $output .= "</center><br><br></form>\n\n";
     } 
     return $output;
@@ -636,9 +638,11 @@ sub optionsForm    {
 #------------------------------OPTIONS FORM----------------------------------
 
     if ($type eq 'taxon')   {
-        $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateTaxaInterval\">";
+	$output .= makeFormPostTag();
+        $output .= "<input type=\"hidden\" name=\"action\" value=\"calculateTaxaInterval\">";
     } else  {
-        $output .= "<form action=\"$READ_URL\" method=\"post\"><input type=\"hidden\" name=\"action\" value=\"calculateStratInterval\">";
+	$output .= makeFormPostTag();
+        $output .= "<input type=\"hidden\" name=\"action\" value=\"calculateStratInterval\">";
         $output .= "<input type=\"hidden\" name=\"input\" value=\"".uri_escape_utf8($section_name // '')."\">";
         $output .= "<input type=\"hidden\" name=\"taxon_resolution\" value=\"".$q->param("taxon_resolution")."\">";
     }    
@@ -929,7 +933,7 @@ sub calculateTaxaInterval {
         }
         my $link;
         if (scalar keys %collections) {
-            $link = "$READ_URL?action=displayCollResults&amp;collection_list=".join(",",keys %collections);
+            $link = makeURL('displayCollResults', "collection_list=".join(",",keys %collections));
         }
         my $short_interval_name = $interval_name;
         $short_interval_name =~ s/^early/e./;
@@ -954,7 +958,7 @@ sub calculateTaxaInterval {
         }
         my $link;
         if (scalar keys %collections) {
-            $link = "$READ_URL?action=displayCollResults&amp;collection_list=".join(",",keys %collections);
+            $link = makeURL('displayCollResults', "collection_list=".join(",",keys %collections));
         }
         $cg->addBar($taxon_label,$taxon_data,$link,$taxon);
 
@@ -968,7 +972,7 @@ sub calculateTaxaInterval {
             }
             my $link;
             if (scalar keys %collections) {
-                $link = "$READ_URL?action=displayCollResults&amp;collection_list=".join(",",keys %collections);
+                $link = makeURL('displayCollResults', "collection_list=".join(",",keys %collections));
             }
             $cg->addPoint($taxon_label,[$max,$min],$link,"$taxon at $interval_name");
         }
@@ -1359,7 +1363,7 @@ sub calculateStratInterval	{
             }
         }
         if (@collections) {
-            $link = "$READ_URL?action=displayCollResults&amp;collection_list=".join(",",@collections);
+            $link = makeURL('displayCollResults', "collection_list=".join(",",@collections));
         }
         $cg->addTick($bed,$bed,$link,$bed);
     }
@@ -1368,7 +1372,7 @@ sub calculateStratInterval	{
         my $taxon_label = $taxon;
         my $taxon_data = $taxa_hash{$taxon};
         my $collection_list = join(",",@{$taxon_data->{'collections'}});
-        my $link = "$READ_URL?action=displayCollResults&amp;collection_list=$collection_list";
+        my $link = makeURL('displayCollResults', "collection_list=$collection_list");
         $cg->addBar($taxon_label,$taxon_data,$link,$taxon);
 
         foreach my $bed (@{$taxon_data->{beds}}){
@@ -1381,7 +1385,7 @@ sub calculateStratInterval	{
                 }
             }
             if (@collections) {
-                $link = "$READ_URL?action=displayCollResults&amp;collection_list=".join(",",@collections);
+                $link = makeURL('displayCollResults', "collection_list=".join(",",@collections));
             }
             $cg->addPoint($taxon_label,$bed,$link,"$taxon at $bed");
         }
@@ -1904,7 +1908,7 @@ package PBDB::ConfidenceGraph;
 
 #use GD;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $HTML_DIR);
+use PBDB::Constants qw($HTML_DIR);
 
 my $AILEFT = 100;
 my $AITOP = 450;   

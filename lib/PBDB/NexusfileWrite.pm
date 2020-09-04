@@ -14,8 +14,6 @@ use PBDB::TaxonInfo;
 use Carp qw(carp croak);
 use Digest::MD5;
 
-use PBDB::Constants qw($READ_URL);
-
 our ($SQL_STRING, $ERROR_STRING);
 
 

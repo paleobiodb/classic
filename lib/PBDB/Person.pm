@@ -1,7 +1,7 @@
 
 package PBDB::Person;
 
-use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $PAGE_TOP $PAGE_BOTTOM makeAnchor);
+use PBDB::Constants qw(makeAnchor);
 use strict;
 use PBDB::Reference;
 

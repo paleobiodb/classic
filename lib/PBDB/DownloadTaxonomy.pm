@@ -13,7 +13,7 @@ use PBDB::ReferenceEntry;
 use Carp qw(carp);
 use Text::CSV_XS;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeAnchor);
 
 use strict;
 
@@ -372,10 +372,12 @@ sub displayITISDownload {
 
     if (@errors) {
         $output .= displayErrors(@errors);
-        $output .= "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Please try again</a></h5></div><br>";
+        $output .= "<div align=\"center\"><h5>";
+	$output .= makeAnchor('displayDownloadTaxonomyForm', '', 'Please try again');
+	$output .= "</a></h5></div><br>";
         return $output;
     }
-
+    
     $output .= "<div align=\"center\"><p class=\"pageTitle\">Taxonomy download results</p></div>";
 
     $output .= '<div align="center">
@@ -650,7 +652,9 @@ sub displayITISDownload {
     #print "$cmd -- $ot -- <BR>";
 
 
-    $output .= "<div align=\"center\"><h5><a href='/public/taxa_downloads/$dirname.tar.gz'>Download file</a> - <a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Do another download</a></h5></div><br>";
+    $output .= "<div align=\"center\"><h5><a href='/public/taxa_downloads/$dirname.tar.gz'>Download file</a> - ";
+    $output .= makeAnchor('displayDownloadTaxonomyForm', '', 'Do another download');
+    $output .= "</h5></div><br>";
     $output .= "</td></tr></table></div>";
     #print "<a href='/paleodb/data/JSepkoski/taxonomic_units.dat'>taxonomic units</a><BR>";
     #print "<a href='/paleodb/data/JSepkoski/publications.dat'>publications</a><BR>";
@@ -725,7 +729,9 @@ sub displayPBDBDownload {
 
     if (@errors) {
         $output .= displayErrors(@errors);
-        $output .= "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Please try again</a></h5></div><br>";
+        $output .= "<div align=\"center\"><h5>";
+	$output .= makeAnchor('displayDownloadTaxonomyForm', '', 'Please try again');
+	$output .= "</h5></div><br>";
         return;
     }
 
@@ -919,8 +925,10 @@ sub displayPBDBDownload {
     }
 
 
-$output .= '</td></tr></table></div>';
-  $output .= "<div align=\"center\"><h5><a href=\"$READ_URL?action=displayDownloadTaxonomyForm\">Do another download</a></h5></div><br>";
+    $output .= '</td></tr></table></div>';
+    $output .= "<div align=\"center\"><h5>";
+    $output .= makeAnchor('displayDownloadTaxonomyForm', '', 'Do another download');
+    $output .= "</h5></div><br>";
     
     close FH_REF;
     close FH_RIS;

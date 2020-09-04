@@ -23,7 +23,7 @@ use PBDB::TaxaCache;
 use PBDB::Classification;
 use PBDB::TaxonInfo;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs);
+use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs makeFormPostTag);
 
 use PBDB::Opinion;
 use PBDB::Reference;
@@ -349,35 +349,35 @@ sub displayAuthorityForm {
 		$fields{'show_type_specimen'} = 1;
     }
 	
-	## If this is a new species or subspecies, then we will automatically
-	# create an opinion record with a state of 'belongs to'.  However, we 
-	# have to make sure that we use the correct parent taxon if we have multiple
-	# ones in the database.  For example, if they enter a  new taxon named
-	# 'Equus newtaxon' and we have three entries in authorities for 'Equus'
-	# then we should present a menu and ask them which one to use.
-
+    ## If this is a new species or subspecies, then we will automatically
+    # create an opinion record with a state of 'belongs to'.  However, we 
+    # have to make sure that we use the correct parent taxon if we have multiple
+    # ones in the database.  For example, if they enter a  new taxon named
+    # 'Equus newtaxon' and we have three entries in authorities for 'Equus'
+    # then we should present a menu and ask them which one to use.
+    
     my $parent_no; my @parents;
-	if ($fields{'taxon_rank'} =~ /subspecies|species|subgenus/) {
-		my @bits = split(/ /,$fields{'taxon_name'});
+    if ($fields{'taxon_rank'} =~ /subspecies|species|subgenus/) {
+	my @bits = split(/ /,$fields{'taxon_name'});
         pop @bits;
-	    my $parentName = join(" ",@bits);	
-		
+	my $parentName = join(" ",@bits);	
+	
         my $parentRank = guessTaxonRank($parentName);
         if (!$parentRank) { 
             $parentRank = 'genus';
         }
         @parents = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$parentName,'taxon_rank'=>$parentRank,'ignore_common_name'=>"YES"},['*']);
-		
-		if (@parents) {
-			my $select;
+	
+	if (@parents) {
+	    my $select;
             # if only one record, then we don't have to ask the user anything.
             # otherwise, we should ask them to pick which one.
             my @parent_nos = ();
             my @parent_descs = ();
-			foreach my $row (@parents) {
+	    foreach my $row (@parents) {
                 push @parent_nos, $row->{'taxon_no'};	
                 push @parent_descs, formatTaxon($dbt,$row);
-			}
+	    }
             if (@parents == 1) {
                 $parent_no = $parents[0]->{'taxon_no'};
             } else {
@@ -390,19 +390,12 @@ sub displayAuthorityForm {
                     }
                 }
             }
-			
-			$fields{'parent_taxon_select'} = "<span class=\"prompt\">Belongs to:</span>&nbsp;".
-                $hbo->htmlSelect('parent_taxon_no',\@parent_descs,\@parent_nos,$parent_no);
-		} else {
-			# count = 0, so we need to warn them to enter the parent taxon first.
-#	        my $errors = PBDB::Errors->new();
-#			$errors->add("The $parentRank '$parentName' for this $fields{'taxon_rank'} hasn't been entered yet.  Please <A HREF=\"/cgi-bin/$WRITE_URL?action=displayAuthorityForm&taxon_name=$parentName\">create a new authority record for '$parentName'</A> before trying to add this $fields{'taxon_rank'}.");
-#            print $errors->errorMessage();
-#            return;
-		}
+	    
+	    $fields{'parent_taxon_select'} = "<span class=\"prompt\">Belongs to:</span>&nbsp;".
+		$hbo->htmlSelect('parent_taxon_no',\@parent_descs,\@parent_nos,$parent_no);
 	}
-
-
+    }
+    
     # Build original name select
     # we must build this before the rank select (see below)
     my %seen_rank;
@@ -1608,51 +1601,7 @@ sub setOccurrencesTaxonNoByTaxon {
             $emails{$row->{'person_no'}} = $row->{'email'};
             $counts{$row->{'person_no'}} += $row->{'cnt'};
         }
-
-#         while (my ($person_no,$email) = each %emails) {
-#             my $name = $names{$person_no};
-#             my $link = "$WRITE_URL?action=displayCollResults&type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$person_no";
-#             my %headers = ('Subject'=> 'Please reclassify your occurrences','From'=>'alroy');
-#             if ($HOST_URL =~ /paleodb\.org/) {
-#                 if ($email) {
-#                     $headers{'To'} = $email; 
-#                 } else {
-#                     # This will happen if email is blank, such as with Sepkoski
-#                     $headers{'To'} = 'alroy@nceas.ucsb.edu';
-#                 }
-#             } else {
-#                 # DEBUGGING EMAIL ADDRESS
-#                 $headers{'To'} = 'schroeter@nceas.ucsb.edu';
-#             }
-#             my $taxon_count = scalar(@taxon_nos);
-#             my $occ_count = $counts{$person_no};
-#             my $body = <<END_OF_MESSAGE;
-# Dear $name:
-
-# This is an automated message from the Paleobiology Database. Please don't reply to this message directly, but rather send replies to the database administrator (admin\@paleobiodb.org).
-
-# This message has been sent to you because the taxonomic name $taxon_name has just been entered into the database, and other taxa with the same name already have been entered. So, we have more than one version. This taxonomic name is tied to $occ_count occurrences and reidentifications you own. We can't be sure which version of the name these records should be tied to, so the records must be manually reclassified to choose between them. 
-
-# To fix your records, Please click this link while logged in:
-# http://paleodb.org/cgi-bin/$link
-
-# Or log in, go to the main menu, click "Reclassify occurrences" and enter $taxon_name into the taxon name field.
-# END_OF_MESSAGE
-#             unless ($no_email) {
-#                 my $mailer = new Mail::Mailer;
-#                 $mailer->open(\%headers);
-#                 print $mailer $body; 
-#                 $mailer->close;
-#             }
-#         }
-        
-        # Deal with homonym issue
-        # Default behavior changed: leave occurrences classified by default, since whoever entered them in the first
-        # place probably wants them to be classified in the existing taxa in the database.
-#        $sql1 = "UPDATE occurrences SET modified=modified,taxon_no=0 WHERE taxon_no IN (".join(",",@taxon_nos).")";
-#        $sql2 = "UPDATE reidentifications SET modified=modified,taxon_no=0 WHERE taxon_no IN (".join(",",@taxon_nos).")";
-#        $dbt->getData($sql1);
-#        $dbt->getData($sql2);
+	
         push @warnings, "Since $taxon_name is a homonym, occurrences of it may be incorrectly classified.  Please " . makeAnchorWithAttrs("displayCollResults", "type=reclassify_occurrence&taxon_name=$taxon_name&occurrences_authorizer_no=$authorizer_no", "target=\"_BLANK\"", "reclassify your occurrences") . " of this taxon.";
     } elsif (scalar(@taxon_nos) == 1) {
         my @matchedOccs = ();
@@ -1769,7 +1718,7 @@ sub displayTypeTaxonSelectForm {
     if ($is_tt_form_value) {
         if (scalar(@parents) > 1) {
             print "<div align=\"center\">";
-            print "<form method=\"POST\" action=\"$WRITE_URL\">\n";
+            print makeFormPostTag();
             print "<input type=\"hidden\" name=\"action\" value=\"submitTypeTaxonSelect\">\n";
             print "<input type=\"hidden\" name=\"reference_no\" value=\"$reference_no\">\n";
             print "<input type=\"hidden\" name=\"type_taxon_no\" value=\"$type_taxon_no\">\n";

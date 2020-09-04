@@ -9,7 +9,7 @@ use lib '/data/MyApp/lib/PBData';
 
 use Encode qw(decode_utf8);
 use HTML::Entities qw(encode_entities);
-use PBDB::Constants qw($WEBAPP_DIR $WEBAPP_PATH $DATA_URL $TEST_DATA_URL $READ_URL);
+use PBDB::Constants qw($WEBAPP_DIR $WEBAPP_PATH $DATA_URL $TEST_DATA_URL $WRITE_URL);
 
 use ExternalIdent qw(generate_identifier);
 
@@ -115,7 +115,7 @@ sub generateBasePage {
     
     my %vars = ( data_url => $DATA_URL,
 		 test_data_url => $TEST_DATA_URL || $DATA_URL,
-		 classic_url => $READ_URL,
+		 classic_url => $WRITE_URL,
 		 app_resources => $app->{app_path},
 		 common_resources => $app->{common_path} );
     

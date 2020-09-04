@@ -7,7 +7,7 @@ use Data::Dumper qw(Dumper);
 use PBDB::TaxaCache;
 use PBDB::Validation;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($READ_URL $WRITE_URL $IS_FOSSIL_RECORD $TAXA_TREE_CACHE makeATag makeAnchor makeAnchorWithAttrs);
+use PBDB::Constants qw($TAXA_TREE_CACHE makeATag makeAnchor makeAnchorWithAttrs);
 
 # list of allowable data fields.
 use fields qw(opinion_no reference_no author1last author2last pubyr dbt DBrow);  
@@ -979,7 +979,9 @@ sub submitOpinionForm {
             if (scalar(@parents) > 1) {
                 $errors->add("The taxon '$parentName' exists multiple times in the database. Please select the one you want");	
             } elsif (scalar(@parents) == 0) {
-                $errors->add("The taxon '$parentName' doesn't exist in our database.  Please <A HREF=\"$WRITE_URL?action=displayAuthorityForm&taxon_no=-1&taxon_name=$parentName\">create a new authority record for '$parentName'</a> <i>before</i> entering this opinion");	
+		my $anchor = makeAnchor('displayAuthorityForm', "taxon_no=-1&taxon_name=$parentName",
+					"create a new authority record for '$parentName'");
+                $errors->add("The taxon '$parentName' doesn't exist in our database.  Please $anchor <i>before</i> entering this opinion");
             } elsif (scalar(@parents) == 1) {
                 $fields{'parent_spelling_no'} = $parents[0]->{'taxon_no'};
                 $fields{'parent_no'} = PBDB::TaxonInfo::getOriginalCombination($dbt,$fields{'parent_spelling_no'});
@@ -1300,29 +1302,7 @@ sub submitOpinionForm {
 	if ($q->param('diagnosis') && $q->param("diagnosis_given") =~ /^$|none/) {
 		$errors->add("If you enter a diagnosis, please also select a category for it in the \"Diagnosis\" pulldown");
 	}
-
-    # if ($IS_FOSSIL_RECORD) {
-    #     if ($q->param('max_interval_name')) {
-    #         my ($max_no,$err1) = FossilRecord::parseIntervalName($dbt,$q->param('max_interval_name'));
-    #         $fields{'max_interval_no'} = $max_no;
-    #         foreach (@$err1) {
-    #             $errors->add($_->{'message'});
-    #         }
-    #     } elsif ($childRank =~ /genus/) {
-    #         $errors->add('First interval is required');
-    #     }
-
-    #     if ($q->param('min_interval_name')) {
-    #         my ($min_no,$err2) = FossilRecord::parseIntervalName($dbt,$q->param('min_interval_name'));
-    #         $fields{'min_interval_no'} = $min_no;
-    #         foreach (@$err2) {
-    #             $errors->add($_->{'message'});
-    #         }
-    #     } elsif ($childRank =~ /genus/) {
-    #         $errors->add('Last interval is required');
-    #     }
-    # }
-
+    
     # Get the fields from the form and get them ready for insertion
     # All other fields should have been set or thrown an error message at some previous time
     foreach my $f ('author1init','author1last','author2init','author2last','otherauthors','pubyr','pages','figures','comments','diagnosis','phylogenetic_status','basis','type_taxon','diagnosis_given') {
