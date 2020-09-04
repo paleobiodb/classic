@@ -39,6 +39,7 @@
    "log4perl_config" : "/data/MyApp/etc/log4perl.conf",
    "mkits" : "/data/MyApp/var/mkits/",
    "rpc_limit" : 30,
+   "pbdb_site" : "",
    "sitename" : "PROJECT.EXAMPLE.COM",
    "smtp" : {
       "host" : "smtp.wiscmail.wisc.edu",

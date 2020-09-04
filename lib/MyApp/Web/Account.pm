@@ -8,8 +8,13 @@ use Wing::Web;
 
 post '/login' => sub {
     
-    return template 'account/login', { error_message => 'You must specify a username or email address.'} unless params->{login};
-    return template 'account/login', { error_message => 'You must specify a password.'} unless params->{password};
+    return template 'account/login', { error_message => 'You must specify a username or email address.',
+				       pbdb_site => Wing->config->get("pbdb_site") }
+	unless params->{login};
+    
+    return template 'account/login', { error_message => 'You must specify a password.',
+				       pbdb_site => Wing->config->get("pbdb_site") }
+	unless params->{password};
     
     my $username = params->{login};
     my $password = params->{password};
@@ -28,7 +33,8 @@ post '/login' => sub {
 
 	elsif ( @results > 1 )
 	{
-	    return template 'account/login', { error_message => 'Email is not unique.' };
+	    return template 'account/login', { error_message => 'Email is not unique.',
+					       pbdb_site => Wing->config->get("pbdb_site") };
 	}
     }
     
@@ -38,18 +44,21 @@ post '/login' => sub {
 	
 	if ( !defined $user || $user eq 'NONE' )
 	{
-	    return template 'account/login', { error_message => 'User not found.'};
+	    return template 'account/login', { error_message => 'User not found.',
+					       pbdb_site => Wing->config->get("pbdb_site") };
 	}
 	
 	elsif ( $user eq 'MULTIPLE' )
 	{
-	    return template 'account/login', { error_message => 'User name is ambiguous.' };
+	    return template 'account/login', { error_message => 'User name is ambiguous.',
+					       pbdb_site => Wing->config->get("pbdb_site") };
 	}
     }
     
     # validate password
     if (! $user->is_password_valid($password)) {
-	return template 'account/login', { error_message => 'Password incorrect.'};
+	return template 'account/login', { error_message => 'Password incorrect.',
+					   pbdb_site => Wing->config->get("pbdb_site") };
     }
 
     # Check if the user wishes to keep this session persistent.
@@ -129,7 +138,9 @@ post '/login' => sub {
 
 
 post '/account/reset-password' => sub {
-    return template 'account/reset-password', {error_message => 'You must supply an email address or username.'} unless params->{login};
+    return template 'account/reset-password', { error_message => 'You must supply an email address or username.',
+						pbdb_site => Wing->config->get("pbdb_site") }
+	unless params->{login};
     
     my $login = params->{login};
     my $schema = site_db();
@@ -146,7 +157,8 @@ post '/account/reset-password' => sub {
 	
 	elsif ( @results > 1 )
 	{
-	    return template 'account/reset-password', { error_message => 'Email is not unique.' };
+	    return template 'account/reset-password', { error_message => 'Email is not unique.',
+							pbdb_site => Wing->config->get("pbdb_site") };
 	}
 	
         # $user = site_db()->resultset('User')->search({email => $login},{rows=>1})->single;
@@ -159,12 +171,14 @@ post '/account/reset-password' => sub {
 	
 	if ( !defined $user || $user eq 'NONE' )
 	{
-	    return template 'account/reset-password', { error_message => 'User not found.'};
+	    return template 'account/reset-password', { error_message => 'User not found.',
+							pbdb_site => Wing->config->get("pbdb_site") };
 	}
 	
 	elsif ( $user eq 'MULTIPLE' )
 	{
-	    return template 'account/reset-password', { error_message => 'User name is ambiguous.' };
+	    return template 'account/reset-password', { error_message => 'User name is ambiguous.',
+							pbdb_site => Wing->config->get("pbdb_site") };
 	}
     }
     
@@ -182,7 +196,8 @@ post '/account/reset-password' => sub {
         return redirect '/account/reset-password-code';
     }
     
-    return template 'account/reset-password', {error_message => 'That account has no email address associated with it.'};
+    return template 'account/reset-password', { error_message => 'That account has no email address associated with it.',
+					       pbdb_site => Wing->config->get("pbdb_site") };
 };
 
 
@@ -318,7 +333,8 @@ sub authorizer_ok {
 
 get '/account/enterers' => sub {
     my $user = get_user_by_session_id();
-    template 'account/enterers', { current_user => $user, };
+    template 'account/enterers', { current_user => $user,
+				   pbdb_site => Wing->config->get("pbdb_site") };
 };
 
 our (@CAPTCHA_IMAGE);
