@@ -119,6 +119,12 @@ unless ( $precheck && $precheck =~ qr{DOCTYPE html}m )
 
 print STDOUT "Passed.\n";
 
+# Establish signal handlers to kill the child processes if we receive a QUIT, INT, or TERM signal.
+
+$SIG{INT} = sub { &kill_classic('INT') };
+$SIG{QUIT} = sub { &kill_classic('QUIT') };
+$SIG{TERM} = sub { &kill_classic('TERM') };
+
 # If we get here, there is a good chance that everything is fine. So start all three sub-services.
 
 system("start_server --port 6000 --pid-file=classic_rest.pid -- starman --workers $rw $run_as --access-log=logs/$rest_log --preload-app bin/rest.psgi &");
@@ -129,5 +135,36 @@ print STDOUT "Started all services.\n";
 
 while ( 1 )
 {
-    sleep 3600;
+    sleep(3600);
 }
+
+
+# The following subroutine will kill the three separate services started by this script.
+
+sub kill_classic {
+
+    my ($signame) = @_;
+    
+    my $rest_pid = `cat classic_rest.pid`;
+    chomp $rest_pid;
+
+    my $web_pid = `cat classic_web.pid`;
+    chomp $web_pid;
+
+    my $cached_pid = `cat taxa_cached.pid`;
+    chomp $cached_pid;
+    
+    print STDERR "Shutting down on receipt of signal $signame...\n";
+
+    print STDERR "Killing process $rest_pid\n";
+    kill('TERM', $rest_pid) if $rest_pid;
+
+    print STDERR "Killing process $web_pid\n";
+    kill('TERM', $web_pid) if $web_pid;
+
+    print STDERR "Killing process $cached_pid\n";
+    kill('TERM', $cached_pid) if $cached_pid;
+
+    exit;
+}
+

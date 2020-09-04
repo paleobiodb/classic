@@ -21,7 +21,7 @@ use lib 'lib';
 
 # CPAN modules
 use Class::Date qw(date localdate gmdate now);
-use POSIX qw(setsid);
+use POSIX qw(setsid strftime);
 use Getopt::Long;
 
 # PBDB modules
@@ -115,13 +115,12 @@ $taxa_cached::sync_time = PBDB::TaxaCache::getSyncTime($dbt);
 $taxa_cached::in_update = 0;
 $taxa_cached::time_to_die = 0;
 
-print "Starting daemon at ";
-system("date");
+print "Starting daemon at " . strftime('%c', localtime) . "\n";
 
 while(1) {
     doUpdate();
     if ($taxa_cached::time_to_die) {
-        print "got termination signal, dying\n" if ($DEBUG);
+	print "Stopping daemon on receipt of termination signal at " . strftime('%c', localtime) . "\n";
         exit 0;
     }
     sleep($POLL_TIME);
