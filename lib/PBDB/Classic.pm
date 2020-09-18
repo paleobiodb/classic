@@ -58,7 +58,7 @@ use PBDB::Taxon;  # slated for removal
 use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request);
-use PBDB::Constants qw($WRITE_URL $PBDB_SITE $CGI_DEBUG $DEBUG_USER %DEBUG_USERID
+use PBDB::Constants qw($WRITE_URL $CGI_DEBUG $DEBUG_USER %DEBUG_USERID
 		       $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO 
 		       makeAnchor);
 
@@ -350,7 +350,7 @@ sub classic_request {
     
     my $action_sub = \&{"PBDB::$action"}; # Hack so use strict doesn't break
     
-    my $vars = { pbdb_site => $PBDB_SITE,
+    my $vars = { pbdb_site => Wing->config->get('pbdb_site'),
 	         options => MyApp::DB::Result::Classic->field_options };
     if ($user) {
         $vars->{current_user} = $user;
@@ -462,37 +462,6 @@ sub freshParams {
     
     return PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
 }
-
-# get '/classics/:id/edit' => sub {
-#     my $current_user = get_user_by_session_id();
-#     my $classic = fetch_object('Classic');
-#     my $vars = {
-#         classic   => describe($classic, current_user => $current_user, include_relationships => 1, include_options => 1),
-#     };
-#     if ($current_user) {
-#         $vars->{current_user} = $current_user;
-#     }
-#     template 'classic/edit', $vars;
-# };
-
-# get '/classics/:uri_part' => sub {
-#     my $current_user = eval { get_user_by_session_id(); };
-#     my $classic = site_db()->resultset('Classic')->search({uri_part => param('uri_part')},{rows => 1})->single;
-#     unless (defined $classic) {
-#         $classic = fetch_object('Classic', param('uri_part')); # in case they pass in the id instead of a uri_part
-#         unless (defined $classic) {
-#             ouch 440, 'Classic not found.';
-#         }
-#     }
-#     my $vars = {
-#         classic   => describe($classic, current_user => $current_user, include_relationships => 1, include_related_objects => 1, include_options => 1),
-#     };
-#     if ($current_user) {
-#         $vars->{current_user} = $current_user;
-#     }
-#     template 'classic/view', $vars;
-# };
-
 
 sub displayPreferencesPage {
     

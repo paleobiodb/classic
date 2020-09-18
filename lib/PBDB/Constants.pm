@@ -6,7 +6,7 @@ use base 'Exporter';
 use FindBin;
 
 our @EXPORT_OK = qw($WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL $HTML_DIR $DATA_DIR
-		    $APP_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE $PBDB_SITE
+		    $APP_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE
 		    $SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD
 		    $TAXA_TREE_CACHE $TAXA_LIST_CACHE
 		    $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO
@@ -39,7 +39,6 @@ $PBDB::Constants::CGI_DEBUG	  = $conf->{'CGI_DEBUG'};
 our ($DEBUG_USER)		  = $conf->{'DEBUG_USER'};
 $PBDB::Constants::ADMIN_EMAIL	  = $conf->{'ADMIN_EMAIL'};
 $PBDB::Constants::MESSAGE_FILE    = $conf->{'MESSAGE_FILE'} || '';
-$PBDB::Constants::PBDB_SITE       = $conf->{'PBDB_SITE'} || '';
 
 $PBDB::Constants::TAXA_TREE_CACHE = 'taxa_tree_cache';
 $PBDB::Constants::TAXA_LIST_CACHE = 'taxa_list_cache';
