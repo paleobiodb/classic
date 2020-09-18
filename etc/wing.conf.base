@@ -42,7 +42,7 @@
    "pbdb_site" : "",
    "sitename" : "PROJECT.EXAMPLE.COM",
    "smtp" : {
-      "host" : "smtp.wiscmail.wisc.edu",
+      "host" : "SMTP.HOST.EXAMPLE",
       "port" : 25,
       # "sasl_password" : "PASSWORD",
       # "sasl_username" : "USER@EXAMPLE.COM",
