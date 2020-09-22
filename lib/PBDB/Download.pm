@@ -14,7 +14,7 @@ use PBDB::Permissions;
 use URI::Escape;
 use Mail::Mailer;
 use Class::Date qw(now);
-use PBDB::Constants qw($HTML_DIR $DATA_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($HTML_DIR $DATA_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeFormPostTag);
 
 use strict;
 

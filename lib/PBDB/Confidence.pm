@@ -14,7 +14,7 @@ use URI::Escape;
 use Memoize;
 use PBDB::Reference;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($HTML_DIR makeAnchor);
+use PBDB::Constants qw($HTML_DIR makeAnchor makeFormPostTag);
 
 memoize('chiSquaredDensity');
 memoize('factorial');

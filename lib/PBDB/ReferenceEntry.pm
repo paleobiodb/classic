@@ -6,7 +6,7 @@ use strict;
 use PBDB::AuthorNames;  # not used
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw(makeAnchor makeURL);
+use PBDB::Constants qw(makeAnchor makeURL makeFormPostTag);
 use PBDB::Nexusfile;  # not used
 # three calls to Reference functions will eventually need to be replaced
 use PBDB::Reference;
