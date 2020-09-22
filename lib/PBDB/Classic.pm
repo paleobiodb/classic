@@ -204,14 +204,22 @@ sub classic_request {
     my $user = $wing_session ? $wing_session->user : undef;
     
     my $s = PBDB::Session->new($dbt, $wing_session, $remote_addr);
-
+    
     # If the session was invalid, redirect to the login page. This may occur, for example, if too
     # long a period of time has elapsed since the last activity. It may also occur if the user
     # changed their password.
-
+    
     if ( $s->{reason} )
     {
 	return redirect "/login?reason=$s->{reason}", 303;
+    }
+    
+    # If we have a logged-in user, save the user object as a variable so that the
+    # before_error_render hook has access to it in case an exception is thrown.
+
+    if ( $user )
+    {
+	var 'user' => $user;
     }
     
     # Create a PBDB request record. This tells us about the parameters of the current request.
@@ -463,6 +471,17 @@ sub freshParams {
     return PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
 }
 
+
+# Generate an exception for test purposes
+
+sub testException {
+
+    die "Test Exception\n";
+}
+
+
+# Preferences
+
 sub displayPreferencesPage {
     
     my ($q, $s, $dbt, $hbo) = @_;
@@ -550,211 +569,6 @@ sub menu	{
 
     return $output;
 }
-
-
-# well, displays the home page
-# sub home	{
-    
-#     my ($q, $s, $dbt, $hbo, $error) = @_;
-    
-#     # my $error = shift;
-# 	# Clear Queue?  This is highest priority
-# 	if ( $q->param("clear") ) {
-# 		$s->clearQueue(); 
-# 	} else {
-
-# 		# QUEUE
-# 		# See if there is something to do.  If so, do it first.
-# 		my %queue = $s->dequeue();
-# 		if ( $queue{action} ) {
-# 			# Set each parameter
-# 			foreach my $parm ( keys %queue ) {
-# 				$q->param ( $parm => $queue{$parm} );
-# 			}
-	
-# 	 		# Run the command
-# 			return execAction($q, $s, $dbt, $hbo, $queue{'action'}); # Hack so use strict doesn't back
-# 		}
-# 	}
-
-# 	sub lastEntry	{
-# 		my $thing = shift;
-# 		my $entry;
-# 		if ( $thing->{day_now} == $thing->{day_created} )	{
-# 			$entry = 60 * ( $thing->{hour_now} - $thing->{hour_created} )  + $thing->{minute_now} - $thing->{minute_created};
-# 		} elsif ( $thing->{day_now} == $thing->{day_created} + 1 )	{
-# 			$entry = 60 * $thing->{hour_now} + 60 * ( 24 - $thing->{hour_created} ) + $thing->{minute_now} - $thing->{minute_created};
-# 		}
-# 		if ( $entry < 60 )	{
-# 			$entry .= " minutes ago";
-# 			$entry =~ s/^1 minutes ago/one minute ago/;
-# 			$entry =~ s/^0 minutes ago/this very minute/;
-# 		} elsif ( $entry )	{
-# 			$entry = int($entry / 60)." hours ago";
-# 			$entry =~ s/^1 hours/one hour/;
-# 		# hopefully this will never happen
-# 		} else	{
-# 			$entry = ($thing->{day_now} - $thing->{day_created})." days ago";
-# 		}
-# 		return $entry;
-# 	}
-
-# 	# Get some populated values
-# 	my $sql = "SELECT * FROM statistics";
-# 	my $row = ${$dbt->getData($sql)}[0];
-# 	for my $f ( 'reference','taxon','collection','occurrence')	{
-# 		$row->{$f."_total"} =~ s/(\d)(\d{6})$/$1,$2/;
-# 		$row->{$f."_total"} =~ s/(\d)(\d{3})$/$1,$2/;
-# 	}
-
-# 	# PAPERS IN PRESS
-# 	my $limit = 3;
-# 	if ( $ENV{'HTTP_USER_AGENT'} =~ /Mobile/i && $ENV{'HTTP_USER_AGENT'} !~ /iPad/i )	{
-# 		$limit = 1;
-# 	}
-# 	$sql = "SELECT CONCAT(authors,'. ',title,'. <i>',journal,'.</i> \[#',pub_no,'\]') AS cite FROM pubs WHERE created<now()-interval 1 week ORDER BY pub_no DESC LIMIT $limit";
-# 	my @pubs;
-# 	push @pubs , $_->{cite} foreach @{$dbt->getData($sql)};
-# 	$row->{in_press} = '<div class="small" style="text-indent: -0.5em; margin-left: 0.5em;margin-bottom: 0.25em;">'.join(qq|</div>\n<div class="small" style="text-indent: -0.5em; margin-left: 0.5em; margin-bottom: 0.25em;">|,@pubs)."</div>";
-
-# 	# MOST RECENTLY ENTERED COLLECTION
-# 	# attempting any kind of join here would be brutal, just don't do it
-# 	# the time computation is awful but is needed because MySQL's date
-# 	#  subtraction functions seem to be buggy
-# 	$sql = "SELECT to_days(now()) day_now,to_days(created) day_created,hour(now()) hour_now,hour(created) hour_created,minute(now()) minute_now,minute(created) minute_created,reference_no,enterer_no,collection_no,collection_name,country,max_interval_no,min_interval_no FROM collections WHERE (release_date<now() OR access_level='the public') ORDER BY collection_no DESC LIMIT 1";
-# 	my $coll = @{$dbt->getData($sql)}[0];
-
-# 	$sql = "SELECT interval_no,interval_name FROM intervals WHERE interval_no IN (".$coll->{max_interval_no}.",".$coll->{min_interval_no}.")";
-# 	my %interval_name;
-# 	$interval_name{$_->{interval_no}} = $_->{interval_name} foreach @{$dbt->getData($sql)};
-# 	my $first_interval = ( $coll->{min_interval_no} > 0 ) ? $interval_name{$coll->{max_interval_no}}." to ".$interval_name{$coll->{min_interval_no}} : $interval_name{$coll->{max_interval_no}};
-# 	$row->{latest_collection} = makeAnchor("basicCollectionSearch", "collection_no=$coll->{collection_no}", "$coll->{collection_name}") . ".";
-# 	$row->{last_timeplace} = $first_interval." of ".$coll->{country};
-
-# 	$row->{last_coll_entry} = lastEntry($coll);
-# 	$sql = "SELECT CONCAT(first_name,' ',last_name) AS name FROM person WHERE person_no=".$coll->{enterer_no};
-# 	$row->{last_coll_enterer} = ${$dbt->getData($sql)}[0]->{name};
-# 	$row->{last_coll_ref} = "<a href=\"?a=displayReference&reference_no=$coll->{reference_no}\">".PBDB::Reference::formatShortRef(${$dbt->getData('SELECT * FROM refs WHERE reference_no='.$coll->{reference_no})}[0])."</a>";
-
-# 	# MOST RECENTLY ENTERED SPECIES (must have reasonable data)
-# 	$sql = "SELECT to_days(now()) day_now,to_days(a.created) day_created,hour(now()) hour_now,hour(a.created) hour_created,minute(now()) minute_now,minute(a.created) minute_created,a.reference_no,a.enterer_no,taxon_name,a.taxon_no,type_locality,type_specimen,type_body_part,r.author1last,r.author2last,r.otherauthors,r.pubyr FROM authorities a,refs r,$TAXA_TREE_CACHE t WHERE a.reference_no=r.reference_no AND ref_is_authority='YES' AND a.taxon_no=t.taxon_no AND t.taxon_no=synonym_no AND taxon_rank='species' AND type_body_part IS NOT NULL ORDER BY a.taxon_no DESC LIMIT 1";
-# 	my $sp = @{$dbt->getData($sql)}[0];
-# 	$row->{latest_species} = "<i>" . makeAnchor("basicTaxonInfo", "taxon_no=$sp->{taxon_no}", "$sp->{taxon_name}") . "</i>";
-# 	$row->{latest_species} .= " <a href=\"?a=displayReference&reference_no=$sp->{reference_no}\">".PBDB::Reference::formatShortRef($sp)."</a>";
-# 	my $class_hash = PBDB::TaxaCache::getParents($dbt,[$sp->{taxon_no}],'array_full');
-# 	my @class_array = @{$class_hash->{$sp->{taxon_no}}};
-# 	$sp = PBDB::Collection::getClassOrderFamily($dbt,\$sp,\@class_array);
-# 	$row->{last_species_entry} = lastEntry($sp);
-# 	$row->{latest_species} .= ( $sp->{common_name} ) ? " [".$sp->{common_name}."]" : "";
-# 	$sql = "SELECT CONCAT(first_name,' ',last_name) AS name FROM person WHERE person_no=".$sp->{enterer_no};
-# 	$row->{last_species_enterer} = ${$dbt->getData($sql)}[0]->{name};
-# 	$row->{type_specimen} = ( $sp->{type_specimen} )  ? "&bull; Type specimen ".$sp->{type_specimen}."<br>" : "";
-# 	if ( $sp->{type_locality} > 0 )	{
-# 		$sql = "SELECT collection_name FROM collections WHERE collection_no=".$sp->{type_locality};
-# 		$row->{type_locality} = "Type locality <a href=\"?a=basicCollectionSearch&amp;collection_no=".$sp->{type_locality}."\">".${$dbt->getData($sql)}[0]->{collection_name}."</a><br>";
-# 	}
-
-# 	# RANDOM GENUS LINKS
-# 	my $offset = int(rand(1200));
-# 	$sql = "SELECT taxon_name,a.taxon_no,rgt-lft+1 width FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND t.taxon_no=synonym_no AND taxon_rank='genus' AND rgt>lft+1 AND ((t.taxon_no+$offset)/1200)=floor((t.taxon_no+$offset)/1200) LIMIT 20";
-# 	my @genera = sort { $a->{width} <=> $b->{width} } @{$dbt->getData($sql)};
-# 	my ($characters,$clear);
-# 	for my $g ( @genera )	{
-# 		my $fontsize = sprintf "%.1fem",log( $g->{'width'} ) / 2;
-# 		my $blue = sprintf "#%x%x%x%xFF",0+int(rand(10)),int(rand(16)),0+int(rand(10)),int(rand(16));
-# 		$blue =~ s/ /0/g;
-# 		my $padding = (0.3 + int(rand(60)) / 10); #."em";
-# 		$characters += length( $g->{'taxon_name'} ) + $padding;
-# 		if ( $characters > 24 )	{
-# 			$characters = 0;
-# 			$clear = "right";
-# 		} elsif ( $clear eq "right" || ! $clear )	{
-# 			$clear = "left";
-# 		} else	{
-# 			$clear = "none";
-# 		}
-# 		$row->{'random_names'} .= "<div style=\"float: left; clear: $clear; padding: 0.3em; padding-left: $padding; font-size: $fontsize;\"><a href=\"?a=basicTaxonInfo&amp;taxon_no=$g->{'taxon_no'}\" style=\"color: $blue\">".$g->{'taxon_name'}."</a></div>\n";
-# 	}
-
-# 	# TOP CONTRIBUTORS THIS MONTH
-# 	$row->{'enterer_names'} = PBDB::Person::homePageEntererList($dbt);
-
-# 	print $hbo->stdIncludes($PAGE_TOP);
-# 	if ( $ENV{'HTTP_USER_AGENT'} !~ /Mobile/i || $ENV{'HTTP_USER_AGENT'} =~ /iPad/i )	{
-# 		print $hbo->populateHTML('home', $row);
-# 	} else	{
-# 		print $hbo->populateHTML('mobile_home', $row);
-# 	}
-# 	print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# calved off from sub home because it might be useable later on JA 22.3.12
-# sub mostRecentData	{
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-# 	# display the most recently entered collections that have
-# 	#  distinct combinations of references and enterers (the latter is
-# 	#  usually redundant)
-# 	my $sql = "SELECT reference_no,enterer_no,collection_no,collection_name,floor(plate/100) p FROM collections WHERE (release_date<now() OR access_level='the public') GROUP BY reference_no,enterer_no ORDER BY collection_no DESC LIMIT 46";
-# 	my %continent = (1 => 'North America', 2 => 'South America', 3 => 'Europe', 4 => 'Europe', 5 => 'Asia', 6 => 'Asia', 7 => 'Africa', 8 => 'Oceania', 9 => 'Oceania');
-# 	my $lastcontinent;
-# my @colls; # place holder
-# my $row; # place holder
-# 	@colls = sort { $continent{$a->{p}} cmp $continent{$b->{p}} } @colls;
-# 	for my $coll ( @colls )	{
-# 		if ( ! $continent{$coll->{p}} )	{
-# 			next;
-# 		}
-# 		if ( $continent{$coll->{p}} ne $lastcontinent )	{
-# 			if ( $lastcontinent )	{
-# 				$row->{collection_links} .= "</div>\n";
-# 			}
-# 			$lastcontinent = $continent{$coll->{p}};
-# 			$row->{collection_links} .= qq|<div class="medium">$lastcontinent</div>\n<div style="padding-top: 0.5em; padding-bottom: 0.5em;">\n|;
-# 		}
-# 		$row->{collection_links} .= qq|<div class="verysmall collectionLink"><a class="homeBodyLinks" href="?a=basicCollectionSearch&amp;collection_no=$coll->{collection_no}">$coll->{collection_name}</a></div>\n|;
-# 	}
-# 	$row->{'collection_links'} .= "</div>\n";
-
-# 	my %groupnames = ('Dinosauria' => 'Dinosaurs','Reptilia' => 'Other reptiles','Mammalia'=> 'Mammals','Vertebrata' => 'Other vertebrates','Insecta' => 'Insects', 'Metazoa' => 'Other invertebrates');
-# 	my @groups = keys %groupnames;
-# 	$sql = "SELECT lft,rgt,taxon_name FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND t.taxon_no=spelling_no AND taxon_name IN ('".join("','",@groups)."') ORDER BY lft DESC";
-# 	my @grouprefs = @{$dbt->getData($sql)};
-
-# 	# something similar for new "cool species" (recently published, type
-# 	#  body part known, etc.)
-# 	$sql = "SELECT taxon_name,a.taxon_no,lft,rgt,a.reference_no FROM authorities a,refs r,$TAXA_TREE_CACHE t WHERE a.reference_no=r.reference_no AND ref_is_authority='YES' AND r.pubyr>=year(now())-10 AND a.taxon_no=t.taxon_no AND t.taxon_no=synonym_no AND taxon_rank='species' AND type_body_part IS NOT NULL ORDER BY a.taxon_no DESC LIMIT 100";
-# 	my @spp = @{$dbt->getData($sql)};
-# 	my %refseen;
-# 	my @toprint;
-# 	for my $s ( @spp )	{
-# 		if ( ! $refseen{$s->{'reference_no'}} )	{
-# 			$refseen{$s->{'reference_no'}}++;
-# 			push @toprint , $s;
-# 			if ( $#toprint + 1 == 51 )	{
-# 				last;
-# 			}
-# 		}
-# 	}
-
-# 	my %printed;
-# 	for my $g ( @grouprefs )	{
-# 		if ( $g ne $grouprefs[0] )	{
-# 			$row->{'taxon_links'} .= "</div>\n";
-# 		}
-# 		$row->{'taxon_links'} .= qq|<div class="medium">$groupnames{$g->{taxon_name}}</div>\n<div style="padding-top: 0.5em; padding-bottom: 0.5em;">\n|;
-# 		for my $s ( @toprint )	{
-# 			if ( $s->{lft} > $g->{lft} && $s->{rgt} < $g->{rgt} && ! $printed{$s->{taxon_no}} )	{
-# 				$printed{$s->{taxon_no}}++;
-# 				$row->{'taxon_links'} .= qq|<div class="verysmall collectionLink"><a class="homeBodyLinks" href="?a=basicTaxonInfo&amp;taxon_no=$s->{'taxon_no'}">$s->{'taxon_name'}</a></div>\n|;
-# 			}
-# 		}
-# 	}
-# 	$row->{'taxon_links'} .= "</div>\n";
-
-# }
-
 
 
 sub displayDownloadForm {

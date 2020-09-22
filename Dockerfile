@@ -37,6 +37,9 @@ ENV WING_APP=/data/MyApp
 
 CMD perl placeholder.pl
 
+COPY pbdb-classic/patch/error-render.patch /var/tmp/error-render.patch
+RUN patch `perl -MDancer::Error -e 'print $INC{"Dancer/Error.pm"}'` /var/tmp/error-render.patch
+
 COPY pbdb-classic /data/MyApp
 COPY pbdb-wing /data/Wing
 COPY pbdb-wing/bin/wing /usr/local/bin/

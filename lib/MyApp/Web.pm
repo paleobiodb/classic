@@ -16,6 +16,15 @@ use Wing::Web::Admin::Wingman;
 use Wing::Web::Admin::Trends;
 use Wing::Web::NotFound;
 
+hook before_error_render => sub {
+    my $error = shift;
+    my $vars = shift;
+    
+    $vars->{pbdb_site} = Wing->config->get("pbdb_site");
+    
+    my $user = var 'user';
+    $vars->{current_user} = $user if $user;
+};
 
 # hook before_error_init => sub {
 #     my $error = shift;
