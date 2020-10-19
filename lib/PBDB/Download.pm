@@ -14,7 +14,7 @@ use PBDB::Permissions;
 use URI::Escape;
 use Mail::Mailer;
 use Class::Date qw(now);
-use PBDB::Constants qw($HTML_DIR $DATA_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeFormPostTag);
+use PBDB::Constants qw($HTML_DIR $DATA_DIR $TAXA_TREE_CACHE makeFormPostTag);
 
 use strict;
 
@@ -1895,31 +1895,68 @@ sub fastClassificationLookups	{
 	#  nested parents of the same rank because the parents are checked
 	#  from highest to lowest
 	delete $used{''};
-	my @parent_child = @{$dbt->getData("SELECT taxon_name,taxon_rank,parent_no,child_no FROM authorities a,$TAXA_LIST_CACHE l WHERE taxon_no=parent_no AND child_no IN (".join(',',keys %used).") AND taxon_rank IN ('class','order','family','genus','subgenus') AND child_no!=parent_no")};
-	$parents{$_->{child_no}}{$_->{taxon_rank}} = $_->{parent_no} foreach @parent_child;
+
+	my $child_list = join(',', keys %used);
+	my $sql = "WITH RECURSIVE ancestors as (
+		SELECT taxon_no, taxon_no as base_no, spelling_no, opinion_no, lft
+		FROM $TAXA_TREE_CACHE
+		WHERE taxon_no in ($child_list)
+	  UNION SELECT t.taxon_no, ancestors.base_no, t.spelling_no, t.opinion_no, t.lft
+		FROM ancestors
+			join opinions as o using (opinion_no)
+			join $TAXA_TREE_CACHE as t on t.taxon_no = o.parent_spelling_no
+		WHERE t.spelling_no <> ancestors.spelling_no )
+		SELECT ancestors.base_no, a.taxon_name, a.taxon_rank, a.taxon_no as child_no,
+			o.parent_spelling_no as parent_no, o.status
+		FROM ancestors join opinions as o using (opinion_no)
+			join authorities as a on a.taxon_no = ancestors.spelling_no
+		WHERE a.taxon_rank in ('class', 'order', 'family', 'genus', 'subgenus')
+		ORDER by lft";
+	
+	my @parent_child = @{$dbt->getData($sql)};
+	
+	# my @parent_child = @{$dbt->getData("SELECT taxon_name,taxon_rank,parent_no,child_no FROM
+	# authorities a,$TAXA_LIST_CACHE l WHERE taxon_no=parent_no AND child_no IN
+	# (".join(',',keys %used).") AND taxon_rank IN
+	# ('class','order','family','genus','subgenus') AND child_no!=parent_no")};
+	
 	my %used_anywhere = %used;
-	for my $p ( @parent_child )	{
-		my $no = $p->{parent_no};
-		$name{$no} = $p->{taxon_name};
-		$rank{$no} = $p->{taxon_rank};
-		$used_anywhere{$no}++;
+	
+	foreach my $record ( @parent_child )
+	{
+	    $parents{$record->{base_no}}{$record->{taxon_rank}} = $record->{child_no}
+		if $record->{child_no} ne $record->{base_no};
+	    $parents{$record->{child_no}}{immediate} = $record->{parent_no};
+	    $name{$record->{parent_no}} = $record->{taxon_name};
+	    $rank{$record->{parent_no}} = $record->{taxon_rank};
+	    $used_anywhere{$record->{parent_no}}++;
+	    if ( $record->{status} =~ /nomen/ )	{
+		$nomen{$record->{child_no}}++;
+	    }
 	}
-
-	# an entirely different method is needed to get immediate parents
-	my @immediates = @{$dbt->getData("SELECT taxon_name,taxon_rank,a.taxon_no parent_no,t.taxon_no child_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=parent_spelling_no AND t.opinion_no=o.opinion_no AND t.taxon_no IN (".join(',',keys %used).")")};
-	for my $p ( @immediates )	{
-		my $no = $p->{parent_no};
-		$name{$no} = $p->{taxon_name};
-		$rank{$no} = $p->{taxon_rank};
-		$used_anywhere{$no}++;
-		$parents{$p->{child_no}}{'immediate'} = $no;
-		# nomina dubia etc. have to be tracked because their species
-		#  names shouldn't be salvaged later on JA 10.6.13
-		if ( $p->{status} =~ /nomen/ )	{
-			$nomen{$p->{child_no}}++;
-		}
-	}
-
+	
+	# for my $p ( @parent_child )	{
+	# 	my $no = $p->{parent_no};
+	# 	$name{$no} = $p->{taxon_name};
+	# 	$rank{$no} = $p->{taxon_rank};
+	# 	$used_anywhere{$no}++;
+	# }
+	
+	# # an entirely different method is needed to get immediate parents
+	# my @immediates = @{$dbt->getData("SELECT taxon_name,taxon_rank,a.taxon_no parent_no,t.taxon_no child_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=parent_spelling_no AND t.opinion_no=o.opinion_no AND t.taxon_no IN (".join(',',keys %used).")")};
+	# for my $p ( @immediates )	{
+	# 	my $no = $p->{parent_no};
+	# 	$name{$no} = $p->{taxon_name};
+	# 	$rank{$no} = $p->{taxon_rank};
+	# 	$used_anywhere{$no}++;
+	# 	$parents{$p->{child_no}}{'immediate'} = $no;
+	# 	# nomina dubia etc. have to be tracked because their species
+	# 	#  names shouldn't be salvaged later on JA 10.6.13
+	# 	if ( $p->{status} =~ /nomen/ )	{
+	# 		$nomen{$p->{child_no}}++;
+	# 	}
+	# }
+	
 	# record stripped subgenus names if relevant
 	for my $no ( keys %used )	{
 		if ( $parents{$no}{'subgenus'} )	{
@@ -1951,15 +1988,47 @@ sub fastClassificationLookups	{
 	}
 
 	# determine extant values for parents at ranks of interest
-	my @extants = @{$dbt->getData("SELECT parent_no FROM authorities a,authorities a2,$TAXA_LIST_CACHE l WHERE a.taxon_no=parent_no AND a2.taxon_no=child_no AND child_no IN (".join(',',keys %used_anywhere).") AND a2.extant='yes' AND a.taxon_rank IN ('class','order','family','genus','subgenus','species','subspecies') AND child_no!=parent_no GROUP BY parent_no")};
-	$extant{$_->{parent_no}} = 'yes' foreach @extants;
-	delete $extant{''};
+
+	$child_list = join(',', keys %used_anywhere);
+	
+	$sql = "WITH RECURSIVE ancestors as (
+		SELECT t.taxon_no, t.spelling_no, t.opinion_no
+		FROM $TAXA_TREE_CACHE as t join authorities as a using (taxon_no)
+		WHERE taxon_no in ($child_list) and a.extant = 'yes'
+	  UNION SELECT t.taxon_no, t.spelling_no, t.opinion_no
+		FROM ancestors
+			join opinions as o using (opinion_no)
+			join $TAXA_TREE_CACHE as t on t.taxon_no = o.parent_spelling_no
+		WHERE t.spelling_no <> ancestors.spelling_no )
+		SELECT distinct ancestors.taxon_no
+		FROM ancestors join authorities as a on a.taxon_no = ancestors.spelling_no
+		WHERE a.taxon_rank in ('class', 'order', 'family', 'genus', 'subgenus', 'species', 'subspecies')";
+	
+	my @extants = @{$dbt->getData($sql)};
+
+	$extant{$_->{taxon_no}} = 'yes' foreach @extants;
+	
+	# my @extants = @{$dbt->getData("SELECT parent_no FROM authorities a,authorities a2,$TAXA_LIST_CACHE l WHERE a.taxon_no=parent_no AND a2.taxon_no=child_no AND child_no IN (".join(',',keys %used_anywhere).") AND a2.extant='yes' AND a.taxon_rank IN ('class','order','family','genus','subgenus','species','subspecies') AND child_no!=parent_no GROUP BY parent_no")};
+	# $extant{$_->{parent_no}} = 'yes' foreach @extants;
+	# delete $extant{''};
 
 	# likewise for focal taxa based on their children
-	my @extants = @{$dbt->getData("SELECT parent_no FROM authorities a,authorities a2,$TAXA_LIST_CACHE l WHERE a.taxon_no=parent_no AND a2.taxon_no=child_no AND parent_no IN (".join(',',keys %used).") AND a2.extant='yes' AND child_no!=parent_no GROUP BY parent_no")};
-	$extant{$_->{parent_no}} = 'yes' foreach @extants;
-	delete $extant{''};
 
+	my $focal_list = join(',', keys %used);
+	
+	$sql = "SELECT distinct p.taxon_no
+		FROM taxa_tree_cache as p join taxa_tree_cache as c on c.lft between p.lft and p.rgt
+			join authorities as a on a.taxon_no = c.taxon_no
+		WHERE p.taxon_no in ($focal_list) and a.extant='yes'";
+	
+	@extants = @{$dbt->getData($sql)};
+	$extant{$_->{taxon_no}} = 'yes' foreach @extants;
+	
+	# my @extants = @{$dbt->getData("SELECT parent_no FROM authorities a,authorities a2,$TAXA_LIST_CACHE l WHERE a.taxon_no=parent_no AND a2.taxon_no=child_no AND parent_no IN (".join(',',keys %used).") AND a2.extant='yes' AND child_no!=parent_no GROUP BY parent_no")};
+	# $extant{$_->{parent_no}} = 'yes' foreach @extants;
+	
+	delete $extant{''};
+	
 	return;
 }
 

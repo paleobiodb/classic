@@ -7,7 +7,7 @@ use strict;
 
 use PBDB::TaxaCache;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($TAXA_TREE_CACHE);
 
 # written by JA 27-31.7,1.8.03
 
@@ -231,43 +231,43 @@ sub getEcology {
 
 # JA 17.4.12
 # creates one ecotaph attribute lookup for all taxa in a group
-sub fastEcologyLookup	{
-	my ($dbt,$field,$lft,$rgt) = @_;
-	my $sql = "(SELECT t.taxon_no,lft,rgt,e.$field FROM $TAXA_TREE_CACHE t,ecotaph e WHERE t.taxon_no=e.taxon_no AND lft>=$lft AND rgt<=$rgt) UNION (SELECT t.taxon_no,lft,rgt,NULL FROM $TAXA_TREE_CACHE t LEFT JOIN ecotaph e ON t.taxon_no=e.taxon_no WHERE lft>=$lft AND rgt<=$rgt AND e.ecotaph_no IS NULL)";
-	my @taxa = @{$dbt->getData($sql)};
-	my (%lookup,%from,%att);
-	for my $t ( @taxa )	{
-		if ( $t->{$field} ne "" )	{
-			for my $pos ( $t->{lft}..$t->{rgt} )	{
-				if ( $att{$pos} eq "" || $from{$pos} < $t->{lft} )	{
-					$att{$pos} = $t->{$field};
-					$from{$pos} = $t->{lft};
-				}
-			}
-		}
-	}
-	my $missing;
-	for my $t ( @taxa )	{
-		$lookup{$t->{taxon_no}} = $att{$t->{lft}};
-		if ( ! $lookup{$t->{taxon_no}} )	{
-			$missing++;
-		}
-	}
-	# if needed, use a default value taken from the closest scored parent
-	#  (or from the passed in taxon itself)
-	# unfortunately, the parents are in scrambled order...
-	#  JA 14.5.12
-	if ( $missing )	{
-		$sql = "SELECT e.$field FROM $TAXA_TREE_CACHE t,$TAXA_TREE_CACHE t2,ecotaph e,$TAXA_LIST_CACHE l WHERE t.lft=$lft AND t.taxon_no=child_no AND parent_no=e.taxon_no AND parent_no=t2.taxon_no ORDER BY t2.lft DESC";
-		my $value = ${$dbt->getData($sql)}[0]->{$field};
-		for my $t ( @taxa )	{
-			if ( ! $lookup{$t->{taxon_no}} )	{
-				$lookup{$t->{taxon_no}} = $value;
-			}
-		}
-	}
-	return \%lookup;
-}
+# sub fastEcologyLookup	{
+# 	my ($dbt,$field,$lft,$rgt) = @_;
+# 	my $sql = "(SELECT t.taxon_no,lft,rgt,e.$field FROM $TAXA_TREE_CACHE t,ecotaph e WHERE t.taxon_no=e.taxon_no AND lft>=$lft AND rgt<=$rgt) UNION (SELECT t.taxon_no,lft,rgt,NULL FROM $TAXA_TREE_CACHE t LEFT JOIN ecotaph e ON t.taxon_no=e.taxon_no WHERE lft>=$lft AND rgt<=$rgt AND e.ecotaph_no IS NULL)";
+# 	my @taxa = @{$dbt->getData($sql)};
+# 	my (%lookup,%from,%att);
+# 	for my $t ( @taxa )	{
+# 		if ( $t->{$field} ne "" )	{
+# 			for my $pos ( $t->{lft}..$t->{rgt} )	{
+# 				if ( $att{$pos} eq "" || $from{$pos} < $t->{lft} )	{
+# 					$att{$pos} = $t->{$field};
+# 					$from{$pos} = $t->{lft};
+# 				}
+# 			}
+# 		}
+# 	}
+# 	my $missing;
+# 	for my $t ( @taxa )	{
+# 		$lookup{$t->{taxon_no}} = $att{$t->{lft}};
+# 		if ( ! $lookup{$t->{taxon_no}} )	{
+# 			$missing++;
+# 		}
+# 	}
+# 	# if needed, use a default value taken from the closest scored parent
+# 	#  (or from the passed in taxon itself)
+# 	# unfortunately, the parents are in scrambled order...
+# 	#  JA 14.5.12
+# 	if ( $missing )	{
+# 		$sql = "SELECT e.$field FROM $TAXA_TREE_CACHE t,$TAXA_TREE_CACHE t2,ecotaph e,$TAXA_LIST_CACHE l WHERE t.lft=$lft AND t.taxon_no=child_no AND parent_no=e.taxon_no AND parent_no=t2.taxon_no ORDER BY t2.lft DESC";
+# 		my $value = ${$dbt->getData($sql)}[0]->{$field};
+# 		for my $t ( @taxa )	{
+# 			if ( ! $lookup{$t->{taxon_no}} )	{
+# 				$lookup{$t->{taxon_no}} = $value;
+# 			}
+# 		}
+# 	}
+# 	return \%lookup;
+# }
 
 
 1;

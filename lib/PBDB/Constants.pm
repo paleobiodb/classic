@@ -8,7 +8,7 @@ use FindBin;
 our @EXPORT_OK = qw($WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL $HTML_DIR $DATA_DIR
 		    $APP_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE
 		    $SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD
-		    $TAXA_TREE_CACHE $TAXA_LIST_CACHE
+		    $TAXA_TREE_CACHE $TAXON_TREES
 		    $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO
 		    $ALLOW_LOGIN $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ADMIN_EMAIL
 		    makeURL makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeFormPostTag);
@@ -41,7 +41,8 @@ $PBDB::Constants::ADMIN_EMAIL	  = $conf->{'ADMIN_EMAIL'};
 $PBDB::Constants::MESSAGE_FILE    = $conf->{'MESSAGE_FILE'} || '';
 
 $PBDB::Constants::TAXA_TREE_CACHE = 'taxa_tree_cache';
-$PBDB::Constants::TAXA_LIST_CACHE = 'taxa_list_cache';
+$PBDB::Constants::TAXON_TREES = 'taxon_trees';
+# $PBDB::Constants::TAXA_LIST_CACHE = 'taxa_list_cache';
 
 $PBDB::Constants::SQL_DB = 'pbdb';
 $PBDB::Constants::COLLECTIONS = 'collections';

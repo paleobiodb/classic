@@ -13,7 +13,7 @@ use PBDB::ReferenceEntry;
 use Carp qw(carp);
 use Text::CSV_XS;
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($DATA_DIR $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE makeAnchor);
+use PBDB::Constants qw($DATA_DIR $HTML_DIR $TAXA_TREE_CACHE makeAnchor);
 
 use strict;
 
@@ -135,76 +135,101 @@ sub getTaxonomyXML {
 		# ACCEPTED NAME BLOCK
 		$output .= formatNameXML($q,$accepted,$acno,@refs);
 
-		if ( $q->param('response') eq "full" )  	{
-			# CLASSIFICATION BLOCK
-			$sql = "SELECT a.taxon_no,taxon_rank,taxon_name FROM authorities a,$TAXA_TREE_CACHE t,$TAXA_LIST_CACHE l WHERE a.taxon_no=t.spelling_no and t.taxon_no=spelling_no AND a.taxon_no=parent_no AND taxon_rank IN ('kingdom','phylum','class','order','family') AND taxon_name NOT IN ('Therapsida','Cetacea','Avetheropoda') AND child_no=" . $accepted->{taxon_no} . " ORDER BY lft";
-			my @parents = @{$dbt->getData($sql)};
-			$output .= "<classification>\n";
-			for my $p ( @parents )	{
-				$output .= "<taxon>\n<id>$p->{taxon_no}</id>\n";
-				$output .= "<name>$p->{taxon_name}</name>\n";
-				my @letts = split(//,$p->{taxon_rank});
-				$letts[0] =~ tr/[a-z]/[A-Z]/;
-				$output .= "<rank>".join('',@letts)."</rank>\n";
+		if ( $q->param('response') eq "full" )
+		{
+		    # CLASSIFICATION BLOCK
+
+		    my $base = $accepted->{taxon_no} || 0;
+		    
+		    $sql = "WITH RECURSIVE ancestors as (
+		SELECT taxon_no, spelling_no, opinion_no, lft
+		FROM $TAXA_TREE_CACHE
+		WHERE taxon_no in ($base)
+	  UNION SELECT t.taxon_no, t.spelling_no, t.opinion_no, t.lft
+		FROM ancestors
+			join opinions as o using (opinion_no)
+			join $TAXA_TREE_CACHE as t on t.taxon_no = o.parent_spelling_no
+		WHERE t.spelling_no <> ancestors.spelling_no )
+		SELECT taxon_name, taxon_rank, taxon_no
+		FROM ancestors join authorities as a on a.taxon_no = ancestors.spelling_no
+		WHERE taxon_rank in ('kingdom', 'phylum', 'class', 'order', 'family')
+			and taxon_name not in ('Therapsida','Cetacea','Avetheropoda')
+		ORDER by lft";
+		    
+		    # $sql = "SELECT a.taxon_no,taxon_rank,taxon_name FROM authorities a,$TAXA_TREE_CACHE t,$TAXA_LIST_CACHE l WHERE a.taxon_no=t.spelling_no and t.taxon_no=spelling_no AND a.taxon_no=parent_no AND taxon_rank IN ('kingdom','phylum','class','order','family') AND taxon_name NOT IN ('Therapsida','Cetacea','Avetheropoda') AND child_no=" . $accepted->{taxon_no} . " ORDER BY lft";
+		    my @parents = @{$dbt->getData($sql)};
+		    $output .= "<classification>\n";
+		    for my $p ( @parents )
+		    {
+			$output .= "<taxon>\n<id>$p->{taxon_no}</id>\n";
+			$output .= "<name>$p->{taxon_name}</name>\n";
+			my @letts = split(//,$p->{taxon_rank});
+			$letts[0] =~ tr/[a-z]/[A-Z]/;
+			$output .= "<rank>".join('',@letts)."</rank>\n";
 				$output .= "<name_html>$p->{taxon_name}</name_html>\n";
-				$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$p->{taxon_no}&amp;is_real_user=0</url>\n";
-				$output .= "</taxon>\n";
+			$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$p->{taxon_no}&amp;is_real_user=0</url>\n";
+			$output .= "</taxon>\n";
+		    }
+		    $output .= "</classification>\n";
+		    
+		    # INFRASPECIES BLOCK
+		    # only list accepted names of current subspecies
+		    if ( $accepted->{taxon_rank} eq "species" )
+		    {
+			$sql = "SELECT a.taxon_no,spelling_no,taxon_name,taxon_rank,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,$TAXA_TREE_CACHE t,refs r,opinions o WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND t.taxon_no=synonym_no AND t.taxon_no=child_no AND t.opinion_no=o.opinion_no AND parent_no=" . $accepted->{taxon_no} . " AND taxon_rank='subspecies' ORDER BY spelling_no,taxon_name";
+			my @infras = @{$dbt->getData($sql)};
+			if ( @infras )
+			{
+			    $output .= "<infraspecies_for_this_species>\n";
+			    for my $i ( @infras )
+			    {
+				$output .= "<infraspecies>\n";
+				$output .= "<id>$i->{taxon_no}</id>\n";
+				$output .= "<name>$i->{taxon_name}</name>\n";
+				my ($auth,$name_html) = formatAuthXML($i);
+				$output .= "<name_html>$name_html</name_html>\n";
+				my ($genus,$species,$infraspecies);
+				($genus,$species,$infraspecies) = split / /,$i->{taxon_name};
+				$output .= "<genus>$genus</genus>\n";
+				$output .= "<species>$species</species>\n";
+				$output .= "<infraspecies_marker></infraspecies_marker>\n";
+				$output .= "<infraspecies>$infraspecies</infraspecies>\n";
+				$output .= "<author>$auth</author>\n";
+				$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$i->{taxon_no}&amp;is_real_user=0</url>\n";
+				$output .= "</infraspecies>\n";
+			    }
+			    $output .= "</infraspecies_for_this_species>\n";
 			}
-			$output .= "</classification>\n";
-
-			# INFRASPECIES BLOCK
-			# only list accepted names of current subspecies
-			if ( $accepted->{taxon_rank} eq "species" )	{
-				$sql = "SELECT a.taxon_no,spelling_no,taxon_name,taxon_rank,IF(a.ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(a.ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(a.ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(a.ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,$TAXA_TREE_CACHE t,refs r,opinions o WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no AND t.taxon_no=synonym_no AND t.taxon_no=child_no AND t.opinion_no=o.opinion_no AND parent_no=" . $accepted->{taxon_no} . " AND taxon_rank='subspecies' ORDER BY spelling_no,taxon_name";
-				my @infras = @{$dbt->getData($sql)};
-				if ( @infras )	{
-					$output .= "<infraspecies_for_this_species>\n";
-					for my $i ( @infras )	{
-						$output .= "<infraspecies>\n";
-						$output .= "<id>$i->{taxon_no}</id>\n";
-						$output .= "<name>$i->{taxon_name}</name>\n";
-						my ($auth,$name_html) = formatAuthXML($i);
-						$output .= "<name_html>$name_html</name_html>\n";
-						my ($genus,$species,$infraspecies);
-						($genus,$species,$infraspecies) = split / /,$i->{taxon_name};
-						$output .= "<genus>$genus</genus>\n";
-						$output .= "<species>$species</species>\n";
-						$output .= "<infraspecies_marker></infraspecies_marker>\n";
-						$output .= "<infraspecies>$infraspecies</infraspecies>\n";
-						$output .= "<author>$auth</author>\n";
-						$output .= "<url>http://paleodb.org/classic?action=basicTaxonInfo&amp;taxon_no=$i->{taxon_no}&amp;is_real_user=0</url>\n";
-						$output .= "</infraspecies>\n";
-					}
-					$output .= "</infraspecies_for_this_species>\n";
-				}
+		    }
+		    
+		    # SYNONYMS BLOCK
+		    if ( $#variants > 0 )
+		    {
+			$output .= "<synonyms>\n";
+			for my $v ( @variants )	{
+			    if ( $v->{taxon_no} != $m->{synonym_no} )	{
+				$output .= "<synonym>\n";
+				$output .= formatNameXML($q,$v,$acno,@refs);
+				$output .= "</synonym>\n";
+			    }
 			}
-
-			# SYNONYMS BLOCK
-			if ( $#variants > 0 )	{
-				$output .= "<synonyms>\n";
-				for my $v ( @variants )	{
-					if ( $v->{taxon_no} != $m->{synonym_no} )	{
-						$output .= "<synonym>\n";
-						$output .= formatNameXML($q,$v,$acno,@refs);
-						$output .= "</synonym>\n";
-					}
-				}
-				$output .= "</synonyms>\n";
-			}
-
-			# COMMON NAMES BLOCK
-			if ( $accepted->{common_name} )	{
-				$output .= "<common_names>\n<common_name>\n";
-				$output .= "<name>".$accepted->{common_name}."</name>\n";
-				$output .= "<language>English</language>\n";
-				$output .= "<country>United States</country>\n";
-				$output .= "</common_name>\n</common_names>\n";
-				# could include a real reference here, but it's
-				#  optional and overkill
-				$output .= "<references>\n</references>\n";
-			}
+			$output .= "</synonyms>\n";
+		    }
+		    
+		    # COMMON NAMES BLOCK
+		    if ( $accepted->{common_name} )
+		    {
+			$output .= "<common_names>\n<common_name>\n";
+			$output .= "<name>".$accepted->{common_name}."</name>\n";
+			$output .= "<language>English</language>\n";
+			$output .= "<country>United States</country>\n";
+			$output .= "</common_name>\n</common_names>\n";
+			# could include a real reference here, but it's
+			#  optional and overkill
+			$output .= "<references>\n</references>\n";
+		    }
 		}
-
+		
 		if ( $m->{taxon_no} != $m->{synonym_no} )	{
 			$output .= "</accepted_name>\n";
 		}

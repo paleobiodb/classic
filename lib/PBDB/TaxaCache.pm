@@ -26,7 +26,7 @@ package PBDB::TaxaCache;
 
 # use Data::Dumper;
 use PBDB::TaxonInfo;
-use PBDB::Constants qw($TAXA_TREE_CACHE $TAXA_LIST_CACHE);
+use PBDB::Constants qw($TAXA_TREE_CACHE);
 use Carp qw(carp);
 
 use strict;
@@ -323,82 +323,82 @@ my $min_interval_no = 0;
 #  updateCache or poorly thought out command line fixes
 # previously rebuildCache cleaned up taxa_list_cache as it ran, but cleaning
 #  up the entire thing at once is more efficient
-sub cleanListCache	{
+# sub cleanListCache	{
 
-	my $dbt = shift;
-	my $dbh = $dbt->dbh;
+# 	my $dbt = shift;
+# 	my $dbh = $dbt->dbh;
 
-	my $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE";
-	my @rows = @{$dbt->getData($sql)};
-	printf "%d total rows selected from $TAXA_TREE_CACHE\n",$#rows + 1;
-	my @inlist;
-	push @inlist , $_->{'taxon_no'} foreach @rows;
-	$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no NOT IN (".join(',',@inlist).")";
-	$dbh->do($sql);
+# 	my $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE";
+# 	my @rows = @{$dbt->getData($sql)};
+# 	printf "%d total rows selected from $TAXA_TREE_CACHE\n",$#rows + 1;
+# 	my @inlist;
+# 	push @inlist , $_->{'taxon_no'} foreach @rows;
+# 	$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no NOT IN (".join(',',@inlist).")";
+# 	$dbh->do($sql);
 
-	# we obtain spelling_no because we only want currently used spellings,
-	#  and require taxon_no=synonym_no to make sure spelling_no is valid
-	my $sql = "SELECT distinct(spelling_no) AS spelling FROM $TAXA_TREE_CACHE WHERE taxon_no=synonym_no";
-	@rows = @{$dbt->getData($sql)};
-	printf "%d valid spelling rows selected from $TAXA_TREE_CACHE\n",$#rows + 1;
-	@inlist = ();
-	push @inlist , $_->{'spelling'} foreach @rows;
-	$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE parent_no NOT IN (".join(',',@inlist).")";
-	$dbh->do($sql);
+# 	# we obtain spelling_no because we only want currently used spellings,
+# 	#  and require taxon_no=synonym_no to make sure spelling_no is valid
+# 	my $sql = "SELECT distinct(spelling_no) AS spelling FROM $TAXA_TREE_CACHE WHERE taxon_no=synonym_no";
+# 	@rows = @{$dbt->getData($sql)};
+# 	printf "%d valid spelling rows selected from $TAXA_TREE_CACHE\n",$#rows + 1;
+# 	@inlist = ();
+# 	push @inlist , $_->{'spelling'} foreach @rows;
+# 	$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE parent_no NOT IN (".join(',',@inlist).")";
+# 	$dbh->do($sql);
 
-}
+# }
 
 # JA 25.8.08
 # also useful for fixing any and all errors that might have crept into the table
 # cleanListCache should be run first because a smaller table is faster to update
-sub rebuildListCache	{
+# sub rebuildListCache	{
 
-	my $dbt = shift;
-	my $dbh = $dbt->dbh;
+# 	my $dbt = shift;
+# 	my $dbh = $dbt->dbh;
 
-	my $sql = "SELECT taxon_no,spelling_no,synonym_no,lft,rgt FROM $TAXA_TREE_CACHE ORDER BY lft";
-	my @rows = @{$dbt->getData($sql)};
+# 	my $sql = "SELECT taxon_no,spelling_no,synonym_no,lft,rgt FROM $TAXA_TREE_CACHE ORDER BY lft";
+# 	my @rows = @{$dbt->getData($sql)};
 
-	my @parents;
-	my @parent_nos;
-	my $lastr = $rows[0];
-	for my $r ( @rows )	{
+# 	my @parents;
+# 	my @parent_nos;
+# 	my $lastr = $rows[0];
+# 	for my $r ( @rows )	{
 
-		# remove parents that have been processed fully and do not
-		#  include the current taxon
-		until ( ! @parents || $parents[$#parents]->{'rgt'} > $r->{'lft'} )	{
-			pop @parents;
-			pop @parent_nos;
-		}
+# 		# remove parents that have been processed fully and do not
+# 		#  include the current taxon
+# 		until ( ! @parents || $parents[$#parents]->{'rgt'} > $r->{'lft'} )	{
+# 			pop @parents;
+# 			pop @parent_nos;
+# 		}
 
-		# clean and update cache
-		if ( @parent_nos )	{
-			$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no=$r->{'taxon_no'} AND parent_no NOT IN (".join(",",@parent_nos).")";
-			$dbh->do($sql);
-			$sql = "INSERT IGNORE INTO $TAXA_LIST_CACHE (parent_no,child_no) VALUES ";
-			for my $p ( @parent_nos )	{
-				$sql .= "($p,$r->{'taxon_no'}),";
-			}
-			$sql =~ s/,$//;
-			$dbh->do($sql);
-		} else	{
-			$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no=$r->{'taxon_no'}";
-			$dbh->do($sql);
-		}
-		if ( $r->{'lft'} > $lastr->{'lft'} + 10000 )	{
-			print "up to lft=",$r->{'lft'},"\n";
-			$lastr=$r;
-		}
+# 		# clean and update cache
+# 		if ( @parent_nos )	{
+# 			$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no=$r->{'taxon_no'} AND parent_no NOT IN (".join(",",@parent_nos).")";
+# 			$dbh->do($sql);
+# 			$sql = "INSERT IGNORE INTO $TAXA_LIST_CACHE (parent_no,child_no) VALUES ";
+# 			for my $p ( @parent_nos )	{
+# 				$sql .= "($p,$r->{'taxon_no'}),";
+# 			}
+# 			$sql =~ s/,$//;
+# 			$dbh->do($sql);
+# 		} else	{
+# 			$sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no=$r->{'taxon_no'}";
+# 			$dbh->do($sql);
+# 		}
+# 		if ( $r->{'lft'} > $lastr->{'lft'} + 10000 )	{
+# 			print "up to lft=",$r->{'lft'},"\n";
+# 			$lastr=$r;
+# 		}
 
-		# add this taxon to the list if it's valid
-		if ( $r->{'spelling_no'} == $r->{'synonym_no'} )	{
-			push @parents , $r;
-			push @parent_nos , $r->{'spelling_no'};
-		}
+# 		# add this taxon to the list if it's valid
+# 		if ( $r->{'spelling_no'} == $r->{'synonym_no'} )	{
+# 			push @parents , $r;
+# 			push @parent_nos , $r->{'spelling_no'};
+# 		}
 
-	}
+# 	}
 
-}
+# }
 
 # This will add a new taxonomic name to the datbaase that doesn't currently 
 # belong anywhere.  Should be called when creating a new authority (Taxon.pm) 
@@ -597,7 +597,7 @@ sub updateCache {
         print "Parents are the same: new parent $new_parent_no old parent $old_parent_no\n" if ($DEBUG);
     }
 #    if ($updateList) {
-        updateListCache($dbt,$cache_row->{'taxon_no'});
+#        updateListCache($dbt,$cache_row->{'taxon_no'});
 #    }
 
     # Unlock tables
@@ -734,77 +734,77 @@ sub moveChildren {
     return ($new_lft,$new_rgt);
 }
 
-# Updates the taxa_list_cache for a range of children getting a list
-# of parents of those children, adding them into the db, and deleting
-# any old parents that the children might have had
-# The senior synonym_no is the senior synonym of the top level children passed
-# in - we don't want to mark a senior synonym as a "parent" so we filter those out
-sub updateListCache {
-    my ($dbt,$taxon_no) = @_; 
-    my $dbh = $dbt->dbh;
+# # Updates the taxa_list_cache for a range of children getting a list
+# # of parents of those children, adding them into the db, and deleting
+# # any old parents that the children might have had
+# # The senior synonym_no is the senior synonym of the top level children passed
+# # in - we don't want to mark a senior synonym as a "parent" so we filter those out
+# sub updateListCache {
+#     my ($dbt,$taxon_no) = @_; 
+#     my $dbh = $dbt->dbh;
 
-    # Get the row from the db
-    my $sql = "SELECT taxon_no,lft,rgt,spelling_no,synonym_no FROM $TAXA_TREE_CACHE WHERE taxon_no=$taxon_no";
-    my $cache_row = ${$dbt->getData($sql)}[0];
-    my $senior_synonym_no = $cache_row->{'synonym_no'};
+#     # Get the row from the db
+#     my $sql = "SELECT taxon_no,lft,rgt,spelling_no,synonym_no FROM $TAXA_TREE_CACHE WHERE taxon_no=$taxon_no";
+#     my $cache_row = ${$dbt->getData($sql)}[0];
+#     my $senior_synonym_no = $cache_row->{'synonym_no'};
                                                          
-    print "updateListCache called taxon_no $taxon_no lft $cache_row->{lft} rgt $cache_row->{rgt}\n" if ($DEBUG);
+#     print "updateListCache called taxon_no $taxon_no lft $cache_row->{lft} rgt $cache_row->{rgt}\n" if ($DEBUG);
 
 
-    # Update all the children of the taxa to have the same parents as the current
-    # taxon, in case the classification has changed in some way
-    $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE lft < $cache_row->{lft} AND rgt > $cache_row->{rgt} AND synonym_no=taxon_no AND synonym_no != $senior_synonym_no";
-    my @parents = map {$_->{'taxon_no'}} @{$dbt->getData($sql)};
+#     # Update all the children of the taxa to have the same parents as the current
+#     # taxon, in case the classification has changed in some way
+#     $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE lft < $cache_row->{lft} AND rgt > $cache_row->{rgt} AND synonym_no=taxon_no AND synonym_no != $senior_synonym_no";
+#     my @parents = map {$_->{'taxon_no'}} @{$dbt->getData($sql)};
 
-    $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE synonym_no != $cache_row->{synonym_no} AND (lft > $cache_row->{lft} AND lft < $cache_row->{rgt}) AND (rgt > $cache_row->{lft} AND rgt < $cache_row->{rgt})";
-    my @children = map {$_->{'taxon_no'}} @{$dbt->getData($sql)};
+#     $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE synonym_no != $cache_row->{synonym_no} AND (lft > $cache_row->{lft} AND lft < $cache_row->{rgt}) AND (rgt > $cache_row->{lft} AND rgt < $cache_row->{rgt})";
+#     my @children = map {$_->{'taxon_no'}} @{$dbt->getData($sql)};
     
-    $sql = "(SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE synonym_no=$cache_row->{synonym_no}) UNION (SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE lft=$cache_row->{lft})";
-    my @me = map {$_->{'taxon_no'}} @{$dbt->getData($sql)};
+#     $sql = "(SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE synonym_no=$cache_row->{synonym_no}) UNION (SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE lft=$cache_row->{lft})";
+#     my @me = map {$_->{'taxon_no'}} @{$dbt->getData($sql)};
 
-    print "updateListCache children(".join(", ",@children).") parents(".join(", ",@parents).")\n" if ($DEBUG == 2);
+#     print "updateListCache children(".join(", ",@children).") parents(".join(", ",@parents).")\n" if ($DEBUG == 2);
 
-    if (@children || @me) {
-        my @results = ();
-        # Taxon might have been reclassified, so change it up for self and 
-        # all its children
-        foreach my $child_no (@children,@me) {
-            foreach my $parent_no (@parents) {
-                push @results, "($parent_no,$child_no)";
-            }
-        }
-        # Update children with MY senior synonym no in case the current axon
-        # has just been synonymized/corrected
-        foreach my $child_no (@children) {
-            push @results, "($senior_synonym_no,$child_no)";
-        }
+#     if (@children || @me) {
+#         my @results = ();
+#         # Taxon might have been reclassified, so change it up for self and 
+#         # all its children
+#         foreach my $child_no (@children,@me) {
+#             foreach my $parent_no (@parents) {
+#                 push @results, "($parent_no,$child_no)";
+#             }
+#         }
+#         # Update children with MY senior synonym no in case the current axon
+#         # has just been synonymized/corrected
+#         foreach my $child_no (@children) {
+#             push @results, "($senior_synonym_no,$child_no)";
+#         }
 
-        # Break it up so we don't run into any query size limit 
-        # (which should be very large (16 MB) by default, but play it safe)
-        while (@results) {
-            my @subr = splice(@results,0,5000);
-            $sql = "INSERT IGNORE INTO $TAXA_LIST_CACHE (parent_no,child_no) VALUES ".join(",",@subr);
-            print "updateListCache insert sql: ".$sql."\n" if ($DEBUG == 2);
-            $dbh->do($sql);
-        }
+#         # Break it up so we don't run into any query size limit 
+#         # (which should be very large (16 MB) by default, but play it safe)
+#         while (@results) {
+#             my @subr = splice(@results,0,5000);
+#             $sql = "INSERT IGNORE INTO $TAXA_LIST_CACHE (parent_no,child_no) VALUES ".join(",",@subr);
+#             print "updateListCache insert sql: ".$sql."\n" if ($DEBUG == 2);
+#             $dbh->do($sql);
+#         }
 
-        # Since we're updating the trees for a big pile of children potentially, some children can be parents of 
-        # other children. Don't delete those links, just delete higher ordered ones. Breaking this up shouldn't be necessary, or possible
-        if (@children) {
-            $sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no IN (".join(",",@children).") AND parent_no NOT IN (".join(",",$senior_synonym_no,@children,@parents).")";
-            print "updateListCache: delete1 sql: ".$sql."\n" if ($DEBUG == 2);
-            $dbh->do($sql);
-        }
-        if (@me) {
-            $sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no IN (".join(",",@me).")";
-            if (@parents) { 
-                $sql .= " AND parent_no NOT IN (".join(",",@parents).")";
-            }
-            print "updateListCache: delete2 sql: ".$sql."\n" if ($DEBUG == 2);
-            $dbh->do($sql);
-        }
-    } 
-}
+#         # Since we're updating the trees for a big pile of children potentially, some children can be parents of 
+#         # other children. Don't delete those links, just delete higher ordered ones. Breaking this up shouldn't be necessary, or possible
+#         if (@children) {
+#             $sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no IN (".join(",",@children).") AND parent_no NOT IN (".join(",",$senior_synonym_no,@children,@parents).")";
+#             print "updateListCache: delete1 sql: ".$sql."\n" if ($DEBUG == 2);
+#             $dbh->do($sql);
+#         }
+#         if (@me) {
+#             $sql = "DELETE FROM $TAXA_LIST_CACHE WHERE child_no IN (".join(",",@me).")";
+#             if (@parents) { 
+#                 $sql .= " AND parent_no NOT IN (".join(",",@parents).")";
+#             }
+#             print "updateListCache: delete2 sql: ".$sql."\n" if ($DEBUG == 2);
+#             $dbh->do($sql);
+#         }
+#     } 
+# }
 
 
 # Returns all the descendents of a taxon in various forms.  
