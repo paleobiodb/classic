@@ -14,7 +14,7 @@ use PBDB::EcologyEntry;
 use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($INTERVAL_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE $TAXA_LIST_CACHE
+use PBDB::Constants qw($INTERVAL_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE 
 		       makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeURL);
 
 use strict;
@@ -279,6 +279,7 @@ sub displayTaxonInfoResults {
     }
     
     $output .= '
+<script src="/public/classic_js/included_taxa.js" language="JavaScript" type="text/javascript"></script>
 <script src="/public/classic_js/taxoninfo.js" language="JavaScript" type="text/javascript"></script>
 <script language="JavaScript" type="text/javascript">
 var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "panel7", "gddapp" );
@@ -294,7 +295,7 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
     <td id="tab3" class="tabOff" onClick = "switchToPanel(3,8);">
       Classification</td>
     <td id="tab4" class="tabOff" onClick = "switchToPanel(4,8);">
-      Relationships</td>
+      Included Taxa</td>
   </tr>
   <tr>
     <td id="tab5" class="tabOff" onClick="switchToPanel(5,8);">
@@ -456,7 +457,6 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
 	}
 
 	if ($modules{3}) {
-        $output .= '<center>';
         $output .= '<div id="panel3" class="panel">';
         $output .= '<div align="center">';
         $output .= $htmlClassification;
@@ -466,24 +466,15 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
     if ($modules{4}) {
         $output .= '<div id="panel4" class="panel">';
         $output .= '<div align="center" class="small">';
-        if ($is_real_user) {
-    	    # doCladograms($dbt, $hbo, $q, $s, $taxon_no, $spelling_no, $taxon_name);
-        } else {
-            $output .= qq|<form method="POST" action="">|;
-            foreach my $f ($q->param()) {
-                $output .= "<input type=\"hidden\" name=\"$f\" value=\"".$q->param($f)."\">\n";
-            }
-            $output .= "<input type=\"hidden\" name=\"show_panel\" value=\"4\">\n";
-            $output .= "<input type=\"submit\" name=\"submit\" value=\"Show relationships\">";
-            $output .= "</form>\n";
-        }
+	if ( $taxon_no )
+	{
+	    $output .= PBDB::PrintHierarchy::displayIncludedTaxa($dbt,'taxon_no', $taxon_no);
+	}
         $output .= "</div>\n";
         $output .= "</div>\n";
-        $output .= '</center>';
     }
     
     if ($modules{5}) {
-        $output .= '<center>';
         $output .= '<div id="panel5" class="panel">';
         $output .= '<div align="center" class="small" "style="margin-top: -2em;">';
         $output .= displayDiagnoses($dbt,$taxon_no);
@@ -492,7 +483,6 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
         }
         $output .= "</div>\n";
         $output .= "</div>\n";
-        $output .= '</center>';
     }
     if ($modules{6}) {
         $output .= '<center>';
@@ -1147,11 +1137,26 @@ sub displayTaxonClassification {
         my $parent_hash = PBDB::TaxaCache::getParents($dbt,[$orig_classification_no],'array_full');
         my @parent_array = @{$parent_hash->{$orig_classification_no}};
         my $cof = PBDB::CollectionEntry::getClassOrderFamily($dbt,'',\@parent_array);
-        if ( $cof->{'class'} || $cof->{'order'} || $cof->{'family'} )	{
-            $cofHTML = $cof->{'class'}." - ".$cof->{'order'}." - ".$cof->{'family'};
-            $cofHTML =~ s/^ - //;
-            $cofHTML =~ s/ - $//;
-            $cofHTML =~ s/ -  - / - /;
+        if ( $cof->{'class'} || $cof->{'order'} || $cof->{'family'} )
+	{
+	    my @links;
+	    
+	    if ( $cof->{class} )
+	    {
+		push @links, makeAnchor('checkTaxonInfo', "taxon_no=$cof->{class_no}&is_real_user=1", $cof->{class});
+	    }
+	    
+	    if ( $cof->{order} )
+	    {
+		push @links, makeAnchor('checkTaxonInfo', "taxon_no=$cof->{order_no}&is_real_user=1", $cof->{order});
+	    }
+
+	    if ( $cof->{family} )
+	    {
+		push @links, makeAnchor('checkTaxonInfo', "taxon_no=$cof->{family_no}&is_real_user=1", $cof->{family});
+	    }
+
+	    $cofHTML = join(' - ', @links);
         }
 
         if (@parent_array) {
@@ -1480,19 +1485,19 @@ $output .= qq|<div class="displayPanel" align="left" style="margin-bottom: 2em; 
 </div>|;
     }
 
-    if ($orig_no) {
-	$output .= "<p><b>" . makeAnchor("classify", "taxon_no=$orig_no", "View classification of included taxa") . "</b></p>\n";
+    # if ($orig_no) {
+    # 	$output .= "<p><b>" . makeAnchor("classify", "taxon_no=$orig_no", "View classification of included taxa") . "</b></p>\n";
 	
-        # $output .= '<p><b><a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download authority and opinion data</a></b> - <b><a href=# onClick="javascript: document.doViewClassification.submit()">View classification of included taxa</a></b>';
-        # $output .= "<form method=\"POST\" action=\"\" name=\"doDownloadTaxonomy\">";
-        # $output .= '<input type="hidden" name="action" value="displayDownloadTaxonomyResults">';
-        # $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
-        # $output .= "</form>\n";
-        # $output .= "<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
-        # $output .= '<input type="hidden" name="action" value="classify">';
-        # $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
-        # $output .= "</form>\n";
-    }
+    #     # $output .= '<p><b><a href=# onClick="javascript: document.doDownloadTaxonomy.submit()">Download authority and opinion data</a></b> - <b><a href=# onClick="javascript: document.doViewClassification.submit()">View classification of included taxa</a></b>';
+    #     # $output .= "<form method=\"POST\" action=\"\" name=\"doDownloadTaxonomy\">";
+    #     # $output .= '<input type="hidden" name="action" value="displayDownloadTaxonomyResults">';
+    #     # $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
+    #     # $output .= "</form>\n";
+    #     # $output .= "<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
+    #     # $output .= '<input type="hidden" name="action" value="classify">';
+    #     # $output .= '<input type="hidden" name="taxon_no" value="'.$orig_no.'">';
+    #     # $output .= "</form>\n";
+    # }
 	return $output;
 }
 
@@ -4097,195 +4102,256 @@ sub basicTaxonInfo	{
 	# DISTRIBUTION SECTION
 
 	my @occs;
-	if ( $is_real_user > 0 && $auth->{'rgt'} - $auth->{'lft'} < 20000 )	{
+	if ( $is_real_user > 0 && $auth->{'rgt'} - $auth->{'lft'} < 20000 )
+	{
+	    # taxon_string is needed for maps and taxon_param for links
+	    my $taxon_string = $taxon_no;
+	    my $taxon_param = "taxon_no=".$taxon_no;
+	    if ( ! $taxon_string )	{
+		$taxon_string = $taxon_name;
+		$taxon_param = "taxon_name=".$taxon_name;
+	    }
+	    $taxon_string =~ s/ /_/g;
+	    
+	    my $collection_fields = "c.collection_no,collection_name,c.max_interval_no,c.min_interval_no,c.country,c.state";
+	    if ( $taxon_no )
+	    {
+		$sql = "SELECT $collection_fields, count(distinct(o.collection_no)) as c,
+				count(distinct(o.occurrence_no)) as o
+			FROM collections as c join occurrences as o using (collection_no)
+				join $TAXA_TREE_CACHE as t using (taxon_no)
+				join $TAXA_TREE_CACHE as base on t.lft between base.lft and base.rgt
+				left join reidentifications as re using (occurrence_no)
+			WHERE base.taxon_no = $taxon_no and re.reid_no is null
+			GROUP BY c.max_interval_no, c.min_interval_no, country, state
+		  UNION SELECT $collection_fields, count(distinct(c.collection_no)) as c,
+				count(distinct(re.occurrence_no)) as o
+			FROM collections as c join reidentifications as re using (collection_no)
+				join $TAXA_TREE_CACHE as t using (taxon_no)
+				join $TAXA_TREE_CACHE as base on t.lft between base.lft and base.rgt
+			WHERE base.taxon_no = $taxon_no and re.most_recent='YES'
+			GROUP BY c.max_interval_no, c.min_interval_no, country, state";
+		
+			# $sql = "SELECT child_no FROM $TAXA_LIST_CACHE t WHERE parent_no=$taxon_no";
+			# my @subtaxa = @{$dbt->getData($sql)};
+			# my @inlist;
+			# push @inlist , $_->{'child_no'} foreach @subtaxa;
+			# push @inlist , @spellings;
+			# $sql = "(SELECT $collection_fields,count(distinct(o.collection_no)) c,count(distinct(o.occurrence_no)) o FROM collections c,occurrences o LEFT JOIN reidentifications re ON o.occurrence_no=re.occurrence_no WHERE c.collection_no=o.collection_no AND o.taxon_no IN (".join(',',@inlist).") AND re.reid_no IS NULL GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
+			# $sql .= " UNION (SELECT $collection_fields,count(distinct(c.collection_no)) c,count(distinct(re.occurrence_no)) o FROM collections c,reidentifications re WHERE c.collection_no=re.collection_no AND taxon_no IN (".join(',',@inlist).") AND re.most_recent='YES' GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
+	    }
+	    
+	    else
+	    {
+		my ($g,$s) = split / /,$taxon_name;
+		my $occ_clause = "(o.genus_name='".$g."' OR o.subgenus_name='".$g."')";
+		$occ_clause .= " AND o.species_name='".$s."'" if $s;
 
-		# taxon_string is needed for maps and taxon_param for links
-		my $taxon_string = $taxon_no;
-		my $taxon_param = "taxon_no=".$taxon_no;
-		if ( ! $taxon_string )	{
-			$taxon_string = $taxon_name;
-			$taxon_param = "taxon_name=".$taxon_name;
+		my $reid_clause = $occ_clause =~ s/o\./re\./gr;
+		
+		$sql = "SELECT $collection_fields, count(distinct(c.collection_no)) as c,
+				count(distinct(o.occurrence_no)) as o
+			FROM collections as c join occurrences as o using (collection_no)
+				left join reidentifications as re using (occurrence_no)
+			WHERE $occ_clause AND re.reid_no is null
+			GROUP BY c.max_interval_no, c.min_interval_no, country, state
+		  UNION SELECT $collection_fields, count(distinct(c.collection_no)) as c,
+				count(distinct(re.occurrence_no)) as o
+			FROM collections as c join reidentifications as re using (collection_no)
+			WHERE $reid_clause AND re.most_recent='YES'
+			GROUP BY c.max_interval_no, c.min_interval_no, country, state";
+
+			# $sql = "(SELECT $collection_fields,count(distinct(c.collection_no)) c,count(distinct(o.occurrence_no)) o FROM collections c,occurrences o LEFT JOIN reidentifications re ON o.occurrence_no=re.occurrence_no WHERE c.collection_no=o.collection_no AND $name_clause AND re.reid_no IS NULL GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
+			# $name_clause =~ s/o\./re\./g;
+			# $sql .= " UNION (SELECT $collection_fields,count(distinct(c.collection_no)) c,count(distinct(re.occurrence_no)) o FROM collections c,reidentifications re WHERE c.collection_no=re.collection_no AND $name_clause AND re.most_recent='YES' GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
+	    }
+	    
+	    @occs = @{$dbt->getData($sql)};
+	    
+	    $sql = "SELECT l.interval_no,i1.interval_name period,i2.interval_name epoch,base_age base FROM interval_lookup l,intervals i1,intervals i2 WHERE period_no=i1.interval_no AND epoch_no=i2.interval_no";
+	    my @intervals = @{$dbt->getData($sql)};
+	    my (%epoch,%period,%own,%base);
+	    for my $i ( @intervals )	{
+		$epoch{$i->{'interval_no'}} = $i->{'epoch'};
+		$period{$i->{'interval_no'}} = $i->{'period'};
+		# it doesn't matter which subinterval is used
+		$base{$i->{'epoch'}} = $i->{'base'};
+		$base{$i->{'period'}} = $i->{'base'};
+	    }
+
+	    $sql = "SELECT i.interval_no,interval_name own,base_age base FROM interval_lookup l,intervals i WHERE l.interval_no=i.interval_no";
+	    my @intervals2 = @{$dbt->getData($sql)};
+	    for my $i ( @intervals2 )	{
+		$own{$i->{'interval_no'}} = $i->{'own'};
+		$base{$i->{'own'}} = $i->{'base'};
+	    }
+	    
+	    $output .= "<p>Distribution:";
+	    
+	    if ( $#occs == 0 && $occs[0]->{'c'} == 1 )
+	    {
+		my $o = $occs[0];
+		$output .= qq| found only at |;
+		$output .= makeATag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
+		if ( $typeLocality == 0 )	{
+		    my $place = ( $o->{'country'} =~ /United States|Canada/ ) ? $o->{'state'} : $o->{'country'};
+		    $place =~ s/United King/the United King/;
+		    my $time = ( $period{$o->{'max_interval_no'}} =~ /Paleogene|Neogene/ ) ? $epoch{$o->{'max_interval_no'}} : $period{$o->{'max_interval_no'}};
+		    $time .= ( $period{$o->{'min_interval_no'}} =~ /Paleogene|Neogene/ ) ? " to ".$epoch{$o->{'min_interval_no'}} : "";
+		    $output .= qq| ($time of $place)|;
 		}
-		$taxon_string =~ s/ /_/g;
-
-		my $collection_fields = "c.collection_no,collection_name,max_interval_no,min_interval_no,country,state";
-		if ( $taxon_no )	{
-			$sql = "SELECT child_no FROM $TAXA_LIST_CACHE t WHERE parent_no=$taxon_no";
-			my @subtaxa = @{$dbt->getData($sql)};
-			my @inlist;
-			push @inlist , $_->{'child_no'} foreach @subtaxa;
-			push @inlist , @spellings;
-			$sql = "(SELECT $collection_fields,count(distinct(o.collection_no)) c,count(distinct(o.occurrence_no)) o FROM collections c,occurrences o LEFT JOIN reidentifications re ON o.occurrence_no=re.occurrence_no WHERE c.collection_no=o.collection_no AND o.taxon_no IN (".join(',',@inlist).") AND re.reid_no IS NULL GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
-			$sql .= " UNION (SELECT $collection_fields,count(distinct(c.collection_no)) c,count(distinct(re.occurrence_no)) o FROM collections c,reidentifications re WHERE c.collection_no=re.collection_no AND taxon_no IN (".join(',',@inlist).") AND re.most_recent='YES' GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
-		} else	{
-			my ($g,$s) = split / /,$taxon_name;
-			my $name_clause = "(o.genus_name='".$g."' OR o.subgenus_name='".$g."')";
-			if ( $s )	{
-				$name_clause .= " AND o.species_name='".$s."'";
+		$output .= "</p>\n\n";
+	    }
+	    
+	    elsif ( @occs )
+	    {
+		my ($ctotal,$ototal,%bycountry,%bystate);
+		for my $o ( @occs )	{
+		    $ctotal += $o->{'c'};
+		    $ototal += $o->{'o'};
+		    if ( $period{$o->{'max_interval_no'}} =~ /Paleogene|Neogene/ )	{
+			if ( $epoch{$o->{'max_interval_no'}} eq $epoch{$o->{'min_interval_no'}} || $o->{'min_interval_no'} == 0 || ! $epoch{$o->{'min_interval_no'}} )	{
+			    $bycountry{$epoch{$o->{'max_interval_no'}}}{$o->{'country'}} += $o->{'c'};
+			    $bystate{$epoch{$o->{'max_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
+			} else	{
+			    $bycountry{$epoch{$o->{'max_interval_no'}}." to ".$epoch{$o->{'min_interval_no'}}}{$o->{'country'}} += $o->{'c'};
+			    $bystate{$epoch{$o->{'max_interval_no'}}." to ".$epoch{$o->{'min_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
 			}
-			$sql = "(SELECT $collection_fields,count(distinct(c.collection_no)) c,count(distinct(o.occurrence_no)) o FROM collections c,occurrences o LEFT JOIN reidentifications re ON o.occurrence_no=re.occurrence_no WHERE c.collection_no=o.collection_no AND $name_clause AND re.reid_no IS NULL GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
-			$name_clause =~ s/o\./re\./g;
-			$sql .= " UNION (SELECT $collection_fields,count(distinct(c.collection_no)) c,count(distinct(re.occurrence_no)) o FROM collections c,reidentifications re WHERE c.collection_no=re.collection_no AND $name_clause AND re.most_recent='YES' GROUP BY c.max_interval_no,c.min_interval_no,country,state)";
+		    } elsif ( $period{$o->{'max_interval_no'}} )	{
+			if ( $period{$o->{'max_interval_no'}} eq $period{$o->{'min_interval_no'}} || $o->{'min_interval_no'} == 0 || ! $period{$o->{'min_interval_no'}} )	{
+			    $bycountry{$period{$o->{'max_interval_no'}}}{$o->{'country'}} += $o->{'c'};
+			    $bystate{$period{$o->{'max_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
+			} else	{
+			    $bycountry{$period{$o->{'max_interval_no'}}." to ".$period{$o->{'min_interval_no'}}}{$o->{'country'}} += $o->{'c'};
+			    $bystate{$period{$o->{'max_interval_no'}}." to ".$period{$o->{'min_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
+			}
+		    } else	{
+			$bycountry{$own{$o->{'max_interval_no'}}}{$o->{'country'}} += $o->{'c'};
+			$bystate{$own{$o->{'max_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
+		    }
 		}
-
-		@occs = @{$dbt->getData($sql)};
-
-		$sql = "SELECT l.interval_no,i1.interval_name period,i2.interval_name epoch,base_age base FROM interval_lookup l,intervals i1,intervals i2 WHERE period_no=i1.interval_no AND epoch_no=i2.interval_no";
-		my @intervals = @{$dbt->getData($sql)};
-		my (%epoch,%period,%own,%base);
+		
+		my @intervals = keys %bycountry;
 		for my $i ( @intervals )	{
-			$epoch{$i->{'interval_no'}} = $i->{'epoch'};
-			$period{$i->{'interval_no'}} = $i->{'period'};
-			# it doesn't matter which subinterval is used
-			$base{$i->{'epoch'}} = $i->{'base'};
-			$base{$i->{'period'}} = $i->{'base'};
+		    if ( ! $base{$i} )	{
+			my ($x,$y) = split / /,$i;
+			$base{$i} = $base{$x} - 0.01;
+		    }
 		}
-		$sql = "SELECT i.interval_no,interval_name own,base_age base FROM interval_lookup l,intervals i WHERE l.interval_no=i.interval_no";
-		my @intervals2 = @{$dbt->getData($sql)};
-		for my $i ( @intervals2 )	{
-			$own{$i->{'interval_no'}} = $i->{'own'};
-			$base{$i->{'own'}} = $i->{'base'};
+		@intervals = sort { $base{$a} <=> $base{$b} } @intervals;
+		$output .= "</p>\n\n";
+		$output .= "<div style=\"margin-left: 2em;\">\n";
+		my $printed;
+		for my $i ( @intervals )	{
+		    $output .= "<p $indent>&bull; $i of ";
+		    my @countries = keys %{$bycountry{$i}};
+		    @countries = sort @countries;
+		    my $list;
+		    for my $c ( @countries )	{
+			my @states = keys %{$bystate{$i}{$c}};
+			@states = sort @states;
+			for my $j ( 0..$#states )	{
+			    if ( ! $states[$j] )	{
+				splice @states , $j , 1;
+				last;
+			    }
+			}
+			my ($max_interval,$min_interval) = split/ to /,$i;
+			my $country = $c;
+			my $shortcountry = $country;
+			$shortcountry =~ s/Libyan Arab Jamahiriya/Libya/;
+			$shortcountry =~ s/Syrian Arab Republic/Syria/;
+			$shortcountry =~ s/Lao People's Democratic Republic/Laos/;
+			$shortcountry =~ s/(United Kingdom|Russian Federation|Czech Republic|Netherlands|Dominican Republic|Bahamas|Philippines|Netherlands Antilles|United Arab Emirates|Marshall Islands|Congo|Seychelles)/the $1/;
+			$shortcountry =~ s/, .*//;
+			my $min_interval_where;
+			if ( $min_interval )	{
+			    $min_interval_where = "&amp;min_interval_no=$min_interval";
+			}
+			if ( $country !~ /United States|Canada/ || ! @states )	{
+			    $list .= makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $shortcountry) . " (".$bycountry{$i}{$c};
+			} else	{
+			    for my $j ( 0..$#states )	{
+				$states[$j] = makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;state=$states[$j]&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $states[$j]);
+			    }
+			    $list .= "$country ($bycountry{$i}{$c}";
+			    $list .= ": ".join(', ',@states);
+			}
+			$printed++;
+			if ( $printed == 1 && $bycountry{$i}{$c} == 1 )	{
+			    $list .= " collection";
+			} elsif ( $printed == 1 && $bycountry{$i}{$c} > 1 )	{
+			    $list .= " collections";
+			}
+			$list .= "), ";
+		    }
+		    $list =~ s/, $//;
+		    $output .= "$list</p>\n";
 		}
-
-		$output .= "<p>Distribution:";
-		if ( $#occs == 0 && $occs[0]->{'c'} == 1 )	{
-			my $o = $occs[0];
-			$output .= qq| found only at |;
-			$output .= makeATag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
-			if ( $typeLocality == 0 )	{
-				my $place = ( $o->{'country'} =~ /United States|Canada/ ) ? $o->{'state'} : $o->{'country'};
-				$place =~ s/United King/the United King/;
-				my $time = ( $period{$o->{'max_interval_no'}} =~ /Paleogene|Neogene/ ) ? $epoch{$o->{'max_interval_no'}} : $period{$o->{'max_interval_no'}};
-				$time .= ( $period{$o->{'min_interval_no'}} =~ /Paleogene|Neogene/ ) ? " to ".$epoch{$o->{'min_interval_no'}} : "";
-				$output .= qq| ($time of $place)|;
-			}
-			$output .= "</p>\n\n";
-		} elsif ( @occs )	{
-			my ($ctotal,$ototal,%bycountry,%bystate);
-			for my $o ( @occs )	{
-				$ctotal += $o->{'c'};
-				$ototal += $o->{'o'};
-				if ( $period{$o->{'max_interval_no'}} =~ /Paleogene|Neogene/ )	{
-					if ( $epoch{$o->{'max_interval_no'}} eq $epoch{$o->{'min_interval_no'}} || $o->{'min_interval_no'} == 0 || ! $epoch{$o->{'min_interval_no'}} )	{
-						$bycountry{$epoch{$o->{'max_interval_no'}}}{$o->{'country'}} += $o->{'c'};
-						$bystate{$epoch{$o->{'max_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
-					} else	{
-						$bycountry{$epoch{$o->{'max_interval_no'}}." to ".$epoch{$o->{'min_interval_no'}}}{$o->{'country'}} += $o->{'c'};
-						$bystate{$epoch{$o->{'max_interval_no'}}." to ".$epoch{$o->{'min_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
-					}
-				} elsif ( $period{$o->{'max_interval_no'}} )	{
-					if ( $period{$o->{'max_interval_no'}} eq $period{$o->{'min_interval_no'}} || $o->{'min_interval_no'} == 0 || ! $period{$o->{'min_interval_no'}} )	{
-						$bycountry{$period{$o->{'max_interval_no'}}}{$o->{'country'}} += $o->{'c'};
-						$bystate{$period{$o->{'max_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
-					} else	{
-						$bycountry{$period{$o->{'max_interval_no'}}." to ".$period{$o->{'min_interval_no'}}}{$o->{'country'}} += $o->{'c'};
-						$bystate{$period{$o->{'max_interval_no'}}." to ".$period{$o->{'min_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
-					}
-				} else	{
-					$bycountry{$own{$o->{'max_interval_no'}}}{$o->{'country'}} += $o->{'c'};
-					$bystate{$own{$o->{'max_interval_no'}}}{$o->{'country'}}{$o->{'state'}} += $o->{'c'};
-				}
-			}
-			my @intervals = keys %bycountry;
-			for my $i ( @intervals )	{
-				if ( ! $base{$i} )	{
-					my ($x,$y) = split / /,$i;
-					$base{$i} = $base{$x} - 0.01;
-				}
-			}
-			@intervals = sort { $base{$a} <=> $base{$b} } @intervals;
-			$output .= "</p>\n\n";
-			$output .= "<div style=\"margin-left: 2em;\">\n";
-			my $printed;
-			for my $i ( @intervals )	{
-				$output .= "<p $indent>&bull; $i of ";
-				my @countries = keys %{$bycountry{$i}};
-				@countries = sort @countries;
-				my $list;
-				for my $c ( @countries )	{
-					my @states = keys %{$bystate{$i}{$c}};
-					@states = sort @states;
-					for my $j ( 0..$#states )	{
-						if ( ! $states[$j] )	{
-							splice @states , $j , 1;
-							last;
-						}
-					}
-					my ($max_interval,$min_interval) = split/ to /,$i;
-					my $country = $c;
-					my $shortcountry = $country;
-					$shortcountry =~ s/Libyan Arab Jamahiriya/Libya/;
-					$shortcountry =~ s/Syrian Arab Republic/Syria/;
-					$shortcountry =~ s/Lao People's Democratic Republic/Laos/;
-					$shortcountry =~ s/(United Kingdom|Russian Federation|Czech Republic|Netherlands|Dominican Republic|Bahamas|Philippines|Netherlands Antilles|United Arab Emirates|Marshall Islands|Congo|Seychelles)/the $1/;
-					$shortcountry =~ s/, .*//;
-					my $min_interval_where;
-					if ( $min_interval )	{
-						$min_interval_where = "&amp;min_interval_no=$min_interval";
-					}
-					if ( $country !~ /United States|Canada/ || ! @states )	{
-						$list .= makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $shortcountry) . " (".$bycountry{$i}{$c};
-					} else	{
-						for my $j ( 0..$#states )	{
-							$states[$j] = makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;state=$states[$j]&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $states[$j]);
-						}
-						$list .= "$country ($bycountry{$i}{$c}";
-						$list .= ": ".join(', ',@states);
-					}
-					$printed++;
-					if ( $printed == 1 && $bycountry{$i}{$c} == 1 )	{
-						$list .= " collection";
-					} elsif ( $printed == 1 && $bycountry{$i}{$c} > 1 )	{
-						$list .= " collections";
-					}
-					$list .= "), ";
-				}
-				$list =~ s/, $//;
-				$output .= "$list</p>\n";
-			}
-			if ( $ctotal > 1 && $ctotal < $ototal )	{
-				$output .= "<p>Total: $ctotal collections including $ototal occurrences</p>\n\n";
-			} elsif ( $ctotal > 1 && $ctotal == $ototal )	{
-				$output .= "<p>Total: $ctotal collections each including a single occurrence</p>\n\n";
-			}
-			$output .= "</div>\n\n";
+		if ( $ctotal > 1 && $ctotal < $ototal )	{
+		    $output .= "<p>Total: $ctotal collections including $ototal occurrences</p>\n\n";
+		} elsif ( $ctotal > 1 && $ctotal == $ototal )	{
+		    $output .= "<p>Total: $ctotal collections each including a single occurrence</p>\n\n";
+		}
+		$output .= "</div>\n\n";
+		
 		# don't print anything for really big groups, users shouldn't
 		#  expect to see occurrences anyway JA 13.7.12
-		} elsif ( $auth->{'rgt'} - $auth->{'lft'} >= 20000 )	{
-		} else	{
-			if ( $auth->{'taxon_name'} )	{
-				$output .= " <i>there are no occurrences of $auth->{'taxon_name'} in the database</i></p>\n\n";
-			} else	{
-				$output .= "</p>\n\n<p><i>There is no taxonomic or distributional information about '$taxon_name' in the database</i></p>\n\n";
-			}
+	    }
+
+	    elsif ( $auth->{'rgt'} - $auth->{'lft'} >= 20000 )
+	    {
+	    }
+
+	    else
+	    {
+		if ( $auth->{'taxon_name'} )
+		{
+		    $output .= " <i>there are no occurrences of $auth->{'taxon_name'} in the database</i></p>\n\n";
 		}
+
+		else
+		{
+		    $output .= "</p>\n\n<p><i>There is no taxonomic or distributional information about '$taxon_name' in the database</i></p>\n\n";
+		}
+	    }
 	}
-    
+        
         my $taxon_name = $taxon->{'taxon_name'};
         my $taxon_rank = $taxon->{'taxon_rank'};
 
-	if ( $is_real_user > 0 && ( @occs || $taxon_no ) )	{
-		if ( $taxon_no )	{
-			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
-		} else	{
-			$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
-		}
-		if ( $s->isDBMember() && $taxon_no && $s->get('role') =~ /authorizer|student|technician/ )	{
-			$output .= "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
-			$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
-		}
-                if ( $taxon_rank eq "genus" || $taxon_rank eq "species" ) {
-                        $output .= '<hr><p><a href="http://epandda.org" target="_blank"><img src="https://epandda.org/img/epandda_logo_small.png" style="width: 50px;"></a>';
-                        $output .= ' Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
-                        $output .= '<input type="button" id="getImages" name="getImages" value="Display Images">';
-                        $output .= '<center><p class="fa-3x" id="running"><i class="fas fa-spinner fa-spin"></i><p></center>';
-                        $output .= '<div id="instructions"><br>Click image to enlarge. Click <i class="fas fa-info-circle"></i> to access iDigBio record.</div>';
-                        $output .= '<div class="img-with-text" id="images"></div>';
-                        $output .= '<b><p id="result"></p></b>';
-                }
+        if ( $is_real_user > 0 && ( @occs || $taxon_no ) )
+	{
+	    if ( $taxon_no )
+	    {
+		$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
+	    }
+	    
+	    else
+	    {
+		$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
+	    }
+	    
+	    if ( $s->isDBMember() && $taxon_no && $s->get('role') =~ /authorizer|student|technician/ )
+	    {
+		$output .= "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
+		$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
+	    }
+	    
+	    if ( $taxon_rank eq "genus" || $taxon_rank eq "species" )
+	    {
+		$output .= '<hr><p><a href="http://epandda.org" target="_blank"><img src="https://epandda.org/img/epandda_logo_small.png" style="width: 50px;"></a>';
+		$output .= ' Specimen images are retrieved through the <a href="http://epandda.org" target="_blank">ePANDDA</a> API.</p>';
+		$output .= '<input type="button" id="getImages" name="getImages" value="Display Images">';
+		$output .= '<center><p class="fa-3x" id="running"><i class="fas fa-spinner fa-spin"></i><p></center>';
+		$output .= '<div id="instructions"><br>Click image to enlarge. Click <i class="fas fa-info-circle"></i> to access iDigBio record.</div>';
+		$output .= '<div class="img-with-text" id="images"></div>';
+		$output .= '<b><p id="result"></p></b>';
+	    }
 	}
+        
 	$output .= "</div>\n</div>\n\n";
-
+        
 	$output .= qq|
 <form method="POST" action="" onSubmit="return checkName(1,'search_again');">
 <input type="hidden" name="action" value="basicTaxonInfo">
@@ -5206,5 +5272,6 @@ sub nomenChildren {
     }
     return \%nomen;
 }
+
 
 1;
