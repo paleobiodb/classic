@@ -1697,7 +1697,9 @@ sub setOccurrencesTaxonNoByTaxon {
 #  possible higher taxa must be linked by opinions from the same ref as this opinion
 sub displayTypeTaxonSelectForm {
     my ($dbt,$s,$is_tt_form_value,$type_taxon_no,$type_taxon_name,$type_taxon_rank,$reference_no,$end_message) = @_;
-
+    
+    my $output = '';
+    
     dbg("displayTypeTaxonSelectForm called with is_tt_form_value $is_tt_form_value tt_no $type_taxon_no tt_name $type_taxon_name tt_rank $type_taxon_rank ref_no $reference_no");
 
     my @warnings = ();
@@ -1717,30 +1719,30 @@ sub displayTypeTaxonSelectForm {
     dbg("TYPE TAXON PARENTS:\n<PRE>".Dumper(\@parents)."</PRE>");
     if ($is_tt_form_value) {
         if (scalar(@parents) > 1) {
-            print "<div align=\"center\">";
-            print makeFormPostTag();
-            print "<input type=\"hidden\" name=\"action\" value=\"submitTypeTaxonSelect\">\n";
-            print "<input type=\"hidden\" name=\"reference_no\" value=\"$reference_no\">\n";
-            print "<input type=\"hidden\" name=\"type_taxon_no\" value=\"$type_taxon_no\">\n";
+            $output .= "<div align=\"center\">";
+            $output .= makeFormPostTag();
+            $output .= "<input type=\"hidden\" name=\"action\" value=\"submitTypeTaxonSelect\">\n";
+            $output .= "<input type=\"hidden\" name=\"reference_no\" value=\"$reference_no\">\n";
+            $output .= "<input type=\"hidden\" name=\"type_taxon_no\" value=\"$type_taxon_no\">\n";
             $end_message =~ s/"/&quot;/g;
             $end_message =~ s/</&lt;/g;
             $end_message =~ s/>/&gt;/g;
-            print "<input type=\"hidden\" name=\"end_message\" value=\"".$end_message."\">\n";
-            print "<p class=\"large\">For which taxa is $type_taxon_name a type $type_taxon_rank?</p>";
-            print "<div style=\"width: 30em; text-align: left; padding: 1em; padding-left: 2em; border: 1px solid lightgray;\">\n";
+            $output .= "<input type=\"hidden\" name=\"end_message\" value=\"".$end_message."\">\n";
+            $output .= "<p class=\"large\">For which taxa is $type_taxon_name a type $type_taxon_rank?</p>";
+            $output .= "<div style=\"width: 30em; text-align: left; padding: 1em; padding-left: 2em; border: 1px solid lightgray;\">\n";
             foreach my $row (reverse @parents) {
                 my $checked = ($row->{'type_taxon_no'} == $type_taxon_no) ? 'CHECKED' : '';
-                print "<input type=\"checkbox\" name=\"taxon_no\" value=\"$row->{taxon_no}\" $checked> ";
-                print "$row->{taxon_name} ($row->{taxon_rank})";
+                $output .= "<input type=\"checkbox\" name=\"taxon_no\" value=\"$row->{taxon_no}\" $checked> ";
+                $output .= "$row->{taxon_name} ($row->{taxon_rank})";
                 if ($row->{'type_taxon_no'} && $row->{'type_taxon_no'} != $type_taxon_no) {
-                    print " - <small>type taxon currently $row->{type_taxon_name} ($row->{type_taxon_rank})</small>";
+                    $output .= " - <small>type taxon currently $row->{type_taxon_name} ($row->{type_taxon_rank})</small>";
                 }
-                print '<br>';
+                $output .= '<br>';
             }
-            print "</div>\n";
-            print "<input type=\"submit\" value=\"Submit\">";
-            print "</form>";
-            print "</div>";
+            $output .= "</div>\n";
+            $output .= "<input type=\"submit\" value=\"Submit\">";
+            $output .= "</form>";
+            $output .= "</div>";
             $show_end_message = 0;
         } elsif (scalar(@parents) == 1) {
             my $return;
@@ -1772,13 +1774,14 @@ sub displayTypeTaxonSelectForm {
 
 
     if (@warnings) {
-        print PBDB::Debug::printWarnings(\@warnings);
+        $output .= PBDB::Debug::printWarnings(\@warnings);
     }
 
     if ($show_end_message) {
-        print $end_message;
+        $output .= $end_message;
     }
 
+    return $output;
 }
 
 
@@ -1818,12 +1821,15 @@ sub submitTypeTaxonSelect {
             push @warnings,"Can't change the type taxon for authority $parent->{taxon_name}, its owned by a difference authorizer: ".PBDB::Person::getPersonName($dbt,$parent->{'authorizer_no'});
         }
     }
-
+    
+    my $output = '';
+    
     if (@warnings) {
-        print PBDB::Debug::printWarnings(\@warnings);
+        $output .= PBDB::Debug::printWarnings(\@warnings);
     }
 
-    print $end_message;
+    $output .= $end_message;
+    return $output;
 }
     
 # This function returns an array of potential higher taxa for which the focal taxon can be a type.
@@ -2387,10 +2393,14 @@ sub entangledNamesForm	{
 		$vars{'author'} .= " and ".$spellings[0]->{'a2'};
 	}
 	$vars{'author'} .= " (".$spellings[0]->{'yr'}.")";
+	
+	my $output = '';
+	
+	$output .= $hbo->stdIncludes("std_page_top");
+	$output .= $hbo->populateHTML('entangled_names',\%vars);
+	$output .= $hbo->stdIncludes("std_page_bottom");
 
-	print $hbo->stdIncludes("std_page_top");
-	print $hbo->populateHTML('entangled_names',\%vars);
-	print $hbo->stdIncludes("std_page_bottom");
+	return $output;
 }
 
 # JA 14.12.10
@@ -2477,7 +2487,7 @@ sub disentangleNames	{
 	$vars{'names2'} = join(", ",@names2);
 	$vars{'taxon_no1'} = $version1[0];
 	$vars{'taxon_no2'} = $version2[0];
-	print $hbo->populateHTML('disentangled',\%vars);
+	return $hbo->populateHTML('disentangled',\%vars);
 
 
 }

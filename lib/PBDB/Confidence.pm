@@ -984,9 +984,9 @@ sub calculateTaxaInterval {
 
     $output .= optionsForm($q, $s, $dbt, \%occ_list, 'small');
 
-    $output .= print "</div>\n\n";
+    $output .= "</div>\n\n";
 
-    $output .= print "<center><p style=\"margin-bottom: 3em;\">" . makeAnchor("displayTaxaIntervalsForm", "", "<b>Start again</b>") . "</p></center>\n\n"; #jpjenk-question
+    $output .= "<center><p style=\"margin-bottom: 3em;\">" . makeAnchor("displayTaxaIntervalsForm", "", "<b>Start again</b>") . "</p></center>\n\n"; #jpjenk-question
 
     return $output;
 

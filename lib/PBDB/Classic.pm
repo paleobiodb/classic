@@ -384,14 +384,6 @@ sub classic_request {
     
     no warnings 'once';
     
-    open(SAVE_STDOUT, '>&STDOUT');
-    
-    # unless ( $DB::OUT )
-    # {
-	close(STDOUT);
-	open(STDOUT, '>', \$print_output);
-    # }
-    
     eval {
 	$DB::single = 1;
 	$return_output = &$action_sub($q, $s, $dbt, $hbo);
@@ -412,25 +404,12 @@ sub classic_request {
 	}
     }
     
-    elsif ( ! $print_output && ! $return_output && ! $DB::OUT )
+    elsif ( ! $return_output && ! $DB::OUT )
     {
 	ouch 500, "No output was generated.", { path => request->path };
     }
     
-    # unless ( $action_output )
-    # {
-    # 	ouch 500, $@, { path => request->path };
-    # }
-    
-    if ( $print_output )
-    {
-	$output .= decode_utf8($print_output);
-    }
-    
-    else
-    {
-	$output .= $return_output;
-    }
+    $output .= $return_output;
     
     $vars = {};
     if ($user) {
@@ -439,9 +418,6 @@ sub classic_request {
     }
     
     $output .= template 'footer_include', $vars;
-
-    close(STDOUT);
-    open(STDOUT, '>&SAVE_STDOUT');
     
     return $output;
 };
@@ -4336,11 +4312,11 @@ sub processOccurrenceTable {
     my $session_ref = $s->get('reference_no');
     
     if (!$global_abund_unit) {
-        print "ERROR: no abund_unit specified"; # $$$ FIX!!!
+        print STDERR "ERROR: no abund_unit specified"; # $$$ FIX!!!
         die;
     }
     if (!$session_ref) {
-        print "ERROR: no session reference";	# $$$ FIX!!!
+        print STDERR "ERROR: no session reference";	# $$$ FIX!!!
         die;
     }
     

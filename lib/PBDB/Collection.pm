@@ -2322,7 +2322,7 @@ sub explainAEOestimate	{
 	if ( $ages{'note'} )	{
 		$ages{'note'} = "<p class=\"small\">" . $ages{'note'} . ".</p>";
 	}
-	print $hbo->populateHTML('aeo_info', \%ages);
+	return $hbo->populateHTML('aeo_info', \%ages);
 }
 
 
