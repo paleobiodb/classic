@@ -34,7 +34,7 @@ sub new {
     my $class = shift;
     my $dbh = shift;
 
-	my DBTransactionManager $self = fields::new($class);
+	my $self = fields::new($class);
 	if (! $dbh) {
 		# connect if needed
 		$dbh = PBDB::DBConnection::connect();
@@ -62,7 +62,7 @@ sub dbh {
 # Basically grabs the table description from the database.
 #
 sub getTableDesc {
-	my DBTransactionManager $self = shift;
+	my $self = shift;
     my $dbh = $self->dbh;
 	my $table_name = shift;
 	my $sql = "DESC $table_name";
@@ -75,7 +75,7 @@ sub getTableDesc {
 # Pass it a table name.
 # Returns an arrayref of all column names in this table. 
 sub getTableColumns {
-	my DBTransactionManager $self = shift;
+	my $self = shift;
 	my $table_name = shift;
 	
 	# it will always be the first row returned since
@@ -641,13 +641,13 @@ sub getData {
 
 # from the old DBTransactionManager class...
 sub getID{
-	my DBTransactionManager $self = shift;
+	my $self = shift;
 	return $self->{_id};
 }	
 
 # from the old DBTransactionManager class...
 sub getErr{
-	my DBTransactionManager $self = shift;
+	my $self = shift;
 	return $self->{_err};
 }	
 
@@ -666,7 +666,7 @@ sub getErr{
 #							4 means valid DELETE statement
 ##
 sub checkIsSelect {
-	my DBTransactionManager $self = shift;
+	my $self = shift;
 	my $sql = shift;
 
 	# NOTE: This messes with enumerated values
@@ -688,7 +688,7 @@ sub checkIsSelect {
 # from the old DBTransactionManager class... 
 #Deprecated ... this function wasn't very useful anyways, PS
 sub checkWhereClause {
-	my DBTransactionManager $self = shift;
+	my $self = shift;
 	# NOTE: disregard the following note...
 	# Note: this has already been uppercase-d by the caller.
 	my $sql = shift; 
