@@ -45,10 +45,10 @@ my $config = LoadFile("$MAIN_DIR/config.yml") || die "Could not read $MAIN_DIR/c
 my $ww = $config->{web_workers} || 5;
 my $rw = $config->{rest_workers} || 2;
 
-my $web_log = $config->{web_log} || 'web_log';
-my $rest_log = $config->{rest_log} || 'rest_log';
-my $error_log = $config->{main_log} || 'main_log';
-my $taxa_log = $config->{taxa_cached_log} || 'taxa_cached_log';
+my $web_log = $config->{web_log} || 'classic_access.log';
+my $rest_log = $config->{rest_log} || 'classic_rest.log';
+my $error_log = $config->{main_log} || 'classic_error.log';
+my $taxa_log = $config->{taxa_cached_log} || 'taxa_cached.log';
 
 # my $process_uid = $config->{process_uid};
 
