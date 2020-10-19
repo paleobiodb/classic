@@ -230,11 +230,15 @@ sub classic_request {
     # request for later debugging.
     
     my $apphandler = config->{apphandler} || '';
+
+    # print STDERR "CGI_DEBUG: $CGI_DEBUG\n";
+    # print STDERR "apphandler: $apphandler\n";
     
     if ( $CGI_DEBUG && $apphandler && $apphandler ne 'Debug' )
     {
 	if ( ! $DEBUG_USER || $DEBUG_USERID{$s->{enterer_no}} )
 	{
+	    print STDERR "Saving request\n";
 	    save_request($q);
 	}
     }
