@@ -1086,7 +1086,7 @@ sub submitAuthorityForm {
         $end_message .= "<li$style>" . makeAnchor("classify", "reference_no=$resultReferenceNumber", "Print this reference's classification") . "</li>";
         $end_message .= "</ul></td></tr></table></div>";
 
-        $output .= processSpecimenMeasurement($dbt,$s,$resultTaxonNumber,$resultReferenceNumber,\%fields);
+        processSpecimenMeasurement($dbt,$s,$resultTaxonNumber,$resultReferenceNumber,\%fields);
 
         $output .= displayTypeTaxonSelectForm($dbt,$s,$fields{'type_taxon'},$resultTaxonNumber,$fields{'taxon_name'},$fields{'taxon_rank'},$resultReferenceNumber,$end_message);
 	}

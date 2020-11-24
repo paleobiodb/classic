@@ -116,10 +116,11 @@ sub generateBasePage {
     my %vars = ( data_url => $DATA_URL,
 		 test_data_url => $TEST_DATA_URL || $DATA_URL,
 		 classic_url => $WRITE_URL,
+		 referer => Dancer::request->referer,
 		 app_resources => $app->{app_path},
 		 common_resources => $app->{common_path} );
     
-    $app->{txt} =~ s/%%(\w+)%%/$app->substitute_value(\%vars, $1)/gse;
+    $app->{txt} =~ s/%%([\w\[\]]+)%%/$app->substitute_value(\%vars, $1)/gse;
     
     return $app->{txt};
 }
@@ -139,6 +140,7 @@ sub substitute_value {
     # Otherwise, call the appropriate method to obtain it.
     
     my $s = $app->{s};
+    my $q = $app->{q};
     
     if ( $key eq 'is_contributor' || $key eq 'is_member' )
     {
@@ -183,6 +185,41 @@ sub substitute_value {
 	}
 	
 	return $vars->{$key};
+    }
+
+    elsif ( $key =~ qr{ ^ param \[ (\w+) \] }xs )
+    {
+	my $value = $q->param($1);
+
+	if ( defined $value )
+	{
+	    return "'$value'";
+	}
+
+	else
+	{
+	    return "undefined";
+	}
+    }
+
+    elsif ( $key eq 'params' )
+    {
+	my $paramstring = '{ ';
+	my $sep = '';
+	
+	if ( ref $q->{params} eq 'HASH' )
+	{
+	    foreach $key ( keys %{$q->{params}} )
+	    {
+		my $value = $q->param($key);
+		$paramstring .= "$sep'$key': '$value'";
+		$sep = ', ';
+	    }
+	}
+
+	$paramstring .= ' }';
+
+	return $paramstring;
     }
     
     # If we generated any errors in this process, report them.

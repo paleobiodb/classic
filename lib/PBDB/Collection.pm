@@ -479,7 +479,6 @@ IS NULL))";
 	if ( $options{'collection_names'} ) {
 		my $OPTION = $options{'collection_names'};
 		# only match entire numbers within names, not parts
-		my $word = $dbh->quote('%'.$OPTION.'%');
 		my $integer = $dbh->quote('.*[^0-9]'.$OPTION.'(([^0-9]+)|($))');
 		# interpret plain integers as either names, collection years,
 		#  or collection_nos
@@ -509,7 +508,15 @@ IS NULL))";
 		# assume that collectors field has names and collection_dates
 		#  doesn't (because non-year values are not interesting)
 		else {
-			push @where, "(c.collection_name LIKE $word OR c.collection_aka LIKE $word OR c.collectors LIKE $word)";
+		    $OPTION =~ s/\\/\\\\/g;
+		    $OPTION =~ s/\[|\]/\\$1/g;
+		    $OPTION =~ s/([.*?{}|])/[$1]/g;
+		    $OPTION =~ s/[‘'’]/[‘'’]/g;
+		    $OPTION =~ s/[“"”]/[“"”]/g;
+		    $OPTION =~ s/%/.*/g;
+		    my $expr = $dbh->quote($OPTION);
+		    push @where, "(c.collection_name RLIKE $expr OR c.collection_aka RLIKE $expr OR c.collectors RLIKE $expr)";
+		    print STDERR "c.collection_name RLIKE $expr\n";
 		}
 	}
 	
