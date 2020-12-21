@@ -12,7 +12,7 @@
 
 FROM paleomacro_classic_preload
 
-EXPOSE 6000 6001
+EXPOSE 6000 6001 6003
 
 WORKDIR /data/MyApp
 
@@ -35,16 +35,18 @@ ENV WING_CONFIG=/data/MyApp/etc/wing.conf
 ENV WING_HOME=/data/Wing
 ENV WING_APP=/data/MyApp
 
-CMD perl placeholder.pl
+CMD ["perl", "bin/start_classic.pl"]
 
-COPY pbdb-classic/patch/error-render.patch /var/tmp/error-render.patch
+COPY classic/patch/error-render.patch /var/tmp/error-render.patch
 RUN patch `perl -MDancer::Error -e 'print $INC{"Dancer/Error.pm"}'` /var/tmp/error-render.patch
 
-COPY pbdb-classic /data/MyApp
-COPY pbdb-wing /data/Wing
-COPY pbdb-wing/bin/wing /usr/local/bin/
-COPY pbdb-new/lib /data/MyApp/lib/PBData
+COPY classic /data/MyApp
+COPY wing /data/Wing
+COPY wing/bin/wing /usr/local/bin/
+COPY pbapi/lib /data/MyApp/lib/PBData
 COPY pbdb-app/ /data/MyApp/resources
+
+RUN mkdir -p /data/MyApp/captcha/temp
 
 LABEL maintainer="mmcclenn@geology.wisc.edu"
 LABEL version="1.0"

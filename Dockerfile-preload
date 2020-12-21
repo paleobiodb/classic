@@ -10,12 +10,19 @@
 
 FROM perl:5.32-threaded AS paleomacro_classic_preload
 
+ENV LANG=en_US.UTF-8
+
 RUN apt-get update && \
     apt-get -y install apt-utils && \
+    apt-get -y install locales && \
+    apt-get -y install tzdata && \
+    echo "$LANG UTF-8" > "/etc/locale.gen" && \
+    locale-gen && \
     apt-get -y install mariadb-client && \
     apt-get -y install beanstalkd && \
-    apt-get install -y vim && \
-    cpanm DBI && \
+    apt-get -y install vim
+    
+RUN cpanm DBI && \
     cpanm DBD::mysql && \
     cpanm Dancer && \
     cpanm Moo && \
@@ -61,14 +68,7 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm Dancer::Logger::Log4perl && \
     cpanm App::Cmd::Setup && \
     cpanm IO::Socket::SSL && \
-    cpanm --force Term::ReadLine::Gnu
-
-RUN apt-get -y install locales && \
-    apt-get -y install tzdata
-
-ARG LANG=en_US.UTF-8
-
-RUN echo "$LANG UTF-8" > "/etc/locale.gen" && \
-    locale-gen
+    cpanm --force Term::ReadLine::Gnu && \
+    cpanm URL::Encode
 
 
