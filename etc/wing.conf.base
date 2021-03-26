@@ -44,6 +44,8 @@
    "smtp" : {
       "host" : "SMTP.HOST.EXAMPLE",
       "port" : 25,
+      "ssl"  : "none",
+      "ssl_options" : { },
       # "sasl_password" : "PASSWORD",
       # "sasl_username" : "USER@EXAMPLE.COM",
       # "ssl" : 1,
