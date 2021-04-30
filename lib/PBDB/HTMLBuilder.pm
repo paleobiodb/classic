@@ -139,6 +139,9 @@ sub new {
         d13C_error_unit=>[\&_listFromEnum,'measurements','error_unit'],
         d18O_error_unit=>[\&_listFromEnum,'measurements','error_unit'],
         specimen_is_type=>[\&_listFromList, 'no','holotype','paratype','some paratypes'],
+	
+	# Page editor
+	pages => [\&_listFromRows, 'pages', 'name'],
     };
    
     # This block 'installs' a code reference in $select_lists to generate the list on the fly when its needed
@@ -499,7 +502,7 @@ sub substituteVars {
     
     my ($self, $txtref, $vars) = @_;
     
-    $$txtref =~ s/%%(\w+)%%/$vars->{$1}/gse;
+    $$txtref =~ s|%%(\w+)%%|($vars->{$1}//'')|gse;
 }
 
 
@@ -593,6 +596,7 @@ sub writeBlock {
         $value = encode_entities($value);
         $html .= qq|<input type="$block->{type}"|;
         $html .= qq| name="|.encode_entities($block->{name}).qq|"| if ($block->{'name'} ne '');
+	$html .= qq| id="|.encode_entities($attribs->{id}).qq|"| if ($attribs->{'id'} ne '');
         $html .= qq| value="$value"|;
         $html .= " ".$checked if $checked;
         $html .= " ".$attribs->{'other'} if ($attribs->{'other'});
@@ -647,6 +651,7 @@ sub writeBlock {
             }
         } 
         $html .= qq|<textarea name="$block->{'name'}"|;
+	$html .= qq| id="$attribs->{id}"| if $attribs->{id};
         $html .= " ".$attribs->{'other'} if ($attribs->{'other'});
         $html .= ">$value</textarea>";
         if ($read_only->{'all'} || $read_only->{$block->{'name'}}) {
@@ -943,6 +948,18 @@ sub _listFromEnum {
     } else {
         die "bad call to listFromEnum";
     }
+}
+
+sub _listFromRows {
+    my ($self, $table, $field) = @_;
+    my $dbh = $self->{dbt}{dbh};
+    
+    my $sql = "SELECT $field FROM `$table`";
+    my $col_ref = $dbh->selectcol_arrayref($sql);
+
+    $col_ref //= [ ];
+
+    return $col_ref;
 }
 
 # JA 29.2.04
