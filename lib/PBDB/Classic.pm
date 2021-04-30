@@ -52,6 +52,8 @@ use PBDB::Strata;
 use PBDB::DownloadTaxonomy;
 use PBDB::Download;
 use PBDB::WebApp;
+use PBDB::Publish;
+use PBDB::Archive;
 
 # god awful Poling modules
 use PBDB::Taxon;  # slated for removal
@@ -377,7 +379,12 @@ sub classic_request {
         # $vars->{options} = ;
     }
     
-    my $output = template 'header_include', $vars;
+    my $output;
+    
+    unless ( $action =~ /^nh[A-Z]/ )
+    {
+	$output = template 'header_include', $vars;
+    }
     
     my $print_output;
     my $return_output;
@@ -385,7 +392,7 @@ sub classic_request {
     no warnings 'once';
     
     eval {
-	$DB::single = 1;
+	# $DB::single = 1;
 	$return_output = &$action_sub($q, $s, $dbt, $hbo);
     };
     
@@ -408,18 +415,26 @@ sub classic_request {
     {
 	ouch 500, "No output was generated.", { path => request->path };
     }
-    
-    $output .= $return_output;
-    
-    $vars = {};
-    if ($user) {
-        $vars->{current_user} = $user;
-        $vars->{options} = MyApp::DB::Result::Classic->field_options;
+
+    if ( $action =~ /^nh[A-Z]/ )
+    {
+	return $return_output;
     }
-    
-    $output .= template 'footer_include', $vars;
-    
-    return $output;
+
+    else
+    {
+	$output .= $return_output;
+	
+	$vars = {};
+	if ($user) {
+	    $vars->{current_user} = $user;
+	    $vars->{options} = MyApp::DB::Result::Classic->field_options;
+	}
+	
+	$output .= template 'footer_include', $vars;
+	
+	return $output;
+    }
 };
 
 
@@ -655,11 +670,17 @@ sub webapp {
 	return;
     }
     
+    if ( $app->{unreadable} )
+    {
+	ouch 403, 'Page Not Readable', { path => request->path };
+	return;
+    }
+    
     if ( $app->requires_member && ! $s->isDBMember() )
     {
 	redirect "/login?app=$app_name&reason=login", 303;
     }
-
+    
     if ( $app->requires_login && ! $s->isLoggedIn() )
     {
 	$app_name .= "/$file_name" if $file_name;
@@ -6006,6 +6027,39 @@ sub listTaxa {
     return $output;
 }
 
+
+sub displayPageEditor {
+
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Publish::displayPageEditor($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
+}
+
+
+sub nhPublishPage {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    # my $output = $hbo->stdIncludes($PAGE_TOP);
+    return PBDB::Publish::publishPage($q, $s, $dbt, $hbo);
+    # $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+}
+
+
+sub publishPage {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Publish::publishPage($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+
+    return $output;
+}
 
 
 package PBDB::Request;

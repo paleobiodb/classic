@@ -9,13 +9,16 @@ use strict;
 
 use URL::Encode qw(url_decode);
 
+our ($PUBDEBUG) = 0;
+
 
 sub displayPageEditor {
     
     my ($q, $s, $dbt, $hbo) = @_;
-
+    
     my $dbh = $dbt->{dbh};
     my $page_name = $q->param('page_name');
+    my $message = $q->param('message');    
     my $sql;
     
     my $name_quoted = $dbh->quote($page_name);
@@ -27,7 +30,17 @@ sub displayPageEditor {
     
     my $vars = { page_name => $page_name,
 		 page_source => $page_source,
-		 page_templates => $page_templates };
+		 page_templates => $page_templates,
+	         message_color => 'black' };
+
+    if ( $message )
+    {
+	$vars->{response_message} = $message;
+	unless ( $message =~ /was published/i )
+	{
+	    $vars->{message_color} = 'red';
+	}
+    }
     
     my $output = $hbo->populateHTML('page_editor', $vars);
     
@@ -37,7 +50,7 @@ sub displayPageEditor {
 
 sub publishPage {
     
-    my ($q, $s, $dbt) = @_;
+    my ($q, $s, $dbt, $hbo) = @_;
     
     my $dbh = $dbt->{dbh};
     
@@ -73,7 +86,8 @@ sub publishPage {
 	$dbh->do($sql);
     }
     
-    my ($content_ref, $template_ref, $generated_content);
+    my ($content_ref, $template_ref, $generated_content, $error_message);
+    my $file_name = $test_output ? 'test.html' : "$page_name.html";
     
     eval {
 	$content_ref = parseSource($page_source);
@@ -83,24 +97,48 @@ sub publishPage {
     
     if ( $@ )
     {
-	Dancer::status(500); return "Error: $@\n";
+	$error_message = "An error occurred during page generation: $@\n";
     }
     
-    my $file_name = $test_output ? 'test.html' : "$page_name.html";
-    
-    if ( open( my $outfh, '>', "/data/MyApp/pbdb-main/build/pages/$file_name" ) )
+    elsif ( open( my $outfh, '>', "/data/MyApp/pbdb-main/build/pages/$file_name" ) )
     {
 	binmode $outfh, ':utf8';
 	print $outfh $generated_content;
 	
-	if ( close $outfh )
+	unless ( close $outfh )
 	{
-	    return "The page '$page_name' was published to '$file_name'";
+	    $error_message = "An error occured while writing $file_name: $@";
 	}
     }
-	
-    Dancer::status(500);
-    return "Error publishing '$page_name' to '$file_name': $!";
+    
+    else
+    {
+	$error_message = "An error occurred while opening $file_name for writing: $@";
+    }
+    
+    # my $vars = { page_name => $page_name,
+    # 		 page_source => $page_source,
+    # 		 page_templates => $page_templates };
+
+    # if ( $error_message )
+    # {
+    # 	$vars->{result_message} = $error_message;
+    # 	$vars->{message_color} = 'red';
+    # }
+
+    # else
+    # {
+    # 	$vars->{result_message} =  
+    # 	$vars->{message_color} = 'black';
+    # }
+    
+    my $message = $error_message || "The page '$page_name' was published to '$file_name'";
+    
+    Dancer::redirect("/classic/displayPageEditor?page_name=$page_name&message=$message", 303);
+    
+    # my $output = $hbo->populateHTML('page_editor', $vars);
+    # $output .= "<script language='JavaScript'>window.open("/#/page_name", '_blank')</script>";
+    # return $output;
 }
 
 
@@ -108,7 +146,7 @@ sub parseSource {
     
     my ($source) = @_;
     
-    my $content_ref = { sections => [ ] };
+    my $content_ref = { sections => [ ], current_timestamp => scalar(localtime) };
     my $state = 'INIT';
     my $line_no = 0;
     my @errors;
@@ -137,20 +175,24 @@ sub parseSource {
 	    }
 	}
 	
-	if ( $state eq 'INIT' && $line =~ qr{ ^ \s* =head\d (?: \s+ (.*) )? }xsi )
+	if ( $state eq 'INIT' && $line =~ qr{ ^ \s* head\d \{ (.*) (?<! \\) \} }xsi )
 	{
 	    my $heading = $1 || 'Frequently Asked Questions';
+	    $heading =~ s/^\s+//;
+	    $heading =~ s/\s+$//;
 	    addIntro($content_ref, $heading);
 	    $state = 'INTRO_WS';
 	    next LINE;
 	}
 	
-	elsif ( $line =~ qr{ ^ \s* =head\d? \s+ (.*) }xsi )
+	elsif ( $line =~ qr{ ^ \s* head\d \{ (.*) (?<! \\) \} }xsi )
 	{
 	    my $heading = $1;
+	    $heading =~ s/^\s+//;
+	    $heading =~ s/\s+$//;
 	    my $anchor;
-
-	    if ( $heading =~ qr{ ^ (.*?) \s+ \[ (.*) \] $ }xs )
+	    
+	    if ( $heading =~ qr{ ^ (.*) \s+ \[ (.*) \] $ }xs )
 	    {
 		$heading = $1;
 		$anchor = $2;
@@ -161,9 +203,9 @@ sub parseSource {
 	    next LINE;
 	}
 	
-	elsif ( $line =~ qr{ ^ \s* (=\w+) }xs )
+	elsif ( $line =~ qr{ ^ \s* (\w+) \s* \{ }xs )
 	{
-	    addError($content_ref, $line_no, "unknown command &quot;$1&quot;");
+	    addError($content_ref, $line_no, "syntax error at &quot;$1&quot;");
 	    next LINE;
 	}
 	
@@ -262,14 +304,18 @@ sub processBody {
     my ($body_html) = @_;
     
     $body_html =~ s/\n+$/\n/xs;
-    $body_html =~ s/\n\n/<\/p><p>/gx;
-    $body_html = "<p>$body_html</p>\n";
+
+    if ( $body_html !~ qr{ ^ \s* <div } )
+    {
+	$body_html =~ s/\n\n/<\/p><p>/gx;
+	$body_html = "<p>$body_html</p>\n";
+    }
     
-    $body_html =~ s{ MAILTO[(] (.*) (?<! \\) [;] \s* (.*) (?<! \\) [)] }{<a href="mailto:$2 ($1)">$2</a>}xg;
-    $body_html =~ s{ MAILTO[(] (.*) (?<! \\) [)] }{<a href="mailto:$1">$1</a>}xg;
+    $body_html =~ s{ mailto[{] (.*?) (?<! \\) [;] \s* (.*?) (?<! \\) [}] }{<a href="mailto:$1 ($2)">$1</a>}xg;
+    $body_html =~ s{ mailto[{] (.*?) (?<! \\) [}] }{<a href="mailto:$1">$1</a>}xg;
     
-    $body_html =~ s{ LINK[(] (.*) (?<! \\) [;] \s* (.*) (?<! \\) [)] }{<a href="$2">$1</a>}xg;
-    $body_html =~ s{ LINK[(] (.*) (?<! \\) [)] }{<a href="$1">$1</a>}xg;
+    $body_html =~ s{ link[{] (.*?) (?<! \\) [;] \s* (.*?) (?<! \\) [}] }{<a href="$1">$2</a>}xg;
+    $body_html =~ s{ LINK[{] (.*?) (?<! \\) [}] }{<a href="$1">$1</a>}xg;
     
     # $body_html =~ s/ MAILTO: ( \w+ [@] [\w.]+[.][\w]+ ) /<a href="mailto:$1">$1<\/a>/xg;
     # $body_html =~ s/ LINK: ( https?:\/\/ \S* (?: \w | \/ ) ) /<a href="$1">$1<\/a>/xg;
@@ -310,10 +356,14 @@ sub parseTemplates {
 	    next LINE;
 	}
 	
-	elsif ( $line =~ qr{ ^ \s* % \s* (\w+|.) }xs )
+	elsif ( $line =~ qr{ ^ \s* % \s* (\w+|.)? }xs )
 	{
-	    addError($template_ref, $line_no, "syntax error at &quot;$1&quot;");
-	    $state = 'ERROR';
+	    if ( defined $1 && $1 ne '' )
+	    {
+		addError($template_ref, $line_no, "syntax error at &quot;$1&quot;");
+		$state = 'ERROR';
+	    }
+	    
 	    next LINE;
 	}
 	
@@ -409,6 +459,8 @@ sub evaluateTemplate {
     my ($content_ref, $template_ref, $calling_line_no, $calling_expr) = @_;
     
     my ($tname, $trec, $subkey, $argstring, %arg, %vars);
+    
+    print STDERR "Template: $calling_expr\n" if $PUBDEBUG >= 1;
     
     if ( $calling_expr =~ qr{ ^ \s* (\w+) (?: [.] (\w+) )? (?: \s* , \s* (.*) )? \s* $ }xs )
     {
@@ -551,9 +603,12 @@ sub evaluateTemplate {
 	
 	foreach my $entry ( @content_list )
 	{
-	    unshift @CONTEXT, $entry;
-	    $output .= substituteTemplate($content_ref, $template_ref, $calling_line_no, $tname);
-	    shift @CONTEXT;
+	    if ( defined $entry )
+	    {
+		unshift @CONTEXT, $entry;
+		$output .= substituteTemplate($content_ref, $template_ref, $calling_line_no, $tname);
+		shift @CONTEXT;
+	    }
 	}
 	
 	if ( $local_context )
@@ -590,8 +645,6 @@ sub substituteTemplate {
 	    my $end = $+[0];
 	    my $expr = $1;
 	    
-	    print STDERR "Template: $expr\n";
-	    
 	    substr($line, $beginning, $end-$beginning) =
 		evaluateTemplate($content_ref, $template_ref, $line_no, $expr);
 	}
@@ -602,7 +655,7 @@ sub substituteTemplate {
 	    my $end = $+[0];
 	    my $expr = $1;
 	    
-	    print STDERR "Variable: $expr\n";
+	    print STDERR "Variable: $expr\n" if $PUBDEBUG >= 2;
 	    
 	    my $default = '';
 	    

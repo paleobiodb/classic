@@ -1,0 +1,7 @@
+[% IF code == 401 %]
+    <h1>Please Log In</h1>
+[% ELSIF code == 500 %]
+    <h1>Server Error</h1>
+[% ELSE %]
+    <h1>[% code %] [% title %]</h1>
+[% END %]
