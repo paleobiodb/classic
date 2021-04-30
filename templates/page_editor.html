@@ -1,0 +1,44 @@
+
+<script src="/public/classic_js/page_editor.js" language="JavaScript" type="text/javascript"></script>
+
+<div style="margin-left: 50px">
+  
+  <h3 align="center" style="margin-bottom: 20px">Paleobiodb Page Editor</h3>
+
+  <h3 align="center" style="text-color: %%message_color%%"">%%result_message%%</h3>
+  
+  <form name='page_edit' action="/classic/publishPage" method="post">
+    <input type=hidden name='page_updated', id='page_updated'/>
+    <input type=hidden name='page_published', id='page_published'/>
+  
+  <div id='main_elements'>
+    <p>Page to edit:
+    <select name='page_name' id='page_name' autofill='pages' onchange='selectPage()'>
+    </select> &nbsp;
+    <input type='checkbox' name='show_templates' id='show_templates' onchange='showHideTemplates()'> Show templates
+    </p>
+    
+    <p>Page content:<br/>
+    <textarea name="page_source" id="page_source" rows="15" cols="100">
+    %%page_source%%
+    </textarea>
+    </p>
+  </div>
+  
+  <div id='edit_templates' style='display: none'>
+    <p>Page generation templates:<br/>
+
+    <textarea name="page_templates" id="page_templates" rows="15" cols="100">
+    %%page_templates%%
+    </textarea>
+    </p>
+  </div>
+  
+  <div id='edit_controls' style='margin-top: 30px;'>
+    <p><button type='submit' name='publish' style='background-color: lightgreen;'>Publish</button>
+    <button type='submit' name='save'>Save without publishing</button>
+  </div>
+      
+  </form>
+
+</div>
