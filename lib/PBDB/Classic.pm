@@ -6019,6 +6019,27 @@ sub listTaxa {
 }
 
 
+sub showArchive {
+
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Archive::showArchive($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
+}
+
+
+sub requestDOI {
+
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $output = PBDB::Archive::requestDOI($q, $s, $dbt, $hbo);
+    
+    return $output;
+}
+
 
 package PBDB::Request;
 

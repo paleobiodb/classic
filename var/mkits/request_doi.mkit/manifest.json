@@ -1,0 +1,14 @@
+{
+    "renderer" : ["TT", { "strict" : 0 }],
+    "header" : [
+        { "To" : "Paleobiodb Admin <admin@paleobiodb.org>" },
+        { "From" : "paleobiodb archive system <no-reply@[% sitename %]>" },
+        { "Subject" : "DOI request - [% archive_id %]" }
+    ],
+    "alternatives" : [
+        { 
+            "type" : "text/plain",
+            "path" : "body.txt"
+        }
+    ]
+}

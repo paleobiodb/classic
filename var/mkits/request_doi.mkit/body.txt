@@ -1,0 +1,12 @@
+Paleobiology Database DOI Request
+======================
+[% dev_msg %]
+Authors:            [% authors %]
+Title:              [% title %]
+Publisher:          Paleobiology Database
+Publication Year:   [% pubyr %]
+Resource Type:      Dataset
+
+URL:                https://paleobiodb.org/classic/showArchive?id=[% archive_id %]
+Paleobiodb ID:      [% archive_id %]
+DOI:                Pending

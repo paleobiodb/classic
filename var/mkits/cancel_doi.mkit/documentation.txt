@@ -1,0 +1,15 @@
+This mkit is used to send e-mail requesting a DOI for a data archive.
+
+PARAMS
+
+doi_request_email = The address to which these requests are directed
+
+archive_id = The PBDB record identifier for this data archive
+
+title = The title of the data archive
+
+authors = The author(s) of the data archive
+
+pubyr = The year in which the data was fetched from the Paleobiology Database
+
+

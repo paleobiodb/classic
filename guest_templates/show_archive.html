@@ -1,0 +1,88 @@
+
+<div style="margin-left: 50px">
+  
+  <h3 id='dar_header'>Data Archive %%header_label%%</h3>
+  
+  <form name='dar_view' onsubmit="return false">
+  <input type="hidden" id="dar_id", name="archive_id" value="">
+  
+  <table cellpadding='5' width='90%'>
+    
+    <tr><td><b>Title:</b></td>
+    <td id='dar_title'>%%title%%</td></tr>
+    
+    <tr><td><b>Description:</b></td>
+    <td id='dar_description'>%%description%%</td></tr>
+    
+    <tr><td><b>Author(s):</b></td>
+    <td id='dar_authors'>%%authors%%</td></tr>
+    
+    <tr><td><b>DOI:</b></td>
+    <td id='dar_doi'>%%doi%%</td>
+    
+    <tr><td><b>Data URI:</b></td>
+    <td id='dar_uri'>%%uri%%</td></tr>
+    
+    <tr><td><b>Viewable:</b></td>
+    <td id='dar_public'>%%viewable%%</td></tr>
+    
+    <tr><td><b>Data archived:</b></td>
+    <td id='dar_fetched'>%%date_fetched%%</td></tr>
+    
+    <tr><td><b>Metadata created:</b></td>
+    <td id='dar_created'>%%date_created%%</td></tr>
+    
+    <tr><td><b>Metadata modified:</b></td>
+    <td id='dar_modified'>%%date_modified%%</td>
+    
+    <tr><td><b>Record created by:</b></td>
+    <td id='dar_authent'>%%authent%%</td></tr>
+    
+  </table>
+
+  <p>&nbsp;</p>
+    
+  <div id='dar_controls'>
+    <p><button type='button' id='btn_download' onclick='doDownload()'
+        style='background-color: lightblue;'>Download archived data</button>
+    <span style="margin-left: 100px">
+    <button type='button' id='btn_generate' onclick='doGenerate()'>Download current equivalent dataset
+    </button></span></p>
+    
+    <p id='dar_edit' style='display: none; margin-top: 40px'>
+    <button type='button' id='btn_edit' onclick='doEdit()'>Edit this record</button></p>
+  </div>
+    
+  </form>
+
+</div>
+
+<script language="JavaScript">
+if ( '%%editable%%' )
+{
+    var elt = document.getElementById('dar_edit');
+    if ( elt ) elt.style.display = 'block';
+}
+
+function doDownload ( )
+{
+    var numeric_id = '%%archive_no%%';
+    if ( numeric_id && /^\d+$/.test(numeric_id) && numeric_id > 0 )
+	window.open('/archives/retrieve/' + numeric_id);
+}
+
+function doGenerate ( )
+{
+    var uri = '%%uri%%';
+    if ( uri && /\w/.test(uri) )
+	window.open(uri);
+}
+
+function doEdit ( )
+{
+    var archive_id = '%%archive_id%%';
+    if ( archive_id && /^(dar:)?\d+$/.test(archive_id) )
+	window.open('/app/archive/edit?id=%%archive_id%%', '_self');
+}
+</script>
+

@@ -1,0 +1,7 @@
+Cancel DOI Request
+=============
+[% dev_msg %]
+URL:                https://paleobiodb.org/classic/show_archive?id=[% archive_id %]
+Paleobiodb ID:      [% archive_id %]
+DOI:                Canceled
+

@@ -3825,38 +3825,95 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	}
 	
 	// Use jQuery to initiate the archive creation process.
+
+	var archive_title = getElementValue('arc_title');
+	var archive_authors = getElementValue('arc_authors');
+	var archive_desc = getElementValue('arc_desc');
+
+	if ( ! archive_title ) return;
+	
+	var archive_url = url + '&archive_title=' + encodeURIComponent(archive_title);
+	
+	if ( archive_authors )
+	    archive_url += '&archive_authors=' + encodeURIComponent(archive_authors);
+
+	if ( archive_desc )
+	    archive_url += '&archive_desc=' + encodeURIComponent(archive_desc);
 	
 	// $.getJSON(...)
 	
-	var archive_params = JSON.stringify({
-	    uri_path: download_path,
-	    uri_args: download_params,
-	    title: getElementValue('arc_title'),
-	    authors: getElementValue('arc_authors'),
-	    description: getElementValue('arc_desc') });
+	// var archive_params = JSON.stringify({
+	//     uri_path: download_path,
+	//     uri_args: download_params,
+	//     title: getElementValue('arc_title'),
+	//     authors: getElementValue('arc_authors'),
+	//     description: getElementValue('arc_desc') });
+
+	function onArchiveError(xhr, textStatus, error)
+	{
+	    var label = xhr.status || error;
+	    
+	    if ( xhr.status == '400' )
+	    {
+		if ( /E_IMMUTABLE/.test(xhr.responseText) )
+		{
+		    window.alert('You already have an immutable archive with this title.');
+		}
+		
+		else if ( /E_EXISTING/.test(xhr.responseText) )
+		{
+		    var proceed = window.confirm('You have an existing archive with that title. ' +
+						 'Replace its contents?');
+		    
+		    if ( proceed )
+		    {
+			var replace_url = archive_url + '&archive_replace=yes';
+			
+			requestArchive( replace_url, onArchiveError);
+		    }
+		}
+		
+		else
+		{
+		    window.alert('Request failed due to a parameter error.');
+		    console.log("Error '" + label + "' creating archive:\n" + xhr.responseText);
+		}
+	    }
+	    
+	    else
+	    {
+		window.alert('Request failed due to a server error.');
+		console.log("Error '" + label + "' creating archive:\n" + xhr.responseText);
+            }
+        }
 	
-	$.ajax({ url: '/archives/create',
-                 type: 'POST',
-                 data: archive_params,
-                 contentType: 'application/json; charset=utf-8',                                          
-                 dataType: 'json',
-                 async: false,
-                 success: function(data) {
-		           window.open("/classic/app/archive/list", "archive manager");
-                 },
-                 error: function (xhr, textStatus, error) {
-                   if (error == 'FORBIDDEN') {
-                       console.log('Error creating archive: Missing ORCID');
-                       alert('ORCID required, please set one in "Account settings"');
-                   } else {
-                       console.log('Error creating archive: ' + textStatus + ' - ' + error);
-                       alert('An error occurred while trying to create the archive: ' + error);
-                   }
-                 }
-	       });
-	
+	requestArchive( archive_url, onArchiveError );
     }
     
     this.archiveMainURL = archiveMainURL;
+    
+    
+    function requestArchive ( request_url, error_function )
+    {
+	$.ajax({ url: request_url,
+                 type: 'GET',
+                 async: false,
+                 success: function(data) {
+		     var match = /^Created.*dar:(\d+)/.exec(data);
+		     
+		     if ( match && match[1] )
+		     {
+			 window.open("/classic/app/archive/edit?id=" + match[1], "_self");
+		     }
+
+		     else
+		     {
+			 window.alert("Bad response from server");
+		     }
+                 },
+                 error: error_function
+	       });
+    }
+    
 }
 
