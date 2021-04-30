@@ -5,6 +5,7 @@ use Digest::MD5;
 use URI::Escape;
 # use CGI::Cookie;
 use PBDB::Constants qw(makeAnchor);
+use Dancer qw(error);
 
 # new ( dbt, session_id, authorizer_no, enterer_no, role, is_admin )
 # 
@@ -208,6 +209,36 @@ sub anonymous_session {
 	      enterer_no => 0 };
     
     return bless $s;
+}
+
+
+# Return the user information for the current session. If something goes wrong, print an error
+# message and return an empty hash.
+
+sub user_info {
+    
+    my ($s) = @_;
+
+    my $user_info = { };
+    
+    eval {
+	my $dbh = $s->{dbt}->dbh;
+	my $quoted_id = $dbh->quote($s->{session_id});
+	my $sql = "
+		SELECT u.real_name, u.first_name, u.last_name, u.middle_name, u.username,
+			u.email, u.institution, u.orcid
+		FROM session_data as s left join pbdb_wing.users as u on u.id = s.user_id
+		WHERE session_id = $quoted_id";
+	
+	($user_info) = $dbh->selectrow_hashref( $sql, { Slice => { } } );
+    };
+    
+    if ( $@ )
+    {
+	print STDERR "Error querying user info: $@\n";
+    }
+    
+    return $user_info;
 }
 
 

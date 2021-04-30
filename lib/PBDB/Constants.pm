@@ -13,11 +13,13 @@ our @EXPORT_OK = qw($WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL $
 		    $ALLOW_LOGIN $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ADMIN_EMAIL
 		    makeURL makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeFormPostTag);
 
-our($WRITE_URL, $APP_DIR);
+our($WRITE_URL) = '/classic';
+our($APP_DIR) = '/data/MyApp';
 
-BEGIN {
-    $PBDB::Constants::APP_DIR = '/data/MyApp';
-}
+# BEGIN {
+#     $PBDB::Constants::Cl
+#     $PBDB::Constants::APP_DIR = '/data/MyApp';
+# }
 
 # general constants
 $PBDB::Constants::conf = read_conf();
@@ -29,7 +31,7 @@ $PBDB::Constants::TEST_DATA_URL   = $conf->{'TEST_DATA_URL'};
 $PBDB::Constants::HTML_DIR        = $conf->{'HTML_DIR'};
 $PBDB::Constants::DATA_DIR        = $conf->{'DATA_DIR'};
 $PBDB::Constants::WEBAPP_DIR	  = $conf->{'WEBAPP_DIR'} || "$APP_DIR/resources";
-$PBDB::Constants::WEBAPP_PATH	  = $conf->{'WEBAPP_PATH'} || "$WRITE_URL/resources";
+$PBDB::Constants::WEBAPP_PATH	  = $conf->{'WEBAPP_PATH'} || "/resources";
 $PBDB::Constants::DB_SOCKET       = $conf->{'DB_SOCKET'};
 $PBDB::Constants::DB_CONNECTION	  = $conf->{'DB_CONNECTION'};
 $PBDB::Constants::DB_PASSWD       = $conf->{'DB_PASSWD'};

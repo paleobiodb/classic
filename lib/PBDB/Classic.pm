@@ -102,6 +102,18 @@ get '/classic/app/:webapp_name/:file_name' => sub {
 };
 
 
+get '/app/:webapp_name' => sub {
+    
+    return classic_request('webapp');
+};
+
+
+get '/app/:webapp_name/:file_name' => sub {
+    
+    return classic_request('webapp');
+};
+
+
 get '/classic/:path_action' => sub {
     
     return classic_request(params->{path_action});
