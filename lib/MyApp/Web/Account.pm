@@ -283,7 +283,7 @@ sub login {
     
     my $expire_days = $persistent && $persistent eq 'on' ? 30 : 1;
     
-    print STDERR "Logging in with expire_days = $expire_days\n";
+    # print STDERR "Logging in with expire_days = $expire_days\n";
     
     my $session = $user->start_session({ api_key_id => Wing->config->get('default_api_key'), ip_address => request->remote_address, expire_days =>  $expire_days });
     set_cookie session_id   => $session->id,
@@ -291,12 +291,17 @@ sub login {
                 http_only   => 0,
                 path        => '/';
     
-    if (params->{app})
+    if ( params->{redirect_after} )
     {
-	return redirect "/classic/app/" . params->{app};
+	return redirect params->{redirect_after};
     }
     
-    elsif (params->{action})
+    elsif ( params->{app} )
+    {
+	return redirect "/app/" . params->{app};
+    }
+    
+    elsif ( params->{action} )
     {
 	return redirect "/classic/" . params->{action};
     }
@@ -306,10 +311,10 @@ sub login {
 	return redirect "/classic/";
     }
     
-    my $cookie = cookies->{redirect_after};
-    my $uri = $cookie->value if defined $cookie;
-    $uri ||= params->{redirect_after} || '/classic';
-    return redirect $uri;
+    # my $cookie = cookies->{redirect_after};
+    # my $uri = $cookie->value if defined $cookie;
+    # $uri ||= params->{redirect_after} || '/classic';
+    # return redirect $uri;
 }
 
 
