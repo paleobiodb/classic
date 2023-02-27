@@ -471,26 +471,29 @@ around update => sub {
 	$dbh->do($sql);
     }
 
-    # Now we need to look for permission-setting parameters.
-
-    my $params = Dancer::request->params;
-
-    foreach my $k ( keys %$params )
+    # If we were called from a webserver process, look for permission-setting parameters.
+    
+    if ( $INC{'Dancer/Request.pm'} )
     {
-	if ( $k =~ /^permission[[](.*)[]]$/ )
+	my $params = Dancer::request->params;
+	
+	foreach my $k ( keys %$params )
 	{
-	    next unless $params->{$k};
-	    my $table = $1;
-	    my $perm = $params->{$k} eq 'default' ? '' : $params->{$k};
-	    # ouch(400, "Error: Permission test");
-	    my $quoted_table = $dbh->quote($table);
-	    my $quoted_perm = $dbh->quote($params->{$k});
-	    my $sql = "
+	    if ( $k =~ /^permission[[](.*)[]]$/ )
+	    {
+		next unless $params->{$k};
+		my $table = $1;
+		my $perm = $params->{$k} eq 'default' ? '' : $params->{$k};
+		# ouch(400, "Error: Permission test");
+		my $quoted_table = $dbh->quote($table);
+		my $quoted_perm = $dbh->quote($params->{$k});
+		my $sql = "
 		INSERT INTO `pbdb`.`table_permissions` (person_no, table_name, permission)
 		VALUES ($person_no, $quoted_table, $quoted_perm)
 		ON DUPLICATE KEY UPDATE permission=$quoted_perm";
-	    
-	    $dbh->do($sql);
+		
+		$dbh->do($sql);
+	    }
 	}
     }
 };
