@@ -557,28 +557,6 @@ from the download URL until the section is opened again.</p>
       If you do this, you must specify the country.</p>
       </td></tr>
     
-    <tr class="vis_advanced"><td>
-      <div style="margin-top: 10px">
-	Plate: &nbsp;
-	<select id="pm_plate_ex" onChange="dgapp.checkCC()">
-	  <option value="include">select</option>
-	  <option value="exclude">exclude</option>
-        </select></span> &nbsp;
-	<input id="pm_plate" size="40" onChange="dgapp.checkCC()">
-	<select id="pm_pgmodel" onChange="dgapp.checkCC()">
-	  <option selected="1" value="G">GPlates</option>
-	  <option value="S">Scotese</option></select>
-      </div>
-      <ul id="pe_plate" class="dlErrmsg"></ul>
-    </td></tr>
-    
-    <tr class="vis_advanced vis_help_f3"><td>
-      <p class="dlHelp">You can specify one or more plate numbers, from either the GPlates or the Scotese model.  To find out these
-      numbers, you can search for either occurrences or geological strata using whatever criteria
-      are appropriate and include one of the following output blocks: <b>gplate</b>,
-      <b>splate</b>, or <b>paleoloc</b>.</p>
-    </td></tr>
-    
     <tr><td>
       <div style="margin-top: 10px">
       Longitude: min <input id="pm_lngmin" size="15" onChange="dgapp.checkCoords()"> 
@@ -587,6 +565,42 @@ from the download URL until the section is opened again.</p>
 	max <input id="pm_latmax" size="15" onChange="dgapp.checkCoords()">
 	<ul id="pe_coords" class="dlErrmsg"></ul>
       </div>
+    </td></tr>
+    
+    <tr class="vis_advanced"><td>
+      <div style="margin-top: 10px">
+	Paleogeography model: &nbsp;
+	<select id="pm_pg_model" onChange="dgapp.checkPGM()"></select>
+	<select id="pm_pg_select" onChange="dgapp.checkPGM()">
+	  <option value="early">early</option>
+	  <option selected="1" value="mid">mid</option>
+	  <option value="late">late</option>
+	  <option value="early,mid,late">all</option>
+        </select>
+	Plate(s): <input id="pm_plate" size="40" onChange="dgapp.checkPGM()">
+	<br> &nbsp; &nbsp; Comparison model: <select id="pm_pg_compare" onChange="dgapp.checkPGM()"></select>
+	<!--   <select id="pm_pg_selcomp" onChange="dgapp.checkPGM()"> -->
+	<!--     <option value="">--</option> -->
+	<!--     <option value="early">early</option> -->
+	<!--     <option value="mid">mid</option> -->
+	<!--     <option value="late">late</option> -->
+	<!--     <option value="all">all</option> -->
+	<!-- </select> -->
+      </div>
+      <ul id="pe_plate" class="dlErrmsg"></ul>
+    </td></tr>
+    
+    <tr class="vis_advanced vis_help_f3"><td>
+      <p class="dlHelp">You can select any of the available paleogeography models, and can choose
+	to show paleocoordinates computed at the beginning, middle, or end of each collection's
+	age range. These choices will be used if you select the <b>paleolocation</b> block under
+	<b>Choose output options</b> or if you specify one or more plate numbers here. You can
+        choose to compare multiple models and age selectors using the second set of menus.
+	The text field above allows you to enter one or more
+	plate numbers from your selected model. This will restrict the result to collections
+	and occurrences that lie on one or more of these plates, according that
+	model. The available models are:<br>
+	<dl id="doc_pgm"></dl></p>
     </td></tr>
     
     <tr class="vis_help_f3"><td>

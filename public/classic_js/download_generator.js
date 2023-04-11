@@ -53,6 +53,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
     var output_full = { };
     var full_checked = { };
     
+    var paleoloc_all = 0;
+    var paleoloc_selected = 0;
+    
     var confirm_download = 0;
     var taxon_status_save = '';
 
@@ -111,7 +114,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	{
 	    if ( getElementValue(s) == "1" )
 		showHideSection(sections[s], 'show');
-	}
+}
 	
 	// Make sure we have a proper URL to use for data service requests.
 	
@@ -179,6 +182,9 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    api_data.aux_continents = [ ];
 	    api_data.lithologies = [ ];
 	    api_data.lith_types = [ ];
+	    api_data.pg_models = [ ];
+	    api_data.pg_menu = [ ];
+	    api_data.pg_desc = [ ];
 	    
 	    var lith_uniq = { };
 	    
@@ -189,16 +195,19 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		if ( record.cfg == "trn" ) {
 		    api_data.rank_string[record.cod] = record.rnk;
 		}
+		
 		else if ( record.cfg == "con" ) {
 		    api_data.continent_name[record.cod] = record.nam;
 		    api_data.continents.push(record.cod, record.nam);
 		}
+		
 		else if ( record.cfg == "cou" ) {
 		    var key = record.nam.toLowerCase();
 		    api_data.country_code[key] = record.cod;
 		    api_data.country_name[record.cod] = record.nam;
 		    api_data.country_names.push(record.nam);
 		}
+		
 		else if ( record.cfg == "lth" ) {
 		    api_data.lithologies.push( record.lth, record.lth );
 		    if ( ! lith_uniq[record.ltp] )
@@ -206,6 +215,12 @@ function DownloadGeneratorApp( data_url, is_contributor )
 			api_data.lith_types.push( record.ltp, record.ltp );
 			lith_uniq[record.ltp] = 1;
 		    }
+		}
+		
+		else if ( record.cfg == "pgm" ) {
+		    api_data.pg_desc.push(record.cod, record.dsc);
+		    api_data.pg_models.push(record.cod);
+		    api_data.pg_menu.push(record.cod, record.lbl);
 		}
 	    }
 	    
@@ -425,42 +440,43 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	// "*full", "full", "Includes all boldface blocks (no need to check them separately)",
 	
 	content += makeBlockControl( "od_occs",
-				     ["*attribution", "attr", "Attribution (author and year) of the accepted name",
-				      "*classification", "class", "Taxonomic classification of the occurrence",
-				      "classification ext.", "classext", "Taxonomic classification including taxon ids",
-				      "genus", "genus", "Use instead of the above if you just want the genus",
-				      "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
-				      "accepted only", "acconly", "Suppress the exact identification of the occurrence, show only accepted name",
-				      "ident components", "ident", "Individual components of the identification, rarely needed",
-				      "phylopic id", "img", "Identifier of a <a href=\"http://phylopic.org/\" target=\"_blank\">phylopic</a>" +
-								"representing this taxon or the closest containing taxon",
-				      "*plant organs", "plant", "Plant organ(s) identified as part of this occurrence, if any",
-				      "*abundance", "abund", "Abundance of this occurrence in the collection",
-				      "*ecospace", "ecospace", "The ecological space occupied by this organism",
-				      "*taphonomy", "taphonomy", "Taphonomy of this organism",
-				      "eco/taph basis", "etbasis", "Annotation for ecospace and taphonomy as to taxonomic level",
-				      "*preservation", "pres", "Is this occurrence identified as a form taxon, ichnotaxon or regular taxon",
-				      "*collection", "coll", "The name and description of the collection in which this occurrence was found",
-				      "*coordinates", "coords", "Latitude and longitude of this occurrence",
-				      "*location", "loc", "Additional info about the geographic locality",
-				      "*paleolocation", "paleoloc", "Paleogeographic locality of this occurrence",
-				      "*protection", "prot", "Indicates whether this occurrence is on protected land, i.e. a national park",
-				      "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
-				      "*stratigraphy ext.", "stratext", "Extended (detailed) stratigraphy of the occurrence",
-				      "lithology", "lith", "Basic lithology of the occurrence",
-				      "*lithology ext.", "lithext", "Extended (detailed) lithology of the occurrence",
-				      "paleoenvironment", "env", "The paleoenvironment associated with this collection",
-				      "*geological context", "geo", "Additional info about the geological context (includes env)",
-				      "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
-								  "occurrence falls",
-				      "time comparison", "timecompare", "Shows the time binning for all available timerules, so you can compare them",
-				      "*methods", "methods", "Info about the collection methods used",
-				      "research group", "resgroup", "The research group(s) if any associated with the collection",
-				      "reference", "ref", "The reference from which this occurrence was entered, as formatted text",
-				      "*ref attribution", "refattr", "Author(s) and publication year of the reference",
-				      "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified each record",
-				      "enterer names", "entname", "Names of the people who authorized/entered/modified each record",
-				      "created/modified", "crmod", "Creation and modification timestamps for each record" ]);
+	["*attribution", "attr", "Attribution (author and year) of the accepted name",
+	 "*classification", "class", "Taxonomic classification of the occurrence",
+	 "classification ext.", "classext", "Taxonomic classification including taxon ids",
+	 "genus", "genus", "Use instead of the above if you just want the genus",
+	 "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
+	 "accepted only", "acconly", "Suppress the exact identification of the occurrence, show only accepted name",
+	 "ident components", "ident", "Individual components of the identification, rarely needed",
+	 "phylopic id", "img", "Identifier of a <a href=\"http://phylopic.org/\" target=\"_blank\">phylopic</a>" +
+	 "representing this taxon or the closest containing taxon",
+	 "*plant organs", "plant", "Plant organ(s) identified as part of this occurrence, if any",
+	 "*abundance", "abund", "Abundance of this occurrence in the collection",
+	 "*ecospace", "ecospace", "The ecological space occupied by this organism",
+	 "*taphonomy", "taphonomy", "Taphonomy of this organism",
+	 "eco/taph basis", "etbasis", "Annotation for ecospace and taphonomy as to taxonomic level",
+	 "*preservation", "pres", "Is this occurrence identified as a form taxon, ichnotaxon or regular taxon",
+	 "*collection", "coll", "The name and description of the collection in which this occurrence was found",
+	 "*coordinates", "coords", "Latitude and longitude of this occurrence",
+	 "*location", "loc", "Additional info about the geographic locality",
+	 "*paleolocation", "paleoloc", "Paleogeographic location of this occurrence, all models",
+	 "paleoloc (selected)", "paleoloc2", "Paleogeographic location using the model selected above",
+	 "*protection", "prot", "Indicates whether this occurrence is on protected land, i.e. a national park",
+	 "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
+	 "*stratigraphy ext.", "stratext", "Extended (detailed) stratigraphy of the occurrence",
+	 "lithology", "lith", "Basic lithology of the occurrence",
+	 "*lithology ext.", "lithext", "Extended (detailed) lithology of the occurrence",
+	 "paleoenvironment", "env", "The paleoenvironment associated with this collection",
+	 "*geological context", "geo", "Additional info about the geological context (includes env)",
+	 "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
+	 "occurrence falls",
+	 "time comparison", "timecompare", "Shows the time binning for all available timerules, so you can compare them",
+	 "*methods", "methods", "Info about the collection methods used",
+	 "research group", "resgroup", "The research group(s) if any associated with the collection",
+	 "reference", "ref", "The reference from which this occurrence was entered, as formatted text",
+	 "*ref attribution", "refattr", "Author(s) and publication year of the reference",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified each record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified each record",
+	 "created/modified", "crmod", "Creation and modification timestamps for each record" ]);
 	
 	content += "</td></tr>\n";
 	
@@ -471,25 +487,26 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_colls",
-				     ["*location", "loc", "Additional info about the geographic locality",
-				      "*paleolocation", "paleoloc", "Paleogeographic locality of this collection",
-				      "*protection", "prot", "Indicates whether collection is on protected land",
-				      "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
-								  "collection falls",
-				      "time comparison", "timecompare", "Like the above, but shows this information for all available timerules",
-				      "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
-				      "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence",
-				      "lithology", "lith", "Basic lithology of the occurrence",
-				      "*lithology ext.", "lithext", "Detailed lithology of the occurrence",
-				      "*geological context", "geo", "Additional info about the geological context",
-				      "*methods", "methods", "Info about the collection methods used",
-				      "research group", "resgroup", "The research group(s) if any associated with this collection",
-				      "reference", "ref", "The primary reference associated with this collection, as formatted text",
-				      "*ref attribution", "refattr", "Author(s) and publication year of the reference",
-				      "all references", "secref", "Identifiers of all references associated with this collection",
-				      "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
-				      "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
-				      "created/modified", "crmod", "Creation and modification timestamps" ]);
+	["*location", "loc", "Additional info about the geographic locality",
+	 "*paleolocation", "paleoloc", "Paleogeographic location of this collection, all models",
+	 "paleoloc (selected)", "paleoloc2", "Paleogeographic location using the model selected above",
+	 "*protection", "prot", "Indicates whether collection is on protected land",
+	 "time binning", "timebins", "Lists the interval(s) from the international timescale into which each " +
+	 "collection falls",
+	 "time comparison", "timecompare", "Like the above, but shows this information for all available timerules",
+	 "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
+	 "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence",
+	 "lithology", "lith", "Basic lithology of the occurrence",
+	 "*lithology ext.", "lithext", "Detailed lithology of the occurrence",
+	 "*geological context", "geo", "Additional info about the geological context",
+	 "*methods", "methods", "Info about the collection methods used",
+	 "research group", "resgroup", "The research group(s) if any associated with this collection",
+	 "reference", "ref", "The primary reference associated with this collection, as formatted text",
+	 "*ref attribution", "refattr", "Author(s) and publication year of the reference",
+	 "all references", "secref", "Identifiers of all references associated with this collection",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
+	 "created/modified", "crmod", "Creation and modification timestamps" ]);
 	
 	content += "</td></tr>\n";
 	
@@ -500,31 +517,32 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_specs",
-				     ["*attribution", "attr", "Attribution (author and year) of the accepted taxonomic name",
-				      "*classification", "class", "Taxonomic classification of the specimen",
-				      "classification ext.", "classext", "Taxonomic classification including taxon ids",
-				      "genus", "genus", "Use instead of the above if you just want the genus",
-				      "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
-				      "*plant organs", "plant", "Plant organ(s) if any",
-				      "*abundance", "abund", "Abundance of the occurrence (if any) in its collection",
-				      "*collection", "coll", "The name and description of the collection in which the occurrence (if any) was found",
-				      "*coordinates", "coords", "Latitude and longitude of the occurrence (if any)",
-				      "*location", "loc", "Additional info about the geographic locality of the occurrence (if any)",
-				      "*paleolocation", "paleoloc", "Paleogeographic locality of the occurrence (if any)",
-				      "*protection", "prot", "Indicates whether source of specimen was on protected land (if known)",
-				      "stratigraphy", "strat", "Basic stratigraphy of the occurrence (if any)",
-				      "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence (if any)",
-				      "lithology", "lith", "Basic lithology of the occurrence (if any)",
-				      "*lithology ext.", "lithext", "Detailed lithology of the occurrence (if any)",
-				      "*geological context", "geo", "Additional info about the geological context (if known)",
-				      "*methods", "methods", "Info about the collection methods used (if known)",
-				      "remarks", "rem", "Additional remarks about the associated collection (if any)",
-				      "resgroup", "resgroup", "The research group(s) if any associated with this collection",
-				      "reference", "ref", "The reference from which this specimen was entered, as formatted text",
-				      "*ref attribution", "refattr", "Author(s) and publication year of the reference",
-				      "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
-				      "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
-				      "created/modified", "crmod", "Creation and modification timestamps" ]);
+	["*attribution", "attr", "Attribution (author and year) of the accepted taxonomic name",
+	 "*classification", "class", "Taxonomic classification of the specimen",
+	 "classification ext.", "classext", "Taxonomic classification including taxon ids",
+	 "genus", "genus", "Use instead of the above if you just want the genus",
+	 "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
+	 "*plant organs", "plant", "Plant organ(s) if any",
+	 "*abundance", "abund", "Abundance of the occurrence (if any) in its collection",
+	 "*collection", "coll", "The name and description of the collection in which the occurrence (if any) was found",
+	 "*coordinates", "coords", "Latitude and longitude of the occurrence (if any)",
+	 "*location", "loc", "Additional info about the geographic locality of the occurrence (if any)",
+	 "*paleolocation", "paleoloc", "Paleogeographic location of this collection, all models",
+	 "paleoloc (selected)", "paleoloc2", "Paleogeographic location using the model selected above",
+	 "*protection", "prot", "Indicates whether source of specimen was on protected land (if known)",
+	 "stratigraphy", "strat", "Basic stratigraphy of the occurrence (if any)",
+	 "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence (if any)",
+	 "lithology", "lith", "Basic lithology of the occurrence (if any)",
+	 "*lithology ext.", "lithext", "Detailed lithology of the occurrence (if any)",
+	 "*geological context", "geo", "Additional info about the geological context (if known)",
+	 "*methods", "methods", "Info about the collection methods used (if known)",
+	 "remarks", "rem", "Additional remarks about the associated collection (if any)",
+	 "resgroup", "resgroup", "The research group(s) if any associated with this collection",
+	 "reference", "ref", "The reference from which this specimen was entered, as formatted text",
+	 "*ref attribution", "refattr", "Author(s) and publication year of the reference",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
+	 "created/modified", "crmod", "Creation and modification timestamps" ]);
 	
 	content += "</td></tr>\n";
 	
@@ -535,27 +553,27 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_taxa",
-				     ["*attribution", "attr", "Attribution (author and year) of this taxonomic name",
-				      "*common", "common", "Common name (if any)",
-    				      "*age range overall", "app", "Ages of first and last appearance among all occurrences in this database",
-				      "age range selected", "occapp", "Ages of first and last appearance among selected occurrences",
-				      "*parent", "parent", "Name and identifier of parent taxon",
-				      "immediate parent", "immparent", "Name and identifier of immediate parent taxon (may be a junior synonym)",
-    				      "*size", "size", "Number of subtaxa",
-				      "*classification", "class", "Taxonomic classification: phylum, class, order, family, genus",
-				      "classification ext.", "classext", "Taxonomic classification including taxon ids",
-				      "*subtaxon counts", "subcounts", "Number of genera, families, and orders contained in this taxon",
-				      "*ecospace", "ecospace", "The ecological space occupied by this organism",
-				      "*taphonomy", "taphonomy", "Taphonomy of this organism",
-				      "eco/taph basis", "etbasis", "Annotation for ecospace and taphonomy as to taxonomic level",
-				      "*preservation", "pres", "Is this a form taxon, ichnotaxon or regular taxon",
-				      "sequence numbers", "seq", "The sequence numbers of this taxon in the computed tree",
-				      "phylopic id", "img", "Phylopic identifier",
-				      "reference", "ref", "The reference from which this taxonomic name was entered, as formatted text",
-				      "*ref attribution", "refattr", "Author(s) and publication year of the reference",
-				      "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
-				      "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
-				      "created/modified", "crmod", "Creation and modification timestamps" ]);
+	["*attribution", "attr", "Attribution (author and year) of this taxonomic name",
+	 "*common", "common", "Common name (if any)",
+    	 "*age range overall", "app", "Ages of first and last appearance among all occurrences in this database",
+	 "age range selected", "occapp", "Ages of first and last appearance among selected occurrences",
+	 "*parent", "parent", "Name and identifier of parent taxon",
+	 "immediate parent", "immparent", "Name and identifier of immediate parent taxon (may be a junior synonym)",
+    	 "*size", "size", "Number of subtaxa",
+	 "*classification", "class", "Taxonomic classification: phylum, class, order, family, genus",
+	 "classification ext.", "classext", "Taxonomic classification including taxon ids",
+	 "*subtaxon counts", "subcounts", "Number of genera, families, and orders contained in this taxon",
+	 "*ecospace", "ecospace", "The ecological space occupied by this organism",
+	 "*taphonomy", "taphonomy", "Taphonomy of this organism",
+	 "eco/taph basis", "etbasis", "Annotation for ecospace and taphonomy as to taxonomic level",
+	 "*preservation", "pres", "Is this a form taxon, ichnotaxon or regular taxon",
+	 "sequence numbers", "seq", "The sequence numbers of this taxon in the computed tree",
+	 "phylopic id", "img", "Phylopic identifier",
+	 "reference", "ref", "The reference from which this taxonomic name was entered, as formatted text",
+	 "*ref attribution", "refattr", "Author(s) and publication year of the reference",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
+	 "created/modified", "crmod", "Creation and modification timestamps" ]);
 	
 	content += "</td></tr>\n";
 	
@@ -566,12 +584,12 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_ops",
-    				     ["*basis", "basis", "Basis of this opinion, i.e. 'stated with evidence'",
-				      "reference", "ref", "The reference from which this opinion was entered, as formatted text",
-				      "*ref attribution", "refattr", "Author(s) and publication year of the reference",
-				      "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
-				      "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
-				      "created/modified", "crmod", "Creation and modification timestamps" ]);
+    	["*basis", "basis", "Basis of this opinion, i.e. 'stated with evidence'",
+	 "reference", "ref", "The reference from which this opinion was entered, as formatted text",
+	 "*ref attribution", "refattr", "Author(s) and publication year of the reference",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
+	 "created/modified", "crmod", "Creation and modification timestamps" ]);
 	
 	content += "</td></tr>\n";
 	
@@ -582,9 +600,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_strata",
-    				     ["coordinates", "coords", "Latitude and longitude range of occurrences",
-				      "gplates", "gplates", "Tectonic plate identifiers (GPlates model) associated with occurrences from this stratum",
-				      "splates", "splates", "Tectonic plate identifiers (Scotese model) associated with occurrences from this stratum" ]);
+    	["coordinates", "coords", "Latitude and longitude range of occurrences"])
 	
 	content += "</td></tr>\n";
 	
@@ -595,13 +611,14 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_refs",
-    				     ["associated counts", "counts", "Counts of authorities, opinions, occurrences, collections associated with this reference",
-				      "formatted", "formatted", "Return a single formatted string instead of individual fields",
-				      "both", "both", "Return a single formatted string AND the individual fields",
-				      "comments", "comments", "Comments entered about this reference, if any",
-				      "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
-				      "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
-				      "created/modified", "crmod", "Creation and modification timestamps" ]);
+	["associated counts", "counts", "Counts of authorities, opinions, occurrences, " + 
+	 "collections associated with this reference",
+	 "formatted", "formatted", "Return a single formatted string instead of individual fields",
+	 "both", "both", "Return a single formatted string AND the individual fields",
+	 "comments", "comments", "Comments entered about this reference, if any",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
+	 "created/modified", "crmod", "Creation and modification timestamps" ]);
 	
 	content += "</td></tr>\n";
 	
@@ -656,7 +673,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	// Then generate various option lists.  The names and codes for the continents and
 	// countries were fetched during initialization via an API call.
 	
-	var continents = api_data.continents || ['ERROR', 'An error occurred'];
+	var continents = api_data.continents || ['ERROR', 'Continent list is empty'];
 	
 	content = makeOptionList( [ '--', '--', '**', 'Multiple' ].concat(continents) );
 	
@@ -666,16 +683,31 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	setInnerHTML("pd_continents", content);
 	
-	var countries = api_data.countries || ['ERROR', 'An error occurred'];
+	var countries = api_data.countries || ['ERROR', 'Country list is empty'];
 	
 	content = makeOptionList( ['--', '--', '**', 'Multiple'].concat(countries) );
 	
 	setInnerHTML("pm_country", content);
 	
+	content = makeOptionList( api_data.pg_menu );
+	
+	setInnerHTML("pm_pg_model", content);
+	
+	content = makeOptionList( ['', '--'].concat(api_data.pg_menu).concat(['all', 'all']) );
+	
+	params.pg_model = getElementValue("pm_pg_model");
+	params.pg_select = getElementValue("pm_pg_select");
+	    
+	setInnerHTML("pm_pg_compare", content);
+	
 	var crmod_options = [ 'created_after', 'entered after',
 			      'created_before', 'entered before',
 			      'modified_after', 'modified after',
 			      'modified_before', 'modified before' ];
+	
+	content = makeDefinitionList( api_data.pg_desc );
+	
+	setInnerHTML("doc_pgm", content);
 	
 	content = makeOptionList( crmod_options );
 	
@@ -863,6 +895,29 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	return content;
     }
     
+    
+    // The following function generates HTML code for a definitio list.
+    
+    function makeDefinitionList ( options )
+    {
+	var content = '';
+	var i;
+	
+	if ( options == undefined || ! options.length )
+	{
+	    return '<dt>ERROR</dt>';
+	}
+	
+	for ( i=0; i < options.length / 2; i++ )
+	{
+	    var code = options[2*i];
+	    var description = options[2*i+1];
+	    
+	    content += '<dt>' + code + '</dt><dd>' + description + '</dd>';
+	}
+	
+	return content;
+    }
     
     // We don't have to query the API to get the list of database contributor names, because the
     // Classic code that generates the application's web page automatically includes the function
@@ -1746,7 +1801,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
     
     
     // This function is called when any of the fields in the "Select by location" section other
-    // than the longitude/latitude coordinate fields are modified.
+    // than the paleocoordinate selectors are modified.
     
     function checkCC ( )
     {
@@ -1912,26 +1967,25 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    param_errors.state = 0;
 	}
 	
-	// Now check to see if the user specified any tectonic plates.  If so, validate the list
-	// and adjust the objects 'params' and 'param_errors' accordingly.
+	updateFormState();
+    }
+    
+    this.checkCC = checkCC;
+    
+    
+    // This function is called whenever any of the paleocoordinate selectors in the Location
+    // section is modified.
+    
+    function checkPGM ( )
+    {
+	// Check to see if the user specified any tectonic plates. If so, validate the list and
+	// adjust the objects 'params' and 'param_errors' accordingly.
 	
 	var plate_list = getElementValue("pm_plate");
-	var plate_model = getElementValue("pm_pgmodel");
-	var plate_ex = getElementValue("pm_plate_ex");
-	errors = [ ];
+	var errors = [ ];
 	
 	if ( plate_list != '' )
 	{
-	    // var match = ( /^\^(.*)/.exec(plate_list) )
-	    var plate_exclude = '';
-
-	    if ( plate_ex == "exclude" ) plate_exclude = '^';
-	    // if ( match != null )
-	    // {
-	    // 	plate_list = match[1];
-	    // 	plate_exclude = '^';
-	    // }
-	    
 	    var values = plate_list.split(/[\s,]+/);
 	    var value_list = [ ];
 	    
@@ -1947,14 +2001,36 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    }
 	    
 	    if ( value_list.length )
-		params.plate = plate_exclude + plate_model + value_list.join(',');
+		params.plate = value_list.join(',');
+	    
 	    else
 		params.plate = '';
 	}
 	
 	else
 	    params.plate = '';
-
+	
+	params.pg_model = getElementValue("pm_pg_model");
+	params.pg_select = getElementValue("pm_pg_select");
+	
+	// If a comparison model was selected, override the parameters set immediately above.
+	
+	var alt_model = getElementValue("pm_pg_compare");
+	
+	if ( alt_model == 'all' )
+	    params.pg_model = api_data.pg_models.join(',');
+	
+	else if ( alt_model )
+	    params.pg_model = params.pg_model + ',' + alt_model;
+	
+	var alt_select = getElementValue("pm_pg_selcomp");
+	
+	if ( alt_select == 'all' )
+	    params.pg_select = 'early,mid,late';
+	
+	else if ( alt_select )
+	    params.pg_select = params.pg_select + ',' + alt_select;
+	
 	// If we discovered any errors, display them.  Otherwise, clear any messages that were
 	// there before.
 	
@@ -1973,7 +2049,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	updateFormState();
     }
     
-    this.checkCC = checkCC;
+    this.checkPGM = checkPGM;
     
 
     // This function is called when any of the latitude/longitude fields are modified.
@@ -2856,6 +2932,10 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	var all_required = 0;
 	
+	// If true, the parameter "pgm" has already been added to the list.
+	
+	var need_pgm = 0;
+	
 	// The following variable indicates the API operation (i.e. "occs/list", "taxa/list",
 	// etc.)  to be used.  It is set from the default operation for the selected record type,
 	// but may be modified under certain circumstances.
@@ -3040,6 +3120,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		param_list.push("plate=" + params.plate);
 		occs_required = 1;
 		has_main_param = 1;
+		need_pgm = 1;
 	    }
 	    
 	    if ( visible.advanced && (param_errors.cc || param_errors.state || param_errors.plate) )
@@ -3252,6 +3333,20 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	{
 	    var output_list = getOutputList();
 	    
+	    if ( paleoloc_all || paleoloc_selected )
+	    {
+		need_pgm = 0;
+		
+		if ( paleoloc_all )
+		    param_list.push("pgm=" + api_data.pg_models.join(','));
+		
+		else
+		    param_list.push("pgm=" + params.pg_model);
+		
+		if ( params.pg_select != "mid" )
+		    param_list.push("pgs=" + params.pg_select);
+	    }
+	    
 	    if ( ! occs_required )
 		output_list = output_list.replace(/occapp,?/, 'app,');
 	    if ( output_list ) param_list.push("show=" + output_list);
@@ -3300,6 +3395,11 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    if ( acc_only && acc_only.checked )
 		param_list.push('show=acconly');
 	}
+	
+	// If we still need a "pgm=" parameter, add it now.
+	
+	if ( need_pgm )
+	    param_list.push("pgm=" + params.pg_model);
 	
 	// Now alter the operation, if necessary, based on the chosen parameters
 	
@@ -3479,13 +3579,26 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	var full_value = getElementValue("pm_fulloutput");
 	var i;
 	var selected = [];
-
+	
 	if ( full_value )
 	    selected.push('full');
 	
 	for ( i=0; i<elts.length; i++ )
 	{
 	    var value = elts[i].value;
+	    
+	    if ( value == "paleoloc" )
+	    {
+		paleoloc_all = elts[i].checked;
+	    }
+	    
+	    else if ( value == "paleoloc2" )
+	    {
+		paleoloc_selected = elts[i].checked;
+		value = "paleoloc";
+		
+		if ( paleoloc_all && paleoloc_selected ) continue;
+	    }
 	    
 	    if ( elts[i].checked )
 	    {
