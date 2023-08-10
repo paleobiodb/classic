@@ -15,19 +15,31 @@ package PBDB::Taxon;
 
 use strict;
 
+use PBDB::Taxonomy qw(getOriginalCombination getAllSpellings getTaxa 
+		      getParents computeMatchLevel getTypeTaxonList
+		      validTaxonName splitTaxon);
+
+use PBDB::TaxaCache qw(addTaxaCacheRow);
+
+use PBDB::Debug qw(dbg printWarnings);
+
+use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs makeFormPostTag);
+
+use PBDB::Reference qw(formatShortRef);
 use PBDB::Errors;
+use PBDB::Validation qw(properInitial properLastName properYear);
+use PBDB::Person qw(getPersonName);
+
 use Data::Dumper qw(Dumper);
 use URI::Escape;
 use Mail::Mailer;
-use PBDB::TaxaCache;
-use PBDB::Classification;
-use PBDB::TaxonInfo;
-use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs makeFormPostTag);
-
-use PBDB::Opinion;
-use PBDB::Reference;
 use Carp qw(carp);
+
+use Exporter qw(import);
+
+our @EXPORT_OK = qw(extractCatalogNumber processSpecimenMeasurement updateChildNames
+		    updateImplicitBelongsTo addImplicitChildOpinion addSpellingAuthority
+		    formatTaxon guessTaxonRank);
 
 use fields qw(dbt DBrow);
 
@@ -366,7 +378,7 @@ sub displayAuthorityForm {
         if (!$parentRank) { 
             $parentRank = 'genus';
         }
-        @parents = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$parentName,'taxon_rank'=>$parentRank,'ignore_common_name'=>"YES"},['*']);
+        @parents = getTaxa($dbt,{'taxon_name'=>$parentName,'taxon_rank'=>$parentRank,'ignore_common_name'=>"YES"},['*']);
 	
 	if (@parents) {
 	    my $select;
@@ -401,13 +413,13 @@ sub displayAuthorityForm {
     my %seen_rank;
     my $original_rank = $fields{'taxon_rank'};
     if ($fields{taxon_no}) {
-        my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$fields{taxon_no});
-        my @spellings = PBDB::TaxonInfo::getAllSpellings($dbt,$orig_no);
+        my $orig_no = getOriginalCombination($dbt,$fields{taxon_no});
+        my @spellings = getAllSpellings($dbt,$orig_no);
         my @taxa = ();
         my %seen_name = ();
         my $duplicate_names = 0;
         foreach my $spelling_no (@spellings) {
-            my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$spelling_no});
+            my $taxon = getTaxa($dbt,{'taxon_no'=>$spelling_no});
             $seen_rank{$taxon->{taxon_rank}}++;
             if ( $taxon->{taxon_no} == $orig_no )	{
                 $original_rank = $taxon->{taxon_rank};
@@ -673,7 +685,7 @@ sub submitAuthorityForm {
         my $old_name = $t->get('taxon_name');
         my $new_name = $q->param('taxon_name');
         if ($old_name ne $new_name) {
-            my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$new_name,'ignore_common_name'=>"YES"});
+            my $taxon = getTaxa($dbt,{'taxon_name'=>$new_name,'ignore_common_name'=>"YES"});
             if ($taxon) {
                 $errors->add("Can't change the taxon's name from '$old_name' to '$new_name' because '$new_name' already exists in the database");
             }
@@ -775,13 +787,13 @@ sub submitAuthorityForm {
         pop @bits;
         my $parent_name = join(" ",@bits);
         if ($q->numeric_param('parent_taxon_no')) {
-		    my $parent = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('parent_taxon_no')});
+		    my $parent = getTaxa($dbt,{'taxon_no'=>$q->numeric_param('parent_taxon_no')});
             if ($parent->{'taxon_name'} eq $parent_name) {
                 $parent_no=$q->numeric_param('parent_taxon_no');
             } 
         }
         if (!$parent_no) {
-            my @parents = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$parent_name,'ignore_common_name'=>"YES"});
+            my @parents = getTaxa($dbt,{'taxon_name'=>$parent_name,'ignore_common_name'=>"YES"});
             if (@parents > 1) {
                 $errors->add("There are multiple versions of the name '$parent_name' in the database.  Please select the right one.");
             } elsif (@parents == 1) {
@@ -904,7 +916,7 @@ sub submitAuthorityForm {
 	# This only applies to new entries, and to edits where they changed the taxon_name
 	# field to be the name of a different taxon which already exists.
 	if ($q->param('confirmed_taxon_name') ne $q->param('taxon_name')) {
-        my @taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$fields{'taxon_name'},'ignore_common_name'=>"YES"},['*']);
+        my @taxon = getTaxa($dbt,{'taxon_name'=>$fields{'taxon_name'},'ignore_common_name'=>"YES"},['*']);
         my $taxonExists = scalar(@taxon);
         
 		if (($isNewEntry && $taxonExists) ||
@@ -916,7 +928,7 @@ sub submitAuthorityForm {
             }
             my $different_ranks = scalar(keys(%ranks));
             foreach my $row (@taxon) {
-                my $pub_info = PBDB::Reference::formatShortRef($row);
+                my $pub_info = formatShortRef($row);
                 if ($different_ranks > 1) {
                     $pub_info .=" ($row->{taxon_rank})";
                 }
@@ -944,27 +956,33 @@ sub submitAuthorityForm {
 	my $resultReferenceNumber = $fields{'reference_no'};
 	my $status;
 	
-	if ($isNewEntry) {
-		($status, $resultTaxonNumber) = $dbt->insertRecord($s,'authorities', \%fields);
-		PBDB::TaxaCache::addName($dbt,$resultTaxonNumber);
-		
-		if ($parent_no) {
-			addImplicitChildOpinion($dbt,$s,$resultTaxonNumber,$parent_no,\%fields,$pubyr);
-		}
-	} else {
-		# if it's an old entry, then we'll update.
-		$resultTaxonNumber = $t->get('taxon_no');
-		$status = $dbt->updateRecord($s,'authorities','taxon_no',$resultTaxonNumber, \%fields);
-        propagateAuthorityInfo($dbt,$q,$resultTaxonNumber,1);
-
-        my $db_orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$resultTaxonNumber);
-
-        if ($fields{'original_no'} =~ /^\d+$/ && $fields{'original_no'} != $db_orig_no) {
+    if ($isNewEntry)
+    {
+	($status, $resultTaxonNumber) = $dbt->insertRecord($s,'authorities', \%fields);
+	addTaxaCacheRow($dbt,$resultTaxonNumber);
+	
+	if ($parent_no)
+	{
+	    addImplicitChildOpinion($dbt,$s,$resultTaxonNumber,$parent_no,\%fields,$pubyr);
+	}
+    }
+    
+    else
+    {
+	# if it's an old entry, then we'll update.
+	$resultTaxonNumber = $t->get('taxon_no');
+	$status = $dbt->updateRecord($s,'authorities','taxon_no',$resultTaxonNumber, \%fields);
+	propagateAuthorityInfo($dbt,$q,$resultTaxonNumber,1);
+	
+        my $db_orig_no = getOriginalCombination($dbt,$resultTaxonNumber);
+	
+        if ($fields{'original_no'} =~ /^\d+$/ && $fields{'original_no'} != $db_orig_no)
+	{
             my $sql = "SELECT * FROM opinions WHERE child_no=$db_orig_no"; 
             my @results = @{$dbt->getData($sql)};
             my @parents = ();
             foreach my $row (@results) {
-                PBDB::Opinion::resetOriginalNo($dbt,$fields{'original_no'},$row);
+                # PBDB::Opinion::resetOriginalNo($dbt,$fields{'original_no'},$row);
 #                if ($row->{'child_no'} != $fields{original_no}) {
                     if ($row->{'status'} eq 'misspelling of') {
                         if ($row->{'parent_spelling_no'} =~ /^\d+$/) {
@@ -993,44 +1011,61 @@ sub submitAuthorityForm {
             }
 
         }
+	
         # Changing a genus|subgenus|species|subspecies is tricky since we have to change
         # other related opinions and authorities
-        if ($t->get('taxon_name') ne $fields{'taxon_name'} &&
-            $t->get('taxon_rank') =~ /^genus|^subgenus|^species/){
+	
+        if ( $t->get('taxon_name') ne $fields{'taxon_name'} &&
+	     $t->get('taxon_rank') =~ /^genus|^subgenus|^species/ )
+	{
             updateChildNames($dbt,$s,$t->get('taxon_no'),$t->get('taxon_name'),$fields{'taxon_name'});
         }
-
         
-        updateImplicitBelongsTo($dbt,$s,$t->get('taxon_no'),$parent_no,$t->get('taxon_name'),$fields{'taxon_name'},\%fields);
-	}
-
+        updateImplicitBelongsTo($dbt,$s,$t->get('taxon_no'),$parent_no,
+				$t->get('taxon_name'),$fields{'taxon_name'},\%fields);
+    }
+    
     # JA 2.4.04
     # if the taxon name is unique, find matches to it in the
     #  occurrences table and set the taxon numbers appropriately
-    if ($status && ($isNewEntry || ($t->get('taxon_name') ne $fields{'taxon_name'}))) {
-        my @set_warnings = setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),$resultTaxonNumber);
+    
+    if ($status && ($isNewEntry || ($t->get('taxon_name') ne $fields{'taxon_name'})))
+    {
+        my @set_warnings = setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),
+							$resultTaxonNumber);
         push @warnings, @set_warnings;
     }
-	
+    
     # displays info about the authority record the user just entered...
-	my $enterupdate;
-	if ($isNewEntry) {
-		$enterupdate = 'entered into';
-	} else {
-		$enterupdate = 'updated in'	
-	}
+    
+    my $enterupdate;
+    
+    if ($isNewEntry)
+    {
+	$enterupdate = 'entered into';
+    }
+    
+    else
+    {
+	$enterupdate = 'updated in'	
+    }
+    
     $output .= "<CENTER>";
-	if (!$status) {
-		$output .= "<DIV class=\"warning\">Error inserting/updating authority record.  Please start over and try again.</DIV>";	
-	} else {
-	
+    
+    if (!$status)
+    {
+	$output .= "<DIV class=\"warning\">Error inserting/updating authority record.  Please start over and try again.</DIV>";	
+    }
+    
+    else
+    {
         my $end_message;
         if (@warnings) {
             $end_message .= PBDB::Debug::printWarnings(\@warnings);
         }
-        $end_message .= "<div align=\"center\"><p class=\"large\">" . $fields{'taxon_name'} . " " .PBDB::Reference::formatShortRef(\%fields). " has been $enterupdate the database</p></div>";
+        $end_message .= "<div align=\"center\"><p class=\"large\">" . $fields{'taxon_name'} . " " . formatShortRef(\%fields). " has been $enterupdate the database</p></div>";
 
-        my $origResultTaxonNumber = PBDB::TaxonInfo::getOriginalCombination($dbt,$resultTaxonNumber);
+        my $origResultTaxonNumber = getOriginalCombination($dbt,$resultTaxonNumber);
         
         $end_message .= qq| <div align="center" class="displayPanel"><table cellpadding="10" class="small"><tr><td valign="top"><p class="large" style="margin-left: 2em;">Name functions</p><ul>|;
         $end_message .= "<li>" . makeAnchor("displayAuthorityTaxonSearchForm", "", "Add/edit another taxon") . "</li><br>";
@@ -1368,7 +1403,7 @@ sub updateChildNames {
     # this quotes parentheses (in subgenera) and any other weirdness
     my $quoted_old_name = quotemeta $old_name;
     foreach my $t (keys %to_change) {
-        my $child = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$t});
+        my $child = getTaxa($dbt,{'taxon_no'=>$t});
         my $taxon_name = $child->{'taxon_name'};
         $taxon_name =~ s/^$quoted_old_name/$new_name/; 
         dbg("Changing parent from $old_name to $new_name.  child taxon from $child->{taxon_name} to $taxon_name");
@@ -1396,7 +1431,7 @@ sub updateImplicitBelongsTo {
     my %old_parents;
     if ($old_higher) {
         dbg("Looking for opinions to migrate for $old_higher");
-        foreach my $p (PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$old_higher,'ignore_common_name'=>"YES"})) {
+        foreach my $p (getTaxa($dbt,{'taxon_name'=>$old_higher,'ignore_common_name'=>"YES"})) {
             $old_parents{$p->{'taxon_no'}} = 1;
         }
     }
@@ -1432,7 +1467,7 @@ sub updateImplicitBelongsTo {
         }
     }
     if ($old_higher && $new_higher) {
-        my $orig_parent_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$parent_no);
+        my $orig_parent_no = getOriginalCombination($dbt,$parent_no);
         my $found_old_parent = 0;
         if (@old_opinions) {
             foreach my $row (@old_opinions) {
@@ -1457,7 +1492,7 @@ sub addImplicitChildOpinion {
     
     return unless ($child_no && $parent_no);
     # Get original combination for parent no PS 04/22/2005
-    my $orig_parent_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$parent_no);
+    my $orig_parent_no = getOriginalCombination($dbt,$parent_no);
    
     # several things are always true by definition of the original author's
     #  opinion on a name: it provides evidence, gives a new diagnosis, and
@@ -1492,7 +1527,7 @@ sub addImplicitChildOpinion {
 sub addSpellingAuthority {
     my ($dbt,$s,$taxon_no,$new_name,$new_rank,$reference_no) = @_;
 
-    my $orig = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$taxon_no},['*']);
+    my $orig = getTaxa($dbt,{'taxon_no'=>$taxon_no},['*']);
 
     # next we need to steal data from the opinion
     my %record = ();
@@ -1527,12 +1562,12 @@ sub addSpellingAuthority {
     }
 
     my ($return_code, $new_taxon_no) = $dbt->insertRecord($s,'authorities', \%record);
-    PBDB::TaxaCache::addName($dbt,$new_taxon_no);
+    addTaxaCacheRow($dbt,$new_taxon_no);
     dbg("create new authority record, got return code $return_code");
     if (!$return_code) {
         die("Unable to create new authority record for $record{taxon_name}. Please contact support");
     }
-    my @set_warnings = PBDB::Taxon::setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),$new_taxon_no);
+    my @set_warnings = setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),$new_taxon_no);
     return ($new_taxon_no,\@set_warnings);
 }
 
@@ -1546,7 +1581,7 @@ sub setOccurrencesTaxonNoByTaxon {
     my $no_email = shift;
     my @warnings = ();
 
-    my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$taxon_no});
+    my $t = getTaxa($dbt,{'taxon_no'=>$taxon_no});
     return if (!$t);
 
     my $taxon_name = $t->{'taxon_name'};
@@ -1564,13 +1599,13 @@ sub setOccurrencesTaxonNoByTaxon {
     }
 
     # start with a test for uniqueness
-    my @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$taxon_name,'ignore_common_name'=>"YES"},['taxon_no','taxon_rank','taxon_name','author1last','author2last','pubyr']);
+    my @taxa = getTaxa($dbt,{'taxon_name'=>$taxon_name,'ignore_common_name'=>"YES"},['taxon_no','taxon_rank','taxon_name','author1last','author2last','pubyr']);
     my @taxon_nos= ();
     for (my $i=0;$i<@taxa;$i++) {
-        my $orig_no_i = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxa[$i]->{'taxon_no'});
+        my $orig_no_i = getOriginalCombination($dbt,$taxa[$i]->{'taxon_no'});
         my $is_same_taxon = 0;
         for (my $j=$i+1;$j<@taxa;$j++) {
-            my $orig_no_j = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxa[$j]->{'taxon_no'});
+            my $orig_no_j = getOriginalCombination($dbt,$taxa[$j]->{'taxon_no'});
             if ($orig_no_j == $orig_no_i) {
                 $is_same_taxon = 1;
             }
@@ -1754,7 +1789,7 @@ sub displayTypeTaxonSelectForm {
             }
         } else {
             my $sqlr = "SELECT author1init,author1last,author2init,author2last,otherauthors,pubyr FROM refs WHERE reference_no=$reference_no";
-            my $formatted_ref = PBDB::Reference::formatShortRef(${$dbt->getData($sqlr)}[0]);
+            my $formatted_ref = formatShortRef(${$dbt->getData($sqlr)}[0]);
             push @warnings, "Can't set this taxon as the type because no valid higher taxa were found.  There must be opinions linking this taxon to its higher taxa from the same reference ($formatted_ref).";
             carp "Maybe something is wrong in the opinions script, got no parents for current taxon after adding an opinion.  (in section dealing with type taxon). Vars: tt_no $type_taxon_no ref $reference_no tt_name $type_taxon_name tt_rank $type_taxon_rank"; 
         }
@@ -1831,69 +1866,6 @@ sub submitTypeTaxonSelect {
     $output .= $end_message;
     return $output;
 }
-    
-# This function returns an array of potential higher taxa for which the focal taxon can be a type.
-# The array is an array of hash refs with the following keys: taxon_no, taxon_name, taxon_rank, type_taxon_no, type_taxon_name, type_taxon_rank
-sub getTypeTaxonList {
-    my $dbt = shift;
-    my $type_taxon_no = shift;   
-    my $reference_no = shift;
-    my $dbh = $dbt->dbh;
-            
-    my $focal_taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$type_taxon_no});
-            
-    my $parents = PBDB::Classification::get_classification_hash($dbt,'all',[$type_taxon_no],'array',$reference_no);
-    # This array holds possible higher taxa this taxon can be a type taxon for
-    # Note the reference_no passed to get_classification_hash - parents must be linked by opinions from
-    # the same reference as the reference_no of the opinion which is currently being inserted/edited
-    my @parents = @{$parents->{$type_taxon_no}}; # is an array ref
-
-# JA: we need not just potential parents, but all immediate parents that ever
-#  have been proposed, so also hit the opinion table directly 17.6.07
-    my @parent_nos;
-    for my $p ( @parents )	{
-        push @parent_nos , $p->{'taxon_no'};
-    }
-    my $sql = "SELECT taxon_no,taxon_rank,taxon_name FROM authorities a,opinions o WHERE child_no=". $focal_taxon->{taxon_no} ." AND taxon_rank!='". $focal_taxon->{'taxon_rank'} ."' AND parent_no=taxon_no";
-    if ( $#parents > -1 )	{
-        $sql .= " AND parent_no NOT IN (". join(',',@parent_nos) .")";
-    }
-    $sql .= " GROUP BY parent_no";
-    push @parents , @{$dbt->getData($sql)};
-
-    if ($focal_taxon->{'taxon_rank'} =~ /species/) {
-        # A species may be a type for genus/subgenus only
-        my @lower;
-        for my $p ( @parents ) {
-            if ($p->{'taxon_rank'} =~ /species|genus|subgenus/)        {
-                push @lower , $p;
-            }
-       }
-        @parents = @lower;
-    } else {
-        # A higher order taxon may be a type for subtribe/tribe/family/subfamily/superfamily only
-        # Don't know about unranked clade, leave it for now
-        my $i = 0;
-        for($i=0;$i<scalar(@parents);$i++) {
-            last if ($parents[$i]->{'taxon_rank'} !~ /tribe|family|unranked clade/);
-        }
-        splice(@parents,$i);
-    }
-    # This sets values in the hashes for the type_taxon_no, type_taxon_name, and type_taxon_rank
-    # in addition to the taxon_no, taxon_name, taxon_rank of the parent
-    foreach my  $parent (@parents) {
-        my $parent_taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$parent->{'taxon_no'}},['taxon_no','type_taxon_no','authorizer_no']);
-        $parent->{'authorizer_no'} = $parent_taxon->{'authorizer_no'};
-        $parent->{'type_taxon_no'} = $parent_taxon->{'type_taxon_no'};
-        if ($parent->{'type_taxon_no'}) {
-            my $type_taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$parent->{'type_taxon_no'}});
-            $parent->{'type_taxon_name'} = $type_taxon->{'taxon_name'};
-            $parent->{'type_taxon_rank'} = $type_taxon->{'taxon_rank'};
-        }
-    }
-
-    return @parents;
-}
 
 
 # JA 17,20.8.02
@@ -1904,13 +1876,14 @@ sub getTypeTaxonList {
 #   I.E. data from getTaxa($dbt,{'taxon_name'=>$taxon_name,'ignore_common_name'=>"YES"},['*']) -- see function for details
 # 
 # it returns some HTML to display the authority information.
-sub formatTaxon{
-    my $dbt = shift;
-    my $taxon = shift;
-    my %options = @_;
-	my $nameLine;
-    my $authLine;
 
+sub formatTaxon {
+    
+    my ($dbt, $taxon, %options) = @_;
+    
+    my $nameLine;
+    my $authLine;
+    
 	# Print the name
 	# italicize if genus or species.
 	if ( $taxon->{'taxon_rank'} =~ /subspecies|species|genus/) {
@@ -1926,10 +1899,10 @@ sub formatTaxon{
         }
 	}
 
-    my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxon->{'taxon_no'});
+    my $orig_no = getOriginalCombination($dbt,$taxon->{'taxon_no'});
     my $is_recomb = ($orig_no == $taxon->{'taxon_no'}) ? 0 : 1;
 	# If the authority is a PBDB ref, retrieve and print it
-    my $pub_info = PBDB::Reference::formatShortRef($taxon,'is_recombination'=>$is_recomb);
+    my $pub_info = formatShortRef($taxon,'is_recombination'=>$is_recomb);
     if ($pub_info !~ /^\s*$/) {
         $authLine .= ',' unless ($is_recomb);
         $authLine .= " ".$pub_info;
@@ -1937,63 +1910,61 @@ sub formatTaxon{
 
 	# Print name of higher taxon JA 10.4.03
 	# Get the status and parent of the most recent opinion
-    my %master_class=%{PBDB::TaxaCache::getParents($dbt, [$taxon->{'taxon_no'}],'array_full')};
+    # my %master_class=%{getParents($dbt, [$taxon->{'taxon_no'}],'array_full')};
 
-    my @parents = @{$master_class{$taxon->{'taxon_no'}}};
-    if (@parents) {
+    # my @parents = @{$master_class{$taxon->{'taxon_no'}}};
+    
+    my @parents = getParents($dbt, $taxon->{taxon_no});
+    
+    if ( @parents )
+    {
         $authLine .= " [";
+	
         my $foundParent = 0;
-        foreach (@parents) {
-            if ($_->{'taxon_rank'} =~ /^(?:family|order|class)$/) {
+	
+        foreach (@parents)
+	{
+            if ($_->{'taxon_rank'} =~ /^(?:family|order|class)$/)
+	    {
                 $foundParent = 1;
                 $authLine .= $_->{'taxon_name'}.", ";
                 last;
             }
         }
+	
         $authLine =~ s/, $//;
-        if (!$foundParent) {
+	
+        if (!$foundParent)
+	{
             $authLine .= $parents[0]->{'taxon_name'};
         }
+	
         $authLine .= "]";
-    } else {
-        $authLine .= " [unclassified";
-        if ($taxon->{taxon_rank} && $taxon->{taxon_rank} !~ /unranked/) {
-            $authLine .= " $taxon->{taxon_rank}";
-        }
-        $authLine .= "]";
-    }
-
-    if ($options{'return_array'}) {
-        return ($nameLine,$authLine);
-    } else {
-	    return $nameLine.$authLine;
-    }
-}
-
-
-sub splitTaxon {
-    my $name = shift;
-    my ($genus,$subgenus,$species,$subspecies) = ("","","","");
-  
-    if ($name =~ /^([A-Z][a-z]+)(?:\s\(([A-Z][a-z]+)\))?(?:\s([a-z.]+))?(?:\s([a-z.]+))?/) {
-        $genus = $1 if ($1);
-        $subgenus = $2 if ($2);
-        $species = $3 if ($3);
-        $subspecies = $4 if ($4);
-    }
-
-    if (!$genus && $name) {
-        # Loose match, capitalization doesn't matter. The % is a wildcard symbol
-        if ($name =~ /^([a-z%]+)(?:\s\(([a-z%]+)\))?(?:\s([a-z.]+))?(?:\s([a-z.]+))?/) {
-            $genus = $1 if ($1);
-            $subgenus = $2 if ($2);
-            $species = $3 if ($3);
-            $subspecies = $4 if ($4);
-        }
     }
     
-    return ($genus,$subgenus,$species,$subspecies);
+    else
+    {
+        $authLine .= " [unclassified";
+	
+	if ($taxon->{taxon_rank} && $taxon->{taxon_rank} !~ /unranked/)
+	{
+            $authLine .= " $taxon->{taxon_rank}";
+        }
+        
+	$authLine .= "]";
+    }
+    
+    if ($options{'return_array'})
+    {
+        return ($nameLine,$authLine);
+    }
+    
+    else
+    {
+	return $nameLine.$authLine;
+    }
 }
+
 
 sub guessTaxonRank {
     my $taxon = shift;
@@ -2025,235 +1996,32 @@ sub guessTaxonRank {
     return "";
 }  
 
-sub validTaxonName {
-    my $taxon = shift;
-
-    if ($taxon =~ /^([A-Z%]|% )([a-z%]+)( [a-z%]+){0,2}$/)	{
-        return 1;
-    } elsif ($taxon =~ /[()]/)	{
-        if ($taxon =~ /^[A-Z][a-z]+ \([A-Z][a-z]+\)( [a-z]+){0,2}$/) {
-            return 1;
-        }
-    } else	{
-        if ($taxon =~ /^[A-Z][a-z]+( [a-z]+){0,2}$/) {
-            return 1;
-        }
-    }
-
-    return 0;
-}  
-
-# This function takes two taxonomic names -- one from the occurrences/reids
-# table and one from the authorities table (broken down in genus (g), 
-# subgenus (sg) and species (s) components -- use splitTaxonName to
-# do this for entries from the authorities table) and compares
-# How closely they match up.  The higher the number, the better the
-# match.
-# 
-# < 30 but > 20 = species level match
-# < 20 but > 10 = genus/subgenus level match
-# 0 = no match
-sub computeMatchLevel {
-    my ($occ_g,$occ_sg,$occ_sp,$taxon_g,$taxon_sg,$taxon_sp) = @_;
-
-    my $match_level = 0;
-    return 0 if ($occ_g eq '' || $taxon_g eq '');
-
-    if ($taxon_sp) {
-        if ($occ_g eq $taxon_g && 
-            $occ_sg eq $taxon_sg && 
-            $occ_sp eq $taxon_sp) {
-            $match_level = 30; # Exact match
-        } elsif ($occ_g eq $taxon_g && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
-            $match_level = 28; # Genus and species match, next best thing
-        } elsif ($occ_g eq $taxon_sg && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
-            $match_level = 27; # The authorities subgenus being used a genus
-        } elsif ($occ_sg eq $taxon_g && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
-            $match_level = 26; # The authorities genus being used as a subgenus
-        } elsif ($occ_sg && $taxon_sg && $occ_sg eq $taxon_sg && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
-            $match_level = 25; # Genus don't match, but subgenus/species does, pretty weak
-        } 
-    } elsif ($taxon_sg) {
-        if ($occ_g eq $taxon_g  &&
-            $occ_sg eq $taxon_sg) {
-            $match_level = 19; # Genus and subgenus match
-        } elsif ($occ_g eq $taxon_sg) {
-            $match_level = 17; # The authorities subgenus being used a genus
-        } elsif ($occ_sg eq $taxon_g) {
-            $match_level = 16; # The authorities genus being used as a subgenus
-        } elsif ($occ_sg eq $taxon_sg) {
-            $match_level = 14; # Subgenera match up but genera don't, very junky
-        }
-    } else {
-        if ($occ_g eq $taxon_g) {
-            $match_level = 18; # Genus matches at least
-        } elsif ($occ_sg eq $taxon_g) {
-            $match_level = 15; # The authorities genus being used as a subgenus
-        }
-    }
-    return $match_level;
-}
-
-# This function will determine get the best taxon_no for a taxon.  Can pass in either 
-# 6 arguments, or 1 argument thats a hashref to an occurrence or reid database row 
-
-sub getBestClassification{
-    my $dbt = shift;
-    my ($genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
-    if (scalar(@_) == 1) {
-        $genus_reso    = $_[0]->{'genus_reso'} || "";
-        $genus_name    = $_[0]->{'genus_name'} || "";
-        $subgenus_reso = $_[0]->{'subgenus_reso'} || "";
-        $subgenus_name = $_[0]->{'subgenus_name'} || "";
-        $species_reso  = $_[0]->{'species_reso'} || "";
-        $species_name  = $_[0]->{'species_name'} || "";
-    } else {
-        ($genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name) = @_;
-    }
-    my $dbh = $dbt->dbh;
-    my @matches = ();
-
-    if ( $genus_reso !~ /informal/ && $genus_name) {
-        my $species_sql = "";
-        if ($species_reso  !~ /informal/ && $species_name =~ /^[a-z]+$/ && $species_name !~ /^sp(\.)?$|^indet(\.)?$/) {
-	    my $quoted = $dbh->quote("% $species_name");
-            $species_sql = "AND ((taxon_rank='species' and taxon_name like $quoted) or taxon_rank != 'species')";
-        }
-	my $quoted2 = $dbh->quote("$genus_name%");
-	my $quoted3 = $dbh->quote("% ($genus_name)");
-	my $quoted4 = $dbh->quote("$subgenus_name%");
-	my $quoted5 = $dbh->quote("% ($subgenus_name)");
-        my $sql = "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE $quoted2 $species_sql)";
-        $sql .= " UNION ";
-        $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_rank='subgenus' AND taxon_name LIKE $quoted3)";
-        if ($subgenus_reso !~ /informal/ && $subgenus_name) {
-            $sql .= " UNION ";
-            $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE $quoted4 $species_sql)";
-            $sql .= " UNION ";
-            $sql .= "(SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_rank='subgenus' AND taxon_name LIKE $quoted5)";
-        }
-
-        #print "Trying to match $genus_name ($subgenus_name) $species_name\n";
-#        print $sql,"\n";
-        my @results = @{$dbt->getData($sql)};
-
-        my @more_results = ();
-        # Do this query separetly cause it needs to do a full table scan and is SLOW
-        foreach my $row (@results) {
-            my ($taxon_genus,$taxon_subgenus,$taxon_species) = splitTaxon($row->{'taxon_name'});
-            if ($taxon_subgenus && $genus_name eq $taxon_subgenus && $genus_name ne $taxon_genus) {
-                my $last_sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE '% ($taxon_subgenus) %' AND taxon_rank='species'";
-#                print "Querying for more results because only genus didn't match but subgenus (w/g) did matched up with $row->{taxon_name}\n";
-#                print $last_sql,"\n";
-                @more_results = @{$dbt->getData($last_sql)};
-                last;
-            }
-            if ($taxon_subgenus && $subgenus_name eq $taxon_subgenus && $genus_name ne $taxon_subgenus) {
-                my $last_sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE '% ($taxon_subgenus) %' and taxon_rank='species'";
-#                print "Querying for more results because only genus didn't match but subgenus (w/subg) did matched up with $row->{taxon_name}\n";
-#                print $last_sql,"\n";
-                @more_results = @{$dbt->getData($last_sql)};
-                last;
-            }
-        }                     
-
-        foreach my $row (@results,@more_results) {
-            my ($taxon_genus,$taxon_subgenus,$taxon_species,$taxon_subspecies) = splitTaxon($row->{'taxon_name'});
-            if (!$taxon_subspecies) {
-                my $match_level = PBDB::Taxon::computeMatchLevel($genus_name,$subgenus_name,$species_name,$taxon_genus,$taxon_subgenus,$taxon_species);
-                if ($match_level > 0) {
-                    $row->{'match_level'} = $match_level;
-                    push @matches, $row;
-#                    print "MATCH found at $match_level for matching occ $genus_name $subgenus_name $species_name to taxon $row->{taxon_name}\n";
-                }
-            }
-        }
-    }
-
-    @matches = sort {$b->{'match_level'} <=> $a->{'match_level'}} @matches;
-
-    if (wantarray) {
-        # If the user requests a array, then return all matches that are in the same class.  The classes are
-        #  30: exact match, no need to return any others
-        #  20-29: species level match
-        #  10-19: genus level match
-        if (@matches) {
-            my $best_match_class = int($matches[0]->{'match_level'}/10);
-            my @matches_in_class;
-            foreach my $row (@matches) {
-                my $match_class = int($row->{'match_level'}/10);
-                if ($match_class >= $best_match_class) {
-                    push @matches_in_class, $row;
-                }
-            }
-            return @matches_in_class;
-        } else {
-            return ();
-        }
-    } else {
-        # If the user requests a scalar, only return the best match, if it is not a homonym
-        if (scalar(@matches) > 1) {
-            if ($matches[0]->{'taxon_name'} eq $matches[1]->{'taxon_name'}) {
-                # matches are homonyms - if they're the same taxon thats been reranked, return
-                # the original.
-                my $orig0 = PBDB::TaxonInfo::getOriginalCombination($dbt,$matches[0]->{'taxon_no'});
-                my $orig1 = PBDB::TaxonInfo::getOriginalCombination($dbt,$matches[1]->{'taxon_no'});
-                if ($orig0 == $orig1) {
-                    if ($matches[0]->{taxon_no} == $orig0) {
-                        return $orig0;
-                    } elsif ($matches[1]->{taxon_no} == $orig1) {
-                        return $orig1;
-                    } else {
-                        return $matches[0]->{taxon_no};
-                    }
-                } else {
-                    # homonym and not a reranking - return a 0
-                    return 0;
-                }
-            } else {
-                # Not a homonym, just some stray subgenus match or something still return the best
-                return $matches[0]->{'taxon_no'};
-            }
-            return $matches[0]->{'taxon_no'}; # Dead code
-        } elsif (scalar(@matches) == 1) {
-            return $matches[0]->{'taxon_no'};
-        } else {
-            return 0;
-        }
-    }
-}
-
 sub propagateAuthorityInfo {
-    my $dbt = shift;
-    my $q = shift;
-    my $taxon_no = shift;
-    my $this_is_best = shift;
+    
+    my ($dbt, $q, $taxon_no, $this_is_best) = @_;
     
     my $dbh = $dbt->dbh;
-    return if (!$taxon_no);
-
-    my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxon_no);
-    return if (!$orig_no);
-
-    my @spelling_nos = PBDB::TaxonInfo::getAllSpellings($dbt,$orig_no);
+    return unless $taxon_no;
+    
+    my $orig_no = getOriginalCombination($dbt,$taxon_no) || return;
+    
+    my @spelling_nos = getAllSpellings($dbt,$orig_no);
+    
     # Note that this is the taxon_no passed in, not the original combination -- an update to
     # a spelling should proprate around as well
-    my $me = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$taxon_no},['*']);
-
+    
+    my $me = getTaxa($dbt,{'taxon_no'=>$taxon_no},['*']);
+    
     my @authority_fields = ('author1init','author1last','author2init','author2last','otherauthors','pubyr');
     my @more_fields = ('pages','figures','common_name','type_specimen','museum','catalog_number','type_body_part','part_details','type_locality','extant','form_taxon','preservation');
 
     # Two steps: find best authority info, then propagate to all spelling variants
     my @spellings;
     foreach my $spelling_no (@spelling_nos) {
-        my $spelling = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$spelling_no},['*']);
+        my $spelling = getTaxa($dbt,{'taxon_no'=>$spelling_no},['*']);
         push @spellings, $spelling;
     }
-
+    
     my $getDataQuality = sub {
         my $taxa = shift;
         my $quality = 0;
@@ -2364,133 +2132,133 @@ sub propagateAuthorityInfo {
     }
 }
 
-# JA 14.12.10
-sub entangledNamesForm	{
-	my ($dbt,$hbo,$s,$q) = @_;
-	my $taxon_no = $q->numeric_param('taxon_no');
-	my %vars;
+# # JA 14.12.10
+# sub entangledNamesForm	{
+# 	my ($dbt,$hbo,$s,$q) = @_;
+# 	my $taxon_no = $q->numeric_param('taxon_no');
+# 	my %vars;
 
-	my $if = "IF(a.ref_is_authority='YES'";
-	my $sql = "SELECT taxon_name,taxon_rank,$if,r.author1last,a.author1last) a1,$if,r.author2last,a.author2last) a2,$if,r.otherauthors,a.otherauthors) others,$if,r.pubyr,a.pubyr) yr,a.taxon_no FROM refs r,authorities a,$TAXA_TREE_CACHE t,$TAXA_TREE_CACHE t2 where r.reference_no=a.reference_no AND a.taxon_no=t.taxon_no AND a.taxon_no=t.taxon_no AND t.spelling_no=t2.spelling_no AND t2.taxon_no=$taxon_no ORDER BY taxon_name";
-	my @spellings = @{$dbt->getData($sql)};
+# 	my $if = "IF(a.ref_is_authority='YES'";
+# 	my $sql = "SELECT taxon_name,taxon_rank,$if,r.author1last,a.author1last) a1,$if,r.author2last,a.author2last) a2,$if,r.otherauthors,a.otherauthors) others,$if,r.pubyr,a.pubyr) yr,a.taxon_no FROM refs r,authorities a,$TAXA_TREE_CACHE t,$TAXA_TREE_CACHE t2 where r.reference_no=a.reference_no AND a.taxon_no=t.taxon_no AND a.taxon_no=t.taxon_no AND t.spelling_no=t2.spelling_no AND t2.taxon_no=$taxon_no ORDER BY taxon_name";
+# 	my @spellings = @{$dbt->getData($sql)};
 
-	my %ranks;
-	for my $i ( 0..$#spellings )	{
-		$vars{'spellings'} .= '<tr><td><input type=hidden name="spelling_no" value="'.$spellings[$i]->{taxon_no}.'">'.$spellings[$i]->{taxon_name}.'</td><td align="center"><input type="radio" id="spelling'.$i.'" name="spelling'.$i.'" value="1"></td><td align="center"><input type="radio" name="spelling'.$i.'" value="2"></td></tr>
-';
-		$ranks{$spellings[$i]->{'taxon_rank'}}++;
-	}
-	my @temp = keys %ranks;
-	if ( $#temp == 0 )	{
-		$vars{'rank'} = $spellings[0]->{'taxon_rank'};
-	} else	{
-		$vars{'rank'} = "thing";
-	}
-	$vars{'author'} = $spellings[0]->{'a1'};
-	if ( $spellings[0]->{'others'} )	{
-		$vars{'author'} .= " et al.";
-	} elsif ( $spellings[0]->{'a2'} )	{
-		$vars{'author'} .= " and ".$spellings[0]->{'a2'};
-	}
-	$vars{'author'} .= " (".$spellings[0]->{'yr'}.")";
+# 	my %ranks;
+# 	for my $i ( 0..$#spellings )	{
+# 		$vars{'spellings'} .= '<tr><td><input type=hidden name="spelling_no" value="'.$spellings[$i]->{taxon_no}.'">'.$spellings[$i]->{taxon_name}.'</td><td align="center"><input type="radio" id="spelling'.$i.'" name="spelling'.$i.'" value="1"></td><td align="center"><input type="radio" name="spelling'.$i.'" value="2"></td></tr>
+# ';
+# 		$ranks{$spellings[$i]->{'taxon_rank'}}++;
+# 	}
+# 	my @temp = keys %ranks;
+# 	if ( $#temp == 0 )	{
+# 		$vars{'rank'} = $spellings[0]->{'taxon_rank'};
+# 	} else	{
+# 		$vars{'rank'} = "thing";
+# 	}
+# 	$vars{'author'} = $spellings[0]->{'a1'};
+# 	if ( $spellings[0]->{'others'} )	{
+# 		$vars{'author'} .= " et al.";
+# 	} elsif ( $spellings[0]->{'a2'} )	{
+# 		$vars{'author'} .= " and ".$spellings[0]->{'a2'};
+# 	}
+# 	$vars{'author'} .= " (".$spellings[0]->{'yr'}.")";
 	
-	my $output = '';
+# 	my $output = '';
 	
-	$output .= $hbo->stdIncludes("std_page_top");
-	$output .= $hbo->populateHTML('entangled_names',\%vars);
-	$output .= $hbo->stdIncludes("std_page_bottom");
+# 	$output .= $hbo->stdIncludes("std_page_top");
+# 	$output .= $hbo->populateHTML('entangled_names',\%vars);
+# 	$output .= $hbo->stdIncludes("std_page_bottom");
 
-	return $output;
-}
+# 	return $output;
+# }
 
-# JA 14.12.10
-# WARNING: this is super-dangerous, any bug could cause total havoc with taxa_tree_cache
-sub disentangleNames	{
-	my ($dbt,$hbo,$s,$q) = @_;
-	my $dbh = $dbt->dbh;
+# # JA 14.12.10
+# # WARNING: this is super-dangerous, any bug could cause total havoc with taxa_tree_cache
+# sub disentangleNames	{
+# 	my ($dbt,$hbo,$s,$q) = @_;
+# 	my $dbh = $dbt->dbh;
 
-	my @spellings = $q->numeric_param('spelling_no');
-	my (@version1,@version2);
-	for my $i ( 0..$#spellings )	{
-		if ( $q->param('spelling'.$i) == "1" )	{
-			push @version1 , $spellings[$i];
-		} elsif ( $q->param('spelling'.$i) == "2" )	{
-			push @version2 , $spellings[$i];
-		}
-	}
+# 	my @spellings = $q->numeric_param('spelling_no');
+# 	my (@version1,@version2);
+# 	for my $i ( 0..$#spellings )	{
+# 		if ( $q->param('spelling'.$i) == "1" )	{
+# 			push @version1 , $spellings[$i];
+# 		} elsif ( $q->param('spelling'.$i) == "2" )	{
+# 			push @version2 , $spellings[$i];
+# 		}
+# 	}
 
-	# fix the opinions (temporarily) by resetting child_no and parent_no to a taxon_no in
-	#  each version category, as appropriate
-	# at this point it doesn't matter if these numbers are really the "base" spelling numbers
-	#  because that will get fixed later
-	my $sql = "UPDATE opinions SET modified=modified,child_no=".$version1[0]." WHERE child_no IN (".join(',',@version1).") OR child_spelling_no IN (".join(',',@version1).")";
-	$dbh->do($sql);
-	$sql = "UPDATE opinions SET modified=modified,parent_no=".$version1[0]." WHERE parent_no IN (".join(',',@version1).") OR parent_spelling_no IN (".join(',',@version1).")";
-	$dbh->do($sql);
-	$sql = "UPDATE opinions SET modified=modified,child_no=".$version2[0]." WHERE child_no IN (".join(',',@version2).") OR child_spelling_no IN (".join(',',@version2).")";
-	$dbh->do($sql);
-	$sql = "UPDATE opinions SET modified=modified,parent_no=".$version2[0]." WHERE parent_no IN (".join(',',@version2).") OR parent_spelling_no IN (".join(',',@version2).")";
-	$dbh->do($sql);
+# 	# fix the opinions (temporarily) by resetting child_no and parent_no to a taxon_no in
+# 	#  each version category, as appropriate
+# 	# at this point it doesn't matter if these numbers are really the "base" spelling numbers
+# 	#  because that will get fixed later
+# 	my $sql = "UPDATE opinions SET modified=modified,child_no=".$version1[0]." WHERE child_no IN (".join(',',@version1).") OR child_spelling_no IN (".join(',',@version1).")";
+# 	$dbh->do($sql);
+# 	$sql = "UPDATE opinions SET modified=modified,parent_no=".$version1[0]." WHERE parent_no IN (".join(',',@version1).") OR parent_spelling_no IN (".join(',',@version1).")";
+# 	$dbh->do($sql);
+# 	$sql = "UPDATE opinions SET modified=modified,child_no=".$version2[0]." WHERE child_no IN (".join(',',@version2).") OR child_spelling_no IN (".join(',',@version2).")";
+# 	$dbh->do($sql);
+# 	$sql = "UPDATE opinions SET modified=modified,parent_no=".$version2[0]." WHERE parent_no IN (".join(',',@version2).") OR parent_spelling_no IN (".join(',',@version2).")";
+# 	$dbh->do($sql);
 
-	# dump version 2 at the end of taxa_tree_cache
-	# don't mess with version 1 at this stage
-	$dbh->do("LOCK TABLES $TAXA_TREE_CACHE WRITE");
-	$sql = "SELECT max(rgt) max FROM $TAXA_TREE_CACHE";
-	my $max = ${$dbt->getData($sql)}[0]->{'max'};
-	$sql = "UPDATE $TAXA_TREE_CACHE SET lft=$max+1,rgt=$max+2 WHERE taxon_no IN (".join(',',@version2).")";
-	$dbh->do($sql);
-	$dbh->do("UNLOCK TABLES");
+# 	# dump version 2 at the end of taxa_tree_cache
+# 	# don't mess with version 1 at this stage
+# 	$dbh->do("LOCK TABLES $TAXA_TREE_CACHE WRITE");
+# 	$sql = "SELECT max(rgt) max FROM $TAXA_TREE_CACHE";
+# 	my $max = ${$dbt->getData($sql)}[0]->{'max'};
+# 	$sql = "UPDATE $TAXA_TREE_CACHE SET lft=$max+1,rgt=$max+2 WHERE taxon_no IN (".join(',',@version2).")";
+# 	$dbh->do($sql);
+# 	$dbh->do("UNLOCK TABLES");
 
-	# fix everything, because version 1 might be classified based on a version 2 opinion
-	$sql = "UPDATE $TAXA_TREE_CACHE SET spelling_no=taxon_no,synonym_no=taxon_no,opinion_no=0 WHERE taxon_no IN (".join(',',@spellings).")";
-	$dbh->do($sql);
+# 	# fix everything, because version 1 might be classified based on a version 2 opinion
+# 	$sql = "UPDATE $TAXA_TREE_CACHE SET spelling_no=taxon_no,synonym_no=taxon_no,opinion_no=0 WHERE taxon_no IN (".join(',',@spellings).")";
+# 	$dbh->do($sql);
 
-	for my $s ( @spellings )	{
-		my $orig = PBDB::TaxonInfo::getOriginalCombination($dbt,$s);
-		PBDB::TaxonInfo::getMostRecentClassification($dbt,$orig,{'recompute'=>'yes'});
-		PBDB::TaxaCache::updateCache($dbt,$orig);
-	}
+# 	for my $s ( @spellings )	{
+# 		my $orig = getOriginalCombination($dbt,$s);
+# 		PBDB::TaxonInfo::getMostRecentClassification($dbt,$orig,{'recompute'=>'yes'});
+# 		PBDB::TaxaCache::updateCache($dbt,$orig);
+# 	}
 
-	# body mass estimates are also mixed up
-	PBDB::Opinion::fixMassEstimates($dbt,$dbh,PBDB::TaxonInfo::getOriginalCombination($dbt,$version1[0]));
-	PBDB::Opinion::fixMassEstimates($dbt,$dbh,PBDB::TaxonInfo::getOriginalCombination($dbt,$version2[0]));
+# 	# body mass estimates are also mixed up
+# 	PBDB::Opinion::fixMassEstimates($dbt,$dbh,getOriginalCombination($dbt,$version1[0]));
+# 	PBDB::Opinion::fixMassEstimates($dbt,$dbh,getOriginalCombination($dbt,$version2[0]));
 
-	# all of the children of the disentangled names are now hosed because their
-	#  upwards classifications go through them, so update
-	$sql = "SELECT distinct(child_no) FROM opinions WHERE parent_no IN (".join(',',@spellings).")";
-	my @children = @{$dbt->getData($sql)};
-	for my $c ( @children )	{
-		my $orig = PBDB::TaxonInfo::getOriginalCombination($dbt,$c->{'child_no'});
-		PBDB::TaxonInfo::getMostRecentClassification($dbt,$orig,{'recompute'=>'yes'});
-		PBDB::TaxaCache::updateCache($dbt,$orig);
-	}
+# 	# all of the children of the disentangled names are now hosed because their
+# 	#  upwards classifications go through them, so update
+# 	$sql = "SELECT distinct(child_no) FROM opinions WHERE parent_no IN (".join(',',@spellings).")";
+# 	my @children = @{$dbt->getData($sql)};
+# 	for my $c ( @children )	{
+# 		my $orig = getOriginalCombination($dbt,$c->{'child_no'});
+# 		PBDB::TaxonInfo::getMostRecentClassification($dbt,$orig,{'recompute'=>'yes'});
+# 		PBDB::TaxaCache::updateCache($dbt,$orig);
+# 	}
 
-	# report the results
-	my %vars;
-	my (@names1,@names2);
-	$sql = "SELECT taxon_name FROM authorities WHERE taxon_no IN (".join(',',@version1).") ORDER BY taxon_name";
-	my @names = @{$dbt->getData($sql)};
-	push @names1 , $_->{'taxon_name'} foreach @names;
-	$sql = "SELECT taxon_name FROM authorities WHERE taxon_no IN (".join(',',@version2).") ORDER BY taxon_name";
-	push @names2 , $_->{'taxon_name'} foreach @{$dbt->getData($sql)};
-	if ( $#names1 > 1 )	{
-		$names1[$#names1] = "and ".$names1[$#names1];
-	} elsif ( $#names1 == 1 )	{
-		$names1[0] .= " and " . pop @names1;
-	}
-	if ( $#names2 > 1 )	{
-		$names2[$#names2] = "and ".$names2[$#names2];
-	} elsif ( $#names2 == 1 )	{
-		$names2[0] .= " and " . pop @names2;
-	}
-	$vars{'names1'} = join(", ",@names1);
-	$vars{'names2'} = join(", ",@names2);
-	$vars{'taxon_no1'} = $version1[0];
-	$vars{'taxon_no2'} = $version2[0];
-	return $hbo->populateHTML('disentangled',\%vars);
+# 	# report the results
+# 	my %vars;
+# 	my (@names1,@names2);
+# 	$sql = "SELECT taxon_name FROM authorities WHERE taxon_no IN (".join(',',@version1).") ORDER BY taxon_name";
+# 	my @names = @{$dbt->getData($sql)};
+# 	push @names1 , $_->{'taxon_name'} foreach @names;
+# 	$sql = "SELECT taxon_name FROM authorities WHERE taxon_no IN (".join(',',@version2).") ORDER BY taxon_name";
+# 	push @names2 , $_->{'taxon_name'} foreach @{$dbt->getData($sql)};
+# 	if ( $#names1 > 1 )	{
+# 		$names1[$#names1] = "and ".$names1[$#names1];
+# 	} elsif ( $#names1 == 1 )	{
+# 		$names1[0] .= " and " . pop @names1;
+# 	}
+# 	if ( $#names2 > 1 )	{
+# 		$names2[$#names2] = "and ".$names2[$#names2];
+# 	} elsif ( $#names2 == 1 )	{
+# 		$names2[0] .= " and " . pop @names2;
+# 	}
+# 	$vars{'names1'} = join(", ",@names1);
+# 	$vars{'names2'} = join(", ",@names2);
+# 	$vars{'taxon_no1'} = $version1[0];
+# 	$vars{'taxon_no2'} = $version2[0];
+# 	return $hbo->populateHTML('disentangled',\%vars);
 
 
-}
+# }
 
 # end of Taxon.pm
 

@@ -6,13 +6,17 @@ package PBDB::Measurement;
 
 use strict;
 
-use PBDB::TaxaCache;
+use PBDB::Taxonomy qw(getTaxa getChildren);
 use PBDB::Ecology;
 use PBDB::Reference;
 use PBDB::TimeLookup;
 use PBDB::Download;
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($HTML_DIR $TAXA_TREE_CACHE);
+
+use Exporter qw(import);
+
+our @EXPORT_OK = qw(getMeasurements getMeasurementTable getMassEstimates);
 
 my @specimen_fields   =('specimens_measured','specimen_coverage','specimen_id','specimen_side','sex','specimen_part','measurement_source','magnification','is_type','comments');
 my @measurement_types =('mass','length','width','height','circumference','diagonal','diameter','inflation','d13C','d18O');
@@ -110,14 +114,14 @@ sub getMeasurements	{
     } elsif ($options{'taxon_name'} || $options{'taxon_no'}) {
         my @taxa;
         if ($options{'taxon_name'}) {
-            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'}},['taxon_no']);
+            @taxa = getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'}},['taxon_no']);
         } else {
-            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$options{'taxon_no'}},['taxon_no']);
+            @taxa = getTaxa($dbt,{'taxon_no'=>$options{'taxon_no'}},['taxon_no']);
         }
         if (@taxa) {
             my (@taxon_nos,%all_taxa);
             foreach (@taxa) {
-                @taxon_nos = PBDB::TaxaCache::getChildren($dbt,$_->{'taxon_no'});
+                @taxon_nos = getChildren($dbt,$_->{'taxon_no'});
                 @all_taxa{@taxon_nos} = ();
             }
             @taxon_nos = keys %all_taxa;

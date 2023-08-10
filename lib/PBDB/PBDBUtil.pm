@@ -1,8 +1,16 @@
+
 package PBDB::PBDBUtil;
-use File::Path;
+
 use strict;
 
+use File::Path;
 use PBDB::Debug qw(dbg);
+
+use Exporter qw(import);
+
+our @EXPORT_OK = qw(getResearchGroupSQL getMostRecentReIDforOCC checkForBot
+		    getFilename numberToName printIntervalsJava autoCreateDir
+		    getPersonLookup);
 
 # This contains various miscellaneous functions that don't belong anywhere
 # else or haven't been moved out yet
@@ -145,42 +153,42 @@ sub numberToName {
 # pass it an array ref and a scalar
 # loops through the array to see if the scalar is a member of it.
 # returns true or false value.
-sub isIn {
-    my $arrayRef = shift;
-    my $val = shift;
+# sub isIn {
+#     my $arrayRef = shift;
+#     my $val = shift;
 
-    # if they don't exist
-    if ((!$arrayRef) || (!$val)) {
-        return 0;
-    }
+#     # if they don't exist
+#     if ((!$arrayRef) || (!$val)) {
+#         return 0;
+#     }
 
-    foreach my $k (@$arrayRef) {
-        if ($val eq $k) {
-            return 1;
-        }
-    }
+#     foreach my $k (@$arrayRef) {
+#         if ($val eq $k) {
+#             return 1;
+#         }
+#     }
 
-    return 0;
-}
+#     return 0;
+# }
     
 
 # Pass this an array ref and an element to delete.
 # It returns a reference to a new array but *doesn't* modify the original.
 # Does a string compare (eq)
-sub deleteElementFromArray {
-    my $ref = shift; 
-    my $toDelete = shift;
+# sub deleteElementFromArray {
+#     my $ref = shift; 
+#     my $toDelete = shift;
     
-    my @newArray;
+#     my @newArray;
     
-    foreach my $element (@$ref) {
-        if ($element ne $toDelete) {
-            push(@newArray, $element);
-        }
-    }
+#     foreach my $element (@$ref) {
+#         if ($element ne $toDelete) {
+#             push(@newArray, $element);
+#         }
+#     }
     
-    return \@newArray;
-}   
+#     return \@newArray;
+# }   
 
 # print Javascript to limit entry of time interval names
 # WARNING: if "Early/Late Interval" is submitted but only "Interval"
@@ -300,13 +308,13 @@ END_FOOTER
     return $output;
 }
 
-sub stripTags {
-    my $s = shift;
-    $s =~ s/<(?:[^>'"]*|(['"]).*?\1)*>//gs;
-    $s =~ s/\[.*?\]//gs;
-    $s =~ s/http:\/\/.*?(\s|$)//gs;
-    return $s;
-}
+# sub stripTags {
+#     my $s = shift;
+#     $s =~ s/<(?:[^>'"]*|(['"]).*?\1)*>//gs;
+#     $s =~ s/\[.*?\]//gs;
+#     $s =~ s/http:\/\/.*?(\s|$)//gs;
+#     return $s;
+# }
 
 sub checkForBot {
     if ($ENV{'HTTP_USER_AGENT'} =~ /slurp|bot|spider|ask jeeves|crawl|archive|holmes|findlinks|webcopier|cfetch|stackrambler|bnserver|petalbot|dotbot|bingbot|applebot|serpstat/i || $ENV{'REMOTE_ADDR'} =~ /^194.85./) {

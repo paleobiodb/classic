@@ -2,10 +2,10 @@
 
 package PBDB::MeasurementEntry;
 
-use PBDB::TaxaCache;
-use PBDB::Reference;
+use PBDB::Taxonomy qw(getTaxa getChildren getAllSynonyms getAllSpellings);
+use PBDB::Reference qw(formatShortRef formatLongRef);
 use PBDB::Debug;
-use PBDB::PBDBUtil;
+use PBDB::PBDBUtil qw(getMostRecentReIDforOCC);
 use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs makeFormPostTag);
 
 use strict;
@@ -45,7 +45,7 @@ sub submitSpecimenSearch {
             my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name=$quoted";
             @taxa = @{$dbt->getData($sql)};
         } else	{
-            @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$taxon_name, 'match_subgenera'=>1});
+            @taxa = getTaxa($dbt,{'taxon_name'=>$taxon_name, 'match_subgenera'=>1});
         }
     } 
     if (@taxa) {
@@ -53,13 +53,13 @@ sub submitSpecimenSearch {
         if ( $q->param('match_type') !~ /exact/ )	{
             foreach (@taxa) {
                 if ($_->{'taxon_rank'} =~ /species|genus/) {
-                    @taxon_nos = PBDB::TaxaCache::getChildren($dbt,$_->{'taxon_no'});
+                    @taxon_nos = getChildren($dbt,$_->{'taxon_no'});
                     @all_taxa{@taxon_nos} = ();
                 } else {
                     if ( $q->param('match_type') !~ /combinations only/ )	{
-                        @taxon_nos = PBDB::TaxonInfo::getAllSynonyms($dbt,$_->{'taxon_no'});
+                        @taxon_nos = getAllSynonyms($dbt,$_->{'taxon_no'});
                     } else	{
-                        @taxon_nos = PBDB::TaxonInfo::getAllSpellings($dbt,$_->{'taxon_no'});
+                        @taxon_nos = getAllSpellings($dbt,$_->{'taxon_no'});
                     }
                     @all_taxa{@taxon_nos} = ();
                     @all_taxa{$_->{'taxon_no'}} = 1; 
@@ -245,7 +245,7 @@ sub displaySpecimenList {
 	    return $hbo->populateHTML('search_specimen_form', \%vars);
         }
         $collection = "(collection $row->{collection_no})";
-        my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
+        my $reid_row = getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
         if ($reid_row) {
             $taxon_name = $reid_row->{'genus_name'}." ".$reid_row->{'species_name'};
         } else {
@@ -266,7 +266,7 @@ sub displaySpecimenList {
         }
         @results = @{$dbt->getData($sql)};
 
-        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('taxon_no')},['taxon_rank','taxon_name','extant']);
+        my $taxon = getTaxa($dbt,{'taxon_no'=>$q->numeric_param('taxon_no')},['taxon_rank','taxon_name','extant']);
         if ($taxon->{'taxon_rank'} =~ /species/) {
             $taxon_name = $taxon->{'taxon_name'};
         } elsif ($taxon->{'taxon_rank'} =~ /genus/) {
@@ -543,7 +543,7 @@ $output .= qq|<center>
                 $output .= "<td align=\"center\">$row->{$type}</td>";
             }
         }
-        my $auth = PBDB::Reference::formatShortRef($row);
+        my $auth = formatShortRef($row);
         $auth =~ s/ and / & /;
         $output .= "<td>$auth</td>\n";
         $output .= "</tr>";
@@ -574,7 +574,7 @@ sub populateMeasurementForm {
         my $sql = "SELECT c.collection_name, o.collection_no, o.genus_name, o.species_name, o.occurrence_no, o.taxon_no FROM collections c, occurrences o WHERE c.collection_no=o.collection_no AND o.occurrence_no=".$q->numeric_param('occurrence_no');
         my $row = ${$dbt->getData($sql)}[0];
 
-        my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
+        my $reid_row = getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
         if ($reid_row) {
             $taxon_name = $reid_row->{'genus_name'}." ".$reid_row->{'species_name'};
         } else {
@@ -592,7 +592,7 @@ sub populateMeasurementForm {
     } else {
         $old_field = "taxon_no";
         $old_no = $q->numeric_param('taxon_no');
-        my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$q->numeric_param('taxon_no')},['taxon_rank','taxon_name','extant']);
+        my $taxon = getTaxa($dbt,{'taxon_no'=>$q->numeric_param('taxon_no')},['taxon_rank','taxon_name','extant']);
         if ($taxon->{'taxon_rank'} =~ /species/) {
             $taxon_name = $taxon->{'taxon_name'};
         } elsif ($taxon->{'taxon_rank'} =~ /genus/) {
@@ -677,7 +677,7 @@ sub populateMeasurementForm {
                 my $ref = ${$dbt->getData($sql)}[0];
 
 	        push @fields,('reference','occurrence_no','taxon_no','reference_no','specimen_no','taxon_name','collection','types_only');
-	        push @values,(PBDB::Reference::formatLongRef($ref),$q->numeric_param('occurrence_no'),$q->numeric_param('taxon_no'),$s->get('reference_no'),'-1',$taxon_name,$collection,$q->numeric_param('types_only'));
+	        push @values,(formatLongRef($ref),$q->numeric_param('occurrence_no'),$q->numeric_param('taxon_no'),$s->get('reference_no'),'-1',$taxon_name,$collection,$q->numeric_param('types_only'));
 	        return $hbo->populateHTML('specimen_measurement_form_general', \@values, \@fields);
             } elsif ($q->numeric_param('specimen_no') == -2) {
                 if ( $q->param('length') )	{
@@ -833,7 +833,7 @@ sub populateMeasurementForm {
 
         # some additional fields not from the form row
 	    push (@fields, 'reference','occurrence_no','taxon_no','reference_no','specimen_no','taxon_name','collection','types_only');
-	    push (@values, sprintf("%s",PBDB::Reference::formatLongRef($ref)),$q->numeric_param('occurrence_no'),$q->numeric_param('taxon_no'),int($row->{'reference_no'}),$row->{'specimen_no'},$taxon_name,$collection,$q->numeric_param('types_only'));
+	    push (@values, sprintf("%s",formatLongRef($ref)),$q->numeric_param('occurrence_no'),$q->numeric_param('taxon_no'),int($row->{'reference_no'}),$row->{'specimen_no'},$taxon_name,$collection,$q->numeric_param('types_only'));
 	    return $hbo->populateHTML('specimen_measurement_form_general', \@values, \@fields);
     }
 
@@ -865,7 +865,7 @@ sub processMeasurementForm	{
             $taxon_no = $reid_taxon;
         }
 
-        my $reid_row = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
+        my $reid_row = getMostRecentReIDforOcc($dbt,$row->{'occurrence_no'},1);
         if ($reid_row) {
             $taxon_name = $reid_row->{'genus_name'}." ".$reid_row->{'species_name'};
         } else {

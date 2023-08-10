@@ -5,7 +5,7 @@ package PBDB::Ecology;
 
 use strict;
 
-use PBDB::TaxaCache;
+use PBDB::Taxonomy qw(getChildren);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE);
 
@@ -93,7 +93,7 @@ sub getEcology {
                 # Optimization: if its species, don't call function, just get the species itself and its alternate spellings
                 $child_taxa{$taxon_no} = [$taxon_no,@{$alt_taxon_nos{$taxon_no}}];
             } else {
-                my @child_taxon_nos = PBDB::TaxaCache::getChildren($dbt,$taxon_no);
+                my @child_taxon_nos = getChildren($dbt,$taxon_no);
                 $child_taxa{$taxon_no} = \@child_taxon_nos;
             }
             $all_child_taxon_nos{$_} = 1 foreach @{$child_taxa{$taxon_no}}; 

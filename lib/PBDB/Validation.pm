@@ -22,6 +22,11 @@ package PBDB::Validation;
 use strict;
 use PBDB::TimeLookup;
 
+use Exporter qw(import);
+
+our @EXPORT_OK = qw(clean cleanCGIParams isNumeric isInteger
+		    properLastName properInitial properYear
+		    validOccurrenceGenus validOccurrenceSpecies checkInterval);
 
 # pass this a string and it returns a "cleaned" copy of it.
 # basically removes any funny characters which shouldn't be in the database,

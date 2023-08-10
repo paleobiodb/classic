@@ -2,11 +2,10 @@ package PBDB::Confidence;
 
 use strict;
 # use Data::Dumper; 
-use PBDB::TaxaCache;
+use PBDB::Taxonomy qw(getParent getChildren getSeniorSynonym);
 use PBDB::Classification; # not used
 use PBDB::Collection;
 use PBDB::Person;
-use PBDB::TaxonInfo;
 use PBDB::HTMLBuilder;
 use PBDB::PBDBUtil;
 use PBDB::TimeLookup;
@@ -54,7 +53,7 @@ sub displayHomonymForm {
         $output .= '<table border=0 cellspacing=3 cellpadding=3>'."\n";
         $output .= "<tr>";
         foreach my $taxon_no (@taxon_nos) {
-            my $parent = PBDB::TaxaCache::getParent($dbt,$taxon_no);
+            my $parent = getParent($dbt,$taxon_no);
             $output .= "<td><input type='radio' checked name='occurrence_list_$i' value='$taxon_no'>$homonym_name [$parent->{taxon_name}]</td>";
         }
         $output .= "<input type='hidden' name='taxon_name_$i' value='$homonym_name'>\n";
@@ -372,27 +371,27 @@ sub buildList    {
     while(my ($taxon_name,$no_or_name) = each %occ_list_base) {
         if ($no_or_name =~ /^\d+$/) {
             if ($q->param('taxon_resolution') eq 'as_is') {
-                my @taxon_nos = PBDB::TaxaCache::getChildren($dbt,$no_or_name);
+                my @taxon_nos = getChildren($dbt,$no_or_name);
                 my $taxon_list = join(",",@taxon_nos);
                 my $results = getOccurrenceData($dbt,'taxon_list'=>$taxon_list,'fields'=>$fields);
                 if (ref $results && @$results) {
                     $occ_list{$taxon_name} = join(",",map {$_->{'occurrence_no'}} @$results);
                 }
             } else {
-                my @taxon_nos = PBDB::TaxaCache::getChildren($dbt,$no_or_name);
+                my @taxon_nos = getChildren($dbt,$no_or_name);
                 my $taxon_list = join(",",@taxon_nos);
                 my $results = getOccurrenceData($dbt,'taxon_list'=>$taxon_list,'fields'=>$fields);
 
                 foreach my $row (@$results) {
                     my $taxon_no = $row->{'taxon_no'};
-                    my $best_name_ref = PBDB::TaxaCache::getSeniorSynonym($dbt,$taxon_no);
+                    my $best_name_ref = getSeniorSynonym($dbt,$taxon_no);
                     my $genus_ref;
                     my $subgenus_ref;
                     if ($best_name_ref->{'taxon_rank'} =~ /genus|species/) {
                         if ($best_name_ref->{'taxon_rank'} =~ /species/) {
-                            $subgenus_ref = PBDB::TaxaCache::getParent($dbt,$taxon_no,'subgenus');
+                            $subgenus_ref = getParent($dbt,$taxon_no,'subgenus');
                             if (!$subgenus_ref) {
-                                $genus_ref= PBDB::TaxaCache::getParent($dbt,$taxon_no,'genus');
+                                $genus_ref= getParent($dbt,$taxon_no,'genus');
                             }
                         }
                         my ($genus,$subgenus,$species);
@@ -509,14 +508,14 @@ sub displayStratTaxa {
     # taxon_no, use the genus+species name
     foreach my $row (@$taxa_list) {
         if ($row->{'taxon_no'}) {
-            my $best_name_ref = PBDB::TaxaCache::getSeniorSynonym($dbt,$row->{'taxon_no'});
+            my $best_name_ref = getSeniorSynonym($dbt,$row->{'taxon_no'});
             my $genus_ref;
             my $subgenus_ref;
             if ($best_name_ref->{'taxon_rank'} =~ /genus|species/) {
                 if ($best_name_ref->{'taxon_rank'} =~ /species/) {
-                    $subgenus_ref = PBDB::TaxaCache::getParent($dbt,$row->{taxon_no},'subgenus');
+                    $subgenus_ref = getParent($dbt,$row->{taxon_no},'subgenus');
                     if (!$subgenus_ref) {
-                        $genus_ref= PBDB::TaxaCache::getParent($dbt,$row->{taxon_no},'genus');
+                        $genus_ref= getParent($dbt,$row->{taxon_no},'genus');
                     }
                 }
                 my ($genus,$subgenus,$species);

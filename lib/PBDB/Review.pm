@@ -1,7 +1,7 @@
 
 package PBDB::Review;
 
-use PBDB::Constants qw($HTML_DIR $TAXA_TREE_CACHE makeURL);
+use PBDB::Constants qw($HTML_DIR $TAXA_TREE_CACHE makeURL makeAnchor);
 
 use PBDB::Map;
 use PBDB::Debug;

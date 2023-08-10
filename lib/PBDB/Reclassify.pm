@@ -7,6 +7,8 @@ use URI::Escape;
 use HTML::Entities;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($OCCURRENCE_NO makeAnchor makeFormPostTag);
+use PBDB::Taxonomy qw(getTaxa getBestClassification splitTaxon);
+use PBDB::Taxon qw(formatTaxon);
 
 # in memory of our dearly departed Ryan Poling
 
@@ -57,7 +59,7 @@ sub displayOccurrenceReclassify	{
     my @occrefs;
     if (@collections) {
 	    $output .= "<center><p class=\"pageTitle\">Classification of \"".$q->param('taxon_name')."\" occurrences</p>";
-        my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
+        my ($genus,$subgenus,$species,$subspecies) = splitTaxon($q->param('taxon_name'));
         my @names = ($dbh->quote($genus));
         if ($subgenus) {
             push @names, $dbh->quote($subgenus);
@@ -155,7 +157,7 @@ my $editable = 1;
 			if ( $o->{species_reso} !~ /informal/ && $o->{species_name} !~ /^sp\./ && $o->{species_name} !~ /^indet\./)	{
 				$taxon_name .= " " . $o->{species_name};
 			}
-            my @all_matches = PBDB::Taxon::getBestClassification($dbt,$o);
+            my @all_matches = getBestClassification($dbt,$o);
 
 			# now print the name and the pulldown of authorities
 			if ( @all_matches )	{
@@ -466,9 +468,9 @@ sub classificationSelect {
                  
     # populate the select list of authorities
     foreach my $m (@$matches) {
-        my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$m->{'taxon_no'}},['taxon_no','taxon_name','taxon_rank','author1last','author2last','otherauthors','pubyr']);
+        my $t = getTaxa($dbt,{'taxon_no'=>$m->{'taxon_no'}},['taxon_no','taxon_name','taxon_rank','author1last','author2last','otherauthors','pubyr']);
         # have to format the authority data
-        my $authority = PBDB::Taxon::formatTaxon($dbt,$t);
+        my $authority = formatTaxon($dbt,$t);
 
         $html .= "<option value=\"" . $t->{taxon_no} . "+" . encode_entities($authority) . "\"";
         if ($t->{taxon_no} eq $taxon_no) {

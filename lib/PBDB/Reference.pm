@@ -13,17 +13,18 @@ use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTION_NO makeAnchor
 		       makeAnchorWithAttrs makeATag makeFormPostTag);
-use PBDB::Download;
-use PBDB::Person;
 # calls to these two modules need to be removed eventually
 use PBDB::Nexusfile;
-use PBDB::PBDBUtil;
-use PBDB::Opinion;
-use PBDB::ReferenceEntry;
+use PBDB::Person;
 use PBDB::Permissions;
+use PBDB::PBDBUtil;
 use Text::CSV_XS;
 
 use Carp qw(carp);
+
+use Exporter qw(import);
+
+our @EXPORT_OK = qw(getReference formatShortRef formatLongRef);
 
 # Paths from the Apache environment variables (in the httpd.conf file).
 
@@ -135,19 +136,30 @@ sub formatAsHTML {
 }
 
 sub getReference {
-    my $dbt = shift;
-    my $reference_no = int(shift);
-
-    if ($reference_no) {
-        my $sql = "SELECT authorizer_no,enterer_no,modifier_no,r.reference_no,r.author1init,r.author1last,r.author2init,r.author2last,r.otherauthors,r.pubyr,r.reftitle,r.pubtitle,r.editors,r.publisher,r.pubcity,r.pubvol,r.pubno,r.firstpage,r.lastpage,r.created,r.modified,r.publication_type,r.basis,r.language,r.doi,r.comments,r.project_name,r.project_ref_no FROM refs r WHERE r.reference_no=$reference_no";
+    
+    my ($dbt, $reference_no) = @_;
+    
+    my $sql;
+    
+    if ($reference_no)
+    {
+        $sql = "SELECT r.*, p1.name as authorizer, p2.name as enterer, p3.name as modifier
+		FROM refs as r 
+			join person as p1 on p1.person_no = r.authorizer_no
+			join person as p2 on p2.person_no = r.enterer_no
+			join person as p3 on p3.person_no = r.modifier_no
+		WHERE r.reference_no = $reference_no";
         my $ref = ${$dbt->getData($sql)}[0];
-        my %lookup = %{PBDB::PBDBUtil::getPersonLookup($dbt)};
-        $ref->{'authorizer'} = $lookup{$ref->{'authorizer_no'}};
-        $ref->{'enterer'} = $lookup{$ref->{'enterer_no'}};
-        $ref->{'modifier'} = $lookup{$ref->{'modifier_no'}};
+        # my %lookup = %{PBDB::PBDBUtil::getPersonLookup($dbt)};
+        # $ref->{'authorizer'} = $lookup{$ref->{'authorizer_no'}};
+        # $ref->{'enterer'} = $lookup{$ref->{'enterer_no'}};
+        # $ref->{'modifier'} = $lookup{$ref->{'modifier_no'}};
         return $ref;
-    } else {
-        return undef;
+    }
+    
+    else
+    {
+        return;
     }
     
 }
@@ -1190,7 +1202,7 @@ sub getReferencesXML {
     
     return $output;
 }
-   
+
 # JA 17-18.3.09
 sub getTitleWordOdds	{
     my ($dbt,$q,$s,$hbo) = @_;

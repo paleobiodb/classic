@@ -4,8 +4,7 @@ package PBDB::DownloadTaxonomy;
 use PBDB::PBDBUtil;
 use Data::Dumper;
 use PBDB::DBTransactionManager;  # not used
-use PBDB::TaxaCache;
-use PBDB::TaxonInfo;
+use PBDB::Taxonomy qw(getTaxa getChildren nomenChildren getOriginalCombination);
 use PBDB::Person;
 use PBDB::Opinion;  # not used?
 use PBDB::Reference;
@@ -365,7 +364,7 @@ sub displayITISDownload {
     # the parameters.  Store the parameters in the %options hash and pass that in
     my %options = $q->Vars();
     if ($options{'taxon_name'}) {
-        my @taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'},'match_subgenera'=>1,'remove_rank_change'=>1});
+        my @taxon = getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'},'match_subgenera'=>1,'remove_rank_change'=>1});
         if (scalar(@taxon) > 1) {
             push @errors, "Taxon name is a homonym";
         } elsif (scalar(@taxon) < 1) {
@@ -714,7 +713,7 @@ sub displayPBDBDownload {
 
     my %options = $q->Vars();
     if ($options{'taxon_name'}) {
-        my @taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'},'match_subgenera'=>1,'remove_rank_change'=>1});
+        my @taxon = getTaxa($dbt,{'taxon_name'=>$options{'taxon_name'},'match_subgenera'=>1,'remove_rank_change'=>1});
         if (scalar(@taxon) > 1) {
             push @errors, "Taxon name is a homonym";
         } elsif (scalar(@taxon) < 1) {
@@ -984,11 +983,11 @@ sub getTaxonomicNames {
     my %taxa_list = ();
     if ($options{'taxon_no'}) {
         $taxa_list{0} = 1; # Prevent crashes for empty lists;
-        my @children = PBDB::TaxaCache::getChildren($dbt,$options{'taxon_no'});
+        my @children = getChildren($dbt,$options{'taxon_no'});
         foreach my $taxon_no (@children) {
             $taxa_list{$taxon_no} = 1;
         }
-        my %nomen_children = %{PBDB::TaxonInfo::nomenChildren($dbt,\@children)};
+        my %nomen_children = %{nomenChildren($dbt,\@children)};
         foreach my $child_array (values %nomen_children) {
             foreach my $child (@$child_array) {
                 $taxa_list{$child->{'taxon_no'}} = 1;
@@ -1099,7 +1098,7 @@ sub getTaxonomicNames {
             $row->{authorizer} = $people{$row->{authorizer_no}};
             $row->{enterer} = $people{$row->{enterer_no}};
             $row->{modifier} = $people{$row->{modifier_no}};
-            my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$row->{'spelling_no'});
+            my $orig_no = getOriginalCombination($dbt,$row->{'spelling_no'});
 
             # If this is a recombination, then use the old combinations reference information
             my $orig_row = {};
@@ -1181,11 +1180,11 @@ sub getTaxonomicOpinions {
     my %taxa_list = ();
     if ($options{'taxon_no'}) {
         $taxa_list{0} = 1; # Prevent crashes for empty lists;
-        my @children = PBDB::TaxaCache::getChildren($dbt,$options{'taxon_no'});
+        my @children = getChildren($dbt,$options{'taxon_no'});
         foreach my $taxon_no (@children) {
             $taxa_list{$taxon_no} = 1;
         }
-        my %nomen_children = %{PBDB::TaxonInfo::nomenChildren($dbt,\@children)};
+        my %nomen_children = %{nomenChildren($dbt,\@children)};
         foreach my $child_array (values %nomen_children) {
             foreach my $child (@$child_array) {
                 $taxa_list{$child->{'taxon_no'}} = 1;
@@ -1317,7 +1316,7 @@ sub getKingdomMap {
     my @results = @{$dbt->getData($sql)};
 
     foreach my $row (@results) {
-        my @children = PBDB::TaxaCache::getChildren($dbt,$row->{'taxon_no'});
+        my @children = getChildren($dbt,$row->{'taxon_no'});
         foreach my $child (@children) {
             $kingdom{$child} = $row->{'taxon_name'};
         }

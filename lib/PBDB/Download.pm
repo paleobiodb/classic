@@ -2,12 +2,11 @@ package PBDB::Download;
 
 use PBDB::PBDBUtil;
 use PBDB::TimeLookup;
-use PBDB::TaxonInfo;
+use PBDB::Taxonomy qw(getParents getChildren);
 use PBDB::Validation;
 use PBDB::Ecology;
 use PBDB::Taxon;
 use PBDB::DBTransactionManager;
-use PBDB::TaxaCache;
 use PBDB::Reference;
 use PBDB::ReferenceEntry;
 use PBDB::Permissions;
@@ -2452,8 +2451,18 @@ sub queryDatabase {
     if (@dataRows && $q->param("output_data") =~ /occurrence|taxonomic.list/ && @ecoFields) { 
         # set the ecotaph values by running up the hierarchy
         # greatly compacted JA 29.5.13
-	my %master_class=%{PBDB::TaxaCache::getParents($dbt,\@taxon_nos,'array_full')};
-	%ecotaph = %{PBDB::Ecology::getEcology($dbt,\%master_class,\@ecoFields,0,0)};
+	
+	# my %master_class=%{getParents($dbt,\@taxon_nos,'array_full')};
+	
+	my $master_class;
+	
+	foreach my $taxon_no ( @taxon_nos )
+	{
+	    my @parent_list = getParents($dbt, $taxon_no);
+	    $master_class->{$taxon_no} = \@parent_list;
+	}
+	
+	%ecotaph = %{PBDB::Ecology::getEcology($dbt,$master_class,\@ecoFields,0,0)};
     }
 
     # Type specimen numbers, body part, and common name data
@@ -4397,7 +4406,7 @@ sub getTaxonString {
             if (scalar(@taxon_nos) == 0) {
                 push @sql_or_bits, "table.genus_name LIKE ".$dbh->quote($taxon);
             } else	{
-                my @all_taxon_nos = PBDB::TaxaCache::getChildren($dbt,$taxon_nos[0],'','',\@exclude_taxon_nos);
+                my @all_taxon_nos = getChildren($dbt,$taxon_nos[0],'','',\@exclude_taxon_nos);
                 # Uses hash slices to set the keys to be equal to unique taxon_nos.  Like a mathematical UNION.
                 @taxon_nos_unique{@all_taxon_nos} = ();
             }
@@ -4413,7 +4422,7 @@ sub getTaxonString {
                 push @sql_or_bits, "table.genus_name NOT LIKE ".$dbh->quote($taxon);
             } else	{
                 push @exclude_taxon_nos, $taxon_nos[0];
-                my @all_taxon_nos = PBDB::TaxaCache::getChildren($dbt,$taxon_nos[0],'','',\@exclude_taxon_nos);
+                my @all_taxon_nos = getChildren($dbt,$taxon_nos[0],'','',\@exclude_taxon_nos);
                 # Uses hash slices to set the keys to be equal to unique taxon_nos.  Like a mathematical UNION.
                 @taxon_nos_unique{@all_taxon_nos} = ();
             }

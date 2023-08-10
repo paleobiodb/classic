@@ -5,6 +5,10 @@ use PBDB::Constants qw(makeAnchor);
 use strict;
 use PBDB::Reference;
 
+use Exporter qw(import);
+
+our @EXPORT_OK = qw(checkName getPersonName reverseName listOfAuthorizers listOfEnterers);
+
 # replaces old admin.pl code JA 22.3.13
 sub personForm	{
     

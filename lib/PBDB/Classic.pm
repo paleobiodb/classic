@@ -1,7 +1,6 @@
 package PBDB;
 use utf8;
 use Dancer ':syntax';
-use Wing::Perl;
 use Ouch;
 use Wing;
 use Wing::Web;
@@ -34,6 +33,8 @@ use PBDB::ReferenceEntry;  # slated for removal
 
 use PBDB::Collection;
 use PBDB::CollectionEntry;  # slated for removal
+use PBDB::Taxonomy qw(getTaxa getBestClassification splitTaxon validTaxonName);
+use PBDB::Taxon qw(formatTaxon);
 use PBDB::TaxonInfo;
 use PBDB::TimeLookup;
 use PBDB::Ecology;
@@ -41,7 +42,6 @@ use PBDB::EcologyEntry;
 #use Images;
 use PBDB::Measurement;
 use PBDB::MeasurementEntry;  # slated for removal
-use PBDB::TaxaCache;
 use PBDB::TypoChecker;
 #use PBDB::FossilRecord;
 #use PBDB::Cladogram;
@@ -66,6 +66,8 @@ use lib '/data/MyApp/lib/PBData';
 
 use ExternalIdent;
 # use PBLogger;
+
+no warnings 'uninitialized';
 
 our ($PAGE_TOP) = 'std_page_top';
 our ($PAGE_BOTTOM) = 'std_page_bottom';
@@ -1210,7 +1212,7 @@ sub quickSearch	{
     {
 	# If it looks like a taxon name, check first to see if one can be found.
 	
-	if ( PBDB::Taxon::validTaxonName($qs) )
+	if ( validTaxonName($qs) )
 	{
 	    my $quoted = $dbh->quote($qs);
 	    my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $quoted";
@@ -1464,7 +1466,7 @@ sub displayCollResults {
 #        : ($type eq "analyze_abundance") ? "rarefyAbundances"
         : ($type eq "reid") ? "displayOccsForReID"
         : ($type eq "reclassify_occurrence") ?  "startDisplayOccurrenceReclassify"
-        : ($type eq "most_common") ? "displayMostCommonTaxa"
+#        : ($type eq "most_common") ? "displayMostCommonTaxa"
         : "displayCollectionDetails";
 
 	# GET COLLECTIONS
@@ -1520,8 +1522,8 @@ sub displayCollResults {
 	    return displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
 	} elsif ( $type eq 'count_occurrences' && @dataRows) {
 	    return PBDB::Collection::countOccurrences($dbt,$hbo,\@dataRows,$occRows);
-	} elsif ( $type eq 'most_common' && @dataRows) {
-	    return displayMostCommonTaxa(\@dataRows);
+	# } elsif ( $type eq 'most_common' && @dataRows) {
+	#     return displayMostCommonTaxa(\@dataRows);
 	} elsif ( $displayRows > 1  || ($displayRows == 1 && $type eq "add")) {
 		# go right to the chase with ReIDs if a taxon_rank was specified
 		if ($q->param('taxon_name') && ($q->param('type') eq "reid" ||
@@ -1987,9 +1989,9 @@ sub displayCollResults {
     
 #     my ($q, $s, $dbt, $hbo) = @_;
     
-# 	my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('name')},['all']);
+# 	my $t = getTaxa($dbt,{'taxon_name'=>$q->param('name')},['all']);
 # 	my $author = PBDB::TaxonInfo::formatShortAuthor($t);
-# 	my $parent_hash = PBDB::TaxaCache::getParents($dbt,[$t->{'taxon_no'}],'array_full');
+# 	my $parent_hash = getParents($dbt,[$t->{'taxon_no'}],'array_full');
 # 	my @parent_array = @{$parent_hash->{$t->{'taxon_no'}}};
 # 	my $cof = PBDB::Collection::getClassOrderFamily($dbt,'',\@parent_array);
 # 	print qq|{ "PaleoDB_no": "$t->{'taxon_no'}", "author": "$author", "common_name": "$t->{'common_name'}", "extant": "$t->{'extant'}", "rank": "$t->{'taxon_rank'}", "family": "$cof->{'family'}", "order": "$cof->{'order'}", "class": "$cof->{'class'}" }|;
@@ -2306,7 +2308,7 @@ sub processTaxonSearch {
 	$errors->setDisplayEndingMessage(0); 
 
     if ($q->param('taxon_name')) {
-        if (! PBDB::Taxon::validTaxonName($q->param('taxon_name'))) {
+        if (! validTaxonName($q->param('taxon_name'))) {
             $errors->add("Ill-formed taxon name.  Check capitalization and spacing.");
         }
     }
@@ -2375,7 +2377,7 @@ sub processTaxonSearch {
         $options{'match_subgenera'} = "";
     }
     
-    my @results = PBDB::TaxonInfo::getTaxa($dbt,\%options,['*']);
+    my @results = getTaxa($dbt,\%options,['*']);
     # If there were no matches, present the new taxon entry form immediately
     # We're adding a new taxon
     if (scalar(@results) == 0) {
@@ -2383,7 +2385,7 @@ sub processTaxonSearch {
         if ($q->param('goal') eq 'authority') {
             # Try to see if theres any near matches already existing in the DB
             if ($q->param('taxon_name')) {
-                my ($g,$sg,$sp) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
+                my ($g,$sg,$sp) = splitTaxon($q->param('taxon_name'));
                 my ($oldg,$oldsg,$oldsp);
                 my @typoResults = ();
                 unless ($q->param("skip_typo_check")) {
@@ -2426,9 +2428,9 @@ sub processTaxonSearch {
                         my $exists_in_occ = ${$dbt->getData($sql)}[0]->{c};
                         unless ($exists_in_occ) {
                             my @results = keys %{PBDB::TypoChecker::taxonTypoCheck($dbt,$q->param('taxon_name'),"",1)};
-                            my ($g,$sg,$sp) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
+                            my ($g,$sg,$sp) = splitTaxon($q->param('taxon_name'));
                             foreach my $typo (@results) {
-                                my ($t_g,$t_sg,$t_sp) = PBDB::Taxon::splitTaxon($typo);
+                                my ($t_g,$t_sg,$t_sp) = splitTaxon($typo);
                             # if the genus exists, we only want typos including
                             # it JA 16.3.11
                                 if ( $oldg && $g ne $t_g )	{
@@ -2453,10 +2455,10 @@ sub processTaxonSearch {
                         $none = "Not the one above";
                     }
                     foreach my $name (@typoResults) {
-                        my @full_rows = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$name},['*']);
+                        my @full_rows = getTaxa($dbt,{'taxon_name'=>$name},['*']);
                         if (@full_rows) {
                             foreach my $full_row (@full_rows) {
-                                my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt,$full_row,'return_array'=>1);
+                                my ($name,$authority) = formatTaxon($dbt,$full_row,'return_array'=>1);
                                 $output .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_no=$full_row->{taxon_no}", "$name") . " $authority</li>";
                             }
                         } else {
@@ -2504,8 +2506,8 @@ sub processTaxonSearch {
                 $output .= "<div class=\"displayPanel medium\" style=\"width: 36em; padding: 1em;\">\n";
                 $output .= "<div align=\"left\"><ul>";
                 foreach my $row (@typoResults) {
-                    my $full_row = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['*']);
-                    my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt,$full_row,'return_array'=>1);
+                    my $full_row = getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['*']);
+                    my ($name,$authority) = formatTaxon($dbt,$full_row,'return_array'=>1);
 		            my $localtaxon_name = uri_escape_utf8($full_row->{taxon_name} // '');
                     $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$localtaxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . "$authority</li>";
                 }
@@ -2578,7 +2580,7 @@ sub processTaxonSearch {
         foreach my $row (@results) {
             # Check the button if this is the first match, which forces
             #  users who want to create new taxa to check another button
-            my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt, $row,'return_array'=>1);
+            my ($name,$authority) = formatTaxon($dbt, $row,'return_array'=>1);
             if ( $s->isDBMember() )	{
                 $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . " $authority</li>\n";
             } else	{
@@ -4367,9 +4369,9 @@ sub processOccurrenceTable {
         } elsif (@taxon_nos == 0) {
             # If taxon_nos < 1: This can be because the taxon is new or because there are multiple versions of the
             # name, none of which have been classified.  Give an option to classify if homonyms exist
-            $taxon_no = PBDB::Taxon::getBestClassification($dbt,$genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
+            $taxon_no = getBestClassification($dbt,$genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
             if (!$taxon_no) {
-                my @matches = PBDB::Taxon::getBestClassification($dbt,$genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
+                my @matches = getBestClassification($dbt,$genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
                 if (@matches) {
                     @homonyms = map {$_->{'taxon_no'}} @matches;
                     $seen_homonyms++;
@@ -4474,8 +4476,8 @@ sub processOccurrenceTable {
                 my @taxon_nos = ("0+unclassified");
                 my @descriptions = ("leave unclassified");
                 foreach my $taxon_no (@homonyms) {
-                    my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$taxon_no},['taxon_no','taxon_rank','taxon_name','author1last','author2last','otherauthors','pubyr']);
-                    my $authority = PBDB::Taxon::formatTaxon($dbt,$t);
+                    my $t = getTaxa($dbt,{'taxon_no'=>$taxon_no},['taxon_no','taxon_rank','taxon_name','author1last','author2last','otherauthors','pubyr']);
+                    my $authority = formatTaxon($dbt,$t);
                     push @descriptions, $authority; 
                     push @taxon_nos, $taxon_no."+".$authority;
                 }
@@ -4938,7 +4940,7 @@ sub processEditOccurrences {
 		if ( $taxon_no{$fields{'latin_name'}} > 0 )	{
 			$fields{'taxon_no'} = $taxon_no{$fields{'latin_name'}};
 		} elsif ( $taxon_no{$fields{'latin_name'}} eq "" )	{
-			$fields{'taxon_no'} = PBDB::Taxon::getBestClassification($dbt,\%fields);
+			$fields{'taxon_no'} = getBestClassification($dbt,\%fields);
 		} else	{
 			$fields{'taxon_no'} = 0;
 		}
@@ -4985,7 +4987,7 @@ sub processEditOccurrences {
 			if ( @to_update )	{
 				$sql = "UPDATE authorities SET type_locality=$collection_no,modified=modified WHERE taxon_no IN (".join(',',@to_update).")";
 				$dbh->do($sql);
-				PBDB::Taxon::propagateAuthorityInfo($dbt,$_) foreach @to_update;
+				# PBDB::Taxon::propagateAuthorityInfo($dbt,$_) foreach @to_update;
 			}
 		}
 
@@ -5352,7 +5354,7 @@ sub displayOccsForReID {
 	if (@colls) {
 		$printCollectionDetails = 1;
 		push @where, "collection_no IN (".join(',',@colls).")";
-		my ($genus,$subgenus,$species) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
+		my ($genus,$subgenus,$species) = splitTaxon($q->param('taxon_name'));
 		if ( $genus )	{
 			my $names = $dbh->quote($genus);
 			if ($subgenus) {

@@ -6,12 +6,11 @@ use strict;
 use lib '/data/MyApp/lib/PBData';
 use TableDefs qw($INTERVAL_DATA);
 use PBDB::PBDBUtil;
-use PBDB::Taxon;
-use PBDB::TaxonInfo;
+use PBDB::Taxonomy qw(getTaxa getParents getOriginalCombination getBestClassification
+		      getSeniorSynonym getMostRecentSpelling);
 use PBDB::Map;
 use PBDB::Collection;
 use PBDB::TimeLookup;
-use PBDB::TaxaCache;
 use PBDB::Person;
 use PBDB::Permissions;
 use PBDB::Reference;
@@ -648,6 +647,7 @@ sub displayCollectionDetails {
     
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
+    my $sql;
     
 	# previously displayed a collection, but this function is only now
 	#  used for entry results display, so bots shouldn't see anything
@@ -667,18 +667,24 @@ sub displayCollectionDetails {
 
 	# grab the entire person table and work with a lookup hash because
 	#  person is tiny JA 2.10.09
-	my %name = %{PBDB::PBDBUtil::getPersonLookup($dbt)};
+	# my %name = %{PBDB::PBDBUtil::getPersonLookup($dbt)};
 
-	my $sql = "SELECT * FROM collections WHERE collection_no=" . $collection_no;
-	my @rs = @{$dbt->getData($sql)};
-	my $coll = $rs[0];
-	$coll->{authorizer} = $name{$coll->{authorizer_no}};
-	$coll->{enterer} = $name{$coll->{enterer_no}};
-	$coll->{modifier} = $name{$coll->{modifier_no}};
-	if (!$coll ) {
-	    return PBDB::Debug::printErrors(["No collection with collection number $collection_no"]);
-	}
-
+    $sql = "SELECT c.*, p1.name as authorizer, p2.name as enterer, p3.name as modifier
+	    FROM collections as c
+		join person as p1 on p1.person_no = c.authorizer_no
+		join person as p2 on p2.person_no = c.enterer_no
+		join person as p3 on p3.person_no = c.modifier_no
+	    WHERE collection_no = $collection_no";
+    
+    my @rs = @{$dbt->getData($sql)};
+    my $coll = $rs[0];
+    # $coll->{authorizer} = $name{$coll->{authorizer_no}};
+    # $coll->{enterer} = $name{$coll->{enterer_no}};
+    # $coll->{modifier} = $name{$coll->{modifier_no}};
+    if (!$coll ) {
+	return PBDB::Debug::printErrors(["No collection with collection number $collection_no"]);
+    }
+    
     my $page_vars = {};
     if ( $coll->{'research_group'} =~ /ETE/ && $q->param('guest') eq '' )	{
         $page_vars->{ete_banner} = "<div style=\"padding-left: 0em; padding-right: 2em; float: left;\"><a href=\"http://www.mnh.si.edu/ETE\"><img alt=\"ETE\" src=\"/public/bannerimages/ete_logo.jpg\"></a></div>";
@@ -1219,11 +1225,11 @@ sub buildTaxonomicList {
 			# tack on the author and year if the taxon number exists
 			# JA 19.4.04
 			if ( $rowref->{taxon_no} )	{
-				my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$rowref->{'taxon_no'}},['taxon_no','taxon_name','common_name','taxon_rank','author1last','author2last','otherauthors','pubyr','reference_no','ref_is_authority']);
+				my $taxon = getTaxa($dbt,{'taxon_no'=>$rowref->{'taxon_no'}},['taxon_no','taxon_name','common_name','taxon_rank','author1last','author2last','otherauthors','pubyr','reference_no','ref_is_authority']);
 
 				if ($taxon->{'taxon_rank'} =~ /species/ || $rowref->{'species_name'} =~ /^indet\.|^sp\./) {
 
-					my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxon->{'taxon_no'});
+					my $orig_no = getOriginalCombination($dbt,$taxon->{'taxon_no'});
 					my $is_recomb = ($orig_no == $taxon->{'taxon_no'}) ? 0 : 1;
 					$rowref->{'authority'} = PBDB::Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'},'is_recombination'=>$is_recomb);
 				}
@@ -1299,10 +1305,11 @@ sub buildTaxonomicList {
 		        #  use the occurrence number instead of the taxon name
                 if ($rowref->{'taxon_no'}) {
                     # Get parents
-				    my $class_hash = PBDB::TaxaCache::getParents($dbt,[$rowref->{'taxon_no'}],'array_full');
-                    my @class_array = @{$class_hash->{$rowref->{'taxon_no'}}};
+		    # my $class_hash = getParents($dbt,[$rowref->{'taxon_no'}],'array_full');
+                    # my @class_array = @{$class_hash->{$rowref->{'taxon_no'}}};
+		    my @class_array = getParents($dbt,$rowref->{'taxon_no'});
                     # Get Self as well, in case we're a family indet.
-                    my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$rowref->{'taxon_no'}},['taxon_name','common_name','taxon_rank','pubyr']);
+                    my $taxon = getTaxa($dbt,{'taxon_no'=>$rowref->{'taxon_no'}},['taxon_name','common_name','taxon_rank','pubyr']);
                     unshift @class_array , $taxon;
                     $rowref = getClassOrderFamily($dbt,\$rowref,\@class_array);
                     if ( ! $rowref->{'class'} && ! $rowref->{'order'} && ! $rowref->{'family'} )	{
@@ -1316,7 +1323,7 @@ sub buildTaxonomicList {
                         my $taxon_name = $rowref->{'genus_name'}; 
                         $taxon_name .= " ($rowref->{'subgenus_name'})" if ($rowref->{'subgenus_name'});
                         $taxon_name .= " $rowref->{'species_name'}";
-                        my @all_matches = PBDB::Taxon::getBestClassification($dbt,$rowref);
+                        my @all_matches = getBestClassification($dbt,$rowref);
                         if (@all_matches) {
                             $are_reclassifications = 1;
                             $rowref->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $rowref->{$OCCURRENCE_NO},0,1,\@all_matches,$rowref->{'taxon_no'},$taxon_name);
@@ -1740,13 +1747,13 @@ sub getSynonymName {
 
     my $synonym_name = "";
 
-    my $orig_no = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxon_no);
-    my ($ss_taxon_no,$status) = PBDB::TaxonInfo::getSeniorSynonym($dbt,$orig_no,'','yes');
+    my $orig_no = getOriginalCombination($dbt,$taxon_no);
+    my ($ss_taxon_no,$status) = getSeniorSynonym($dbt, $orig_no, { status => 1 });
     my $is_synonym = ($ss_taxon_no != $orig_no && $status =~ /synonym/) ? 1 : 0;
     my $is_spelling = 0;
     my $spelling_reason = "";
 
-    my $spelling = PBDB::TaxonInfo::getMostRecentSpelling($dbt,$ss_taxon_no,{'get_spelling_reason'=>1});
+    my $spelling = getMostRecentSpelling($dbt, $ss_taxon_no, { get_spelling_reason => 1});
     if ($spelling->{'taxon_no'} != $taxon_no && $current_taxon_name ne $spelling->{'taxon_name'}) {
         $is_spelling = 1;
         $spelling_reason = $spelling->{'spelling_reason'};
@@ -1810,7 +1817,7 @@ sub getReidHTMLTableByOccNum {
 		# get the taxonomic authority JA 19.4.04
 		my $taxon;
 		if ($row->{'taxon_no'}) {
-			$taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_no','taxon_name','common_name','taxon_rank','author1last','author2last','otherauthors','pubyr','reference_no','ref_is_authority']);
+			$taxon = getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_no','taxon_name','common_name','taxon_rank','author1last','author2last','otherauthors','pubyr','reference_no','ref_is_authority']);
 
 			if ($taxon->{'taxon_rank'} =~ /species/ || $row->{'species_name'} =~ /^indet\.|^sp\./) {
 				$row->{'authority'} = PBDB::Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'});
@@ -1821,9 +1828,10 @@ sub getReidHTMLTableByOccNum {
         # JA 2.4.04: changed this so it only works on the most recently published reID
         if ( $row == $results[$#results] )	{
             if ($row->{'taxon_no'}) {
-                my $class_hash = PBDB::TaxaCache::getParents($dbt,[$row->{'taxon_no'}],'array_full');
-                my @class_array = @{$class_hash->{$row->{'taxon_no'}}};
-                my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_name','taxon_rank','pubyr']);
+                # my $class_hash = getParents($dbt,[$row->{'taxon_no'}],'array_full');
+                # my @class_array = @{$class_hash->{$row->{'taxon_no'}}};
+                my @class_array = getParents($dbt,$row->{'taxon_no'});
+                my $taxon = getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_name','taxon_rank','pubyr']);
 
 		unshift @class_array , $taxon;
                 $row = getClassOrderFamily($dbt,\$row,\@class_array);
@@ -1852,7 +1860,7 @@ sub getReidHTMLTableByOccNum {
                     my $taxon_name = $row->{'genus_name'}; 
                     $taxon_name .= " ($row->{'subgenus_name'})" if ($row->{'subgenus_name'});
                     $taxon_name .= " $row->{'species_name'}";
-                    my @all_matches = PBDB::Taxon::getBestClassification($dbt,$row);
+                    my @all_matches = getBestClassification($dbt,$row);
                     if (@all_matches) {
                         $are_reclassifications = 1;
                         $row->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $row->{$OCCURRENCE_NO},0,1,\@all_matches,$row->{'taxon_no'},$taxon_name);

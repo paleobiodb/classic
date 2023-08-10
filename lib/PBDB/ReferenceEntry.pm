@@ -11,6 +11,8 @@ use PBDB::Nexusfile;  # not used
 # three calls to Reference functions will eventually need to be replaced
 use PBDB::Reference;
 
+use Carp qw(carp);
+
 # Paths from the Apache environment variables (in the httpd.conf file).
 
 use fields qw(reference_no

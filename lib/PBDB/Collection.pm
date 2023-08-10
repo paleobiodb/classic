@@ -17,10 +17,10 @@ use PBDB::HTMLBuilder;
 use PBDB::PBDBUtil;
 use PBDB::Validation;
 use PBDB::Reference;
-use PBDB::Taxon;
-use PBDB::TaxonInfo;
+use PBDB::Taxonomy qw(getOriginalCombination getParents getChildren getTaxa
+		      getSeniorSynonym getAllSynonyms
+		      splitTaxon);
 use PBDB::TimeLookup;
-use PBDB::TaxaCache;
 use PBDB::Person;
 use PBDB::Permissions;
 use PBDB::Ecology;
@@ -162,16 +162,18 @@ sub getCollections {
             }
 
             # Fix up the genus name and set the species name if there is a space 
-            my ($genus,$subgenus,$species) = PBDB::Taxon::splitTaxon($options{'taxon_name'});
-
-            if (@taxon_nos) {
+            my ($genus,$subgenus,$species) = splitTaxon($options{'taxon_name'});
+	    
+	    # $$$$ oh, my god, we need to fix this!!!!
+	    
+            if (@taxon_nos) {   
                 # if taxon is a homonym... make sure we get all versions of the homonym
                 foreach my $taxon_no (@taxon_nos) {
                     my $ignore_senior = "";
                     if ( $status{$taxon_no} =~ /nomen/ )	{
                         $ignore_senior = 1;
                     }
-                    my @t = PBDB::TaxaCache::getChildren($dbt,$taxon_no,'',$ignore_senior);
+                    my @t = getChildren($dbt,$taxon_no,'',$ignore_senior);
                     # Uses hash slices to set the keys to be equal to unique taxon_nos.  Like a mathematical UNION.
                     @all_taxon_nos{@t} = ();
                 }
@@ -1181,9 +1183,9 @@ sub basicCollectionSearch {
 		if ( $#taxa > 0 )	{
 			my @names;
 			for my $taxon ( @taxa )	{
-				my $orig = PBDB::TaxonInfo::getOriginalCombination($dbt,$taxon->{'taxon_no'});
-				my $ss = PBDB::TaxonInfo::getSeniorSynonym($dbt,$orig);
-				my @subnames = PBDB::TaxonInfo::getAllSynonyms($dbt,$ss);
+				my $orig = getOriginalCombination($dbt,$taxon->{'taxon_no'});
+				my $ss = getSeniorSynonym($dbt,$orig);
+				my @subnames = getAllSynonyms($dbt,$ss);
 				@subnames ? push @names , @subnames : "";
 			}
 			my $cfields = $fields;
@@ -1760,9 +1762,10 @@ $o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}
 		}
 
 		# get class/order/family names
-		my $class_hash = PBDB::TaxaCache::getParents($dbt,[$o->{'taxon_no'}],'array_full');
-		my @class_array = @{$class_hash->{$o->{'taxon_no'}}};
-		my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$o->{'taxon_no'}},['taxon_name','taxon_rank','pubyr','common_name']);
+		# my $class_hash = getParents($dbt,[$o->{'taxon_no'}],'array_full');
+		# my @class_array = @{$class_hash->{$o->{'taxon_no'}}};
+		my @class_array = getParents($dbt,$o->{'taxon_no'});
+		my $taxon = getTaxa($dbt,{'taxon_no'=>$o->{'taxon_no'}},['taxon_name','taxon_rank','pubyr','common_name']);
 		unshift @class_array , $taxon;
 		$o = getClassOrderFamily($dbt,\$o,\@class_array);
 		if ( ! $o->{'class'} && ! $o->{'order'} && ! $o->{'family'} )	{
@@ -1873,13 +1876,15 @@ sub jsonCollection	{
 		$seenTaxa{$c->{'taxon_no'}}++;
 	    }
 	}
-	for my $no ( keys %seenTaxa )	{
-		my $class_hash = PBDB::TaxaCache::getParents($dbt,[$no],'array_full');
-		my @class_array = @{$class_hash->{$no}};
-		my $child = { 'taxon_no' => $no } ;
-		unshift @class_array , $child;
-		my $child = getClassOrderFamily($dbt,\$child,\@class_array);
-		$cof{$no}{$_} = $child->{$_} foreach ('category','common_name','class','order','family');
+	for my $no ( keys %seenTaxa )
+	{
+		# my $class_hash = getParents($dbt,[$no],'array_full');
+		# my @class_array = @{$class_hash->{$no}};
+	    my @class_array = getParents($dbt, $no);
+	    my $child = { 'taxon_no' => $no } ;
+	    unshift @class_array , $child;
+	    my $child = getClassOrderFamily($dbt,\$child,\@class_array);
+	    $cof{$no}{$_} = $child->{$_} foreach ('category','common_name','class','order','family');
 	}
 	
 	$output .= qq|{ "collections": [ { |;
@@ -1981,13 +1986,24 @@ sub displayCollectionEcology	{
            " UNION ".
 	       "(SELECT re.genus_name,re.species_name,o.taxon_no FROM occurrences o,reidentifications re WHERE o.occurrence_no=re.occurrence_no AND o.collection_no=$collection_no AND re.most_recent='YES')";
     
-	my @occurrences = @{$dbt->getData($sql)};
-
+    my @occurrences = @{$dbt->getData($sql)};
+    
     # First get a list of all the parent taxon nos
-	my @taxon_nos = map {$_->{'taxon_no'}} @occurrences;
-	my $parents = PBDB::TaxaCache::getParents($dbt,\@taxon_nos,'array_full');
+    
+    my @taxon_nos = map {$_->{'taxon_no'}} @occurrences;
+    
+    # my $parents = getParents($dbt,\@taxon_nos,'array_full');
+    
+    my $parents;
+    
+    foreach my $taxon_no ( @taxon_nos )
+    {
+	my @parent_list = getParents($dbt, $taxon_no);
+	$parents->{$taxon_no} = \@parent_list;
+    }
+    
     # We only look at these categories for now
-	my @categories = ("life_habit", "diet1", "diet2","minimum_body_mass","maximum_body_mass","body_mass_estimate");
+    my @categories = ("life_habit", "diet1", "diet2","minimum_body_mass","maximum_body_mass","body_mass_estimate");
     my $ecology = PBDB::Ecology::getEcology($dbt,$parents,\@categories,'get_basis');
 
 	if (!%$ecology) {
