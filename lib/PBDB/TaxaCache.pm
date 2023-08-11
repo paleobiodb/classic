@@ -584,7 +584,7 @@ sub updateCache {
     my $old_parent_no = ($row && $row->{'parent_no'}) ? $row->{'parent_no'} : 0;
 
     if ($new_parent_no != $old_parent_no) {
-        print "Parents have been changed: new parent $new_parent_no: $sql\n" if ($DEBUG);
+        print "Parents have been changed: new parent $new_parent_no old parent $old_parent_no: $sql\n" if ($DEBUG);
         
         if ($cache_row) {
             moveChildren($dbt,$cache_row->{'taxon_no'},$new_parent_no);
