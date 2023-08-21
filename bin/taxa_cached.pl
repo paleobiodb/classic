@@ -128,7 +128,7 @@ unless ( $check_table )
     my $sql = "CREATE TABLE IF NOT EXISTS auth_orig (
 		`taxon_no` int unsigned not null,
 		`orig_no` int unsigned not null,
-		UNIQUE KEY (`taxon_no`)
+		UNIQUE KEY (`taxon_no`),
 		KEY (`orig_no`)) Engine=InnoDB";
     
     my $result = $dbh->do($sql);
