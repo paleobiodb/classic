@@ -145,9 +145,9 @@ sub getReference {
     {
         $sql = "SELECT r.*, p1.name as authorizer, p2.name as enterer, p3.name as modifier
 		FROM refs as r 
-			join person as p1 on p1.person_no = r.authorizer_no
-			join person as p2 on p2.person_no = r.enterer_no
-			join person as p3 on p3.person_no = r.modifier_no
+			left join person as p1 on p1.person_no = r.authorizer_no
+			left join person as p2 on p2.person_no = r.enterer_no
+			left join person as p3 on p3.person_no = r.modifier_no
 		WHERE r.reference_no = $reference_no";
         my $ref = ${$dbt->getData($sql)}[0];
         # my %lookup = %{PBDB::PBDBUtil::getPersonLookup($dbt)};
