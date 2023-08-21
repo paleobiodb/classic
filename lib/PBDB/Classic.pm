@@ -57,8 +57,8 @@ use PBDB::WebApp;
 use PBDB::Taxon;  # slated for removal
 use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
-use PBDB::Debug qw(dbg save_request);
-use PBDB::Constants qw($WRITE_URL $CGI_DEBUG $DEBUG_USER %DEBUG_USERID
+use PBDB::Debug qw(dbg save_request log_request log_step profile_request profile_end_request);
+use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LOG_REQUESTS
 		       $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO 
 		       makeAnchor);
 
@@ -182,11 +182,21 @@ sub classic_request {
     
     # $DB::single = 1;
     
-    $logger->log_request(request) if $logger;
+    my ($starttime, $profile_out);
     
     if ( $action eq 'testerror' )
     {
 	croak "Test error!!!";
+    }
+    
+    # Log this request if $LOG_REQUESTS is true.
+    
+    if ( $CONFIG{LOG_REQUESTS} || $CONFIG{PROFILE_REQUESTS} )
+    {
+	$starttime = time;
+	log_request($action, $starttime) if $CONFIG{LOG_REQUESTS};
+	$profile_out = profile_request($action) if DB->can('enable_profile') ||
+	    $CONFIG{PROFILE_REQUESTS};
     }
     
     # Get a database connection handle.
@@ -250,9 +260,9 @@ sub classic_request {
     
     if ( $CGI_DEBUG && $apphandler && $apphandler ne 'Debug' )
     {
-	if ( ! $DEBUG_USER || $DEBUG_USERID{$s->{enterer_no}} )
+	if ( ! %DEBUG_USERID || $DEBUG_USERID{$s->{enterer_no}} )
 	{
-	    print STDERR "Saving request\n";
+	    # print STDERR "Saving request\n";
 	    save_request($q);
 	}
     }
@@ -403,9 +413,14 @@ sub classic_request {
 	$return_output = &$action_sub($q, $s, $dbt, $hbo);
     };
     
+    my $endtime = time;
+    
     if ( $@ )
     {
 	error("MESSAGE: $@");
+	
+	log_step($action, 'EXCEPTION', $endtime, $starttime) if $CONFIG{LOG_REQUESTS};
+	profile_end_request($profile_out, 0) if $profile_out;
 	
 	if ( $@ =~ /^Undefined subroutine.*$action/i )
 	{
@@ -420,6 +435,8 @@ sub classic_request {
     
     elsif ( ! $return_output && ! $DB::OUT )
     {
+	log_step($action, 'NO OUTPUT', $endtime, $starttime) if $CONFIG{LOG_REQUESTS};
+	profile_end_request($profile_out, 0) if $profile_out;
 	ouch 500, "No output was generated.", { path => request->path };
     }
     
@@ -432,6 +449,9 @@ sub classic_request {
     }
     
     $output .= template 'footer_include', $vars;
+    
+    log_step($action, 'DONE', time, $starttime) if $CONFIG{LOG_REQUESTS};
+    profile_end_request($profile_out, $starttime, $q) if $profile_out;
     
     return $output;
 };
@@ -613,7 +633,7 @@ sub displayDownloadGenerator {
 	my %vars = $q->Vars();
 	$vars{'authorizer_me'} = $s->get("authorizer_reversed");
 	$vars{'enterer_me'} = $s->get("authorizer_reversed");
-	$vars{'data_url'} = $PBDB::Constants::DATA_URL;
+	$vars{'data_url'} = $DATA_URL;
 	
 	my $last;
 	if ( $s->isDBMember() )	{

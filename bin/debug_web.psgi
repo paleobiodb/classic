@@ -16,7 +16,7 @@ no warnings 'once';
 $DB::single = 1;
 $DB::deep = 500;
     
-if ( $ARGV[0] && $ARGV[0] =~ /^get$|^post$|^debug$/i )
+if ( $ARGV[0] && $ARGV[0] =~ /^get$|^post$|^debug$|^list$|^show$/i )
 {
     set apphandler => 'Debug';
     set logger => 'console';
@@ -29,9 +29,21 @@ if ( $ARGV[0] && $ARGV[0] =~ /^get$|^post$|^debug$/i )
     
     if ( lc $ARGV[0] eq 'debug' )
     {
-	my ($method, $path, $query) = PBDB::Debug::load_request($ARGV[1]);
+	my ($method, $path, $query) = PBDB::Debug::load_request($ARGV[1], 1);
 	
 	@ARGV = ($method, $path, $query);
+    }
+    
+    elsif ( lc $ARGV[0] eq 'list' )
+    {
+	PBDB::Debug::list_request($ARGV[1]);
+	exit;
+    }
+    
+    elsif ( lc $ARGV[0] eq 'show' )
+    {
+	PBDB::Debug::load_request($ARGV[1], 1);
+	exit;
     }
 }
 
