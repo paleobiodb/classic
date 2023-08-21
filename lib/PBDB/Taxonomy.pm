@@ -19,7 +19,7 @@ use Exporter qw(import);
 our (@EXPORT_OK) = qw(getOriginalCombination getTaxa getTaxonNos getContainerTaxon
 		      getClassification getAllClassification 
 		      getMostRecentSpelling getCachedSpellingNo isMisspelling getAllSpellings
-		      getSeniorSynonym getJuniorSynonyms getAllSynonyms
+		      getSeniorSynonym quickSeniorSynonym getJuniorSynonyms getAllSynonyms
 		      getParent getParents getClassOrderFamily
 		      getChildren getImmediateChildren getTypeTaxonList
 		      disusedNames nomenChildren splitTaxon validTaxonName
@@ -191,7 +191,7 @@ sub getAllClassification {
     my $synonyms = join("','", @synonyms);
     
     my $sql = "SELECT a.taxon_name, a.taxon_rank, o.status, o.spelling_reason, o.figures, o.pages,
-		coalesce(co.orig_no, o.child_spelling_no) as child_no, o.child_spelling_no,
+		coalesce(co.orig_no, o.child_no) as child_no, o.child_spelling_no,
 		coalesce(po.orig_no, o.parent_spelling_no) as parent_no, o.parent_spelling_no,
 		o.opinion_no, o.reference_no, o.ref_has_opinion, o.phylogenetic_status,
                 if(o.pubyr != '', o.pubyr, r.pubyr) as pubyr,
@@ -208,13 +208,14 @@ sub getAllClassification {
 			WHEN 'stated without evidence' THEN 2
 			WHEN 'stated with evidence' THEN 3
 			ELSE 2 END))) as reliability_index
-	FROM opinions o
+	FROM (SELECT * FROM opinions WHERE child_spelling_no in ('$synonyms') UNION
+	      SELECT o.* FROM opinions as o join auth_orig as ao 
+		on ao.taxon_no = o.child_spelling_no WHERE ao.orig_no in ('$synonyms')) as o
 		left join auth_orig as co on co.taxon_no = o.child_spelling_no
 		left join auth_orig as po on po.taxon_no = o.parent_spelling_no
 		left join authorities as a on a.taxon_no = o.child_spelling_no
 		left join refs as r on r.reference_no = o.reference_no
-	WHERE coalesce(co.orig_no, o.child_spelling_no) in ('$synonyms') 
-	    and coalesce(po.orig_no, o.parent_spelling_no) not in ('$synonyms')
+	WHERE coalesce(po.orig_no, o.parent_spelling_no) not in ('$synonyms')
 	    and (o.status like '%nomen%' or o.parent_no > 0)
             and o.status not in ('misspelling of','homonym of')
             and (co.orig_no=$orig_no or
@@ -635,6 +636,25 @@ sub getTaxa {
         return $results[0];
     }
 }
+
+
+# Use taxa_tree_cache to get the senior synonym for most purposes.
+
+sub quickSeniorSynonym {
+    
+    my ($dbt, $taxon_no, $options) = @_;
+    
+    return $taxon_no unless $taxon_no && $taxon_no =~ /^\d+$/;
+    
+    my $dbh = $dbt->dbh;
+    
+    my $sql = "SELECT synonym_no FROM $TAXA_TREE_CACHE WHERE taxon_no = '$taxon_no'";
+    
+    my ($synonym_no) = $dbh->selectrow_array($sql);
+    
+    return $synonym_no || $taxon_no;
+}
+
 
 # Keep going until we hit a belongs to, recombined, corrected as, or nomen *
 # relationship. Note that invalid subgroup is technically not a synonym, but

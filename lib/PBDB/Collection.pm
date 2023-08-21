@@ -18,7 +18,7 @@ use PBDB::PBDBUtil;
 use PBDB::Validation;
 use PBDB::Reference;
 use PBDB::Taxonomy qw(getOriginalCombination getParents getChildren getTaxa
-		      getSeniorSynonym getAllSynonyms
+		      quickSeniorSynonym getAllSynonyms
 		      splitTaxon);
 use PBDB::TimeLookup;
 use PBDB::Person;
@@ -1184,7 +1184,7 @@ sub basicCollectionSearch {
 			my @names;
 			for my $taxon ( @taxa )	{
 				my $orig = getOriginalCombination($dbt,$taxon->{'taxon_no'});
-				my $ss = getSeniorSynonym($dbt,$orig);
+				my $ss = quickSeniorSynonym($dbt,$orig);
 				my @subnames = getAllSynonyms($dbt,$ss);
 				@subnames ? push @names , @subnames : "";
 			}

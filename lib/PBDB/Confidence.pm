@@ -2,7 +2,7 @@ package PBDB::Confidence;
 
 use strict;
 # use Data::Dumper; 
-use PBDB::Taxonomy qw(getParent getChildren getSeniorSynonym);
+use PBDB::Taxonomy qw(getParent getChildren quickSeniorSynonym);
 use PBDB::Classification; # not used
 use PBDB::Collection;
 use PBDB::Person;
@@ -384,7 +384,7 @@ sub buildList    {
 
                 foreach my $row (@$results) {
                     my $taxon_no = $row->{'taxon_no'};
-                    my $best_name_ref = getSeniorSynonym($dbt,$taxon_no);
+                    my $best_name_ref = quickSeniorSynonym($dbt,$taxon_no);
                     my $genus_ref;
                     my $subgenus_ref;
                     if ($best_name_ref->{'taxon_rank'} =~ /genus|species/) {
@@ -508,7 +508,7 @@ sub displayStratTaxa {
     # taxon_no, use the genus+species name
     foreach my $row (@$taxa_list) {
         if ($row->{'taxon_no'}) {
-            my $best_name_ref = getSeniorSynonym($dbt,$row->{'taxon_no'});
+            my $best_name_ref = quickSeniorSynonym($dbt,$row->{'taxon_no'});
             my $genus_ref;
             my $subgenus_ref;
             if ($best_name_ref->{'taxon_rank'} =~ /genus|species/) {
