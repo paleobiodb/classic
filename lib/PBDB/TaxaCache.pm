@@ -277,14 +277,14 @@ sub updateCache {
     
     my ($has_row) = $dbh->selectrow_array($sql);
 	
+    # Start a new transaction.
+    
+    $dbh->do("START TRANSACTION");
+    
     unless ( $has_row )
     {
 	addTaxaCacheRow($dbt, $orig_no, $spelling_no, $synonym_no, $opinion_no);
     }
-    
-    # Start a new transaction.
-    
-    $dbh->do("START TRANSACTION");
     
     # Update the rows corresponding to all spellings to match the new
     # information. Any which are missing (i.e. which correspond to newly added
