@@ -5,84 +5,82 @@ package PBDB::Constants;
 use base 'Exporter';
 use FindBin;
 
-our @EXPORT_OK = qw($WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL $HTML_DIR $DATA_DIR
-		    $APP_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE
-		    $SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD
-		    $TAXA_TREE_CACHE $TAXON_TREES
+our @EXPORT_OK = qw(%CONFIG $WRITE_URL $APP_DIR $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL 
+		    $HTML_DIR $DATA_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE
+		    $CGI_DEBUG %DEBUG_USERID $LOG_REQUESTS
+		    $MAIN_DATABASE $WING_DATABASE $TAXA_TREE_CACHE $TAXON_TREES
 		    $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO
-		    $ALLOW_LOGIN $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ADMIN_EMAIL
 		    makeURL makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeFormPostTag);
 
-our($WRITE_URL) = '/classic';
-our($APP_DIR) = '/data/MyApp';
+# Configuration settings
 
-# BEGIN {
-#     $PBDB::Constants::Cl
-#     $PBDB::Constants::APP_DIR = '/data/MyApp';
-# }
+our %CONFIG;
 
-# general constants
-$PBDB::Constants::conf = read_conf();
-my $conf = $PBDB::Constants::conf;
+our $APP_DIR = "/data/MyApp";
 
-$PBDB::Constants::DATA_URL	  = $conf->{'DATA_URL'};
-$PBDB::Constants::GDD_URL	  = $conf->{'GDD_URL'};
-$PBDB::Constants::TEST_DATA_URL   = $conf->{'TEST_DATA_URL'};
-$PBDB::Constants::HTML_DIR        = $conf->{'HTML_DIR'};
-$PBDB::Constants::DATA_DIR        = $conf->{'DATA_DIR'};
-$PBDB::Constants::WEBAPP_DIR	  = $conf->{'WEBAPP_DIR'} || "$APP_DIR/resources";
-$PBDB::Constants::WEBAPP_PATH	  = $conf->{'WEBAPP_PATH'} || "/resources";
-$PBDB::Constants::DB_SOCKET       = $conf->{'DB_SOCKET'};
-$PBDB::Constants::DB_CONNECTION	  = $conf->{'DB_CONNECTION'};
-$PBDB::Constants::DB_PASSWD       = $conf->{'DB_PASSWD'};
-$PBDB::Constants::DB_USER	  = $conf->{'DB_USER'} || 'pbdbuser';
-$PBDB::Constants::ALLOW_LOGIN	  = $conf->{'ALLOW_LOGIN'};
-$PBDB::Constants::CGI_DEBUG	  = $conf->{'CGI_DEBUG'};
-our ($DEBUG_USER)		  = $conf->{'DEBUG_USER'};
-$PBDB::Constants::ADMIN_EMAIL	  = $conf->{'ADMIN_EMAIL'};
-$PBDB::Constants::MESSAGE_FILE    = $conf->{'MESSAGE_FILE'} || '';
+&read_config();
 
-$PBDB::Constants::TAXA_TREE_CACHE = 'taxa_tree_cache';
-$PBDB::Constants::TAXON_TREES = 'taxon_trees';
-# $PBDB::Constants::TAXA_LIST_CACHE = 'taxa_list_cache';
+our $WRITE_URL		= '/classic';
+our $DATA_URL		= $CONFIG{DATA_URL} || '';
+our $TEST_DATA_URL	= $CONFIG{TEST_DATA_URL} || $DATA_URL;
+our $GDD_URL		= $CONFIG{GDD_URL} || '';
+our $INTERVAL_URL	= $CONFIG{INTERVAL_URL} || '/classic';
+our $HTML_DIR		= $CONFIG{HTML_DIR} || $APP_DIR;
+our $DATA_DIR		= $CONFIG{DATA_DIR} || "$APP_DIR/data";
+our $WEBAPP_DIR		= $CONFIG{WEBAPP_DIR} || "$APP_DIR/resources";
+our $WEBAPP_PATH	= $CONFIG{WEBAPP_PATH} || "/resources";
+our $MESSAGE_FILE	= $CONFIG{MESSAGE_FILE} || '';
+our $CGI_DEBUG		= $CONFIG{CGI_DEBUG} || '';
+our $LOG_REQUESTS	= $CONFIG{LOG_REQUESTS} || '';
+our $TAXA_TREE_CACHE	= $CONFIG{TAXA_TREE_CACHE} || 'taxa_tree_cache';
+our $TAXON_TREES	= $CONFIG{TAXON_TREES} || 'taxon_trees';
+our $MAIN_DATABASE	= $CONFIG{MAIN_DATABASE} || 'pbdb';
+our $WING_DATABASE	= $CONFIG{WING_DATABASE} || 'pbdb_wing';
 
-$PBDB::Constants::SQL_DB = 'pbdb';
-$PBDB::Constants::COLLECTIONS = 'collections';
-$PBDB::Constants::COLLECTION_NO = 'collection_no';
-$PBDB::Constants::OCCURRENCES = 'occurrences';
-$PBDB::Constants::OCCURRENCE_NO = 'occurrence_no';
-$PBDB::Constants::INTERVAL_URL = $conf->{INTERVAL_URL} || '';
+our $COLLECTIONS	= 'collections';
+our $COLLECTION_NO	= 'collection_no';
+our $OCCURRENCES	= 'occurrences';
+our $OCCURRENCE_NO	= 'occurrence_no';
 
-$PBDB::Constants::WRITE_URL	  = '/classic';
+our %DEBUG_USERID;
 
-our (%DEBUG_USERID);
-
-if ( $DEBUG_USER )
+if ( $CONFIG{DEBUG_USER} )
 {
-    foreach my $id ( split /\s*,\s*/, $DEBUG_USER )
+    foreach my $id ( split /\s*,\s*/, $CONFIG{DEBUG_USER} )
     {
 	$DEBUG_USERID{$id} = 1 if $id > 0;
     }
 }
 
-sub read_conf {
+$CONFIG{LOG_REQUESTS} = 1 if $ENV{LOG_REQUESTS};
+$CONFIG{PROFILE_REQUESTS} = 1 if $ENV{PROFILE_REQUESTS};
+$CONFIG{PROFILE_THRESHOLD} = $ENV{PROFILE_THRESHOLD} if $ENV{PROFILE_THRESHOLD};
+
+
+sub read_config {
+    
     # my $base_dir = $FindBin::RealBin;
     
     # $base_dir =~ s/\/(upload|cgi-bin|scripts|html)(\/.*)*$/\/config/;
     # $base_dir =~ s{ /bin | /scripts }{}xs;
     # $PBDB::Constants::APP_DIR = $base_dir;
     # $PBDB::Constants::APP_DIR =~ s/\/config$//;
+    
     my $filename = "$APP_DIR/pbdb.conf";
-    my $cf;
-    open $cf, "<$filename" or die "Can not open $filename\n";
-    my %conf = ();
-    while(my $line = readline($cf)) {
+    
+    open my $cf, '<', $filename or die "Can not open $filename\n";
+    
+    while (my $line = readline($cf))
+    {
         chomp($line);
-        if ($line =~ /^\s*(\w+)\s*=\s*(.*)$/) {
-            $conf{uc($1)} = $2; 
+	
+        if ($line =~ /^\s*(\w+)\s*=\s*(.*)$/)
+	{
+            $CONFIG{uc($1)} = $2; 
         }
     }
-    return \%conf;
+    
+    close $cf;
 }
 
 

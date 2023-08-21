@@ -7,35 +7,49 @@
 package PBDB::DBConnection;
 use strict;
 use DBI;
-use PBDB::Constants qw($SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD);
+use PBDB::Constants qw(%CONFIG);
 # return a handle to the database (often called $dbh)
 
 sub connect {
-    my $driver =   "mysql";
     
     my $dsn;
-    if ( $DB_SOCKET )	{
-        $dsn = "DBI:$driver:database=$SQL_DB;host=localhost;mysql_socket=$DB_SOCKET;mysql_enable_utf8=1";
-    } elsif ( $DB_CONNECTION )	{
-        $dsn = "DBI:$driver:database=$SQL_DB;$DB_CONNECTION;mysql_enable_utf8=1";
-    } else	{
-        die("Database connection information not found.");
+    my $DB_DRIVER = $CONFIG{DB_DRIVER} || "mysql";
+    my $MAIN_DB = $CONFIG{MAIN_DATABASE} || "pbdb";
+    my $DB_SOCKET = $CONFIG{DB_SOCKET};
+    my $DB_CONNECTION = $CONFIG{DB_CONNECTION};
+    my $DB_USER = $CONFIG{DB_USER} || "pbdbuser";
+    my $DB_PASSWD = $CONFIG{DB_PASSWD};
+
+    if ( $DB_SOCKET )
+    {
+        $dsn = "DBI:$DB_DRIVER:database=$MAIN_DB;" .
+	    "host=localhost;mysql_socket=$DB_SOCKET;mysql_enable_utf8=1";
+    }
+    
+    elsif ( $DB_CONNECTION )
+    {
+        $dsn = "DBI:$DB_DRIVER:database=$MAIN_DB;$DB_CONNECTION;mysql_enable_utf8=1";
+    }
+    
+    else
+    {
+        die "You must specify either DB_SOCKET or DB_CONNECTION in the file 'pbdb.conf'\n";
     }
     
     my $connection;
-    if ( $DB_PASSWD )	{
-        $connection = DBI->connect($dsn, $DB_USER, $DB_PASSWD, {RaiseError=>1});
-    } else	{
-        my $password = `cat /home/paleodbpasswd/passwd`;
-        chomp($password);  #remove the newline!  Very important!
-        $connection = DBI->connect($dsn, $DB_USER, $password, {RaiseError=>1});
+    
+    unless ( $DB_PASSWD )
+    {
+        $DB_PASSWD = `cat /home/paleodbpasswd/passwd`;
+        chomp($DB_PASSWD);  #remove the newline!  Very important!
+	die "You must specify a database password.\n";
     }
-    if (!$connection) {
-        die("Could not connect to database");
-    } else {
-	$connection->{mysql_enable_utf8} = 1;
-        return $connection;
-    }
+    
+    $connection = DBI->connect($dsn, $DB_USER, $DB_PASSWD, {RaiseError=>1}) ||
+	die "Could not connect to database '$dsn' with username '$DB_USER'\n";
+
+    $connection->{mysql_enable_utf8} = 1;
+    return $connection;
 }
 
 
