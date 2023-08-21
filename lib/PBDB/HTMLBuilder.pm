@@ -6,7 +6,7 @@ use HTML::Entities qw(encode_entities);
 use Data::Dumper;
 use PBDB::Reference;
 use PBDB::Person; # not used?
-use PBDB::Constants qw($WRITE_URL $MESSAGE_FILE);
+use PBDB::Constants qw($WRITE_URL $MESSAGE_FILE $APP_DIR);
 
 use Encode;
 
@@ -230,7 +230,6 @@ sub populateHTML {
     # Two steps: if we're a db member, first try members templates/ dir
     # Else if we're guest or have been forced to use guest templates, try those, else print no success
     my $file = "";
-    my $APP_DIR = $PBDB::Constants::APP_DIR;
     
     if ($self->{'use_admin'}) {
         my $try_file = "../html/admin/".$template.".html";
@@ -280,9 +279,8 @@ sub populateSimple {
     # Two steps: if we're a db member, first try members templates/ dir
     # Else if we're guest or have been forced to use guest templates, try those, else print no success
     
-    my $APP_DIR = $PBDB::Constants::APP_DIR;
     my $file = "";
-
+    
     if ($self->{'use_admin'}) {
         my $try_file = "../html/admin/".$template.".html";
         $file = $try_file if (-e $try_file);
