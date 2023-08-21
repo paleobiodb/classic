@@ -3691,7 +3691,7 @@ sub basicTaxonInfo {
 	# getTaxonNos returns the "largest" taxon first if there are
 	#  multiple matches, so use it
 	
-	elsif ( scalar @taxon_nos == 1 )
+	if ( scalar @taxon_nos == 1 )
 	{
 	    $taxon_no = getSeniorSynonym($dbt,$taxon_nos[0]); 
 	}
