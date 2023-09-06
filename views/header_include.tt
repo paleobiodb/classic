@@ -20,9 +20,13 @@
     <![endif]-->
     <script src="/public/classic_js/autocomplete.js"></script>
     <script language="javascript" type="text/javascript">
-        var acapp = new AutoCompleteObject("searchbox", "cls", "classic");
-        document.addEventListener("DOMContentLoaded", acapp.initialize, false);
-    </script>
+      var acapp = new AutoCompleteObject("searchbox", "cls", "classic");
+      document.addEventListener("DOMContentLoaded", acapp.initialize, false);
+      
+      function NewTab(doclink) { 
+          window.open( 
+              doclink, "_blank"); 
+      }     </script>
   </head>
 [% IF pbdb_site == 'dev' -%]
 [%   nb_color = 'background-color: #7b4070' -%]
@@ -49,15 +53,19 @@
           <ul class="nav navbar-nav">
             <li><a href="/classic">Main Menu</a></li>
             <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown">About<b class="caret"></b></a>
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">About</a>
               <ul class="dropdown-menu">
-                <li><a href="/#/faq">FAQ</a></li>
-                <li><a target="_blank" href="https://github.com/paleobiodb/PBDB_changelog/blob/master/README.md">Recent Changes</a></li>
-                <li><a href="/#/people">People</a></li>
-                <li><a href="/#/support">Funding</a></li>
-                <li><a href="/#/project">Project Development</a></li>
-                <li><a href="/#/publications">Official Publications</a></li>
-                <li><a href="/#/contact">Contact Us</a></li>
+		<li class="dropdown"><a onclick="NewTab('https://escholarship.org/content/qt6tm05630/qt6tm05630.pdf?t=s0797i')">User Guide</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vQPrlNL2sUTFbZAzZFs2Jhs4j-1h3RfAIFNl54JstnHfxhhRcjMGImGU4VRk89C9Er_kNEWj7NTAqaR/pub')">FAQ</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vSa6qptD9Ox02NoD3pD5XreK0lh9P0JCxsHo1cpwV5My7HPh77vLYy6zjOqLPo0Gy09DKbAK3x69yMr/pub')">Recent Changes</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vRGNLWHekf_Pi2tfxfJeGvIAR3S3Z9BT6apmPQ-AGQhCHm0YB7AAwvSDh8F0bmrgeTO9LsB4Yw5IVsn/pub')">People</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vTj4EvmyKBAMq-mbfa7_TFbZMyA-JCRJhAjiEY5IFjaiPcjBTPO1uU54iefy_OxalV188qbKa2FZP8c/pub')">Funding</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vR7kG-nphQsmxW2tHX3yZkuahsZfQyXb3-5d8k088LDxwMM0RYlFbXM-m6ERWgm-bCNx8JKtiDsHPvu/pub')">Project Development</a></li>
+		<li><a onclick="NewTab('#/publications')">Official Publications</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vTSim8NOagd9iBlfCHWofL-fH4hMfkHUqakfwryDT2VOBxoCYsSMbpDcUdjBb0996Xvv8Ka7m1lqgcP/pub')">Partner Organizations</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/178HwGVtA4--3SSFCN5Xx56P75BskCWCZVV_OHMVK0Ms/edit?usp=sharing')">Database Policies</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vSeDBiPU9fgkK44R49Nj2WyhquPKU0F3G0uH1ezl9gNNq3cRyGHPdEvjpNtnuVwnXgscmoWru4zKUmx/pub')">Grant Writing Assistance</a></li>
+		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vQtrCtdl_7wOzAgm90__urKxgIMWLxC1hdA5Qh0rLozrnXteObSSWdXaAd9jSuJWfScHBXFvGACI6z5/pub')">Contact Us</a></li>
               </ul>
             </li>
             <li><a href="/classic/displayDownloadGenerator">Download</a></li>
