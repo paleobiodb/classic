@@ -130,6 +130,10 @@ H1, H2, H3, H4, H5, H6 {
 	margin-bottom: 1em;
 }
 
+.heading1 {
+    font-weight: bold;
+}
+
 .fieldName	{
 	color: #404040;
 }
@@ -360,6 +364,10 @@ div.emphasized {
     padding: 0em 1em 0.25em 0em;
 }
 
+.recordLabel {
+    font-weight: bold;
+    font-size: 1.2em;
+}
 
 /* format for required entries in forms */
 .red { color: #D00000; }
