@@ -6061,6 +6061,95 @@ sub requestDOI {
 }
 
 
+sub emailList {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    unless ( $s->isSuperUser )
+    {
+	ouch("401", "You are not authorized to retrieve that information");
+    }
+    
+    my $list_title = '';
+    my $filter = "contributor_status='active'";
+    
+    my $role = $q->param('role') || 'all';
+    
+    if ( $role eq 'contributor' )
+    {
+	$list_title = "Database contributors";
+	$filter .= " and role not in ('guest')";
+    }
+    
+    elsif ( $role eq 'guest' )
+    {
+	$list_title = "Database guests";
+	$filter .= " and role in ('guest')";
+    }
+    
+    elsif ( $role eq 'all' )
+    {
+	$list_title = "Database contributors and guests";
+    }
+    
+    
+    else
+    {
+	ouch("400", "Invalid value '$role' for parameter 'role'");
+    }
+    
+    if ( my $last_login = $q->param('last_login') )
+    {
+	if ( $last_login =~ /^\d+$/ )
+	{
+	    my $days = $last_login * 31;
+	    $list_title .= " who have logged in within the past $last_login months";
+	    $filter .= " and datediff(curdate(), last_login) <= '$days'";
+	}
+	
+	else
+	{
+	    ouch("400", "Invalid value '$last_login' for parameter 'last_login'");
+	}
+    }
+    
+    my $dbh = $dbt->dbh;
+    
+    my $sql = "SELECT real_name, email, role
+		FROM pbdb_wing.users WHERE $filter";
+    
+    my $result = $dbh->selectall_arrayref($sql, { Slice => { } });
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    
+    $output .= "<div style=\"margin-left: 30px\">\n";
+    
+    $output .= "<p class=\"heading1\">$list_title</p>\n\n<p>";
+    
+    if ( ref $result eq 'ARRAY' && @$result )
+    {
+	foreach my $row ( @$result )
+	{
+	    my $name = $row->{real_name};
+	    my $email = $row->{email};
+	    
+	    $output .= encode_entities("$name <$email>, ");
+	}
+    }
+    
+    else
+    {
+	$output .= "No matching users were found";
+    }
+    
+    $output .= "</p>\n\n</div>\n\n";
+    
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
+}
+
+
 package PBDB::Request;
 
 use URI::Escape;
