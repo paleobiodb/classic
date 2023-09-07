@@ -407,7 +407,6 @@ sub classic_request {
     no warnings 'once';
     
     eval {
-	$DB::single = 1;
 	$return_output = &$action_sub($q, $s, $dbt, $hbo);
     };
     
@@ -438,7 +437,18 @@ sub classic_request {
 	ouch 500, "No output was generated.", { path => request->path };
     }
     
-    $output .= $return_output;
+    elsif ( $q->param('output_format') eq 'csv' )
+    {
+	my $response = Dancer::SharedData->response;
+	$response->content_type('text/csv');
+	
+	return "\x{FEFF}" . $return_output;
+    }
+    
+    else
+    {
+	$output .= $return_output;
+    }
     
     $vars = {};
     if ($user) {
@@ -6071,32 +6081,57 @@ sub emailList {
     }
     
     my $list_title = '';
-    my $filter = "contributor_status='active'";
+    my $prefix = '';
+    my $filter = '1=1';
     
-    my $role = $q->param('role') || 'all';
+    my $status_filter = $q->param('status') || 'active';
     
-    if ( $role eq 'contributor' )
+    if ( $status_filter eq 'active' )
     {
-	$list_title = "Database contributors";
-	$filter .= " and role not in ('guest')";
+	$filter = "u.contributor_status='active'";
     }
     
-    elsif ( $role eq 'guest' )
+    elsif ( $status_filter eq 'inactive' )
     {
-	$list_title = "Database guests";
-	$filter .= " and role in ('guest')";
+	$filter = "u.contributor_status!='active'";
+	$prefix = "Inactive ";
     }
     
-    elsif ( $role eq 'all' )
+    elsif ( $status_filter eq 'all' )
     {
-	$list_title = "Database contributors and guests";
+	$prefix = "Active and inactive ";
     }
-    
     
     else
     {
-	ouch("400", "Invalid value '$role' for parameter 'role'");
+	ouch("400", "Invalid value '$status_filter' for parameter 'status'");
     }
+    
+    my $role_filter = $q->param('role') || 'all';
+    
+    if ( $role_filter eq 'contributor' )
+    {
+	$list_title = $prefix ? "$prefix database contributors" : "Database contributors";
+	$filter .= " and u.role not in ('guest')";
+    }
+    
+    elsif ( $role_filter eq 'guest' )
+    {
+	$list_title = $prefix ? "$prefix database guests" : "Database guests";
+	$filter .= " and u.role in ('guest')";
+    }
+    
+    elsif ( $role_filter eq 'all' )
+    {
+	$list_title = $prefix ? "$prefix database contributors and guests" :
+	    "Database contributors and guests";
+    }
+    
+    else
+    {
+	ouch("400", "Invalid value '$role_filter' for parameter 'role'");
+    }
+    
     
     if ( my $last_login = $q->param('last_login') )
     {
@@ -6104,7 +6139,7 @@ sub emailList {
 	{
 	    my $days = $last_login * 31;
 	    $list_title .= " who have logged in within the past $last_login months";
-	    $filter .= " and datediff(curdate(), last_login) <= '$days'";
+	    $filter .= " and datediff(curdate(), u.last_login) <= '$days'";
 	}
 	
 	else
@@ -6113,40 +6148,105 @@ sub emailList {
 	}
     }
     
+    my $format = $q->param('format') || 'text';
+    
     my $dbh = $dbt->dbh;
     
-    my $sql = "SELECT real_name, email, role
-		FROM pbdb_wing.users WHERE $filter";
-    
-    my $result = $dbh->selectall_arrayref($sql, { Slice => { } });
-    
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    
-    $output .= "<div style=\"margin-left: 30px\">\n";
-    
-    $output .= "<p class=\"heading1\">$list_title</p>\n\n<p>";
-    
-    if ( ref $result eq 'ARRAY' && @$result )
+    if ( $format eq 'text' )
     {
+	my $sql = "SELECT real_name, email
+		   FROM pbdb_wing.users as u WHERE $filter";
+	
+	my $result = $dbh->selectall_arrayref($sql, { Slice => { } });
+	
+	my $output = $hbo->stdIncludes($PAGE_TOP);
+	
+	$output .= "<div style=\"margin-left: 30px\">\n";
+	
+	$output .= "<p class=\"heading1\">$list_title</p>\n\n<p>";
+	
+	if ( ref $result eq 'ARRAY' && @$result )
+	{
+	    foreach my $row ( @$result )
+	    {
+		my $name = $row->{real_name};
+		my $email = $row->{email};
+		
+		$output .= encode_entities("$name <$email>, ");
+	    }
+	}
+	
+	else
+	{
+	    $output .= "No matching users were found";
+	}
+	
+	$output .= "</p>\n\n</div>\n\n";
+	
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	
+	return $output;
+    }
+    
+    elsif ( $format eq 'csv' )
+    {
+	my $sql = "SELECT u.real_name, u.email, u.role, u.person_no, u.admin,
+			  u.institution, u.country, u.authorizer_no, p.real_name as authorizer, 
+			  u.contributor_status as status, date(u.last_login) as last_login
+		   FROM pbdb_wing.users as u 
+			left join pbdb_wing.users as p on p.person_no = u.authorizer_no
+		   WHERE $filter";
+	
+	my $result = $dbh->selectall_arrayref($sql, { Slice => { } });
+	
+	unless ( ref $result eq 'ARRAY' && @$result )
+	{
+	    ouch(400, "No results were found");
+	}
+	
+	$q->param('output_format', 'csv');
+	
+	my $output = qq{"Name","Email","Role","PBDB number","PBDB authorizer",} .
+	    qq{"Country","Institution","Last login","$list_title"\n};
+	
 	foreach my $row ( @$result )
 	{
-	    my $name = $row->{real_name};
-	    my $email = $row->{email};
+	    my $name = $row->{real_name} || '';
+	    my $email = $row->{email} || '';
+	    my $role = $row->{role} || '';
+	    my $status = $row->{status} || '';
+	    my $person_no = $row->{person_no} || '';
+	    my $authorizer = $row->{authorizer} || '';
+	    my $institution = $row->{institution} || '';
+	    my $country = $row->{country} || '';
+	    my $last_login = $row->{last_login} || '';
 	    
-	    $output .= encode_entities("$name <$email>, ");
+	    $name =~ s{(['"])}{\\$1}g;
+	    $email =~ s{(['"])}{\\$1}g;
+	    
+	    if ( $row->{admin} )
+	    {
+		$role .= "/administrator";
+	    }
+	    
+	    if ( $status_filter ne 'active' )
+	    {
+		$role .= " ($status)";
+	    }
+	    
+	    $authorizer = '' if $row->{authorizer_no} eq $row->{person_no};
+	    
+	    $output .= qq{"$name","$email","$role","$person_no","$authorizer",} .
+		qq{"$country","$institution","$last_login"\n};
 	}
+	
+	return $output;
     }
     
     else
     {
-	$output .= "No matching users were found";
+	ouch(400, "Invalid format '$format'");
     }
-    
-    $output .= "</p>\n\n</div>\n\n";
-    
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-    
-    return $output;
 }
 
 
