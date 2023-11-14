@@ -62,7 +62,7 @@ __PACKAGE__->wing_fields(
       orcid => {
 	dbic		=> { data_type => 'varchar(19)', is_nullable => 0 },
 	view		=> 'public',
-	edit		=> 'postable',
+	edit		=> 'required',
       },
       role => {
 	dbic		=> { data_type => 'enum("guest", "authorizer", "enterer", "student")', is_nullable => 0 },

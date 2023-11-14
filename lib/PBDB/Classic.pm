@@ -215,6 +215,11 @@ sub classic_request {
     
     my $user = $wing_session ? $wing_session->user : undef;
     
+    if ( $user && ! $user->get_column('orcid' ) )
+    {
+	redirect "/account/orcid_required", 303;
+    }	     
+    
     my $s = PBDB::Session->new($dbt, $wing_session, $remote_addr);
     
     # If the session was invalid, redirect to the login page. This may occur, for example, if too
@@ -678,10 +683,11 @@ sub webapp {
 	redirect "/login?app=$app_name&reason=login", 303;
     }
     
-    my $output = $app->stdIncludes($PAGE_TOP);
+    my $output = "";
+    $output .= $app->stdIncludes($PAGE_TOP) if $app->{settings}{CLASSIC_LAYOUT};
     $output .= PBDB::Person::makeAuthEntJavascript($dbt) if $app->{settings}{INCLUDE_AUTHENT};
     $output .= $app->generateBasePage();
-    $output .= $app->stdIncludes($PAGE_BOTTOM);
+    $output .= $app->stdIncludes($PAGE_BOTTOM) if $app->{settings}{CLASSIC_LAYOUT};
     
     return $output;
 }

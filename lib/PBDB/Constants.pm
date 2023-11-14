@@ -7,7 +7,7 @@ use FindBin;
 
 our @EXPORT_OK = qw($WRITE_URL $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL $HTML_DIR $DATA_DIR
 		    $APP_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE
-		    $SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_PASSWD
+		    $SQL_DB $DB_USER $DB_SOCKET $DB_CONNECTION $DB_DRIVER $DB_PASSWD $DB_PARAMS
 		    $TAXA_TREE_CACHE $TAXON_TREES
 		    $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO
 		    $ALLOW_LOGIN $CGI_DEBUG $DEBUG_USER %DEBUG_USERID $ADMIN_EMAIL
@@ -34,6 +34,8 @@ $PBDB::Constants::WEBAPP_DIR	  = $conf->{'WEBAPP_DIR'} || "$APP_DIR/resources";
 $PBDB::Constants::WEBAPP_PATH	  = $conf->{'WEBAPP_PATH'} || "/resources";
 $PBDB::Constants::DB_SOCKET       = $conf->{'DB_SOCKET'};
 $PBDB::Constants::DB_CONNECTION	  = $conf->{'DB_CONNECTION'};
+$PBDB::Constants::DB_DRIVER       = $conf->{'DB_DRIVER'} || 'mysql';
+$PBDB::Constants::DB_PARAMS       = $conf->{'DB_PARAMS'} || 'mysql_enable_utf8=1;RaiseError=1';
 $PBDB::Constants::DB_PASSWD       = $conf->{'DB_PASSWD'};
 $PBDB::Constants::DB_USER	  = $conf->{'DB_USER'} || 'pbdbuser';
 $PBDB::Constants::ALLOW_LOGIN	  = $conf->{'ALLOW_LOGIN'};

@@ -60,7 +60,7 @@ post '/login' => sub {
 	return template 'account/login', { error_message => 'Password incorrect.',
 					   pbdb_site => Wing->config->get("pbdb_site") };
     }
-
+    
     # Check if the user wishes to keep this session persistent.
     
     my $persistent = params->{persistent};
@@ -341,6 +341,14 @@ get '/account/enterers' => sub {
     template 'account/enterers', { current_user => $user,
 				   pbdb_site => Wing->config->get("pbdb_site") };
 };
+
+
+get '/account/orcid_required' => sub {
+    my $user = get_user_by_session_id();
+    template 'account/index', { current_user => $user, pbdb_site => Wing->config->get("pbdb_site"),
+			        error_message => "You must enter your ORCID to continue." };
+};
+
 
 our (@CAPTCHA_IMAGE);
 

@@ -97,7 +97,7 @@
 	    [% IF pbdb_site == 'training' %]
 	      <li><a name="sitetype">TRAINING SITE</a></li>
 	    [% ELSIF pbdb_site == 'dev' %]
-	      <li><a name="sitetype">DEVELOPMENT SITE</a></li>
+	      <li><a name="sitetype">DEV SITE</a></li>
 	    [% ELSIF pbdb_site != 'main' %]
 	      <li><a name="sitetype">LOCAL SITE</a></li>
 	    [% END %]
@@ -132,7 +132,6 @@
 		  [% END %]
           [% IF current_user.role != "guest" %]
           <li><a href="/classic?a=displayPreferencesPage">Data entry settings</a></li>
-          <li><a href="/classic/?a=displayPermissionListForm">Editing permission list</a></li>
           [% END %]
           <li><a href="/logout">Log Out</a></li>
           </ul>

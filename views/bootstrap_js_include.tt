@@ -1,1 +1,2 @@
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+<!-- <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script> -->
+<script src="/public/source/bootstrap-3.3.7-dist/js/bootstrap.js"></script>

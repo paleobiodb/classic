@@ -1,5 +1,13 @@
 [% page_title = "${current_user.display_name}'s Account" %]
 [% INCLUDE account/header_include.tt %]
+<style>
+input.ng-invalid {
+  background-color: pink;
+}
+input.ng-invalid-required {
+  background-color: pink;
+}
+</style>
 <div ng-app="AccountApp" ng-controller="AccountCtrl" ng-cloak>
     <p>Not [% current_user.display_name FILTER html %]? <a href="/logout">Click here</a>.</p>
 
@@ -58,7 +66,7 @@
                     <div class="form-group">
                         <label class="col-sm-4 control-label" for="orcid">ORCID</label>
                         <div class="col-sm-8">
-                        <input class="form-control" type="text" name="orcid" ng-model="user.properties.orcid" autosave="user" id="orcid">
+                        <input class="form-control" type="text" name="orcid" ng-model="user.properties.orcid" autosave="user" id="orcid" placeholder="0000-0000-0000-0000" ng-required="1">
                         </div>
                     </div>
                     <div class="form-group">

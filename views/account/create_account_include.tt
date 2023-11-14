@@ -8,13 +8,21 @@
 [% IF sso_id || params.sso_id %]
 <input class="form-control" type="hidden" name="sso_id" value="[% sso_id || params.sso_id %]">
 [% END %]
+<style>
+input.ng-invalid {
+  background-color: pink;
+}
+input.ng-invalid-required {
+  background-color: pink;
+}
+</style>
 <fieldset>
 <legend>Create Guest Account</legend>
 
  <div class="form-group">
     <label class="col-sm-4 control-label" for="orcid">ORCID</label>
     <div class="col-sm-8">
-      <input class="form-control" type="text" name="orcid" value="[% params.orcid FILTER html %]" id="orcid" placeholder="Optional    0000-0000-0000-0000">
+      <input class="form-control" type="text" name="orcid" value="[% params.orcid FILTER html %]" id="orcid" placeholder="0000-0000-0000-0000" ng-required="1">
     </div>
  </div>
  
