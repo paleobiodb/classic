@@ -562,6 +562,7 @@ sub writeBlock {
             }
         }
         $html .= qq|<input type="$block->{type}"|;
+	$html .= qq| id="|.encode_entities($attribs->{'id'}).qq|"| if $attribs->{'id'};
         $html .= qq| name="|.encode_entities($block->{name}).qq|"| if ($block->{'name'} ne '');
         $html .= qq| value="$value"| unless $block->{'type'} eq 'password';
         $html .= qq| $attribs->{other}| if ($attribs->{'other'});
@@ -681,22 +682,32 @@ sub writeBlock {
 }
 
 sub parseAttribs {
-    my $self = shift;
-    my $txt = shift;
+    
+    my ($self, $txt) = @_;
+    
     my %attribs;
-    while ($txt =~ s/(?:^|\s)(autofill|show|hide|type|id|value|name|replace)=(['"])(.*?)\2//) {
+    
+    while ( $txt =~ s/(?:^|\s)(autofill|show|hide|type|id|value|name|replace)=(['"])(.*?)\2// )
+    {
         $attribs{$1} = $3;
     }
-    while ($txt =~ s/(?:^|\s)(autofill|show|hide|type|id|value|name|replace)=(\w+)//) {
+    
+    while ( $txt =~ s/(?:^|\s)(autofill|show|hide|type|id|value|name|replace)=(\w+)// )
+    {
         $attribs{$1} = $2;
     }
-    if ($txt !~ /^\s*$/) {
-        $txt =~ s//^s*/;
+    
+    if ( $txt !~ qr{ ^ \s* [/]? $ }x )
+    {
+        $txt =~ s{/$}{};
         $attribs{'other'} = $txt;
     }
-    if ($attribs{'id'}) {
-        $attribs{'name'} = $attribs{'id'};
-    }
+    
+    # if ( $attribs{'id'} )
+    # {
+    #     $attribs{'name'} ||= $attribs{'id'};
+    # }
+    
     return \%attribs;
 }
 
@@ -860,13 +871,24 @@ sub stdIncludes {
     # is found then put the message into the appropriate variable so it will be
     # available to the template engine HTMLBuilder.pm.
     
-    if ( $MESSAGE_FILE )
+    if ( -e $MESSAGE_FILE )
     {
-	my $filename = $MESSAGE_FILE =~ qr{^/} ? $MESSAGE_FILE : "../$MESSAGE_FILE";
-	my $message = _readFileSafely($filename);
+	my ($fh, $message);
 	
-	$vars->{message_banner} = "<div align=\"center\" style=\"color: red\"><h4>&nbsp;<br/>$message</h4></div>"
-	    if $message;
+	if ( open $fh, '<', $MESSAGE_FILE )
+	{
+	    my $message = join '', <$fh>;
+	    
+	    $vars->{message_banner} = "<div align=\"center\" style=\"color: red\">" .
+		"<h4>&nbsp;<br/>$message</h4></div>" if $message;
+	    
+	    close $fh;
+	}
+	
+	else
+	{
+	    warn "ERROR: could not open alert file '$MESSAGE_FILE': $!\n";
+	}
     }
     
     return $self->populateHTML($page,$vars);
