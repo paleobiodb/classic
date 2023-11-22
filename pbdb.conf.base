@@ -10,4 +10,4 @@ DB_USER = pbdbuser # put database username here
 DB_PASSWD = pbdbpwd # put database password here
 DB_CONNECTION = mariadb
 PBDB_SITE = 
-MESSAGE_FILE = message.txt
+MESSAGE_FILE = pbdb-main/alert.txt
