@@ -1,157 +1,33 @@
 
 <script src="/public/classic_js/xregexp-all.js" language="JavaScript" type="text/javascript"></script>
 
-<script language="JavaScript" type="text/javascript">
-<!-- Begin
-
-function checkForm()	{
-
-    var frm = document.forms[1];
-    var error = "";
-    
-    if ( '%%limited%%' )
-    {
-	wing.error('You do not have authorization to edit taxonomic opinions');
-	return false;
-    }
-    
-	var hasLength = frm.ref_has_opinion.length - 1;
-	var checkedHas = 0;
-	var repeatedHas = 0;
-
-	for ( i=0; i <= hasLength; i++ )	{
-		if ( frm.ref_has_opinion[i].checked )	{
-			checkedHas = i;
-		}
-		if ( frm.ref_has_opinion[i].value == "NO" )	{
-			repeatedHas = i;
-		}
-	}
-	if ( ( frm.author1init.value != "" || frm.author1last.value != "" || frm.author2init.value != "" || frm.author2last.value != "" || frm.pubyr.value != "" ) && checkedHas != repeatedHas )	{
-		error += "* You forgot to check 'the opinion is repeated'\n";
-	}
-	if ( ( checkedHas == repeatedHas || frm.author1init.value != "" || frm.pubyr.value != "" ) && frm.author1last.value == "" )	{
-		error += "* You forgot to enter the author name\n";
-	}
-
-    // match all letter characters
-    var bad_name_char = XRegExp('[^- \'\\p{L}]');
-    var init_check = XRegExp('^\\p{L}[.]$|^\\p{L}[.]-\\p{L}[.]$|^\\p{L}[.]( \\p{L}[.])*$');
-    
-    if ( frm.author1init.value && frm.author1init.value != "" && ! init_check.test(frm.author1init.value) ) {
-	error += "* The first author's initials are misformatted\n";
-    }
-    if ( frm.author1last.value && frm.author1last.value != "" && bad_name_char.test(frm.author1last.value) 
-	 && ! /, [sSjJ]r\./.test(frm.author1last.value) )	{
-	error += "* There seems to be a typo in the first author's last name\n";
-    }
-    if ( frm.author2init.value && frm.author2init.value != "" && ! init_check.test(frm.author2init.value) )	{
-		error += "* The second author's initials are misformatted\n";
-    }
-    if ( frm.author2last.value != "" &&  bad_name_char.test(frm.author2last.value) && ! /, [sSjJ]r\./.test(frm.author2last.value) )	{
-	error += "* There seems to be a typo in the second author's last name\n";
-    }
-	if ( /[^0-9]/.test(frm.pubyr.value) )	{
-		error += "* The publication year is misformatted\n";
-	} else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2020 ) )	{
-		error += "* The publication year is wrong\n";
-	}
-	if ( ( checkedHas == repeatedHas || frm.author1init.value != "" || frm.author1last.value != "" ) && frm.pubyr.value == "" )	{
-		error += "* You forgot to enter the publication year\n";
-	}
-
-	if ( frm.status.value == "" )	{
-		error += "* You forgot to select the 'status' of the taxon\n";
-	} else if ( frm.status.value != "belongs to" && frm.diagnosis_given.selectedIndex > 0 )	{
-		error += "* Don't select a 'diagnosis' value if the taxon is invalid\n";
-	}
-
-	if ( ! frm.belongs_to_parent.value )	{
-		if ( typeof( frm.parent_spelling_no ) == "undefined" )	{
-			error += "* You forgot to enter the parent name\n";
-		} else if ( frm.parent_spelling_no[frm.parent_spelling_no.length-1].checked )	{
-			error += "* You forgot to enter the parent name\n";
-		}
-	} else if ( frm.belongs_to_parent.value != "" && typeof( frm.parent_spelling_no ) != "undefined" && ! frm.parent_spelling_no[frm.parent_spelling_no.length-1].checked )	{
-		error += "* You must check 'other taxon' if you type in a parent name\n";
-	}
-	if ( frm.belongs_to_parent.value != "" && ! /^[A-Z][a-z]+(| \([A-Z][a-z]+\))(| [a-z][a-z]+)$/.test(frm.belongs_to_parent.value) && ! /^[A-Z][a-z]+ [a-z]+ [a-z]+$/.test(frm.belongs_to_parent.value) )	{
-		error += "* The parent name is misformatted\n";
-	}
-	if ( frm.basis.selectedIndex > 0 && frm.status.value == "belongs to" && frm.diagnosis_given.selectedIndex == 0 )	{
-		error += "* If the 'basis of opinion' is known you must select a 'diagnosis' value\n";
-	}
-
-	if ( typeof( frm.child_spelling_no ) == "undefined" || frm.child_spelling_no[frm.child_spelling_no.length-2].checked )	{
-		var words = new Array();
-		words = frm.child_spelling_name.value.split(/ /);
-		var shouldbe = words[0];
-		if ( words.length == 3 )	{
-			shouldbe = shouldbe + ' ' + words[1];
-		} else if ( words.length == 4 )	{
-			shouldbe = shouldbe + ' ' + words[1] + ' ' + words[2];
-		}
-		if ( frm.belongs_to_parent.value != "" && frm.child_spelling_name.value != "" && frm.belongs_to_parent.value != shouldbe && /species/.test(frm.child_spelling_rank.value) && frm.status.value == "belongs to" )	{
-			error += "* The 'Full name' doesn't match the parent name\n";
-		}
-		if ( ! frm.child_spelling_name.value )	{
-			error += "* You forgot to enter the 'Full name and rank'\n";
-		} else if ( ! /^[A-Z][a-z]+ (|\([A-Z][a-z]+\) )[a-z]+ [a-z]+$/.test(frm.child_spelling_name.value) && frm.child_spelling_rank.value == "subspecies" )	{
-			error += "* The 'Full name' " + frm.child_spelling_name.value + " doesn't look like a subspecies\n";
-		} else if ( ! /^[A-Z][a-z]+ (|\([A-Z][a-z]+\) )[a-z]+$/.test(frm.child_spelling_name.value) && frm.child_spelling_rank.value == "species" )	{
-			error += "* The 'Full name' " + frm.child_spelling_name.value + " doesn't look like a species\n";
-		} else if ( ! /^[A-Z][a-z]+ \([A-Z][a-z]+\)$/.test(frm.child_spelling_name.value) && frm.child_spelling_rank.value == "subgenus" )	{
-			error += "* The 'Full name' " + frm.child_spelling_name.value + " doesn't look like a subgenus\n";
-		} else if ( ! /^[A-Z][a-z]+$/.test(frm.child_spelling_name.value) && ! /(species|subgenus)/.test(frm.child_spelling_rank.value) )	{
-			error += "* The 'Full name' " + frm.child_spelling_name.value + " is misformatted\n";
-		}
-	}
-
-	if ( error != "" )	{
-		alert(error);
-		return false;
-	}
-	frm.check_status.value = "done";
-	return true;
-
-}
-
-// End -->
-</script>
-
-
-
 <span id="message"></span>
 
-<div align="center"><p class="pageTitle">Opinion record for <span id="taxon_display_name"></span></p></div>
+<div align="center">
+  <p class="pageTitle">Opinion record for <span id="taxon_display_name"></span></p>
+</div>
 
-<div style="width: 45em; margin-left: auto; margin-right: auto;">
-
-<div show="limited"><center>
-  <p style="align: center; margin-bottom: 2em;"><em>You do not have
-  authorization to edit this data.</em></p>
-</center></div>
+<div show="limited" style="width: 45em; margin-left: auto; margin-right: auto;">
+  <p style="align: center; margin-bottom: 2em;">
+    <em>You do not have authorization to edit this data.</em></p>
+</div>
 
 <div show="error_message">%%error_message%%</div>
 
 <div style="width: 60em; margin-top: -2em; margin-bottom: 1em; margin-left: auto; margin-right: auto; font-size: 0.6em;">
-<span style="padding-right: 1em;"><span id="authorizer_name"></span></span>
-<span style="padding-right: 1em;"><span id="enterer_name"></span></span>
-<span style="padding-right: 1em;"><span id="modifier_name"><span></span>
-<span style="padding-right: 1em;"><span id="created"></span></span>
-<span id="modified"></span>
+  <span style="padding-right: 1em;"><span id="authorizer_name"></span></span>
+  <span style="padding-right: 1em;"><span id="enterer_name"></span></span>
+  <span style="padding-right: 1em;"><span id="modifier_name"><span></span>
+      <span style="padding-right: 1em;"><span id="created"></span></span>
+      <span id="modified"></span>
 </div> 
 
-<form method="POST" action="%%write_url%%" onSubmit="return checkForm();">
-
-<div class="displayPanel" style="overflow: hidden; margin-left: 1em; padding-left: 2em; padding-top: 0.75em; padding-bottom: 0.75em;">
-
-<div class="verysmall">
+<form method="POST" action="%%write_url%%" id="opinion_form" onSubmit="return checkForm();">
 
 <input type="hidden" id="action" name="action" value="submitOpinionForm">
 <input type="hidden" id="reference_no" name="reference_no">
 
-<input type="hidden" id="child_no" name="child_no">
+<!-- <input type="hidden" id="child_no" name="child_no"> -->
 <input type="hidden" id="opinion_no" name="opinion_no">
 <input type="hidden" id="orig_status" name="orig_status">
 <input type="hidden" id="confirm_no_ref" name="confirm_no_ref">
@@ -161,70 +37,118 @@ function checkForm()	{
 <input type="hidden" id="confirm_create_rank" name="confirm_create_rank">
 <input type="hidden" id="check_status">
 
-<input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="PRIMARY" onClick="document.forms[1].author1init.value = ''; document.forms[1].author1last.value = ''; document.forms[1].author2init.value = ''; document.forms[1].author2last.value = ''; document.forms[1].otherauthors.value = ''; document.forms[1].pubyr.value = ''; document.forms[1].pages.value = '';">
-The primary reference argues for this opinion:
-<div align="left" class="small" style="margin-bottom: 0.5em; margin-left: 3em; text-indent: -1em;"><span id="formatted_primary_reference"></span></div>
-<div show="current_reference" style="padding-left: 2em; padding-right: 2em;">
+<!-- First section: Attribution -->
 
-<input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="CURRENT">
- ... <i>or</i> the current reference argues for this opinion:
-<br><div align="left" class="small" style="margin-bottom: 0.5em; margin-left: 3em; text-indent: -1em;"><span id="formatted_current_reference"></span></div>
-</div>
-
-<input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="NO" onClick="document.forms[1].pages.value = ''; document.forms[1].basis.selectedIndex = 0; document.forms[1].diagnosis_given.selectedIndex = 0;">
- ... <i>or</i> the opinion is repeated from an earlier authority, which is:
-
-<table>
-
-  <tr>
-    <td align="right" class="verysmall"><span class="prompt">First author:</span></td>
-    <td><input id="author1init" name="author1init" class="verysmall" size=4></td>
-    <td><input id="author1last" name="author1last" class="verysmall" size=10></td>
-    <td align="left" class="verysmall" style="padding-left: 0.5em";>
-      <span class="prompt">Second author:</span></td>
-    <td align="left">
-      <input id="author2init" name="author2init" class="verysmall" size=4>&nbsp;
-      <input id="author2last" name="author2last" class="verysmall" size=10></td>
-  </tr>
-
-  <tr>
-    <td valign="top" align="right" class="verysmall" style="padding-left: 2em;">
-      <span class="prompt">Other authors:</span></td>
-    <td colspan="3">
-      <textarea id="otherauthors" name="otherauthors" class="verysmall" rows=1 cols="30"></textarea></td>
-    <td align="left" class="verysmall"><span class="prompt">Year:</span>&nbsp;
-      <input id="pubyr" name="pubyr" class="verysmall" size=5></td>
-  </tr>
+<div class="displayPanel verysmall" 
+     style="overflow: hidden; margin-left: 1em; 
+	    padding-left: 2em; padding-top: 0.75em; padding-bottom: 0.75em;">
   
-  <tr>
-    <td colspan="4" class="verysmall" align="left" style="padding-top: 0.5em;">
-      <span class="prompt">Pages:</span> <input id="pages" name="pages" class="verysmall" size=12>
-      <span class="prompt">Figures:</span> <input id="figures" name="figures" class="verysmall" size=12></td>
-    <td colspan="2">
-      <input type="hidden" name="debug_name" value="enter_opinion">
-      <input type="checkbox" id="entangle" name="entangle" value="NO">
-      <span class="verysmall">Do not entangle the names mentioned in this opinion</span></td>
-  </tr>
-</table>
-
-<div show="earlier_refs"><div style="margin-top: 0.5em; margin-left: 2em;">... <i>or</i> it is repeated from: 
-<div align="left" class="small" style="margin-bottom: 0.5em; margin-left: 2em;"><span id="earlier_refs"></span></div>
-</div></div>
-
-</div>
-
-</div>
-
-<div class="displayPanel" style="overflow: hidden; margin-left: 1em; padding-left: 2em; padding-top: 0.75em; padding-bottom: 0.75em;">
-<div class="verysmall">
-
-  <div>
-  <a href="#" onClick="popup = window.open('%%write_url%%?action=displayPage&page=classification_quality', 'blah', 'left=100,top=100,height=500,width=500,toolbar=yes,scrollbars=yes,resizeable=yes');">Basis of opinion</a>: <select id="basis" autofill="opinion_basis"></select>
-  <span style="font-size: 0.8em;">
-    <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html#Basis')">FAQ</a> 
+  <input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="PRIMARY" onClick="document.forms[1].author1init.value = ''; document.forms[1].author1last.value = ''; document.forms[1].author2init.value = ''; document.forms[1].author2last.value = ''; document.forms[1].otherauthors.value = ''; document.forms[1].pubyr.value = ''; document.forms[1].pages.value = '';">
+  The primary reference argues for this opinion:
+  
+  <div align="left" class="small" style="margin-bottom: 0.5em; margin-left: 3em; text-indent: -1em;">
+    <span id="formatted_primary_reference"></span>
+  </div>
+  
+  <div show="current_reference" style="padding-left: 2em; padding-right: 2em;">
+    <input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="CURRENT">
+    ... <i>or</i> the current reference argues for this opinion:
     <br>
-  </span>
-  <span id="belongs_to_row"></span>
+    <div align="left" class="small" style="margin-bottom: 0.5em; margin-left: 3em; text-indent: -1em;">
+      <span id="formatted_current_reference"></span>
+    </div>
+  </div>
+  
+  <input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="NO" onClick="document.forms[1].pages.value = ''; document.forms[1].basis.selectedIndex = 0; document.forms[1].diagnosis_given.selectedIndex = 0;">
+  ... <i>or</i> the opinion is repeated from an earlier authority, which is:
+
+  <table>
+  
+    <tr>
+      <td align="right" class="verysmall"><span class="prompt">First author:</span></td>
+      <td><input id="author1init" name="author1init" class="verysmall" size=4></td>
+      <td><input id="author1last" name="author1last" class="verysmall" size=10></td>
+      <td align="left" class="verysmall" style="padding-left: 0.5em";>
+	<span class="prompt">Second author:</span></td>
+      <td align="left">
+	<input id="author2init" name="author2init" class="verysmall" size=4>&nbsp;
+	<input id="author2last" name="author2last" class="verysmall" size=10></td>
+    </tr>
+    
+    <tr>
+      <td valign="top" align="right" class="verysmall" style="padding-left: 2em;">
+	<span class="prompt">Other authors:</span></td>
+      <td colspan="3">
+	<textarea id="otherauthors" name="otherauthors" 
+		  class="verysmall" rows=1 cols="30"></textarea></td>
+      <td align="left" class="verysmall"><span class="prompt">Year:</span>&nbsp;
+	<input id="pubyr" name="pubyr" class="verysmall" size=5></td>
+    </tr>
+    
+  </table>
+
+  <table>
+    
+    <tr style="padding-top: 10px;">
+      <td class="verysmall" align="left" style="padding-right: 20px;">
+	<span class="prompt">Pages:</span> &nbsp;
+	<input id="pages" name="pages" class="verysmall" size=12>
+      </td>
+      <td class="verysmall" align="left" style="padding-right: 40px;">
+	<span class="prompt">Figures:</span> &nbsp;
+	<input id="figures" name="figures" class="verysmall" size=12>
+      </td>
+      <td>
+	<span id="label_ignored" class="recordLabel" style="display: none">
+	  This opinion is suppressed (ignored)
+	</span>
+      </td>
+    </tr>
+    
+  </table>
+  
+  <div show="earlier_refs">
+    <div style="margin-top: 0.5em; margin-left: 2em;">... <i>or</i> it is repeated from: 
+      <div align="left" class="small" style="margin-bottom: 0.5em; margin-left: 2em;">
+	<span id="earlier_refs"></span>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Action buttons, only visible if the user is an administrator -->
+
+<input type="hidden" id="is_ignored" name="is_ignored">
+<input type="hidden" id="is_admin" name="is_admin">
+
+<div align="center" style="padding: 10px">
+
+  <input type="submit" id="action_suppress" name="action_suppress" 
+	 value="Suppress" style="display: none"/> &nbsp;
+  <input type="submit" id="action_restore" name="action_restore" 
+	 value="Restore" style="display: none"/> &nbsp;
+  <input type="submit" id="action_reprocess" name="action_reprocess"
+	 value="Reprocess" style="display: none"/> &nbsp;&nbsp;&nbsp;
+  <!-- <input type="submit" id="action_delete" name="action_delete" -->
+  <!-- 	 value="Delete" style="display: none"/> &nbsp; -->
+  <!-- <input type="submit" id="action_child_no" name="action_child_no" -->
+  <!-- 	 value="Change original taxon" style="display: none"/> -->
+  
+</div>
+
+<!-- Second section: Basis and Diagnosis -->
+
+<div class="displayPanel verysmall" 
+     style="overflow: hidden; margin-left: 1em; 
+	    padding-left: 2em; padding-top: 0.75em; padding-bottom: 0.75em;">
+  
+  <div>
+    <span id="belongs_to_row"></span>
+    <a href="#" onClick="popup = window.open('%%write_url%%?action=displayPage&page=classification_quality', 'blah', 'left=100,top=100,height=500,width=500,toolbar=yes,scrollbars=yes,resizeable=yes');">Basis of opinion</a>: <select id="basis" autofill="opinion_basis"></select>
+    <span style="font-size: 0.8em;">
+      <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html#Basis')">FAQ</a> 
+      <br></span>
   </div>
 
   <div style="float: left; clear: none; margin-top: 0.4em;">
@@ -245,20 +169,338 @@ The primary reference argues for this opinion:
   </div>
   
 </div>
-</div>
 
-<div class="displayPanel" style="overflow: hidden; margin-left: 1em; padding-left: 2em; padding-top: 0.75em; padding-bottom: 0.75em;">
-<div class="verysmall">
+<!-- Third section: Spelling -->
 
+<div class="displayPanel verysmall" 
+     style="overflow: hidden; margin-left: 1em; 
+	    padding-left: 2em; padding-top: 0.75em; padding-bottom: 0.75em;">
+  
   <span id="spelling_row"></span>
+  
   <div><small>Select a value regardless of whether this paper was the first to use this combination, spelling, or rank.</small></div>
-
-</div>
-</div>
-
-</div>
 
 </div>
 
     <center><input type="submit" value="Submit"></center>
+    
 </form>
+
+<script language="JavaScript" type="text/javascript">
+  
+  // Find the main form in this document.
+  
+  var frm = document.getElementById('opinion_form');
+  
+  if ( ! frm )
+  {
+      alert("This form cannot be processed because an error occurred.");
+  }
+  
+  // If this form reflects an existing opinion and the hidden field
+  // 'entangle' has the value 'NO', then display a label indicating
+  // that this opinion is ignored for the purposes of computing
+  // entanglement.
+  
+  var label_ignored = document.getElementById('label_ignored');
+  
+  if ( label_ignored && frm.is_ignored.value )
+  {
+      label_ignored.style.display = '';
+  }
+  
+  // If the user has the 'admin' bit set in their 'users' record, then
+  // the displayOpinionForm subroutine should set the value of the hidden
+  // field 'is_admin' to true. If this is the case, turn on whichever
+  // of the following buttons is appropriate. One flags this opinion to
+  // be ignored for entanglement purposes, the other clears that flag.
+  
+  if ( frm.is_admin.value && frm.opinion_no.value > 0 )
+  {
+      if ( frm.is_ignored.value )
+      {
+	  frm.action_restore.style.display = '';
+	  // var button = document.getElementById('entangle_yes');
+	  // if ( button ) button.style.display = '';
+      }
+      
+      else
+      {
+	  frm.action_suppress.style.display = '';
+	  // var button = document.getElementById('entangle_no');
+	  // if ( button ) button.style.display = '';
+      }
+      
+      frm.action_reprocess.style.display = '';
+      // frm.action_delete.style.display = '';
+      // frm.action_child_no.style.display = '';
+  }
+  
+  // The following function validates the form before it is submitted.
+  
+  function checkForm()	{
+      
+      var error = "";
+      
+      if ( ! frm )
+      {
+	  alert("This form cannot be processed because an error occurred.");
+	  return false;
+      }
+      
+      if ( '%%limited%%' )
+      {
+	  wing.error('You do not have authorization to edit taxonomic opinions');
+	  return false;
+      }
+      
+      // If the submit button was one of the administrative controls,
+      // the submission is valid without any more checking.
+      
+      if ( document.activeElement.name == "action_suppress" )
+      {
+	  if ( ! window.confirm("Please confirm: this opinion will be SUPPRESSED.") )
+	      return false;
+	  
+	  frm.action.value = 'submitOpinionAction';
+	  return true;
+      }
+      
+      else if ( document.activeElement.name == "action_restore" )
+      {
+	  if ( ! window.confirm("Please confirm: this opinion will be RESTORED.") )
+	      return false;
+	  
+	  frm.action.value = 'submitOpinionAction';
+	  return true;
+      }
+      
+      else if ( document.activeElement.name == "action_reprocess" )
+      {
+	  frm.action.value = 'submitOpinionAction';
+	  return true;
+      }
+      
+      else if ( document.activeElement.name == "action_delete" )
+      {
+	  if ( ! window.confirm("Please confirm: this opinion will be PERMANENTLY DELETED.") )
+	      return false;
+	  
+	  frm.action.value = 'submitOpinionAction';
+	  return true;
+      }
+      
+      else if ( document.activeElement.name == "action_child_no" )
+      {
+	  var new_orig = window.prompt("Change the original taxonomic name associated with this opinion. You may enter a name or number:");
+	  
+	  if ( /^\w[\w ]+$/.test(new_orig) || 
+	       /^\d+$/.test(new_orig) && new_orig != "0" )
+	  {
+	      frm.action.value = 'submitOpinionAction';
+	      frm.child_no.value = new_orig;
+	      return true;
+	  }
+	  
+	  else if ( new_orig != "" )
+	  {
+	      wing.error( "'" + new_orig + "' is not a valid taxonomic name or number");
+	  }
+	  
+	  return false;
+      }
+      
+      else if ( document.activeElement.value != "Submit" )
+      {
+	  alert("Unknown action");
+	  return false;
+      }
+      
+      // Otherwise, we need to validate many of the field values.
+      
+      var hasLength = frm.ref_has_opinion.length - 1;
+      var checkedHas = 0;
+      var repeatedHas = 0;
+      
+      for ( i=0; i <= hasLength; i++ )
+      {
+	  if ( frm.ref_has_opinion[i].checked )	{
+	      checkedHas = i;
+	  }
+	  if ( frm.ref_has_opinion[i].value == "NO" )	{
+	      repeatedHas = i;
+	  }
+      }
+      
+      if ( ( frm.author1init.value != "" || frm.author1last.value != "" || 
+	     frm.author2init.value != "" || frm.author2last.value != "" || 
+	     frm.pubyr.value != "" ) && checkedHas != repeatedHas )
+      {
+	  error += "* You forgot to check 'the opinion is repeated'\n";
+      }
+      
+      if ( ( checkedHas == repeatedHas || frm.author1init.value != "" || frm.pubyr.value != "" ) &&
+	   frm.author1last.value == "" )
+      {
+	  error += "* You forgot to enter the author name\n";
+      }
+      
+      // match all letter characters
+      var bad_name_char = XRegExp('[^- \'\\p{L}]');
+      var init_check = XRegExp('^\\p{L}[.]$|^\\p{L}[.]-\\p{L}[.]$|^\\p{L}[.]( \\p{L}[.])*$');
+      var curdate = new Date();
+      var pubyr_limit = curdate.getFullYear() + 1;
+      
+      if ( frm.author1init.value && frm.author1init.value != "" && 
+	   ! init_check.test(frm.author1init.value) )
+      {
+	  error += "* The first author's initials are misformatted\n";
+      }
+      
+      if ( frm.author1last.value && frm.author1last.value != "" && 
+	   bad_name_char.test(frm.author1last.value) && 
+	   ! /, [sSjJ]r\./.test(frm.author1last.value) )
+      {
+	  error += "* There seems to be a typo in the first author's last name\n";
+      }
+      
+      if ( frm.author2init.value && frm.author2init.value != "" && 
+	   ! init_check.test(frm.author2init.value) )
+      {
+	  error += "* The second author's initials are misformatted\n";
+      }
+      
+      if ( frm.author2last.value != "" &&  bad_name_char.test(frm.author2last.value) &&
+	   ! /, [sSjJ]r\./.test(frm.author2last.value) )
+      {
+	  error += "* There seems to be a typo in the second author's last name\n";
+      }
+      
+      if ( /[^0-9]/.test(frm.pubyr.value) )
+      {
+	  error += "* The publication year is misformatted\n";
+      } 
+      
+      else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > pubyr_limit ) )
+      {
+	  error += "* The publication year is wrong\n";
+      }
+      
+      if ( ( checkedHas == repeatedHas || frm.author1init.value != "" || 
+	     frm.author1last.value != "" ) && 
+	   frm.pubyr.value == "" )
+      {
+	  error += "* You forgot to enter the publication year\n";
+      }
+      
+      if ( frm.status.value == "" )
+      {
+	  error += "* You forgot to select the 'status' of the taxon\n";
+      } 
+      
+      else if ( frm.status.value != "belongs to" && frm.diagnosis_given.selectedIndex > 0 )
+      {
+	  error += "* Don't select a 'diagnosis' value if the taxon is invalid\n";
+      }
+      
+      if ( ! frm.belongs_to_parent.value )
+      {
+	  if ( typeof( frm.parent_spelling_no ) == "undefined" )	{
+	      error += "* You forgot to enter the parent name\n";
+	  } else if ( frm.parent_spelling_no[frm.parent_spelling_no.length-1].checked )	{
+	      error += "* You forgot to enter the parent name\n";
+	  }
+      } 
+      
+      else if ( frm.belongs_to_parent.value != "" && 
+		typeof( frm.parent_spelling_no ) != "undefined" && 
+		! frm.parent_spelling_no[frm.parent_spelling_no.length-1].checked )
+      {
+	  error += "* You must check 'other taxon' if you type in a parent name\n";
+      }
+      
+      if ( frm.belongs_to_parent.value != "" && 
+	   ! /^[A-Z][a-z]+(| \([A-Z][a-z]+\))(| [a-z][a-z]+)$/.test(frm.belongs_to_parent.value) &&
+	   ! /^[A-Z][a-z]+ [a-z]+ [a-z]+$/.test(frm.belongs_to_parent.value) )
+      {
+	  error += "* The parent name is misformatted\n";
+      }
+      
+      if ( frm.basis.selectedIndex > 0 && frm.status.value == "belongs to" && 
+	   frm.diagnosis_given.selectedIndex == 0 )
+      {
+	  error += "* If the 'basis of opinion' is known you must select a 'diagnosis' value\n";
+      }
+      
+      if ( typeof( frm.child_spelling_no ) == "undefined" || 
+	   frm.child_spelling_no[frm.child_spelling_no.length-2].checked )
+      {
+	  var words = new Array();
+	  words = frm.child_spelling_name.value.split(/ /);
+	  var shouldbe = words[0];
+	  
+	  if ( words.length == 3 )
+	  {
+	      shouldbe = shouldbe + ' ' + words[1];
+	  }
+	  
+	  else if ( words.length == 4 )
+	  {
+	      shouldbe = shouldbe + ' ' + words[1] + ' ' + words[2];
+	  }
+	  
+	  if ( frm.belongs_to_parent.value != "" && frm.child_spelling_name.value != "" && 
+	       frm.belongs_to_parent.value != shouldbe && 
+	       /species/.test(frm.child_spelling_rank.value) && frm.status.value == "belongs to" )
+	  {
+	      error += "* The 'Full name' doesn't match the parent name\n";
+	  }
+	  
+	  if ( ! frm.child_spelling_name.value )
+	  {
+	      error += "* You forgot to enter the 'Full name and rank'\n";
+	  }
+	  
+	  else if ( ! /^[A-Z][a-z]+ (|\([A-Z][a-z]+\) )[a-z]+ [a-z]+$/.test(frm.child_spelling_name.value) && frm.child_spelling_rank.value == "subspecies" )
+	  {
+	      error += "* The 'Full name' " + frm.child_spelling_name.value + " doesn't look like a subspecies\n";
+	  }
+	  
+	  else if ( ! /^[A-Z][a-z]+ (|\([A-Z][a-z]+\) )[a-z]+$/.test(frm.child_spelling_name.value) && frm.child_spelling_rank.value == "species" )
+	  {
+	      error += "* The 'Full name' " + frm.child_spelling_name.value + " doesn't look like a species\n";
+	  }
+	  
+	  else if ( ! /^[A-Z][a-z]+ \([A-Z][a-z]+\)$/.test(frm.child_spelling_name.value) && frm.child_spelling_rank.value == "subgenus" )
+	  {
+	      error += "* The 'Full name' " + frm.child_spelling_name.value + " doesn't look like a subgenus\n";
+	  }
+	  
+	  else if ( ! /^[A-Z][a-z]+$/.test(frm.child_spelling_name.value) && ! /(species|subgenus)/.test(frm.child_spelling_rank.value) )
+	  {
+	      error += "* The 'Full name' " + frm.child_spelling_name.value + " is misformatted\n";
+	  }
+      }
+      
+      if ( error != "" )
+      {
+	  alert(error);
+	  return false;
+      }
+      
+      frm.check_status.value = "done";
+      return true;
+  }
+  
+  function fix_spelling_reason ( ) 
+  {
+      var i = frm.child_no.selectedIndex;
+      var name = frm.child_no.options[i].innerText;
+      
+      if ( name == frm.child_spelling_name.value )
+      {
+	  frm.spelling_reason.value = "original spelling";
+      }
+  }
+  
+</script>

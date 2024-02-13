@@ -10,6 +10,7 @@ package PBDB::Reference;
 use strict;
 use PBDB::AuthorNames;
 use Class::Date qw(now date);
+use Scalar::Util qw(reftype);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTION_NO makeAnchor
 		       makeAnchorWithAttrs makeATag makeFormPostTag);
@@ -139,22 +140,28 @@ sub getReference {
     
     my ($dbt, $reference_no) = @_;
     
+    my $dbh = ref($dbt) =~ /DBTransaction/ ? $dbt->dbh : $dbt;
     my $sql;
     
-    if ($reference_no)
+    if ( $reference_no )
     {
-        $sql = "SELECT r.*, p1.name as authorizer, p2.name as enterer, p3.name as modifier
+	my $quoted = $dbh->quote($reference_no);
+        
+	$sql = "SELECT r.*, p1.name as authorizer, p2.name as enterer, p3.name as modifier
 		FROM refs as r 
 			left join person as p1 on p1.person_no = r.authorizer_no
 			left join person as p2 on p2.person_no = r.enterer_no
 			left join person as p3 on p3.person_no = r.modifier_no
-		WHERE r.reference_no = $reference_no";
-        my $ref = ${$dbt->getData($sql)}[0];
+		WHERE r.reference_no = $quoted";
+	
+	my $refData = $dbh->selectrow_hashref($sql);
+	
+        # my $ref = ${$dbt->getData($sql)}[0];
         # my %lookup = %{PBDB::PBDBUtil::getPersonLookup($dbt)};
         # $ref->{'authorizer'} = $lookup{$ref->{'authorizer_no'}};
         # $ref->{'enterer'} = $lookup{$ref->{'enterer_no'}};
         # $ref->{'modifier'} = $lookup{$ref->{'modifier_no'}};
-        return $ref;
+        return $refData;
     }
     
     else
@@ -165,22 +172,30 @@ sub getReference {
 }
 # JA 16-17.8.02
 # Moved and extended by PS 05/2005 to accept a number (reference_no) or hashref (if all the pertinent data has been grabbed already);
+
 sub formatShortRef  {
-    my $refData;
-    my %options;
-    if (UNIVERSAL::isa($_[0],'PBDB::DBTransactionManager')) {
-        my $dbt = shift;
-        my $reference_no = int(shift);
-        if ($reference_no) {
-            my $sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,pubyr FROM refs WHERE reference_no=$reference_no";
-            $refData = ${$dbt->getData($sql)}[0];
-        }
-        %options = @_;
-    } else {
-        $refData = shift;
-        %options = @_;
+    
+    my ($refData, %options);
+    
+    if ( ref $_[0] && ref($_[0]) =~ /DBTransaction|DBI/ )
+    {
+	my ($dbt, $reference_no);
+	
+	($dbt, $reference_no, %options) = @_;
+	
+	my $dbh = ref($dbt) =~ /DBTransaction/ ? $dbt->dbh : $dbt;
+	
+	my $quoted = $dbh->quote($reference_no || '');
+	
+	$refData = $dbh->selectrow_hashref("SELECT * FROM refs WHERE reference_no=$quoted");
     }
-    return if (!$refData);
+    
+    else
+    {
+	($refData, %options) = @_;
+    }
+    
+    return '' unless $refData && reftype $refData eq 'HASH';
 
     # stuff like Jr. or III often is in the last name fields, and for a short
     #  ref we don't care about it JA 18.4.07
@@ -193,92 +208,139 @@ sub formatShortRef  {
     $refData->{'author2last'} =~ s/,$//;
     
     my $shortRef = "";
+    
     $shortRef .= $refData->{'author1init'}." " if $refData->{'author1init'} && ! $options{'no_inits'};
     $shortRef .= $refData->{'author1last'};
-    if ( $refData->{'otherauthors'} ) {
+    
+    if ( $refData->{'otherauthors'} )
+    {
         $shortRef .= " et al.";
-    } elsif ( $refData->{'author2last'} ) {
+    }
+    
+    elsif ( $refData->{'author2last'} )
+    {
         # We have at least 120 refs where the author2last is 'et al.'
-        if($refData->{'author2last'} !~ /^et al/i){
+        if( $refData->{'author2last'} !~ /^et al/i )
+	{
             $shortRef .= " and ";
-        	$shortRef .= $refData->{'author2init'}." " if $refData->{'author2init'} && ! $options{'no_inits'};
-        	$shortRef .= $refData->{'author2last'};
-        } else {
+	    $shortRef .= $refData->{'author2init'} . " " 
+		if $refData->{'author2init'} && ! $options{'no_inits'};
+	    $shortRef .= $refData->{'author2last'};
+        }
+	
+	else
+	{
             $shortRef .= " et al.";
         }
     }
-    if ($refData->{'pubyr'}) {
-        if ($options{'alt_pubyr'}) {
+    
+    if ( $refData->{'pubyr'} )
+    {
+        if ( $options{'alt_pubyr'} )
+	{
             $shortRef .= " (" . $refData->{'pubyr'} . ")"; 
-        } else {
+        }
+	
+	else
+	{
             $shortRef .= " " . $refData->{'pubyr'};
         }
     }
-
-    if ($options{'link_id'}) {
-        if ($refData->{'reference_no'}) {
-            $shortRef = makeAnchor("displayReference", "reference_no=$refData->{reference_no}", $shortRef);
-        }
+    
+    if ( $options{'link_id'} && $refData->{reference_no} )
+    {
+	$shortRef = makeAnchor("displayReference", 
+			       "reference_no=$refData->{reference_no}", 
+			       $shortRef);
     }
-    if ($options{'show_comments'}) {
-        if ($refData->{'comments'}) {
-            $shortRef .= " [" . $refData->{'comments'}."]";
-        }
+    
+    if ( $options{show_comments} && $refData->{'comments'} )
+    {
+	$shortRef .= " [" . $refData->{'comments'}."]";
     }
-    if ($options{'is_recombination'}) {
-        $shortRef = "(".$shortRef.")";
+    
+    if ( $options{'is_recombination'} )
+    {
+        $shortRef = "($shortRef)";
     }
-
+    
     return $shortRef;
 }
 
+
 sub formatLongRef {
-    my $ref;
-    if (UNIVERSAL::isa($_[0],'DBTransactionManager')) {
-        $ref = getReference(@_);
-    } else {
-        $ref = shift;
+    
+    my ($refData);
+    
+    if ( ref $_[0] && ref($_[0]) =~ /DBTransaction|DBI/ )
+    {
+	my ($dbt, $reference_no) = @_;
+	$refData = getReference($dbt, $reference_no);
     }
-    return if (!$ref);
-
-    return "" if (!$ref);
-
+    
+    else
+    {
+	($refData) = @_;
+    }
+    
+    return '' unless $refData && ref $refData eq 'HASH';
+    
     my $longRef = "";
-    my $an = PBDB::AuthorNames->new($ref);
-	$longRef .= $an->toString();
-
-	$longRef .= "." if $longRef && $longRef !~ /\.\Z/;
-	$longRef .= " ";
-
-	$longRef .= $ref->{'pubyr'}.". " if $ref->{'pubyr'};
-
-	$longRef .= $ref->{'reftitle'} if $ref->{'reftitle'};
-	$longRef .= "." if $ref->{'reftitle'} && $ref->{'reftitle'} !~ /\.\Z/;
-	$longRef .= " " if $ref->{'reftitle'};
-
-	$ref->{'pubtitle'} = "<i>" . $ref->{'pubtitle'} . "</i>" if $ref->{'pubtitle'};
-	if ($ref->{'pubtitle'} && $ref->{'editors'} =~ /(,)|( and )/)	{ $ref->{'pubtitle'} = " In " . $ref->{'editors'} . " (eds.), " . $ref->{'pubtitle'}; }
-	elsif ($ref->{'pubtitle'} && $ref->{'editors'})	{ $ref->{'pubtitle'} = " In " . $ref->{'editors'} . " (ed.), " . $ref->{'pubtitle'}; }
-	$longRef .= $ref->{'pubtitle'}." " if $ref->{'pubtitle'};
-
-	$longRef .= "<b>" . $ref->{'pubvol'} . "</b>" if $ref->{'pubvol'};
-
-	$longRef .= "<b>(" . $ref->{'pubno'} . ")</b>" if $ref->{'pubno'};
-
-	$longRef .= ":" if $ref->{'pubvol'} && ( $ref->{'firstpage'} || $ref->{'lastpage'} );
-
-	$longRef .= $ref->{'firstpage'} if $ref->{'firstpage'};
-	$longRef .= "-" if $ref->{'firstpage'} && $ref->{'lastpage'};
-	$longRef .= $ref->{'lastpage'};
-	# also displays authorizer and enterer JA 23.2.02
-	if ( $ref->{'authorizer'} )	{
-		$longRef .= "<span class=\"small\"> [".$ref->{'authorizer'}."/".
-			   $ref->{'enterer'};
-		if($ref->{'modifier'}){
-			$longRef .= "/".$ref->{'modifier'};
-		}
-		$longRef .= "]</span>";
+    
+    my $an = PBDB::AuthorNames->new($refData);
+    
+    $longRef .= $an->toString();
+    
+    $longRef .= "." if $longRef && $longRef !~ /\.\Z/;
+    $longRef .= " ";
+    
+    $longRef .= $refData->{'pubyr'}.". " if $refData->{'pubyr'};
+    
+    $longRef .= $refData->{'reftitle'} if $refData->{'reftitle'};
+    $longRef .= "." if $refData->{'reftitle'} && $refData->{'reftitle'} !~ /\.\Z/;
+    $longRef .= " " if $refData->{'reftitle'};
+    
+    $refData->{'pubtitle'} = "<i>" . $refData->{'pubtitle'} . "</i>" if $refData->{'pubtitle'};
+    
+    if ( $refData->{'pubtitle'} && $refData->{'editors'} =~ /(,)|( and )/ )
+    {
+	$refData->{'pubtitle'} = " In " . $refData->{'editors'} . " (eds.), " . 
+	    $refData->{'pubtitle'};
+    }
+    
+    elsif ( $refData->{'pubtitle'} && $refData->{'editors'} )
+    {
+	$refData->{'pubtitle'} = " In " . $refData->{'editors'} . " (ed.), " . 
+	    $refData->{'pubtitle'};
+    }
+    
+    $longRef .= $refData->{'pubtitle'}." " if $refData->{'pubtitle'};
+    
+    $longRef .= "<b>" . $refData->{'pubvol'} . "</b>" if $refData->{'pubvol'};
+    
+    $longRef .= "<b>(" . $refData->{'pubno'} . ")</b>" if $refData->{'pubno'};
+    
+    $longRef .= ":" if $refData->{'pubvol'} && ( $refData->{'firstpage'} || $refData->{'lastpage'} );
+    
+    $longRef .= $refData->{'firstpage'} if $refData->{'firstpage'};
+    $longRef .= "-" if $refData->{'firstpage'} && $refData->{'lastpage'};
+    $longRef .= $refData->{'lastpage'};
+    
+    # also displays authorizer and enterer JA 23.2.02
+    
+    if ( $refData->{'authorizer'} )
+    {
+	$longRef .= "<span class=\"small\"> [".$refData->{'authorizer'}."/".
+	    $refData->{'enterer'};
+	
+	if( $refData->{'modifier'} )
+	{
+	    $longRef .= "/".$refData->{'modifier'};
 	}
+	
+	$longRef .= "]</span>";
+    }
+    
     return $longRef;
 }
 
@@ -581,17 +643,17 @@ sub displayRefResults {
 }
 
 sub displayReference {
-    my ($dbt,$q,$s,$hbo,$ref,$alternatives) = @_;
+    my ($dbt,$q,$s,$hbo,$refData,$alternatives) = @_;
     my $dbh = $dbt->dbh;
 
-    if (!$ref) {
-        $ref = getReference($dbt,$q->numeric_param('reference_no'));
+    if (!$refData) {
+        $refData = getReference($dbt,$q->numeric_param('reference_no'));
     } 
 
-    if (!$ref) {
+    if (!$refData) {
         return "<h2>Valid reference not supplied</h2>\n";
     }
-    my $reference_no = $ref->{'reference_no'};
+    my $reference_no = $refData->{'reference_no'};
 
     
     # Create the thin line boxes
@@ -604,15 +666,15 @@ sub displayReference {
         return $html;
     };
     
-    my $shortRef = formatShortRef($ref);
+    my $shortRef = formatShortRef($refData);
     
     my $output = "<div align=\"center\"><p class=\"pageTitle\">$shortRef</p></div>";
     
-    my $citation = formatLongRef($ref);
+    my $citation = formatLongRef($refData);
     if ($s->isDBMember())	{
         $citation .= " <small>";
-	$citation .= makeAnchor("displayRefResults", "type=select&reference_no=$ref->{reference_no}", "select") . " - ";
-	$citation .= makeAnchor("displayRefResults", "type=edit&reference_no=$ref->{reference_no}", "edit") . "</small>";
+	$citation .= makeAnchor("displayRefResults", "type=select&reference_no=$refData->{reference_no}", "select") . " - ";
+	$citation .= makeAnchor("displayRefResults", "type=edit&reference_no=$refData->{reference_no}", "edit") . "</small>";
     }
     $citation = "<div style=\"text-indent: -0.75em; margin-left: 1em;\">" . $citation . "</div>";
     if ( $alternatives )	{
@@ -623,34 +685,34 @@ sub displayReference {
     # Start Metadata box
     my $html = "<table border=0 cellspacing=0 cellpadding=0\">";
     $html .= "<tr><td class=\"fieldName\">ID number: </td><td>&nbsp;$reference_no</td></tr>";
-    if ($ref->{'created'}) {
-        $html .= "<tr><td class=\"fieldName\">Created: </td><td>&nbsp;$ref->{'created'}</td></tr>";
+    if ($refData->{'created'}) {
+        $html .= "<tr><td class=\"fieldName\">Created: </td><td>&nbsp;$refData->{'created'}</td></tr>";
     }
-    if ($ref->{'modified'}) {
-        my $modified = date($ref->{'modified'});
-        $html .= "<tr><td class=\"fieldName\">Modified: </td><td>&nbsp;$modified</td></tr>" unless ($modified eq $ref->{'created'});
+    if ($refData->{'modified'}) {
+        my $modified = date($refData->{'modified'});
+        $html .= "<tr><td class=\"fieldName\">Modified: </td><td>&nbsp;$modified</td></tr>" unless ($modified eq $refData->{'created'});
     }
-    if($ref->{'project_name'}) {
-        $html .= "<tr><td class=\"fieldName\">Project name: </td><td>&nbsp;$ref->{'project_name'}";
-        if ($ref->{'project_ref_no'}) {
-            $html .= " $ref->{'project_ref_no'}";
+    if($refData->{'project_name'}) {
+        $html .= "<tr><td class=\"fieldName\">Project name: </td><td>&nbsp;$refData->{'project_name'}";
+        if ($refData->{'project_ref_no'}) {
+            $html .= " $refData->{'project_ref_no'}";
         }
         $html .= "</td></tr>";
     }
-    if($ref->{'publication_type'}) {
-        $html .= "<tr><td class=\"fieldName\">Publication type: </td><td>&nbsp;$ref->{'publication_type'}</td></tr>";
+    if($refData->{'publication_type'}) {
+        $html .= "<tr><td class=\"fieldName\">Publication type: </td><td>&nbsp;$refData->{'publication_type'}</td></tr>";
     }
-    if($ref->{'basis'}) {
-        $html .= "<tr><td class=\"fieldName\">Taxonomy: </td><td>&nbsp;$ref->{'basis'}</td></tr>";
+    if($refData->{'basis'}) {
+        $html .= "<tr><td class=\"fieldName\">Taxonomy: </td><td>&nbsp;$refData->{'basis'}</td></tr>";
     }
-    if($ref->{'language'}) {
-        $html .= "<tr><td class=\"fieldName\">Language: </td><td>&nbsp;$ref->{'language'} </td></tr>";
+    if($refData->{'language'}) {
+        $html .= "<tr><td class=\"fieldName\">Language: </td><td>&nbsp;$refData->{'language'} </td></tr>";
     }
-    if($ref->{'doi'}) {
-        $html .= "<tr><td class=\"fieldName\">DOI: </td><td>&nbsp;$ref->{'doi'}</td></tr>";
+    if($refData->{'doi'}) {
+        $html .= "<tr><td class=\"fieldName\">DOI: </td><td>&nbsp;$refData->{'doi'}</td></tr>";
     }
-    if($ref->{'comments'}) {
-        $html .= "<tr><td colspan=2><span class=\"fieldName\">Comments: </span> $ref->{'comments'}</td></tr>";
+    if($refData->{'comments'}) {
+        $html .= "<tr><td colspan=2><span class=\"fieldName\">Comments: </span> $refData->{'comments'}</td></tr>";
     }
     $html .= "</table>";
     if ($html) {
@@ -695,7 +757,7 @@ sub displayReference {
                 sort { $a->[0] cmp $b->[0] }
                 map { 
                     my $o = PBDB::Opinion->new($dbt,$_->{'opinion_no'}); 
-                    my $html = $o->formatAsHTML; 
+                    my $html = $o->formatAsHTML($dbt); 
                     my $name = $html;
                     $name =~ s/^'(<i>)?//; 
                     $name =~ s/(belongs |replaced |invalid subgroup |recombined |synonym | homonym | misspelled).*?$//; 
@@ -1162,417 +1224,417 @@ sub getReferences {
 	}
 }
 
-sub getReferencesXML {
-    my ($dbt,$q,$s,$hbo) = @_;
-    require XML::Generator;
+# sub getReferencesXML {
+#     my ($dbt,$q,$s,$hbo) = @_;
+#     require XML::Generator;
 
-    my ($data,$query_description) = getReferences($dbt,$q,$s,$hbo);
-    my @data = @$data;
-    my $dataRowsSize = scalar(@data);
+#     my ($data,$query_description) = getReferences($dbt,$q,$s,$hbo);
+#     my @data = @$data;
+#     my $dataRowsSize = scalar(@data);
 
-    my $g = XML::Generator->new(escape=>'always',conformance=>'strict',empty=>'args',pretty=>2);
-    my $output = '';
+#     my $g = XML::Generator->new(escape=>'always',conformance=>'strict',empty=>'args',pretty=>2);
+#     my $output = '';
     
-    $output .= "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
-    $output .= "<references total=\"$dataRowsSize\">\n";
-    foreach my $row (@data) {
-        my $an = PBDB::AuthorNames->new($row);
-        my $authors = $an->toString();
+#     $output .= "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
+#     $output .= "<references total=\"$dataRowsSize\">\n";
+#     foreach my $row (@data) {
+#         my $an = PBDB::AuthorNames->new($row);
+#         my $authors = $an->toString();
 
-        my $pages = $row->{'firstpage'};
-        if ($row->{'lastpage'} ne "") {
-            $pages .= " - $row->{lastpage}";
-        }
+#         my $pages = $row->{'firstpage'};
+#         if ($row->{'lastpage'} ne "") {
+#             $pages .= " - $row->{lastpage}";
+#         }
 
-        # left out: authorizer/enterer, basis, language, doi, comments, project_name
-        $output .= $g->reference(
-            $g->reference_no($row->{reference_no}),
-            $g->authors($authors),
-            $g->year($row->{pubyr}),
-            $g->title($row->{reftitle}),
-            $g->publication($row->{pubtitle}),
-            $g->publication_volume($row->{pubvol}),
-            $g->publication_no($row->{pubno}),
-            $g->pages($pages),
-            $g->publication_type($row->{publication_type})
-        );
-        $output .= "\n";
-    }
-    $output .= "</references>";
+#         # left out: authorizer/enterer, basis, language, doi, comments, project_name
+#         $output .= $g->reference(
+#             $g->reference_no($row->{reference_no}),
+#             $g->authors($authors),
+#             $g->year($row->{pubyr}),
+#             $g->title($row->{reftitle}),
+#             $g->publication($row->{pubtitle}),
+#             $g->publication_volume($row->{pubvol}),
+#             $g->publication_no($row->{pubno}),
+#             $g->pages($pages),
+#             $g->publication_type($row->{publication_type})
+#         );
+#         $output .= "\n";
+#     }
+#     $output .= "</references>";
     
-    return $output;
-}
+#     return $output;
+# }
 
-# JA 17-18.3.09
-sub getTitleWordOdds	{
-    my ($dbt,$q,$s,$hbo) = @_;
+# # JA 17-18.3.09
+# sub getTitleWordOdds	{
+#     my ($dbt,$q,$s,$hbo) = @_;
 	
-    my $dbh = $dbt->dbh;
-	my $output = '';
-	my @tables= ("refs r");
-	my @where = ("(language IN ('English') OR language IS NULL) AND reftitle!='' AND reftitle IS NOT NULL");
+#     my $dbh = $dbt->dbh;
+# 	my $output = '';
+# 	my @tables= ("refs r");
+# 	my @where = ("(language IN ('English') OR language IS NULL) AND reftitle!='' AND reftitle IS NOT NULL");
 
-	my %isbad;
-	$isbad{$_}++ foreach ('about','and','been','for','from','have','its','near','not','off','some','the','their','them','this','those','two','which','with');
+# 	my %isbad;
+# 	$isbad{$_}++ foreach ('about','and','been','for','from','have','its','near','not','off','some','the','their','them','this','those','two','which','with');
 
-	my (%cap,%iscap,%isplural,%notplural,%freq,%allfreq,%infreq,@words,@allwords,$n,$allrefs,$nrefs,@allrefs,%refwords);
+# 	my (%cap,%iscap,%isplural,%notplural,%freq,%allfreq,%infreq,@words,@allwords,$n,$allrefs,$nrefs,@allrefs,%refwords);
 
-	# avoids another table scan
-	my $sql = "SELECT reftitle,pubtitle,reference_no FROM ".join(',',@tables)." WHERE ".join(' AND ',@where);
-	getWords($sql);
-	# okay, so it's a hack
-	%allfreq = %freq;
-	@allwords = @words;
-	my $nallrefs = $n;
+# 	# avoids another table scan
+# 	my $sql = "SELECT reftitle,pubtitle,reference_no FROM ".join(',',@tables)." WHERE ".join(' AND ',@where);
+# 	getWords($sql);
+# 	# okay, so it's a hack
+# 	%allfreq = %freq;
+# 	@allwords = @words;
+# 	my $nallrefs = $n;
 
-	# we're actually using the checkbox names instead of values
-	my @params = $q->param;
-	my @titles;
-	for my $p ( @params )	{
-		if ( $p =~ /^title / )	{
-			my $t = $p;
-			$t =~ s/title //;
-			push @titles , $t;
-		}
-	}
+# 	# we're actually using the checkbox names instead of values
+# 	my @params = $q->param;
+# 	my @titles;
+# 	for my $p ( @params )	{
+# 		if ( $p =~ /^title / )	{
+# 			my $t = $p;
+# 			$t =~ s/title //;
+# 			push @titles , $t;
+# 		}
+# 	}
 
-	$output .= "<p class=\"pageTitle\" style=\"margin-left: 16em; margin-bottom: 1.5em;\">Paper title analytical results</p>\n\n";
+# 	$output .= "<p class=\"pageTitle\" style=\"margin-left: 16em; margin-bottom: 1.5em;\">Paper title analytical results</p>\n\n";
 
-	# oy vey
-	if ( $q->param('title Palaeontologische Zeitschrift') )	{
-		$sql = "SELECT distinct(pubtitle) FROM refs WHERE pubtitle LIKE 'pal% zeitschrift'";
-		my @pzs = @{$dbt->getData($sql)};
-		push @titles , $_->{'pubtitle'} foreach @pzs;
-	}
+# 	# oy vey
+# 	if ( $q->param('title Palaeontologische Zeitschrift') )	{
+# 		$sql = "SELECT distinct(pubtitle) FROM refs WHERE pubtitle LIKE 'pal% zeitschrift'";
+# 		my @pzs = @{$dbt->getData($sql)};
+# 		push @titles , $_->{'pubtitle'} foreach @pzs;
+# 	}
 
-	if ( @titles )	{
-		push @where , "pubtitle IN ('".join("','",@titles)."')";
-	}
-	if ( $q->param('authors') =~ /[A-Za-z]/ )	{
-		my $auth = $q->param('authors');
-		$auth =~ s/[^A-Za-z ]//g;
-		push @where , " (r.author1last IN ('".join("','",split(/ /,$auth))."') OR r.author2last IN ('".join("','",split(/ /,$auth))."'))";
-	}
-	if ( $q->param('first_year') >= 1700 && ( $q->param('first_year') < $q->param('last_year') || ! $q->param('last_year') ) )		{
-		push @where , "r.pubyr>=".$q->numeric_param('first_year');
-	}
-	if ( $q->param('last_year') >= 1700 && ( $q->param('first_year') < $q->param('last_year') || ! $q->param('first_year') ) )		{
-		push @where , "r.pubyr<=".$q->numeric_param('last_year');
-	}
-	if ( $q->param('keywords') =~ /[A-Za-z]/ )	{
-		my @words = split / /,$q->param('keywords');
-		$isbad{$_}++ foreach @words;
-		my @likes;
-		push @likes , "(reftitle REGEXP '[^A-Za-z]".$_."[^A-Za-z]' OR reftitle REGEXP '".$_."[^A-Za-z]' OR reftitle REGEXP '[^A-Za-z]".$_."' OR reftitle REGEXP '[^A-Za-z]".$_."s[^A-Za-z]' OR reftitle REGEXP '".$_."s[^A-Za-z]' OR reftitle REGEXP '[^A-Za-z]".$_."s')" foreach @words;
-		push @where , "(".join(' OR ',@likes).")";
-	}
-	my @periods;
-	for my $p ( @params )	{
-		if ( $p =~ /^period / )	{
-			push @periods , $q->param($p);
-			my ($p,$period) = split / /,$p;
-			$isbad{$period}++;
-		}
-	}
-	my $group_by;
-	if ( @periods )	{
-		push @tables , "collections c,interval_lookup i";
-		push @where , "r.reference_no=c.reference_no AND c.max_interval_no=i.interval_no AND period_no IN (".join(',',@periods).")";
-		$group_by = " GROUP BY r.reference_no";
-	}
-	my $country_sql;
-	for my $continent ( 'Africa','Antarctica','Asia','Australia','Europe','North America','South America' )	{
-		if ( $q->param($continent) =~ /y/i )	{
-			my $d = PBDB::Download->new($dbt,$q,$s,$hbo);
-			$country_sql = $d->getCountryString();
-			last;
-		}
-	}
-	if ( $country_sql )	{
-		if ( ! @periods )	{
-			push @tables , "collections c";
-			push @where , "r.reference_no=c.reference_no";
-			$group_by = " GROUP BY r.reference_no";
-		}
-		push @where , $country_sql;
-	}
-	if ( $q->param('exclude_places') )	{
-		$isbad{$_}++ foreach ( 'Africa','Antarctica','Asia','Australia','Europe','North America','South America' );
-		$sql = "(SELECT distinct(country) AS place FROM collections WHERE country IS NOT NULL AND country!='') UNION (SELECT distinct(state) AS place FROM collections WHERE state IS NOT NULL AND state!='')";
-		my @places = @{$dbt->getData($sql)};
-		$isbad{$_->{'place'}}++ foreach @places;
-	}
-	if ( $q->param('taxon') =~ /^[A-Z][a-z]*$/ )	{
-	    my $quoted_taxon = $dbh->quote($q->param('taxon'));
-	    $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_taxon AND t.taxon_no=spelling_no ORDER BY rgt-lft DESC";
-		my $span = ${$dbt->getData($sql)}[0];
-		push @tables , "opinions o,".$TAXA_TREE_CACHE." t";
-		push @where , "r.reference_no=o.reference_no AND child_no=t.taxon_no AND lft>=".$span->{'lft'}." AND rgt<=".$span->{'rgt'};
-		$group_by = " GROUP BY r.reference_no";
-	}
+# 	if ( @titles )	{
+# 		push @where , "pubtitle IN ('".join("','",@titles)."')";
+# 	}
+# 	if ( $q->param('authors') =~ /[A-Za-z]/ )	{
+# 		my $auth = $q->param('authors');
+# 		$auth =~ s/[^A-Za-z ]//g;
+# 		push @where , " (r.author1last IN ('".join("','",split(/ /,$auth))."') OR r.author2last IN ('".join("','",split(/ /,$auth))."'))";
+# 	}
+# 	if ( $q->param('first_year') >= 1700 && ( $q->param('first_year') < $q->param('last_year') || ! $q->param('last_year') ) )		{
+# 		push @where , "r.pubyr>=".$q->numeric_param('first_year');
+# 	}
+# 	if ( $q->param('last_year') >= 1700 && ( $q->param('first_year') < $q->param('last_year') || ! $q->param('first_year') ) )		{
+# 		push @where , "r.pubyr<=".$q->numeric_param('last_year');
+# 	}
+# 	if ( $q->param('keywords') =~ /[A-Za-z]/ )	{
+# 		my @words = split / /,$q->param('keywords');
+# 		$isbad{$_}++ foreach @words;
+# 		my @likes;
+# 		push @likes , "(reftitle REGEXP '[^A-Za-z]".$_."[^A-Za-z]' OR reftitle REGEXP '".$_."[^A-Za-z]' OR reftitle REGEXP '[^A-Za-z]".$_."' OR reftitle REGEXP '[^A-Za-z]".$_."s[^A-Za-z]' OR reftitle REGEXP '".$_."s[^A-Za-z]' OR reftitle REGEXP '[^A-Za-z]".$_."s')" foreach @words;
+# 		push @where , "(".join(' OR ',@likes).")";
+# 	}
+# 	my @periods;
+# 	for my $p ( @params )	{
+# 		if ( $p =~ /^period / )	{
+# 			push @periods , $q->param($p);
+# 			my ($p,$period) = split / /,$p;
+# 			$isbad{$period}++;
+# 		}
+# 	}
+# 	my $group_by;
+# 	if ( @periods )	{
+# 		push @tables , "collections c,interval_lookup i";
+# 		push @where , "r.reference_no=c.reference_no AND c.max_interval_no=i.interval_no AND period_no IN (".join(',',@periods).")";
+# 		$group_by = " GROUP BY r.reference_no";
+# 	}
+# 	my $country_sql;
+# 	for my $continent ( 'Africa','Antarctica','Asia','Australia','Europe','North America','South America' )	{
+# 		if ( $q->param($continent) =~ /y/i )	{
+# 			my $d = PBDB::Download->new($dbt,$q,$s,$hbo);
+# 			$country_sql = $d->getCountryString();
+# 			last;
+# 		}
+# 	}
+# 	if ( $country_sql )	{
+# 		if ( ! @periods )	{
+# 			push @tables , "collections c";
+# 			push @where , "r.reference_no=c.reference_no";
+# 			$group_by = " GROUP BY r.reference_no";
+# 		}
+# 		push @where , $country_sql;
+# 	}
+# 	if ( $q->param('exclude_places') )	{
+# 		$isbad{$_}++ foreach ( 'Africa','Antarctica','Asia','Australia','Europe','North America','South America' );
+# 		$sql = "(SELECT distinct(country) AS place FROM collections WHERE country IS NOT NULL AND country!='') UNION (SELECT distinct(state) AS place FROM collections WHERE state IS NOT NULL AND state!='')";
+# 		my @places = @{$dbt->getData($sql)};
+# 		$isbad{$_->{'place'}}++ foreach @places;
+# 	}
+# 	if ( $q->param('taxon') =~ /^[A-Z][a-z]*$/ )	{
+# 	    my $quoted_taxon = $dbh->quote($q->param('taxon'));
+# 	    $sql = "SELECT lft,rgt FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no AND taxon_name=$quoted_taxon AND t.taxon_no=spelling_no ORDER BY rgt-lft DESC";
+# 		my $span = ${$dbt->getData($sql)}[0];
+# 		push @tables , "opinions o,".$TAXA_TREE_CACHE." t";
+# 		push @where , "r.reference_no=o.reference_no AND child_no=t.taxon_no AND lft>=".$span->{'lft'}." AND rgt<=".$span->{'rgt'};
+# 		$group_by = " GROUP BY r.reference_no";
+# 	}
 
-	$sql = "SELECT reftitle FROM ".join(',',@tables)." WHERE ".join(' AND ',@where);
-	getWords($sql);
-	# okay, so it's a hack
-	%infreq = %freq;
-	my $inrefs = $n;
+# 	$sql = "SELECT reftitle FROM ".join(',',@tables)." WHERE ".join(' AND ',@where);
+# 	getWords($sql);
+# 	# okay, so it's a hack
+# 	%infreq = %freq;
+# 	my $inrefs = $n;
 
-	sub getWords	{
-		$sql .= $group_by;
-		my @refs = @{$dbt->getData($sql)};
-		if ( ! @allwords )	{
-			@allrefs = @refs;
-		}
-		$n = $#refs;
-		%freq = ();
-		foreach my $r ( @refs )	{
-			$r->{'reftitle'} =~ s/\'s//g;
-			$r->{'reftitle'} =~ s/[^A-Za-z ]//g;
-			my @words = split / /,$r->{'reftitle'};
-			foreach my $w ( @words )	{
-				if ( length( $w ) > 2 )	{
-					if ( $isbad{$w} )	{
-						next;
-					}
-					my $small = $w;
-					$small =~ tr/A-Z/a-z/;
-					if ( $isbad{$small} )	{
-						next;
-					}
-					$freq{$small}++;
-				# only do this the first time
-					if ( $w =~ /^[A-Z]/ && ! @allwords && $w ne $words[0] )	{
-						$cap{$small} = $w;
-						$iscap{$small}++;
-					}
-					if ( $w =~ /s$/&& ! @allwords )	{
-						$isplural{$small}++;
-					} else	{
-						$notplural{$small}++;
-					}
-					if ( ! @allwords )	{
-						push @{$refwords{$r->{'reference_no'}}} , $small;
-					}
-				}
-			}
-		}
-		@words = keys %freq;
-	}
+# 	sub getWords	{
+# 		$sql .= $group_by;
+# 		my @refs = @{$dbt->getData($sql)};
+# 		if ( ! @allwords )	{
+# 			@allrefs = @refs;
+# 		}
+# 		$n = $#refs;
+# 		%freq = ();
+# 		foreach my $r ( @refs )	{
+# 			$r->{'reftitle'} =~ s/\'s//g;
+# 			$r->{'reftitle'} =~ s/[^A-Za-z ]//g;
+# 			my @words = split / /,$r->{'reftitle'};
+# 			foreach my $w ( @words )	{
+# 				if ( length( $w ) > 2 )	{
+# 					if ( $isbad{$w} )	{
+# 						next;
+# 					}
+# 					my $small = $w;
+# 					$small =~ tr/A-Z/a-z/;
+# 					if ( $isbad{$small} )	{
+# 						next;
+# 					}
+# 					$freq{$small}++;
+# 				# only do this the first time
+# 					if ( $w =~ /^[A-Z]/ && ! @allwords && $w ne $words[0] )	{
+# 						$cap{$small} = $w;
+# 						$iscap{$small}++;
+# 					}
+# 					if ( $w =~ /s$/&& ! @allwords )	{
+# 						$isplural{$small}++;
+# 					} else	{
+# 						$notplural{$small}++;
+# 					}
+# 					if ( ! @allwords )	{
+# 						push @{$refwords{$r->{'reference_no'}}} , $small;
+# 					}
+# 				}
+# 			}
+# 		}
+# 		@words = keys %freq;
+# 	}
 
-	# only use words appearing in both sets
-	my @temp;
-	for my $w ( @allwords )	{
-		my $short = $w;
-		$short =~ s/s$//;
-		unless ( $notplural{$short} )	{
-			$isplural{$w} = "";
-		}
-	}
-	for my $w ( @allwords )	{
-		if ( $isplural{$w.'s'} )	{
-			$allfreq{$w.'s'} += $allfreq{$w};
-			$infreq{$w.'s'} += $infreq{$w};
-			$iscap{$w.'s'} += $iscap{$w};
-			if ( ! $cap{$w.'s'} && $cap{$w} )	{
-				$cap{$w.'s'} = $cap{$w} . "s";
-			}
-			delete $allfreq{$w};
-			delete $infreq{$w};
-			delete $iscap{$w};
-			delete $isplural{$w};
-		}
-	}
-	# get rid of the singular forms
-	@allwords = keys %allfreq;
-	for my $w ( @allwords )	{
-		if ( $infreq{$w} > 0 && $infreq{$w} < $allfreq{$w} )	{
-			push @temp , $w;
-			if ( $iscap{$w} < $allfreq{$w} / 2 )	{
-				delete $iscap{$w};
-			}
-		}
-	}
-	@allwords = @temp;
+# 	# only use words appearing in both sets
+# 	my @temp;
+# 	for my $w ( @allwords )	{
+# 		my $short = $w;
+# 		$short =~ s/s$//;
+# 		unless ( $notplural{$short} )	{
+# 			$isplural{$w} = "";
+# 		}
+# 	}
+# 	for my $w ( @allwords )	{
+# 		if ( $isplural{$w.'s'} )	{
+# 			$allfreq{$w.'s'} += $allfreq{$w};
+# 			$infreq{$w.'s'} += $infreq{$w};
+# 			$iscap{$w.'s'} += $iscap{$w};
+# 			if ( ! $cap{$w.'s'} && $cap{$w} )	{
+# 				$cap{$w.'s'} = $cap{$w} . "s";
+# 			}
+# 			delete $allfreq{$w};
+# 			delete $infreq{$w};
+# 			delete $iscap{$w};
+# 			delete $isplural{$w};
+# 		}
+# 	}
+# 	# get rid of the singular forms
+# 	@allwords = keys %allfreq;
+# 	for my $w ( @allwords )	{
+# 		if ( $infreq{$w} > 0 && $infreq{$w} < $allfreq{$w} )	{
+# 			push @temp , $w;
+# 			if ( $iscap{$w} < $allfreq{$w} / 2 )	{
+# 				delete $iscap{$w};
+# 			}
+# 		}
+# 	}
+# 	@allwords = @temp;
 
-	for my $w ( @allwords )	{
-		$allfreq{$w} -= $infreq{$w};
-	# Williams' continuity correction, sort of
-		if ( $allfreq{$w} > $infreq{$w} )	{
-			$allfreq{$w} -= 0.5;
-			$infreq{$w} += 0.5;
-		} elsif ( $allfreq{$w} < $infreq{$w} )	{
-			$allfreq{$w} += 0.5;
-			$infreq{$w} -= 0.5;
-		}
-	}
-	$nallrefs -= $inrefs;
-	my %buzz;
-	for my $w ( @allwords )	{
-		$allfreq{$w} /= $nallrefs;
-		$infreq{$w} /= $inrefs;
-		$buzz{$w} = $infreq{$w} / $allfreq{$w}
-	}
-	my (%refbuzz,%absrefbuzz,%jbuzz,%injournal);
-	for my $r ( @allrefs )	{
-		if ( ! $refwords{$r->{'reference_no'}} || $#{$refwords{$r->{'reference_no'}}} == 0 )	{
-			next;
-		}
-		my $nrefwords = 0;
-		$r->{'pubtitle'} =~ s/American Museum of Natural History/AMNH/;
-		$r->{'pubtitle'} =~ s/Geological Society of London/GSL/;
-		$r->{'pubtitle'} =~ s/Palaeogeography, Palaeoclimatology, Palaeoecology/Palaeo3/;
-		$r->{'pubtitle'} =~ s/Proceedings of the National Academy of Sciences/PNAS/;
-		$r->{'pubtitle'} =~ s/United States Geological Survey/USGS/;
-		for my $w ( @{$refwords{$r->{'reference_no'}}} )	{
-			if ( $buzz{$w} != 0 && $infreq{$w} * $inrefs >= $q->param('minimum') && $allfreq{$w} * $nallrefs >= $q->param('minimum') )	{
-				$refbuzz{$r->{'reference_no'}} += log( $buzz{$w} );
-				$absrefbuzz{$r->{'reference_no'}} += abs( log( $buzz{$w} ) );
-			}
-			$nrefwords++;
-		}
-		$refbuzz{$r->{'reference_no'}} /= $nrefwords;
-		$absrefbuzz{$r->{'reference_no'}} /= $nrefwords;
-		$jbuzz{$r->{'pubtitle'}} += $refbuzz{$r->{'reference_no'}};
-		$injournal{$r->{'pubtitle'}}++;
-	}
-	for my $j ( keys %jbuzz )	{
-		if ( $injournal{$j} < 100 || ! $j )	{
-			delete $jbuzz{$j};
-			delete $injournal{$j};
-		} else	{
-			$jbuzz{$j} /= $injournal{$j};
-		}
-	}
-	my @refnos = keys %refbuzz;
-	my @journals = keys %jbuzz;
+# 	for my $w ( @allwords )	{
+# 		$allfreq{$w} -= $infreq{$w};
+# 	# Williams' continuity correction, sort of
+# 		if ( $allfreq{$w} > $infreq{$w} )	{
+# 			$allfreq{$w} -= 0.5;
+# 			$infreq{$w} += 0.5;
+# 		} elsif ( $allfreq{$w} < $infreq{$w} )	{
+# 			$allfreq{$w} += 0.5;
+# 			$infreq{$w} -= 0.5;
+# 		}
+# 	}
+# 	$nallrefs -= $inrefs;
+# 	my %buzz;
+# 	for my $w ( @allwords )	{
+# 		$allfreq{$w} /= $nallrefs;
+# 		$infreq{$w} /= $inrefs;
+# 		$buzz{$w} = $infreq{$w} / $allfreq{$w}
+# 	}
+# 	my (%refbuzz,%absrefbuzz,%jbuzz,%injournal);
+# 	for my $r ( @allrefs )	{
+# 		if ( ! $refwords{$r->{'reference_no'}} || $#{$refwords{$r->{'reference_no'}}} == 0 )	{
+# 			next;
+# 		}
+# 		my $nrefwords = 0;
+# 		$r->{'pubtitle'} =~ s/American Museum of Natural History/AMNH/;
+# 		$r->{'pubtitle'} =~ s/Geological Society of London/GSL/;
+# 		$r->{'pubtitle'} =~ s/Palaeogeography, Palaeoclimatology, Palaeoecology/Palaeo3/;
+# 		$r->{'pubtitle'} =~ s/Proceedings of the National Academy of Sciences/PNAS/;
+# 		$r->{'pubtitle'} =~ s/United States Geological Survey/USGS/;
+# 		for my $w ( @{$refwords{$r->{'reference_no'}}} )	{
+# 			if ( $buzz{$w} != 0 && $infreq{$w} * $inrefs >= $q->param('minimum') && $allfreq{$w} * $nallrefs >= $q->param('minimum') )	{
+# 				$refbuzz{$r->{'reference_no'}} += log( $buzz{$w} );
+# 				$absrefbuzz{$r->{'reference_no'}} += abs( log( $buzz{$w} ) );
+# 			}
+# 			$nrefwords++;
+# 		}
+# 		$refbuzz{$r->{'reference_no'}} /= $nrefwords;
+# 		$absrefbuzz{$r->{'reference_no'}} /= $nrefwords;
+# 		$jbuzz{$r->{'pubtitle'}} += $refbuzz{$r->{'reference_no'}};
+# 		$injournal{$r->{'pubtitle'}}++;
+# 	}
+# 	for my $j ( keys %jbuzz )	{
+# 		if ( $injournal{$j} < 100 || ! $j )	{
+# 			delete $jbuzz{$j};
+# 			delete $injournal{$j};
+# 		} else	{
+# 			$jbuzz{$j} /= $injournal{$j};
+# 		}
+# 	}
+# 	my @refnos = keys %refbuzz;
+# 	my @journals = keys %jbuzz;
 
-	if ( ! @refnos )	{
-		return "<p style=\"margin-bottom: 3em;\">Not enough papers fall in the categories you selected to compute the odds. Please <a href=\"?page=word_odds_form\">try again</a>.</p>\n";
-	}
+# 	if ( ! @refnos )	{
+# 		return "<p style=\"margin-bottom: 3em;\">Not enough papers fall in the categories you selected to compute the odds. Please <a href=\"?page=word_odds_form\">try again</a>.</p>\n";
+# 	}
 
-	$output .= "<div style=\"margin-left: 0em;\">\n\n";
-	my $title = "Words giving the best odds";
-	my $title2 = "Journals averaging the highest odds";
-	my $title3 = "Paper titles averaging the highest odds";
-	@allwords = sort { $infreq{$b} / $allfreq{$b} <=> $infreq{$a} / $allfreq{$a} } @allwords;
-	@refnos = sort { $refbuzz{$b} <=> $refbuzz{$a} || $#{$refwords{$b}} <=> $#{$refwords{$a}} } @refnos;
-	@journals = sort { $jbuzz{$b} <=> $jbuzz{$a} } @journals;
-	printWords('best');
+# 	$output .= "<div style=\"margin-left: 0em;\">\n\n";
+# 	my $title = "Words giving the best odds";
+# 	my $title2 = "Journals averaging the highest odds";
+# 	my $title3 = "Paper titles averaging the highest odds";
+# 	@allwords = sort { $infreq{$b} / $allfreq{$b} <=> $infreq{$a} / $allfreq{$a} } @allwords;
+# 	@refnos = sort { $refbuzz{$b} <=> $refbuzz{$a} || $#{$refwords{$b}} <=> $#{$refwords{$a}} } @refnos;
+# 	@journals = sort { $jbuzz{$b} <=> $jbuzz{$a} } @journals;
+# 	printWords('best');
 
-	$title = "Words giving the worst odds";
-	$title2 = "Journals averaging the lowest odds";
-	$title3 = "Papers with titles averaging the lowest odds";
-	@allwords = sort { $infreq{$a} / $allfreq{$a} <=> $infreq{$b} / $allfreq{$b} || $allfreq{$b} <=> $allfreq{$a} } @allwords;
-	@refnos = sort { $refbuzz{$a} <=> $refbuzz{$b} || $#{$refwords{$b}} <=> $#{$refwords{$a}} } @refnos;
-	@journals = sort { $jbuzz{$a} <=> $jbuzz{$b} } @journals;
-	printWords('worst');
+# 	$title = "Words giving the worst odds";
+# 	$title2 = "Journals averaging the lowest odds";
+# 	$title3 = "Papers with titles averaging the lowest odds";
+# 	@allwords = sort { $infreq{$a} / $allfreq{$a} <=> $infreq{$b} / $allfreq{$b} || $allfreq{$b} <=> $allfreq{$a} } @allwords;
+# 	@refnos = sort { $refbuzz{$a} <=> $refbuzz{$b} || $#{$refwords{$b}} <=> $#{$refwords{$a}} } @refnos;
+# 	@journals = sort { $jbuzz{$a} <=> $jbuzz{$b} } @journals;
+# 	printWords('worst');
 
-	$title = "Words mattering the least";
-	$title2 = "Hardest-to-tell journals";
-	$title3 = "Hardest-to-tell paper titles";
-	@allwords = sort { abs(log($infreq{$a} / $allfreq{$a})) <=> abs(log($infreq{$b} / $allfreq{$b})) || $allfreq{$b} <=> $allfreq{$a} } @allwords;
-	@refnos = sort { $absrefbuzz{$a} <=> $absrefbuzz{$b} || $#{$refwords{$b}} <=> $#{$refwords{$a}} } @refnos;
-	@journals = sort { abs( $jbuzz{$a} ) <=> abs( $jbuzz{$b} ) } @journals;
-	printWords('equal');
+# 	$title = "Words mattering the least";
+# 	$title2 = "Hardest-to-tell journals";
+# 	$title3 = "Hardest-to-tell paper titles";
+# 	@allwords = sort { abs(log($infreq{$a} / $allfreq{$a})) <=> abs(log($infreq{$b} / $allfreq{$b})) || $allfreq{$b} <=> $allfreq{$a} } @allwords;
+# 	@refnos = sort { $absrefbuzz{$a} <=> $absrefbuzz{$b} || $#{$refwords{$b}} <=> $#{$refwords{$a}} } @refnos;
+# 	@journals = sort { abs( $jbuzz{$a} ) <=> abs( $jbuzz{$b} ) } @journals;
+# 	printWords('equal');
 
-	sub printWords		{
-		my $sort = shift;
-		$output .= "<div class=\"displayPanel\" style=\"float: left; clear: left; width: 26em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
-		$output .= "<span class=\"displayPanelHeader\">$title</span>\n";
-		$output .= "<div class=\"displayPanelContent\">\n";
-		my $out = 0;
-		my $lastodds = "";
-		for my $i ( 0..$#allwords )	{
-			# the threshold makes a big difference!
-			if ( $infreq{$allwords[$i]} * $inrefs >= $q->param('minimum') && $allfreq{$allwords[$i]} * $nallrefs >= $q->param('minimum') )	{
-				my $odds = $buzz{$allwords[$i]};
-				if ( $odds >= 1 && $lastodds < 1 && $lastodds && $sort ne "equal" )	{
-					last;
-				} elsif ( $odds <= 1 && $lastodds > 1 && $lastodds && $sort ne "equal" )	{
-					last;
-				} elsif ( ( $odds < 0.5 || $odds > 2 ) && $sort eq "equal" )	{
-					if ( $out == 0 )	{
-						$output .= "<p class=\"small\"><i>No common words have a small effect on publication odds.</i></p>\n\n";
-					}
-					last;
-				} elsif ( $odds > 1 && $out == 0 && $sort eq "worst" )	{
-					$output .= "<p class=\"small\"><i>No common words decrease the publication odds.</i></p>\n\n";
-					last;
-				} elsif ( $out == 0 )	{
-					$output .= "<table>\n";
-					$output .= "<tr><td>Rank</td>\n";
-					$output .= "<td style=\"padding-left: 2em;\">Word</td>\n";
-					$output .= "<td><nobr>Odds ratio</nobr></td>\n";
-					$output .= "<td>Uses</td></tr>\n";
-				}
-				$out++;
-				$output .= "<tr><td align=\"center\">$out</td>\n";
-				my $w = $allwords[$i];
-				if ( $iscap{$allwords[$i]} )	{
-					$w = $cap{$w};
-				}
-				if ( $isplural{$w} )	{
-					$w =~ s/s$/\(s\)/;
-				}
-				$output .= "<td style=\"padding-left: 2em;\">$w</td>\n";
-				$output .= sprintf "<td align=\"center\">%.2f</td>\n",$odds;
-				$output .= sprintf "<td align=\"center\">%.0f</td>\n",$infreq{$allwords[$i]} * $inrefs + $allfreq{$allwords[$i]} * $nallrefs;
-				$output .= "</tr>\n";
-				if ( $out == 30 )	{
-					last;
-				}
-				$lastodds = $odds;
-			}
-		}
-		$output .= "</table>\n</div>\n</div>\n\n";
-		if ( $out > 0 )	{
-			$output .= "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 23em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
-			$output .= "<span class=\"displayPanelHeader\">$title2</span>\n";
-			$output .= "<div class=\"displayPanelContent\">\n";
-			$output .= "<table>\n";
-			$output .= "<tr><td>Rank</td>\n";
-			$output .= "<td>Journal</td>\n";
-			$output .= "<td><nobr>Mean odds</nobr></td>\n";
-			for my $i ( 0..$out-1 )	{
-				if ( ! $journals[$i] )	{
-					last;
-				}
-				$output .= "<tr>\n";
-				$output .= sprintf "<td align=\"center\" valign=\"top\">%d</td>\n",$i + 1;
-				$output .= "<td class=\"verysmall\" style=\"padding-left: 0.5em; text-indent: -0.5em;\">$journals[$i]</td>\n";
-				$output .= sprintf "<td align=\"center\" valign=\"top\">%.2f</td>\n",exp( $jbuzz{$journals[$i]} );
-				$output .= "</tr>\n";
-			}
-			$output .= "</table></div>\n</div>\n\n";
+# 	sub printWords		{
+# 		my $sort = shift;
+# 		$output .= "<div class=\"displayPanel\" style=\"float: left; clear: left; width: 26em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
+# 		$output .= "<span class=\"displayPanelHeader\">$title</span>\n";
+# 		$output .= "<div class=\"displayPanelContent\">\n";
+# 		my $out = 0;
+# 		my $lastodds = "";
+# 		for my $i ( 0..$#allwords )	{
+# 			# the threshold makes a big difference!
+# 			if ( $infreq{$allwords[$i]} * $inrefs >= $q->param('minimum') && $allfreq{$allwords[$i]} * $nallrefs >= $q->param('minimum') )	{
+# 				my $odds = $buzz{$allwords[$i]};
+# 				if ( $odds >= 1 && $lastodds < 1 && $lastodds && $sort ne "equal" )	{
+# 					last;
+# 				} elsif ( $odds <= 1 && $lastodds > 1 && $lastodds && $sort ne "equal" )	{
+# 					last;
+# 				} elsif ( ( $odds < 0.5 || $odds > 2 ) && $sort eq "equal" )	{
+# 					if ( $out == 0 )	{
+# 						$output .= "<p class=\"small\"><i>No common words have a small effect on publication odds.</i></p>\n\n";
+# 					}
+# 					last;
+# 				} elsif ( $odds > 1 && $out == 0 && $sort eq "worst" )	{
+# 					$output .= "<p class=\"small\"><i>No common words decrease the publication odds.</i></p>\n\n";
+# 					last;
+# 				} elsif ( $out == 0 )	{
+# 					$output .= "<table>\n";
+# 					$output .= "<tr><td>Rank</td>\n";
+# 					$output .= "<td style=\"padding-left: 2em;\">Word</td>\n";
+# 					$output .= "<td><nobr>Odds ratio</nobr></td>\n";
+# 					$output .= "<td>Uses</td></tr>\n";
+# 				}
+# 				$out++;
+# 				$output .= "<tr><td align=\"center\">$out</td>\n";
+# 				my $w = $allwords[$i];
+# 				if ( $iscap{$allwords[$i]} )	{
+# 					$w = $cap{$w};
+# 				}
+# 				if ( $isplural{$w} )	{
+# 					$w =~ s/s$/\(s\)/;
+# 				}
+# 				$output .= "<td style=\"padding-left: 2em;\">$w</td>\n";
+# 				$output .= sprintf "<td align=\"center\">%.2f</td>\n",$odds;
+# 				$output .= sprintf "<td align=\"center\">%.0f</td>\n",$infreq{$allwords[$i]} * $inrefs + $allfreq{$allwords[$i]} * $nallrefs;
+# 				$output .= "</tr>\n";
+# 				if ( $out == 30 )	{
+# 					last;
+# 				}
+# 				$lastodds = $odds;
+# 			}
+# 		}
+# 		$output .= "</table>\n</div>\n</div>\n\n";
+# 		if ( $out > 0 )	{
+# 			$output .= "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 23em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
+# 			$output .= "<span class=\"displayPanelHeader\">$title2</span>\n";
+# 			$output .= "<div class=\"displayPanelContent\">\n";
+# 			$output .= "<table>\n";
+# 			$output .= "<tr><td>Rank</td>\n";
+# 			$output .= "<td>Journal</td>\n";
+# 			$output .= "<td><nobr>Mean odds</nobr></td>\n";
+# 			for my $i ( 0..$out-1 )	{
+# 				if ( ! $journals[$i] )	{
+# 					last;
+# 				}
+# 				$output .= "<tr>\n";
+# 				$output .= sprintf "<td align=\"center\" valign=\"top\">%d</td>\n",$i + 1;
+# 				$output .= "<td class=\"verysmall\" style=\"padding-left: 0.5em; text-indent: -0.5em;\">$journals[$i]</td>\n";
+# 				$output .= sprintf "<td align=\"center\" valign=\"top\">%.2f</td>\n",exp( $jbuzz{$journals[$i]} );
+# 				$output .= "</tr>\n";
+# 			}
+# 			$output .= "</table></div>\n</div>\n\n";
 
-			$output .= "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 50em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
-			$output .= "<span class=\"displayPanelHeader\">$title3</span>\n";
-			$output .= "<div class=\"displayPanelContent\">\n";
-			my @reflist;
-			for my $i ( 0..9 )	{
-				push @reflist , $refnos[$i];
-			}
-			$sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,reftitle,pubyr,pubtitle,pubvol,firstpage,lastpage FROM refs WHERE reference_no IN (".join(',',@reflist).")";
-			my %refdata;
-			$refdata{$_->{'reference_no'}} = $_ foreach @{$dbt->getData($sql)};
-			for my $i ( 0..9 )	{
-				$output .= sprintf "<p class=\"verysmall\" style=\"margin-left: 1em; text-indent: -0.5em; padding-bottom: -1em;\">\n%d&nbsp;&nbsp;",$i + 1;
-				$output .= formatLongRef($refdata{$reflist[$i]});
-				$output .= sprintf " [average odds based on %d keywords: %.2f]\n",$#{$refwords{$reflist[$i]}} + 1,exp( $refbuzz{$reflist[$i]} );
-				$output .= "</p>\n";
-			}
-			$output .= "</div>\n</div>\n\n";
-		}
-	}
-	$output .= "</div>\n\n";
+# 			$output .= "<div class=\"displayPanel\" style=\"float: left; clear: right; width: 50em; margin-bottom: 3em; padding-left: 1em; padding-bottom: 1em;\">\n";
+# 			$output .= "<span class=\"displayPanelHeader\">$title3</span>\n";
+# 			$output .= "<div class=\"displayPanelContent\">\n";
+# 			my @reflist;
+# 			for my $i ( 0..9 )	{
+# 				push @reflist , $refnos[$i];
+# 			}
+# 			$sql = "SELECT reference_no,author1init,author1last,author2init,author2last,otherauthors,reftitle,pubyr,pubtitle,pubvol,firstpage,lastpage FROM refs WHERE reference_no IN (".join(',',@reflist).")";
+# 			my %refdata;
+# 			$refdata{$_->{'reference_no'}} = $_ foreach @{$dbt->getData($sql)};
+# 			for my $i ( 0..9 )	{
+# 				$output .= sprintf "<p class=\"verysmall\" style=\"margin-left: 1em; text-indent: -0.5em; padding-bottom: -1em;\">\n%d&nbsp;&nbsp;",$i + 1;
+# 				$output .= formatLongRef($refdata{$reflist[$i]});
+# 				$output .= sprintf " [average odds based on %d keywords: %.2f]\n",$#{$refwords{$reflist[$i]}} + 1,exp( $refbuzz{$reflist[$i]} );
+# 				$output .= "</p>\n";
+# 			}
+# 			$output .= "</div>\n</div>\n\n";
+# 		}
+# 	}
+# 	$output .= "</div>\n\n";
 
-	$output .= qq|
-<div class="verysmall" style="clear: left; margin-left: 3em; margin-right: 5em; padding-bottom: 3em; text-indent: -0.5em;">
-The odds ratio compares the percentage of paper titles within the journals or other categories you selected that include a given word to the same percentage for all other papers. If the "best odds" papers did not appear in a journal you selected, then maybe they should have. If only a few words are shown, then only those words are frequent and have the appropriate odds (respectively greater than 1, less than 1, or between 0.5 and 2). <a href=\"?page=word_odds_form\">Try again</a> if you want to procrastinate even more.
-</div>
-|;
+# 	$output .= qq|
+# <div class="verysmall" style="clear: left; margin-left: 3em; margin-right: 5em; padding-bottom: 3em; text-indent: -0.5em;">
+# The odds ratio compares the percentage of paper titles within the journals or other categories you selected that include a given word to the same percentage for all other papers. If the "best odds" papers did not appear in a journal you selected, then maybe they should have. If only a few words are shown, then only those words are frequent and have the appropriate odds (respectively greater than 1, less than 1, or between 0.5 and 2). <a href=\"?page=word_odds_form\">Try again</a> if you want to procrastinate even more.
+# </div>
+# |;
 	
-	return $output;
-}
+# 	return $output;
+# }
 
 1;

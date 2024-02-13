@@ -1,13 +1,15 @@
 #!/usr/bin/env perl
 #
-# This script provides necessary functionality for the Paleobiology Database. It must be
-# run as a daemon. It checks for database updates of taxa and/or opinions, and adjusts the
-# taxonomic hierarchy to match. It uses the two database tables 'tc_mutex' and 'tc_sync' to
-# coordinate this activity and make sure that only a single thread is working at any given
-# time.
-#
+# This script provides necessary functionality for the Paleobiology Database. It
+# must be run as a daemon. It checks for database updates of taxa and/or
+# opinions, and adjusts the taxonomic hierarchy to match. It the database table
+# 'tc_sync' to coordinate this activity and make sure that only a single thread
+# is working at any given time.
+# 
 # Updated by Michael McClennen for the CCI environment, 2020-07-01. Added command-line options
 # to specify a log file and which userid and groupid to run as.
+# 
+# Rewritten by Michael McClennen as part of a rewrite of the taxonomy code, 2023-09-23.
 
 
 package taxa_cached;
@@ -19,6 +21,8 @@ use strict;
 
 use lib 'lib';
 
+use feature 'say';
+
 # CPAN modules
 
 use Class::Date qw(date localdate gmdate now);
@@ -28,18 +32,18 @@ use Getopt::Long;
 # PBDB modules
 
 use PBDB::DBTransactionManager;
-use PBDB::TaxaCache qw(getSyncTime setSyncTime updateCache updateEntanglement $DEBUG);
+use PBDB::TaxaCache qw(getSyncTime setSyncTime updateCache updateOrig $DEBUG);
 
 our ($time_to_die) = 0;
 
 BEGIN {
-    $SIG{'HUP'}  = \&doUpdate;
-    $SIG{'USR1'} = \&doUpdate;
-    $SIG{'USR2'} = \&doUpdate;
-    $SIG{'INT'}  = sub { $taxa_cached::time_to_die = 1;};
-    $SIG{'KILL'} = sub { $taxa_cached::time_to_die = 1;};
-    $SIG{'QUIT'} = sub { $taxa_cached::time_to_die = 1;};
-    $SIG{'TERM'} = sub { $taxa_cached::time_to_die = 1;};
+    $SIG{'HUP'}  = sub { $taxa_cached::time_to_die = 1; };
+    $SIG{'USR1'} = sub { $taxa_cached::time_to_die = 1; };
+    $SIG{'USR2'} = sub { $taxa_cached::time_to_die = 1; };
+    $SIG{'INT'}  = sub { $taxa_cached::time_to_die = 1; };
+    $SIG{'KILL'} = sub { $taxa_cached::time_to_die = 1; };
+    $SIG{'QUIT'} = sub { $taxa_cached::time_to_die = 1; };
+    $SIG{'TERM'} = sub { $taxa_cached::time_to_die = 1; };
 }
 
 # Start by parsing options.
@@ -48,7 +52,7 @@ my ($opt_user, $opt_group, $opt_logfile);
 
 GetOptions( "user=s" => \$opt_user,
 	    "group=s" => \$opt_group,
-	    "log=s" => \$opt_logfile );
+	    "log-file=s" => \$opt_logfile );
 
 # The arguments 'user' and 'group' specify a real and effective user and group for this process to
 # become. These arguments are ignored unless the effective userid starts out as 0. We have to set
@@ -100,24 +104,38 @@ if ( $opt_user && $> == 0 )
     }
 }
 
-# The argument 'log' specifies that output should be written to the specified file.
+# The option --log-file specifies that output should be written to the specified file.
 
 if ( $opt_logfile )
 {
     open(STDOUT, ">>", $opt_logfile);
     open(STDERR, ">>&STDOUT");
+    STDOUT->autoflush(1);
 }
 
 #daemonize();
 
+$DEBUG = 1;
+
 my $DEBUG_LOOP = 0;
 
-my $POLL_TIME = 2;
+my $POLL_INTERVAL = 2;
 
 my $dbt = new PBDB::DBTransactionManager();
 my $dbh = $dbt->dbh;
 
 print "Starting daemon at " . strftime('%c', localtime) . "\n";
+
+# There should only be one process running this code at a time. Acquire a lock,
+# or else exit.
+    
+my ($lock) = $dbh->selectrow_array("SELECT get_lock('taxa_cached', 0)");
+
+unless ( $lock )
+{
+    say "There is already a taxa_cached thread running.";
+    exit;
+}
 
 # Unless the auth_orig table exists, create it.
 
@@ -128,6 +146,7 @@ unless ( $check_table )
     my $sql = "CREATE TABLE IF NOT EXISTS auth_orig (
 		`taxon_no` int unsigned not null,
 		`orig_no` int unsigned not null,
+		`modified` timestamp default current_timestamp on update current_timestamp,
 		UNIQUE KEY (`taxon_no`),
 		KEY (`orig_no`)) Engine=InnoDB";
     
@@ -136,20 +155,44 @@ unless ( $check_table )
     my $a = 1; # we can stop here when debugging
 }
 
-# Go into a loop, checking for updates every $POLL_TIME seconds.
+# Unless the check_opinions table exists, create it.
 
-while ( 1 ) 
+($check_table) = $dbh->selectrow_array("SHOW TABLES LIKE 'check_opinions'");
+
+unless ( $check_table )
 {
-    doUpdate();
+    my $sql = "CREATE TABLE IF NOT EXISTS check_opinions (
+		`opinion_no` int unsigned not null,
+		`child_no` int unsigned not null,
+		`child_spelling_no` int unsigned not null,
+		`modified` timestamp default current_timestamp,
+		KEY (`modified`)) Engine=InnoDB";
     
-    if ($time_to_die)
+    my $result = $dbh->do($sql);
+    
+    my $a = 1;	# we can stop here when debugging
+}
+
+# Go into a loop, checking for updates every $POLL_INTERVAL seconds.
+
+while ( ! $time_to_die ) 
+{
+    my ($mutex) = $dbh->selectrow_array("SELECT get_lock('taxa_cache_mutex', 0)");
+    
+    if ( $mutex )
     {
-	print "Stopping daemon on receipt of termination signal at " . strftime('%c', localtime) . "\n";
-        exit 0;
+	doUpdate();
+	
+	$dbh->do("DO release_lock('taxa_cache_mutex')");
     }
     
-    sleep($POLL_TIME);
+    sleep($POLL_INTERVAL);
 }
+
+($lock) = $dbh->do("DO release_lock('taxa_cached')");
+
+print "Stopping daemon on receipt of termination signal at " . strftime('%c', localtime) . "\n";
+exit 0;
 
 
 # doUpdate ( )
@@ -159,139 +202,72 @@ while ( 1 )
 
 sub doUpdate {
     
-    my ($sql, %update_taxon, %update_entanglement);
+    my ($sql, $rows, @update_taxon, @update_entanglement);
+    my (%uniq_taxon, %uniq_entanglement);
     
-    my $update_time = strftime('%c', localtime);
+    my ($current_time) = $dbh->selectrow_array("SELECT current_timestamp");
     
-    my $last_timestamp;
-    my $queue_not_empty;
-    
-    # For any opinion associated with a recently modified reference, if that
-    # opinion does not specify a basis then update its child taxon just in case
-    # the basis specified in the reference has changed.
-    
-    my $sync_time = getSyncTime($dbh);
-    
-    $sql = "SELECT DISTINCT o.child_no, o.child_spelling_no, r.modified
-		FROM opinions as o join refs as r using (reference_no)
-		WHERE r.modified > '$sync_time' and (o.basis is null or o.basis = '')";
-    
-    print "$sql\n" if $DEBUG_LOOP;
-    
-    my $rows = $dbt->getData($sql);
-    
-    foreach my $row (@$rows)
-    {
-	if ( $row->{child_no} )
-	{
-	    $update_taxon{$row->{child_no}} = $row->{modified};
-	}
-	
-	if ( ! $last_timestamp || $row->{modified} gt $last_timestamp )
-	{
-	    $last_timestamp = $row->{modified};
-	}
-    }
+    my ($previous_sync) = getSyncTime($dbh);
     
     # The child taxon of each recently modified opinion will be updated, and the
     # child_spelling_no taxon of each recently modified opinion will be checked
     # for entanglement.
     
-    $sql = "SELECT DISTINCT o.child_no, o.child_spelling_no, o.modified
-		FROM opinions as o WHERE o.modified > '$sync_time'";
+    $sql = "SELECT distinct opinion_no, child_no, child_spelling_no, modified
+	    FROM opinions
+	    WHERE modified >= '$previous_sync' and modified < '$current_time'
+	    UNION SELECT distinct opinion_no, child_no, child_spelling_no, modified
+	    FROM check_opinions
+	    WHERE modified >= '$previous_sync' and modified < '$current_time'
+	    ORDER BY modified";
     
-    print "$sql\n" if $DEBUG_LOOP;
+    say "$sql\n" if $DEBUG_LOOP;
     
     $rows = $dbh->selectall_arrayref($sql, { Slice => { } });
     
     foreach my $row (@$rows)
     {
-	if ( $row->{child_no} && $update_taxon{$row->{child_no}} )
+	my $opinion_no = $row->{opinion_no};
+	my $child_no = $row->{child_no};
+	my $spelling_no = $row->{child_spelling_no};
+	
+	say "Found for update: opinion $opinion_no, child=$child_no, spelling=$spelling_no";
+	
+	if ( $child_no && ! $uniq_taxon{$child_no} )
 	{
-	    $update_taxon{$row->{child_no}} = $row->{modified} if
-		$row->{modified} gt $update_taxon{$row->{child_no}};
+	    push @update_taxon, $child_no;
+	    $uniq_taxon{$child_no} = 1;
+	    $uniq_entanglement{$child_no} = 1;
 	}
 	
-	elsif ( $row->{child_no} )
+	if ( $spelling_no && ! $uniq_entanglement{$spelling_no} )
 	{
-	    $update_taxon{$row->{child_no}} = $row->{modified};
-	}
-	
-	if ( $row->{child_spelling_no} )
-	{
-	    $update_entanglement{$row->{child_spelling_no}} = 1;
-	}
-	
-	if ( ! $last_timestamp || $row->{modified} gt $last_timestamp )
-	{
-	    $last_timestamp = $row->{modified};
+	    push @update_entanglement, $spelling_no;
+	    $uniq_entanglement{$spelling_no} = 1;
 	}
     }
     
-    # If we found something, update the sync time.
+    # Unless we found something, we are done.
     
-    if ( %update_taxon )
-    {
-	setSyncTime($dbh, $last_timestamp);
-	print "New sync time: $last_timestamp\n" if $DEBUG;
-    }
-    
-    # Otherwise, return immediately and wait for the next poll.
-    
-    else
+    unless ( @update_taxon || @update_entanglement )
     {
 	return;
     }
     
-    # # original Schroeter comment: This table doesn't have any rows in it - it
-    # # acts as a mutex so writes to the taxa_tree_cache table will be serialized,
-    # # which is important to prevent corruption.  Note reads can still happen
-    # # concurrently with the writes, but any additional writes beyond the first
-    # # will block on this mutex Don't respect mutexes more than 1 minute old,
-    # # this script shouldn't execute for more than about 15 seconds
-    
-    # my $had_to_wait;
-    
-    # while (1)
-    # {
-    #     if ( @{$dbt->getData("SELECT * FROM tc_mutex WHERE created > NOW() - INTERVAL 1 minute")} )
-    # 	{
-    # 	    $had_to_wait = 1;
-    #         sleep(1);
-    #     }
-	
-    # 	else
-    # 	{
-    #         $dbh->do("INSERT INTO tc_mutex (mutex_id,created) VALUES ($$,NOW())");
-    # 	    print "Acquired lock at $update_time after waiting\n" if $had_to_wait;
-    #         last;
-    #     }
-    # }
-    
-    # Sort the list of taxa to update according to the modification
-    # timestamp on the opinion or reference (whichever is later).
-    
-    my @taxon_nos = sort {$update_taxon{$a} cmp $update_taxon{$b}} keys %update_taxon;
-    
-    print "Found " . scalar(@taxon_nos) . " taxa to update at $update_time\n";
-    
     # If we have any taxa from the child_spelling_no field of modified opinions,
     # check them for entanglement unless they will be taken care of below.
     
-    foreach my $child_spelling_no ( keys %update_entanglement )
+    foreach my $spelling_no ( @update_entanglement )
     {
-	unless ( $update_taxon{$child_spelling_no} )
+	say "Updating orig_no for $spelling_no" if $DEBUG;
+	
+	eval {
+	    updateOrig($dbt, $spelling_no, 1);
+	};
+	
+	if ( $@ )
 	{
-	    print "Updating entanglement for $child_spelling_no:\n" if $DEBUG;;
-	    
-	    eval {
-		updateEntanglement($dbt, $child_spelling_no);
-	    };
-	    
-	    if ( $@ )
-	    {
-		print "EXCEPTION from updateEntanglement: $@\n";
-	    }
+	    say "EXCEPTION from updateOrig: $@";
 	}
     }
     
@@ -300,17 +276,19 @@ sub doUpdate {
     # If the exception occurred in updateCache, commit any work that
     # was done.
     
-    foreach my $taxon_no ( @taxon_nos )
+    print "Found " . scalar(@update_taxon) . " taxa to update at $current_time\n";
+    
+    foreach my $taxon_no ( @update_taxon )
     {
-        print "Updating $taxon_no:\n" if $DEBUG > 1;
+        say "Updating $taxon_no" if $DEBUG;
 	
 	eval {
-	    updateEntanglement($dbt, $taxon_no) unless $update_entanglement{$taxon_no};
+	    updateOrig($dbt, $taxon_no);
 	};
 	
 	if ( $@ )
 	{
-	    print "EXCEPTION from updateEntanglement: $@\n";
+	    say "EXCEPTION from updateOrig: $@";
 	}
 	
 	eval {
@@ -319,26 +297,23 @@ sub doUpdate {
 	
 	if ( $@ )
 	{
-	    print "EXCEPTION from updateCache: $@\n";
-	    $dbh->do("COMMIT");
+	    say "EXCEPTION from updateCache: $@";
+	    # $dbh->do("COMMIT");
 	}
     }
     
-    # # Release the lock.
+    # Update the synchronization time.
     
-    # $dbh->do("DELETE FROM tc_mutex");
+    setSyncTime($dbh, $current_time);
+    say "New sync time: $current_time" if $DEBUG;
 }
 
 
-sub daemonize {
-    chdir '/'                 or die "Can't chdir to /: $!";
-    #open STDOUT, '>>/home/peters/testd.log' or die "Can't write to log: $!";
-    #open STDERR, '>>/home/peters/testd_err.log' or die "Can't write to errlog: $!";
-    open STDIN, '/dev/null'   or die "Can't read /dev/null: $!";
-#    open STDOUT, '>>/dev/null' or die "Can't write to /dev/null: $!";
-#    open STDERR, '>>/dev/null' or die "Can't write to /dev/null: $!";
-    defined(my $pid = fork)   or die "Can't fork: $!";
-    exit if $pid;
-    setsid()                    or die "Can't start a new session: $!";
-    umask 0;
-}
+# sub daemonize {
+#     chdir '/'                 or die "Can't chdir to /: $!";
+#     open STDIN, '/dev/null'   or die "Can't read /dev/null: $!";
+#     defined(my $pid = fork)   or die "Can't fork: $!";
+#     exit if $pid;
+#     setsid()                    or die "Can't start a new session: $!";
+#     umask 0;
+# }

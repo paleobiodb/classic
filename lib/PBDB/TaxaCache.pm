@@ -1,23 +1,7 @@
 #
-# This module build and builds, maintains and accesses two tables (taxa_tree_cache,taxa_list_cache)
-# for the purposes of speeding up taxonomic lookups (both of children and parents of a taxon).  The
-# taxa_tree_cache holds a modified preorder traversal tree, and the taxa_list_cache holds a 
-# adjacency list.  The modified preorder traversal tree is used to trees of children of a taxon
-# in constant time, while the adjacency list is used to get parents of a taxon in constant time
-# Google these terms for a detailed explanation.
-#
-# The taxa_list_cache table is very simple and has only two fields: parent_no and child_no. These
-# are exactly what they sound like, denoting that a certain child_no is a descent in the taxonomic
-# hierarchy of the parent_no.  There has to be one pair for each possible combination (which is a lot)
-#
-# The taxa_tree_cache has 5 fields: taxon_no (primary_key), lft (left value), rgt (right value), 
-# spelling_no (the taxon_no for the most recent spelling of the taxon_no - if there are two or three
-# different spellings for a taxon, all of them will have the same spelling_no. All taxa with the
-# same lft value should have the same spelling_no, and the taxon_no will equal the spelling_no for
-# the most recently used names), and synonym_no (the taxon_no for the most recent spelling of the 
-# most senior synonym - this will always be equal to spelling_no except for junior synonyms). The
-# spelling_no and synonym_no fields exist for optimation purposes - its now very easy to filter
-# out old spellings and junior synonyms.
+# This module updates the table 'taxa_tree_cache' to reflect changes in the set of active
+# opinion and authority records. The taxa_tree_cache holds a modified preorder
+# traversal tree of the taxonomic names in the PBDB.
 #
 # PS 09/22/2005
 #
@@ -38,15 +22,27 @@ use feature 'say';
 
 use Exporter qw(import);
 
-our @EXPORT_OK = qw($DEBUG getSyncTime setSyncTime updateCache updateEntanglement
+our @EXPORT_OK = qw($DEBUG getSyncTime setSyncTime updateCache updateOrig
 		    addTaxaCacheRow);
 
-our ($DEBUG) = 1;
+our ($DEBUG);
 
-my %opinions;
-my %allchildren;
-my %spellings;
-my %processed;
+
+# our ($logfh);
+
+
+# BEGIN {
+#     open($logfh, '>>', "logs/taxa_cached.log") || 
+# 	die "ERROR: could not open taxa_cached.log: $!\n";
+    
+#     $logfh->autoflush(1);
+# }
+
+
+# my %opinions;
+# my %allchildren;
+# my %spellings;
+# my %processed;
 
 
 # The following two routines get and set the last synchronization time of
@@ -66,19 +62,18 @@ sub setSyncTime {
     
     my ($dbh, $time) = @_;
     
-    my $sync_id = 1;
-    my $sql = "REPLACE INTO tc_sync (sync_id, sync_time) VALUES ($sync_id, '$time')";
+    my $sql = "REPLACE INTO tc_sync (sync_id, sync_time) VALUES (1, '$time')";
     
     $dbh->do($sql); 
 }
 
 
-# updateEntanglement ( dbt, taxon_no )
+# updateOrig ( dbt, taxon_no )
 # 
 # Check the orig_no for the specified taxon according to the opinions. If it has
 # changed, record the change in auth_orig and authorities.
 
-sub updateEntanglement {
+sub updateOrig {
     
     my ($dbt, $taxon_no) = @_;
     
@@ -114,7 +109,7 @@ sub updateEntanglement {
 	
 	$result = $dbh->do($sql);
 	
-	say "$sql : result=$result" if $DEBUG;
+	say "Updating orig_no for $taxon_no to $orig_no (result=$result)" if $DEBUG;
     }
     
     # If there isn't an existing orig_no, set it now.
@@ -126,23 +121,23 @@ sub updateEntanglement {
 	
 	$result = $dbh->do($sql);
 	
-	say "$sql : result=$result" if $DEBUG;
+	say "Creating orig_no for $taxon_no as $orig_no (result=$result)" if $DEBUG;
     }
     
     # If the authorities record needs to be changed, update that too.
     
     $sql = "SELECT orig_no FROM authorities WHERE taxon_no=$taxon_no";
     
-    my ($auth_orig) = $dbh->selectrow_array($sql);
+    my ($from_auth) = $dbh->selectrow_array($sql);
     
-    unless ( $auth_orig && $orig_no eq $auth_orig )
+    unless ( $from_auth && $orig_no eq $from_auth )
     {
 	$sql = "UPDATE authorities SET orig_no=$orig_no, modified=modified
 		WHERE taxon_no=$taxon_no";
 	
 	$result = $dbh->do($sql);
 	
-	say "$sql : result=$result" if $DEBUG;
+	say "Updating authority record for $taxon_no (result=$result)" if $DEBUG;
     }
 }
 
@@ -170,7 +165,7 @@ sub updateCache {
     my ($sql, $result);
     
     # If we have a valid $taxon_no, grab the orig_no from the auth_orig table.
-    # We can assume this is valid, because updateEntanglement should have been
+    # We can assume this is valid, because updateOrig should have been
     # called on this taxon first.
     
     if ( $taxon_no =~ /^\d+$/ && $taxon_no > 0 )
@@ -276,10 +271,14 @@ sub updateCache {
     $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE taxon_no=$orig_no";
     
     my ($has_row) = $dbh->selectrow_array($sql);
-	
-    # Start a new transaction.
     
-    $dbh->do("START TRANSACTION");
+    # # Start a new transaction.
+    
+    # unless ( $dbh->begin_work )
+    # {
+    # 	$messages .= "AutoCommit was already off\n";
+    # 	warn "AutoCommit was already off";
+    # }
     
     unless ( $has_row )
     {
@@ -289,59 +288,57 @@ sub updateCache {
     # Update the rows corresponding to all spellings to match the new
     # information. Any which are missing (i.e. which correspond to newly added
     # spellings) will be created below.
-	
+    
     my $spellings = join("','", $orig_no, @spellings);
-	
-    $sql = "UPDATE $TAXA_TREE_CACHE SET
-		spelling_no=$spelling_no,
-		synonym_no=$synonym_no,
-		opinion_no=$opinion_no
-	    WHERE taxon_no in ('$spellings')";
-	
+    
+    $sql = "UPDATE $TAXA_TREE_CACHE SET spelling_no=$spelling_no, synonym_no=$synonym_no, opinion_no=$opinion_no WHERE taxon_no in ('$spellings')";
+    
     $result = $dbh->do($sql);
-	
+    
+    print STDOUT "$sql : result=$result\n" if $DEBUG;
+    
     # Now retrieve the new/updated row.
-	
+    
     $sql = "SELECT taxon_no, lft, rgt, spelling_no, synonym_no
-	    FROM $TAXA_TREE_CACHE WHERE taxon_no=$orig_no";
-	
-    my $cache_row = ${$dbt->getData($sql)}[0];
-	
+	    FROM $TAXA_TREE_CACHE WHERE taxon_no='$orig_no'";
+    
+    my $cache_row = $dbh->selectrow_hashref($sql);
+    
     # First section: combine any new spellings that have been added into the
     # original combination, and add cache rows for them.
-	
+    
     my @upd_rows = ();
-	
+    
     foreach my $spelling_no (@spellings)
     {
 	my $sql = "SELECT taxon_no,lft,rgt,spelling_no,synonym_no
 		FROM $TAXA_TREE_CACHE WHERE taxon_no=$spelling_no";
-	    
-	my $spelling_row = ${$dbt->getData($sql)}[0];
-	    
+	
+	my $spelling_row = $dbh->selectrow_hashref($sql);
+	
 	unless ( $spelling_row )
 	{
 	    $spelling_row = addTaxaCacheRow($dbt, $spelling_no, 
 					    $spelling_no, $synonym_no, $opinion_no);
 	}
-	    
+	
 	# If a spelling no hasn't been combined yet, combine it now
-	    
+	
 	if ($spelling_row->{lft} != $cache_row->{lft})
 	{
 	    my $lft = $spelling_row->{lft};
 	    my $rft = $spelling_row->{rgt};
 	    
 	    # if the alternate spelling had children (not too likely), get a list of them
-		
+	    
 	    if ( $rft - $lft > 2 )
 	    {
 		$sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE
 			WHERE lft between $lft and $rft
 			ORDER BY lft, (taxon_no != spelling_no)";
-		    
+		
 		my $children = $dbh->selectcol_arrayref($sql);
-		    
+		
 		if ( ref $children eq 'ARRAY' )
 		{
 		    foreach my $child_no ( @$children )
@@ -351,18 +348,24 @@ sub updateCache {
 		}
 	    }
 	    
-	    # Refresh he cache row from the db since it may have been changed above
+	    # Refresh the cache row from the db since it may have been changed above
+	    
 	    $sql = "SELECT taxon_no,lft,rgt,spelling_no,synonym_no FROM $TAXA_TREE_CACHE WHERE taxon_no=$orig_no";
-	    $cache_row = ${$dbt->getData($sql)}[0];
+	    $cache_row = $dbh->selectrow_hashref($sql);
+	    
 	    $sql = "SELECT taxon_no,lft,rgt,spelling_no,synonym_no FROM $TAXA_TREE_CACHE WHERE taxon_no=$spelling_no";
-	    $spelling_row = ${$dbt->getData($sql)}[0];
-           
+	    $spelling_row = $dbh->selectrow_hashref($sql);
+	    
 	    # Combine the spellings
+	    
 	    if ( $spelling_row->{lft} > 0 )
 	    {
 		$sql = "UPDATE $TAXA_TREE_CACHE SET lft=$cache_row->{lft},rgt=$cache_row->{rgt} WHERE lft=$spelling_row->{lft}";
-		print "Combining spellings $spelling_no with $orig_no: $sql\n" if ($DEBUG);
-		$dbh->do($sql);
+		
+		$result = $dbh->do($sql);
+		
+		print STDOUT "Combining spellings $spelling_no with $orig_no: " .
+		    "$sql : result=$result\n" if $DEBUG;
 	    }
 	}
     }
@@ -373,25 +376,29 @@ sub updateCache {
     if ( $cache_row->{lft} > 0 )
     {
 	$sql = "UPDATE $TAXA_TREE_CACHE SET spelling_no=$spelling_no WHERE lft=$cache_row->{lft}"; 
-	print "Updating spelling with $spelling_no: $sql\n" if ($DEBUG);
-	$dbh->do($sql);
+	
+	$result = $dbh->do($sql);
+	
+	print STDOUT "Updating spelling with $spelling_no: $sql : result=$result\n" if $DEBUG;
 	
 	# Change it so the senior synonym no points to the senior synonym's most correct name
 	# for this taxa and any of ITs junior synonyms
 	
 	$sql = "UPDATE $TAXA_TREE_CACHE SET synonym_no=$synonym_no WHERE lft=$cache_row->{lft} OR (lft >= $cache_row->{lft} AND rgt <= $cache_row->{rgt} AND synonym_no=$cache_row->{synonym_no})"; 
-	print "Updating synonym with $synonym_no: $sql\n";
-	$dbh->do($sql);
+	
+	$result = $dbh->do($sql);
+	
+	print STDOUT "Updating synonym with $synonym_no: $sql : result=$result\n" if $DEBUG;
     }
     
-    # Second section: Now we check if the parents have been changed by a recent opinion, and only update
-    # it if that is the case
+    # Second section: Now we check if the parents have been changed by a recent
+    # opinion, and only update it if that is the case
     
     $sql = "SELECT spelling_no as parent_no FROM $TAXA_TREE_CACHE WHERE lft < $cache_row->{lft} AND rgt > $cache_row->{rgt} ORDER BY lft DESC LIMIT 1";
     
     # BUG: may be multiple parents, compare most recent spelling:
     
-    my $row = ${$dbt->getData($sql)}[0];
+    my $row = $dbh->selectrow_hashref($sql);
     my $new_parent_no = ($mrpo && $mrpo->{parent_no}) ? $mrpo->{parent_no} : 0;
     
     if ($new_parent_no)
@@ -404,8 +411,8 @@ sub updateCache {
     
     if ($new_parent_no != $old_parent_no)
     {
-	print "Parents have been changed: new parent $new_parent_no: $sql\n" if ($DEBUG);
-        
+	print STDOUT "Parents have been changed: new parent $new_parent_no\n" if $DEBUG;
+	
 	if ($cache_row)
 	{
 	    moveChildren($dbt,$cache_row->{taxon_no},$new_parent_no);
@@ -413,20 +420,24 @@ sub updateCache {
 	
 	else
 	{
-	    carp "Missing child_no from $TAXA_TREE_CACHE: child_no: $orig_no";
+	    print STDOUT "Missing child_no from $TAXA_TREE_CACHE: child_no=$orig_no\n";
 	}
     }
     
     else
     {
-	print "Parents are the same: new parent $new_parent_no old parent $old_parent_no\n" 
+	print STDOUT "Parents are the same: new parent $new_parent_no old parent $old_parent_no\n" 
 	    if $DEBUG > 1;
     }
     
-    # Commit the transaction, so that all the changes made above to
-    # taxa_tree_cache will be permanent.
+    # $done_commit = 1;
     
-    $dbh->do("COMMIT");
+    # unless ( $dbh->commit )
+    # {
+    #     $messages .= "ERROR: commit failed!\n";
+    #     warn "ERROR: commit failed!";
+    # }
+    
 }
 
 
@@ -464,17 +475,21 @@ sub addTaxaCacheRow {
     
     my $result = $dbh->do($sql);
     
+    print STDOUT "Adding cache row: $sql : result=$result\n" if $DEBUG;
+    
     # Add a row to auth_orig if there isn't already one.
     
     $sql = "INSERT IGNORE INTO auth_orig (taxon_no, orig_no) VALUES ($taxon_no, $taxon_no)";
     
     $result = $dbh->do($sql);
     
+    print STDOUT "$sql : result=$result\n" if $DEBUG;
+    
     # Now select the new row and return it.
     
     $sql = "SELECT * FROM $TAXA_TREE_CACHE WHERE taxon_no=$taxon_no";
     
-    my $row = $dbh->selectrow_hashref();
+    my $row = $dbh->selectrow_hashref($sql);
     
     return $row;
 }
@@ -515,8 +530,9 @@ sub moveChildren {
     my $lft = $c_row->{lft};
     my $rgt = $c_row->{rgt};
 
-    if ($parent_no && $c_row->{lft} == $p_row->{lft}) {
-	print "moveChildren skipped, child and parent appear to be the same\n" if ($DEBUG);
+    if ($parent_no && $c_row->{lft} == $p_row->{lft})
+    {
+	print STDOUT "moveChildren skipped, child and parent appear to be the same\n" if $DEBUG;
 	return;
     }
     
@@ -534,7 +550,7 @@ sub moveChildren {
     
     if ($parent_no && $p_row->{lft} > $c_row->{lft} && $p_row->{rgt} < $c_row->{rgt})
     {
-        print "Loop found, moving parent $parent_no to 0\n" if ($DEBUG);
+        print STDOUT "Loop found, moving parent $parent_no to 0\n" if $DEBUG;
         moveChildren($dbt,$parent_no,0);
         # my $popinion = getAllClassification($dbt, $parent_no, { no_synonyms => 1 });
         # $sql = "UPDATE opinions SET modified=now() WHERE opinion_no=" . $popinion->{opinion_no};
@@ -548,16 +564,21 @@ sub moveChildren {
         
         $lft = $c_row->{lft};
         $rgt = $c_row->{rgt};
-        print "End dealing w/loop\n" if ($DEBUG);
+        #print "End dealing w/loop\n" if ($DEBUG);
     }
 
     my $child_tree_size = 1+$rgt-$lft;
-    print "moveChildren called: child_no $child_no lft $lft rgt $rgt parent $parent_no\n" if ($DEBUG);
-
+    
+    print STDOUT "moveChildren called: child_no $child_no lft $lft rgt $rgt parent $parent_no\n" 
+	if $DEBUG;
+    
     # Find out where we're going to insert the new child. Just add it as the last child of the parent,
     # or put it at the very end if there is no parent
+    
     my ($parent_lft, $parent_rgt, $child_lft, $child_rgt, $insert_point);
-    if ($parent_no) {
+    
+    if ($parent_no)
+    {
 	$parent_lft = $p_row->{lft};
         $parent_rgt = $p_row->{rgt};
 	$insert_point = $parent_rgt + 1;
@@ -567,17 +588,20 @@ sub moveChildren {
 		SET lft=if(lft > $parent_rgt, lft + $child_tree_size, lft),
 		    rgt=if(rgt >= $parent_rgt, rgt + $child_tree_size, rgt)";
         $dbh->do($sql);
-        print "moveChildren: create new spot at $insert_point: $sql\n" if ($DEBUG);
+        print STDOUT "moveChildren: create new spot at $insert_point: $sql\n" if $DEBUG;
 	
 	$child_lft  = ($parent_rgt <= $lft) ? $lft + $child_tree_size : $lft;
 	$child_rgt = ($parent_rgt <= $rgt) ? $rgt + $child_tree_size : $rgt;
-    } else {
+    }
+    
+    else
+    {
         $sql = "SELECT max(rgt) m FROM $TAXA_TREE_CACHE";
         my $sth = $dbh->prepare($sql);
         $sth->execute();
         my $row = $sth->fetchrow_arrayref();
         $insert_point = $row->[0] + 1;
-        print "moveChildren: create spot at end, blank parent, $insert_point\n" if ($DEBUG);
+        print STDOUT "moveChildren: create spot at end, blank parent, $insert_point\n" if $DEBUG;
 	
 	$child_lft = $lft;
 	$child_rgt = $rgt;
@@ -587,12 +611,14 @@ sub moveChildren {
     # adjust accordingly
     # Adjust their lft and rgt values accordingly by adding/subtracting the difference between where the
     # children and are where we're moving them
+    
     my $diff = abs($insert_point - $child_lft);
     my $sign = ($insert_point < $child_lft) ? "-" : "+";
+    
     if ( $child_lft > 0 )
     {
 	$sql = "UPDATE $TAXA_TREE_CACHE SET lft=lft $sign $diff, rgt=rgt $sign $diff WHERE lft BETWEEN $child_lft AND $child_rgt";
-	print "moveChildren: move to new spot: $sql\n" if ($DEBUG);
+	print STDOUT "moveChildren: move to new spot: $sql\n" if $DEBUG;
 	$dbh->do($sql);
 	
 	# Now shift everything down into the old space thats now vacant We
@@ -603,10 +629,11 @@ sub moveChildren {
 	#print "moveChildren: remove old spot: $sql\n" if ($DEBUG);
 	#$dbh->do($sql);
     }
+    
     else
     {
 	$sql = "UPDATE $TAXA_TREE_CACHE SET lft=$insert_point, rgt=$insert_point WHERE taxon_no=$child_no";
-	print "moveChildren: move to new spot: $sql\n" if ($DEBUG);
+	print STDOUT "moveChildren: move to new spot: $sql\n" if $DEBUG;
 	$dbh->do($sql);
     }
     # Think about this some more

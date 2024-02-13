@@ -445,22 +445,22 @@ sub processReferenceForm {
 	return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
     }
     
-    my @child_nos = ();
-    # If taxonomy basis is changed on an edit, the classifications that refer to that ref
-    # may also change, so we may have to update the taxa cache in that case
-    if ($reference_no) {
-        my $sql = "SELECT basis FROM refs WHERE reference_no=$reference_no";
-        my $row = ${$dbt->getData($sql)}[0];
-        if ($row) {
-            if ($row->{'basis'} ne $q->param('basis')) {
-                my $sql = "SELECT DISTINCT child_no FROM opinions WHERE reference_no=$reference_no";
-                my @results = @{$dbt->getData($sql)};
-                foreach my $row (@results) {
-                    push @child_nos, $row->{'child_no'};
-                }
-            }
-        }
-    }
+    # my @child_nos = ();
+    # # If taxonomy basis is changed on an edit, the classifications that refer to that ref
+    # # may also change, so we may have to update the taxa cache in that case
+    # if ($reference_no) {
+    #     my $sql = "SELECT basis FROM refs WHERE reference_no=$reference_no";
+    #     my $row = ${$dbt->getData($sql)}[0];
+    #     if ($row) {
+    #         if ($row->{'basis'} ne $q->param('basis')) {
+    #             my $sql = "SELECT DISTINCT child_no FROM opinions WHERE reference_no=$reference_no";
+    #             my @results = @{$dbt->getData($sql)};
+    #             foreach my $row (@results) {
+    #                 push @child_nos, $row->{'child_no'};
+    #             }
+    #         }
+    #     }
+    # }
 
 
     # Set the pubtitle to the pull-down pubtitle unless it's set in the form

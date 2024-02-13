@@ -4,74 +4,97 @@ use strict;
 no warnings 'uninitialized';
 
 use PBDB::TypoChecker; # not used
-use Carp qw(carp);
+use Carp qw(carp confess);
 use Data::Dumper qw(Dumper);
 use PBDB::Taxonomy qw(getTaxa getTaxonNos getParent getAllSpellings isMisspelling
 		      getOriginalCombination getSeniorSynonym getAllSynonyms splitTaxon);
-use PBDB::TaxaCache qw(updateEntanglement updateCache);
-use PBDB::Taxon;
+use PBDB::TaxaCache qw(updateOrig updateCache);
+use PBDB::Taxon qw(propagateAuthorityInfo);
+use PBDB::Reference qw(formatShortRef);
 use PBDB::Validation;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE makeATag makeAnchor makeAnchorWithAttrs);
 
 # list of allowable data fields.
-use fields qw(opinion_no child_no child_spelling_no
-	      reference_no author1last author2last pubyr status_old dbt DBrow);  
+# use fields qw(opinion_no child_no child_spelling_no
+# 	      reference_no author1last author2last pubyr status_old DBrow);  
 
-# Optionally pass it an opinion_no
+# An opinion object may be created with or without an opinion_no.
+
 sub new {
-	my $class = shift;
-    my $dbt = shift;
-    my $opinion_no = shift;
-    my PBDB::Opinion $self = fields::new($class);
-    $self->{'dbt'}=$dbt;
-
-    my ($sql,@results);
-    if ($opinion_no =~ /^\d+$/) {
-        $sql = "SELECT * FROM opinions WHERE opinion_no=$opinion_no";
-        @results = @{$dbt->getData($sql)};
+    
+    my ($class, $dbt, $opinion_no) = @_;
+    
+    # my PBDB::Opinion $self = fields::new($class);
+	
+    if ( $opinion_no && $opinion_no =~ /^\d+$/ )
+    {
+	my $dbh = $dbt->{dbh};
+        my $sql = "SELECT * FROM opinions WHERE opinion_no=$opinion_no";
+	
+	my $row = $dbh->selectrow_hashref($sql);
+	
+	if ( $row )
+	{
+	    return bless $row, $class;
+	}
+	
+	else
+	{
+	    warn "ERROR: Could not retrieve opinion with opinion_no=$opinion_no\n";
+	    return;
+	}
     }
-    if (@results) {
-        $self->{'DBrow'} = $results[0];
-        $self->{'opinion_no'} = $results[0]->{'opinion_no'};
-	$self->{'child_no'} = $results[0]->{'child_no'};
-	$self->{'child_spelling_no'} = $results[0]->{'child_spelling_no'};
-        $self->{'reference_no'} = $results[0]->{'reference_no'};
-        $self->{'author1last'} = $results[0]->{'author1last'};
-        $self->{'author2last'} = $results[0]->{'author2last'};
-        $self->{'pubyr'} = $results[0]->{'pubyr'};
-	$self->{status_old} = $results[0]->{status_old};
-    } else {
-        print STDERR "ERROR: Could not create opinion object with passed in opinion $opinion_no\n";
-        return;
+    
+    else
+    {
+	warn "ERROR: bad opinion_no '$opinion_no'\n";
+	return;
     }
-	return $self;
 }
+
+	    # $self->{DBrow} = $result;
+	    # $self->{'opinion_no'} = $results[0]->{'opinion_no'};
+	    # $self->{'child_no'} = $results[0]->{'child_no'};
+	    # $self->{'child_spelling_no'} = $results[0]->{'child_spelling_no'};
+	    # $self->{'reference_no'} = $results[0]->{'reference_no'};
+	    # $self->{'author1last'} = $results[0]->{'author1last'};
+	    # $self->{'author2last'} = $results[0]->{'author2last'};
+	    # $self->{'pubyr'} = $results[0]->{'pubyr'};
+	    # $self->{status_old} = $results[0]->{status_old};
+
 
 # Universal accessor
+
 sub get {
-    my PBDB::Opinion $self = shift;
-    my $fieldName = shift;
-    if ($fieldName) {
-        return $self->{'DBrow'}{$fieldName};
-    } else {
-        return(keys(%{$self->{'DBrow'}}));
-    }
+    
+    my ($self, $fieldname) = @_;
+    return $self->{$fieldname};
+    
 }
+    
+    # my PBDB::Opinion $self = shift;
+    # my $fieldName = shift;
+    # if ($fieldName) {
+    #     return $self->{'DBrow'}{$fieldName};
+    # } else {
+    #     return(keys(%{$self->{'DBrow'}}));
+    # }
+
 
 # Get the raw underlying database hash;
-sub getRow {
-    my PBDB::Opinion $self = shift;
-    return $self->{'DBrow'};
-}
+# sub getRow {
+#     my PBDB::Opinion $self = shift;
+#     return $self->{'DBrow'};
+# }
 
 
 # Figure out the spelling status - tricky cause we may need to infer it
 # Something can be a 'corrected as', but the status is 'synonym of', so that info is lost
 # This can't determine misspellings, which must be determined externally
 sub guessSpellingReason {
-    my $child = shift;
-    my $spelling = shift;
+    
+    my ($child, $spelling) = @_;
     
     my $spelling_reason = "";
     
@@ -112,208 +135,304 @@ sub guessSpellingReason {
     return $spelling_reason;
 }
 
-# Small utility function, added 04/26/2005 PS
-# Transparently enter in the correct publication information and return it as well
-sub getOpinion {
-    my $dbt = shift;
-    my $opinion_no= shift;
-    my @results = ();
-    if ($dbt && $opinion_no)  {
-        my $sql = "SELECT * FROM opinions WHERE opinion_no=$opinion_no";
-        @results = @{$dbt->getData($sql)};
-    }
+# # Small utility function, added 04/26/2005 PS
+# # Transparently enter in the correct publication information and return it as well
+# sub getOpinion {
+#     my $dbt = shift;
+#     my $opinion_no= shift;
+#     my @results = ();
+#     if ($dbt && $opinion_no)  {
+#         my $sql = "SELECT * FROM opinions WHERE opinion_no=$opinion_no";
+#         @results = @{$dbt->getData($sql)};
+#     }
 
-    return @results;
-}
+#     return @results;
+# }
 
 
-sub pubyr {
-	my PBDB::Opinion $self = shift;
+# sub pubyr {
+# 	my PBDB::Opinion $self = shift;
 
-	# get all info from the database about this record.
-	my $hr = $self->{'DBrow'};
+# 	# get all info from the database about this record.
+# 	my $hr = $self->{'DBrow'};
 	
-	if (!$hr) {
-		return '';	
-	}
+# 	if (!$hr) {
+# 		return '';	
+# 	}
 
-	# JA: I have no idea why Poling even wrote this function because
-	#  originally he didn't bother to correctly compute the pubyr when
-	#  ref is authority, but here it is (same as pubyr function in
-	#  Taxon.pm)
+# 	# JA: I have no idea why Poling even wrote this function because
+# 	#  originally he didn't bother to correctly compute the pubyr when
+# 	#  ref is authority, but here it is (same as pubyr function in
+# 	#  Taxon.pm)
 
-	if ( ! $hr->{ref_is_authority} )        {
-		return $hr->{pubyr};
-	}
+# 	if ( ! $hr->{ref_is_authority} )        {
+# 		return $hr->{pubyr};
+# 	}
 
-	# okay, so because ref is authority we need to grab the pubyr off of
-	# I hate to do it, but I'm using Poling's ridiculously baroque
-	#  Reference module to do so just for consistency
-	my $ref = PBDB::Reference->new($self->{'dbt'},$hr->{'reference_no'});
-	return $ref->{pubyr};
+# 	# okay, so because ref is authority we need to grab the pubyr off of
+# 	# I hate to do it, but I'm using Poling's ridiculously baroque
+# 	#  Reference module to do so just for consistency
+# 	my $ref = PBDB::Reference->new($self->{'dbt'},$hr->{'reference_no'});
+# 	return $ref->{pubyr};
 
-}
+# }
 
 
 
-# Formats the opinion as HTML and
-# returns it.
-#
+# Return a formatted string in HTML that contains the essential information from this
+# opinion. 
+# 
 # For example, "belongs to Equidae according to J. D. Archibald 1998"
-sub formatAsHTML {
-    my PBDB::Opinion $self = shift;
-    my %options = @_;
-	my $row = $self->{'DBrow'};
-    my $dbt = $self->{'dbt'};
-	
-    my $output = '';
 
-    if ($row->{'status'} =~ /synonym|replace|nomen|revalidated|misspell|subgroup/)
+sub formatAsHTML {
+    
+    my ($self, $dbt, %options) = @_;
+    
+    # my PBDB::Opinion $self = shift;
+    # my %options = @_;
+    
+    # my $row = $self->{'DBrow'};
+    # my $dbt = $self->{'dbt'};
+    
+    my ($child_html, $spelling_html, $parent_html);
+    my ($child_rank, $spelling_rank, $parent_rank);
+    my ($output, $short_ref);
+    
+    my $dbh = ref $dbt =~ /DBTrans/ ? $dbt->dbh : $dbt;
+    
+    my $opinion_status = $self->{status} || '???';
+    
+    my $supstyle = qq|style="text-decoration: line-through 2px;"|;
+    
+    my $relation = ' according to ';
+    
+    # All formatted opinions require the taxon name and rank corresponding to
+    # child_spelling_no and parent_spelling_no.
+    
+    if ( my $spelling = getOpinionTaxon($dbh, $self->{child_spelling_no}) )
     {
-        my $child = getTaxa($dbt,{'taxon_no'=>$row->{'child_spelling_no'}});
-        my $child_html  = ($child->{'taxon_rank'} =~ /species|genus/) 
-                        ? "<i>$child->{'taxon_name'}</i>" 
-                        : $child->{'taxon_name'};
-	
-        if ($row->{'status'} =~ /^[aeiou]/)
-	{
-            $output .= "'$child_html is an $row->{status}";
-        }
-	
-	elsif ($row->{'status'} =~ /^replaced/ ) {
-            $output .= "'$child_html is $row->{status}";
-        }
-	
-	else
-	{
-            $output .= "'$child_html is a $row->{status}";
-        }
-        
-	if ($row->{'status'} =~ /synonym|replace|misspell|subgroup/)
-	{
-            my $parent = getTaxa($dbt,{'taxon_no'=>$row->{'parent_spelling_no'}});
-            if ($parent) {
-                my $parent_html = ($parent->{'taxon_rank'} =~ /species|genus/) 
-                                ? "<i>$parent->{'taxon_name'}</i>" 
-                                : $parent->{'taxon_name'};
-                $output .= " $parent_html";
-            }
-        }
-	
-        $output .= "'";
+	$spelling_html = ($spelling->{taxon_rank} =~ /species|genus/) 
+		       ? "<i>$spelling->{taxon_name}</i>" 
+                       : $spelling->{taxon_name};
+	    
+	$spelling_rank = $spelling->{taxon_rank};
+    }
+    
+    elsif ( $self->{child_spelling_no} )
+    {
+	$spelling_html = "taxon $self->{child_spelling_no}";
+	$spelling_rank = "???";
     }
     
     else
     {
-        my $child = getTaxa($dbt,{'taxon_no'=>$row->{'child_no'}});
-        my $child_html  = ($child->{'taxon_rank'} =~ /species|genus/) ? "<i>$child->{'taxon_name'}</i>" : $child->{'taxon_name'};
-
-        if ( $row->{'spelling_reason'} =~ /correction|misspelling/ )
+	$spelling_html = "???";
+	$spelling_rank = "???";
+    }
+    
+    if ( my $parent = getOpinionTaxon($dbh, $self->{parent_spelling_no}) )
+    {
+	$parent_html = ($parent->{taxon_rank} =~ /species|genus/) 
+                     ? "<i>$parent->{taxon_name}</i>" 
+                     : $parent->{taxon_name};
+    }
+    
+    elsif ( $self->{parent_spelling_no} )
+    {
+	$parent_html = "taxon $self->{parent_spelling_no}";
+    }
+    
+    else
+    {
+	$parent_html = "???";
+    }
+    
+    # Now format the opinion based on the status code. A 'belongs to' opinion also
+    # requires the taxon name and rank corresponding to child_no.
+    
+    if ( $opinion_status =~ /belongs/ )
+    {
+	if ( $self->{child_no} eq $self->{child_spelling_no} )
 	{
-            my $spelling = getTaxa($dbt,{'taxon_no'=>$row->{'child_spelling_no'}});
-            my $spelling_html = ($spelling->{'taxon_rank'} =~ /species|genus/) 
-                              ? "<i>$spelling->{'taxon_name'}</i>" 
-                              : $spelling->{'taxon_name'};
-            my $parent = getTaxa($dbt,{'taxon_no'=>$row->{'parent_spelling_no'}});
-            my $parent_html = "";
+	    $child_html = $spelling_html;
+	    $child_rank = $spelling_rank;
+	}
+	
+        elsif ( my $child = getOpinionTaxon($dbh, $self->{child_no}) )
+	{
+	    $child_html = ($child->{taxon_rank} =~ /species|genus/) 
+		        ? "<i>$child->{taxon_name}</i>" 
+                        : $child->{taxon_name};
 	    
-            if ( $parent )
+	    $child_rank = $child->{taxon_rank};
+	}
+	
+	elsif ( $self->{child_no} )
+	{
+	    $child_html = "taxon $self->{child_no}";
+	    $child_rank = "???";
+	}
+	
+	else
+	{
+	    $child_html = "???";
+	    $child_rank = "???";
+	}
+	
+	my $spelling_reason = $self->{spelling_reason} || '';
+	
+	if ( $spelling_reason =~ /misspell/ )
+	{
+	    $output = "'$child_html [misspelled as $spelling_html] " .
+		"belongs to $parent_html'";
+	}
+	
+	elsif ( $spelling_reason =~ /correct/ )
+	{
+	    $output = "'$child_html is corrected as $spelling_html and " .
+		"belongs to $parent_html'";
+	}
+	
+	elsif ( $spelling_reason =~ /rank/ )
+	{
+	    if ( $spelling_html eq $child_html )
 	    {
-                $parent_html = ($parent->{'taxon_rank'} =~ /species|genus/) 
-                             ? "<i>$parent->{'taxon_name'}</i>" 
-                             : $parent->{'taxon_name'};
-            }
-            
-	    if ( $row->{spelling_reason} eq 'misspelling' )
-	    {
-		$output .= "'$child_html [misspelled as $spelling_html] belongs to $parent_html'";
+		$output = "'$child_html was reranked as a $spelling_rank and " .
+		    "belongs to $parent_html'";
 	    }
 	    
-	    elsif ( $row->{status_old} eq 'ignore' )
+	    elsif ( $child_rank =~ /genus/ )
 	    {
-		my $style = 'style="text-decoration: line-through"';
-		$output .= "'$child_html <span $style>is corrected as $spelling_html</span> " .
-		    "and belongs to $parent_html'";
+		$output = "'$child_html was reranked as $spelling_html and " .
+		    "belongs to $parent_html'";
 	    }
 	    
 	    else
 	    {
-		$output .= "'$child_html is corrected as $spelling_html and belongs to $parent_html'";
-            }
+		$output = "'$child_html was reranked as the $spelling_rank $spelling_html " .
+		    "and belongs to $parent_html'";
+	    }
         }
 	
-	elsif ($row->{'spelling_reason'} =~ /rank change/)
+	elsif ( $spelling_reason =~ /reassign/ )
 	{
-            my $spelling = getTaxa($dbt,{'taxon_no'=>$row->{'child_spelling_no'}});
-            my $spelling_html = ($spelling->{'taxon_rank'} =~ /species|genus/) 
-                              ? "<i>$spelling->{'taxon_name'}</i>" 
-                              : $spelling->{'taxon_name'};
-            my $parent = getTaxa($dbt,{'taxon_no'=>$row->{'parent_spelling_no'}});
-            my $parent_html = "";
-            if ($parent) {
-                $parent_html = ($parent->{'taxon_rank'} =~ /species|genus/) 
-                             ? "<i>$parent->{'taxon_name'}</i>" 
-                             : $parent->{'taxon_name'};
-            }
-            if ($spelling_html ne $child_html) {
-                if ($child->{'taxon_rank'} =~ /genus/) {
-		            $output .= "'$child_html was reranked as $spelling_html ";
-                } else {
-		            $output .= "'$child_html was reranked as the $spelling->{taxon_rank} $spelling_html ";
-                }
-            } else {
-		        $output .= "'$child_html was reranked as a $spelling->{taxon_rank} ";
-            }
-            $output .= " and belongs to $parent_html'";
+	    if ( $spelling_html eq $child_html )
+	    {
+		$output = "'$child_html is reassigned into $parent_html'";
+	    }
+	    
+	    else
+	    {
+		$output = "'$child_html is reassigned as $spelling_html into $parent_html'";
+	    }
         }
 	
-	elsif ($row->{'spelling_reason'} =~ /reassignment/)
+	elsif ( $spelling_reason =~ /recombin/ )
 	{
-            my $parent = getTaxa($dbt,{'taxon_no'=>$row->{'parent_spelling_no'}});
-            my $parent_html = "";
-            if ($parent) {
-                $parent_html = ($parent->{'taxon_rank'} =~ /species|genus/) 
-                             ? "<i>$parent->{'taxon_name'}</i>" 
-                             : $parent->{'taxon_name'};
-            }
-		    $output .= "'$child_html is reassigned into $parent_html'";
-        }
-	
-	elsif ($row->{'spelling_reason'} =~ /recombination/)
-	{
-            my $spelling = getTaxa($dbt,{'taxon_no'=>$row->{'child_spelling_no'}});
-            my $spelling_html = ($spelling->{'taxon_rank'} =~ /species|genus/) 
-                              ? "<i>$spelling->{'taxon_name'}</i>" 
-                              : $spelling->{'taxon_name'};
-		    $output .= "'$child_html is recombined as $spelling_html'";
+	    $output = "'$child_html is recombined as $spelling_html'";
         }
 	
 	else
 	{
-            my $parent = getTaxa($dbt,{'taxon_no'=>$row->{'parent_spelling_no'}});
-            my $parent_html = "";
-            if ($parent) {
-                $parent_html = ($parent->{'taxon_rank'} =~ /species|genus/) 
-                             ? "<i>$parent->{'taxon_name'}</i>"
-                             : $parent->{'taxon_name'};
-            }
-		    $output .= "'$child_html belongs to $parent_html'";
-        } 
+	    $output = "'$spelling_html belongs to $parent_html'";
+        }
     }
-
-    my $short_ref = "";
-    if ($row->{'ref_has_opinion'}) {
-        $short_ref = PBDB::Reference::formatShortRef($dbt,$row->{reference_no});
-    } else {
-        $short_ref = PBDB::Reference::formatShortRef($row);
+    
+    # Other opinion statuses:
+    
+    elsif ( $opinion_status =~ /^[aeiou]/ )
+    {
+	$output = "'$spelling_html is an $opinion_status $parent_html'";
     }
-    if ($options{'return_array'}) {
-        return ($output," according to ",$short_ref);
-    } else {
-        $output .= " according to $short_ref";
+    
+    elsif ( $opinion_status =~ /replaced/ )
+    {
+	$output = "'$spelling_html is replaced by $parent_html";
+    }
+	
+    elsif ( $opinion_status =~ /nomen/ )
+    {
+	if ( $self->{parent_spelling_no} )
+	{
+	    $output = "'$spelling_html is a $opinion_status in $parent_html'";
+	}
+	
+	else
+	{
+	    $output = "'$spelling_html is a $opinion_status'";
+	}
+    }
+    
+    else
+    {
+	$output = "'$spelling_html is a $opinion_status in $parent_html'";
+    }
+    
+    # Format the opinion attribution.
+    
+    if ( $self->{ref_has_opinion} )
+    {
+        $short_ref = formatShortRef($dbt, $self->{reference_no});
+    }
+    
+    else
+    {
+        $short_ref = formatShortRef($self);
+    }
+    
+    # If this routine was called in list context, return the result as a two component
+    # list. If this opinion is suppressed, add a strikethrough to both components.
+    
+    if ( wantarray )
+    {
+	if ( $self->{status_old} eq 'ignore' )
+	{
+	    $output = "<span $supstyle>$output</span>";
+	    $short_ref = "<span $supstyle>$short_ref</span>";
+	}
+	
+	return ($output, $short_ref);
+    }
+    
+    # Otherwise, return a single string. If the opinion is suppressed, add a strikethrough
+    # to the entire content.
+    
+    else
+    {
+        $output .= "$relation$short_ref";
+	
+	if ( $self->{status_old} eq 'ignore' )
+	{
+	    $output = "<span $supstyle>$output</span>";
+	}
+	
         return $output;
     }
 }
+    
+    
+# Fetch a single taxon row by taxon_no.
+
+sub getOpinionTaxon {
+    
+    my ($dbt, $taxon_no) = @_;
+    
+    my $dbh = ref($dbt) =~ /DBTransaction/ ? $dbt->dbh : $dbt;
+    
+    if ( $taxon_no && $taxon_no =~ /^\d+$/ )
+    {
+	my $sql = "SELECT taxon_no, taxon_name, taxon_rank FROM authorities
+		   WHERE taxon_no='$taxon_no'";
+	
+	return $dbh->selectrow_hashref($sql);
+    }
+    
+    else
+    {
+	return;
+    }
+}
+
 
 # display the form which allows users to enter/edit opinion
 # table data.
@@ -323,50 +442,132 @@ sub formatAsHTML {
 #
 # rjp, 3/2004
 sub displayOpinionForm {
+    
     my ($dbt,$hbo,$s,$q,$error_message) = @_;
 
     my $dbh = $dbt->dbh;
-
-	my %fields;  # a hash of fields and values that
-				 # we'll pass to HTMLBuilder to pop. the form.
-				 
-	# Fields we'll pass to HTMLBuilder that the user can't edit.
-	# (basically, any field which is not empty or 0 in the database,
-	# if the authorizer is not the original authorizer of the record).
-    # Don't do anymore, anyone can edit
-	#my @nonEditables; 	
-	
+    
+    my %fields;  # a hash of fields and values that we'll pass to HTMLBuilder to pop. the form.
+    
     if ((!$dbt) || (!$hbo) || (! $s) || (! $q)) {
 	print STDERR "ERROR: PBDB::Opinion::displayOpinionForm had invalid arguments passed to it.\n";
 	return;
     }
     
     # Simple variable assignments
-    my $isNewEntry = ($q->numeric_param('opinion_no') > 0) ? 0 : 1;
+    
+    my $opinion_no = $q->numeric_param('opinion_no');
+    
     my $reSubmission = ($error_message) ? 1 : 0;
-	my @belongsArray = ('belongs to', 'recombined as', 'revalidated', 'rank changed as','corrected as');
-	my @synArray = ('','subjective synonym of', 'objective synonym of','replaced by','misspelling of','invalid subgroup of');
-	my @nomArray = ('','nomen dubium','nomen nudum','nomen oblitum', 'nomen vanum');
-
-	%fields = %{$q->Vars};
-
+    
+    my @belongsArray = ('belongs to', 'recombined as', 'revalidated', 
+			'rank changed as', 'corrected as');
+    my @synArray = ('','subjective synonym of', 'objective synonym of','replaced by',
+		    'misspelling of', 'invalid subgroup of');
+    my @nomArray = ('','nomen dubium', 'nomen nudum', 'nomen oblitum', 'nomen vanum');
+    
+    %fields = %{$q->Vars};
+    
+    my ($sql);
+    
+    my $o;	# opinion record
+    
     # if the opinion already exists, grab it
-    my $o;
-    if (!$isNewEntry) {
-        $o = PBDB::Opinion->new($dbt,$q->numeric_param('opinion_no'));
-        if (!$o) {
-            carp "Could not create opinion object in displayOpinionForm for opinion_no ".$q->numeric_param('opinion_no');
-            return;
-        }
-        $fields{reference_no} = $o->{reference_no};
+    
+    if ( $opinion_no && $opinion_no =~ /^\d+$/ )
+    {
+        $o = PBDB::Opinion->new($dbt, $opinion_no) ||
+            return "<center>No opinion was found for opinion_no=$opinion_no</center>";
+	
+	$fields{'reference_no'} = $o->{'reference_no'};
     }
     
     # Grab the appropriate data to auto-fill the form
     # always give this a try because field values may have been passed
     #  in even if this is a new opinion
     
-    if (! $reSubmission) {
-        if ($isNewEntry) {
+    if ( ! $reSubmission )
+    {
+	# If we are editing an existing opinion record, fill in the fields using that record.
+	
+        if ( $o )
+	{
+            # %fields = %{$o->getRow()};
+	    %fields = %$o;
+
+            if ($fields{'max_interval_no'})
+	    {
+                $sql = "SELECT interval_no,eml_interval,interval_name FROM intervals WHERE interval_no=$fields{'max_interval_no'}";
+                my $row = ${$dbt->getData($sql)}[0];
+                $fields{'max_interval_name'} = $row->{'eml_interval'}." ".$row->{'interval_name'};
+                $fields{'max_interval_name'} =~ s/^\s*//;
+                $fields{'max_interval_name'} =~ s/Late\/Upper/Late/;
+                $fields{'max_interval_name'} =~ s/Early\/Lower/Early/;
+            }
+	    
+            if ($fields{'min_interval_no'})
+	    {
+                $sql = "SELECT interval_no,eml_interval,interval_name FROM intervals WHERE interval_no=$fields{'min_interval_no'}";
+                my $row = ${$dbt->getData($sql)}[0];
+                $fields{'min_interval_name'} = $row->{'eml_interval'}." ".$row->{'interval_name'};
+                $fields{'min_interval_name'} =~ s/^\s*//;
+                $fields{'min_interval_name'} =~ s/Late\/Upper/Late/;
+                $fields{'min_interval_name'} =~ s/Early\/Lower/Early/;
+            }
+
+            if ($fields{'ref_has_opinion'} =~ /YES/i)
+	    {
+                $fields{'ref_has_opinion'} = 'PRIMARY';
+            }
+	    
+	    else
+	    {
+                $fields{'ref_has_opinion'} = 'NO';
+            }
+	    
+	    # Populate the hidden field that indicates an ignored opinion.
+	    
+	    $fields{is_ignored} = 'YES' if $fields{status_old} && $fields{status_old} eq 'ignore';
+	    
+            # Fill in the status category.
+	    
+            for (@belongsArray)
+	    { 
+                if ($_ eq $fields{'status'})
+		{
+                    $fields{'status_category'} = 'belongs to';
+                }
+            }
+            
+	    if ($fields{'status'} eq 'misspelling of')
+	    {
+                $fields{'status_category'} = 'misspelling of';
+            }
+	    
+            for (@synArray)
+	    { 
+                if ($_ eq $fields{'status'})
+		{
+                    $fields{'status_category'} = 'invalid1';
+                    $fields{'synonym'} = $_;
+                    last;
+                }
+            }
+	    
+            for (@nomArray)
+	    { 
+                if ($_ eq $fields{'status'})
+		{
+                    $fields{'status_category'} = 'invalid2';
+                    last;
+                }
+            } 
+        }
+    
+	# If this is going to be a new opinion record, fill in the fields from the parameters. 
+	
+	else
+	{
             $fields{'child_no'} = $q->numeric_param('child_no');
             $fields{'child_spelling_no'} = $q->numeric_param('child_spelling_no') || $q->numeric_param('child_no');
     	    $fields{'reference_no'} = $s->get('reference_no');
@@ -375,6 +576,7 @@ sub displayOpinionForm {
             $fields{'ref_has_opinion'} = 'PRIMARY';
             # and even assume the taxon is valid 18.12.06
             $fields{'status_category'} = 'belongs to'; 
+	    
             # also hit the database to get the last values used for some of the
             #  fields, but only if the same reference was used JA 18.12.06
             # users are annoyed when the data are prefilled from autogenerated
@@ -382,125 +584,113 @@ sub displayOpinionForm {
             #  opinion looks like such a thing because it is species level,
             #  "belongs to," original spelling, stated with evidence, and with a
             #  new diagnosis JA 6.6.07
-            my $sql = "SELECT diagnosis_given,ref_has_opinion,o.pages,basis,status FROM opinions o,authorities a WHERE child_no=taxon_no AND ((diagnosis_given!='' AND diagnosis_given IS NOT NULL) OR (o.pages!='' AND o.pages IS NOT NULL) OR (basis!='' AND basis IS NOT NULL)) AND o.reference_no=" . $s->get('reference_no') . " AND o.enterer_no=" . $s->get('enterer_no') . " AND child_no!=" . $q->numeric_param('child_no') . " AND (taxon_rank NOT LIKE '%species%' OR status!='belongs to' OR spelling_reason!='original spelling' OR basis!='stated with evidence' OR diagnosis_given!='new') ORDER BY opinion_no DESC LIMIT 1";
-            my $lastopinion = @{$dbt->getData($sql)}[0];
-            if ( $lastopinion->{ref_has_opinion} eq "YES" )	{
+	    
+            $sql = "SELECT diagnosis_given,ref_has_opinion,o.pages,basis,status FROM opinions o,authorities a WHERE child_no=taxon_no AND ((diagnosis_given!='' AND diagnosis_given IS NOT NULL) OR (o.pages!='' AND o.pages IS NOT NULL) OR (basis!='' AND basis IS NOT NULL)) AND o.reference_no=" . $s->get('reference_no') . " AND o.enterer_no=" . $s->get('enterer_no') . " AND child_no!=" . $q->numeric_param('child_no') . " AND (taxon_rank NOT LIKE '%species%' OR status!='belongs to' OR spelling_reason!='original spelling' OR basis!='stated with evidence' OR diagnosis_given!='new') ORDER BY opinion_no DESC LIMIT 1";
+            
+	    my $lastopinion = @{$dbt->getData($sql)}[0];
+	    
+            if ( $lastopinion->{ref_has_opinion} eq "YES" )
+	    {
                 $fields{'diagnosis_given'} = $lastopinion->{diagnosis_given};
                 $fields{'pages'} = $lastopinion->{pages};
                 $fields{'basis'} = $lastopinion->{basis};
                 $fields{'status'} = $lastopinion->{status};
             }
+	    
             my $child = getTaxa($dbt,{'taxon_no'=>$fields{'child_no'}});
             my $spelling = getTaxa($dbt,{'taxon_no'=>$fields{'child_spelling_no'}});
             my $reason = guessSpellingReason($child,$spelling);
+	    
             $fields{'spelling_reason'} = $reason;
-        } else {
-            %fields = %{$o->getRow()};
-
-            if ($fields{'max_interval_no'}) {
-                my $sql = "SELECT interval_no,eml_interval,interval_name FROM intervals WHERE interval_no=$fields{'max_interval_no'}";
-                my $row = ${$dbt->getData($sql)}[0];
-                $fields{'max_interval_name'} = $row->{'eml_interval'}." ".$row->{'interval_name'};
-                $fields{'max_interval_name'} =~ s/^\s*//;
-                $fields{'max_interval_name'} =~ s/Late\/Upper/Late/;
-                $fields{'max_interval_name'} =~ s/Early\/Lower/Early/;
-            }
-            if ($fields{'min_interval_no'}) {
-                my $sql = "SELECT interval_no,eml_interval,interval_name FROM intervals WHERE interval_no=$fields{'min_interval_no'}";
-                my $row = ${$dbt->getData($sql)}[0];
-                $fields{'min_interval_name'} = $row->{'eml_interval'}." ".$row->{'interval_name'};
-                $fields{'min_interval_name'} =~ s/^\s*//;
-                $fields{'min_interval_name'} =~ s/Late\/Upper/Late/;
-                $fields{'min_interval_name'} =~ s/Early\/Lower/Early/;
-            }
-
-            if ($fields{'ref_has_opinion'} =~ /YES/i) {
-                $fields{'ref_has_opinion'} = 'PRIMARY';
-            } else {
-                $fields{'ref_has_opinion'} = 'NO';
-            }
-	    
-	    $fields{entangle} = 'NO' if $fields{status_old} && $fields{status_old} eq 'ignore';
-	    
-            # if its from the DB, populate appropriate form vars
-            for (@belongsArray) { 
-                if ($_ eq $fields{'status'}) {
-                    $fields{'status_category'} = 'belongs to';
-                }
-            }    
-            if ($fields{'status'} eq 'misspelling of') {
-                $fields{'status_category'} = 'misspelling of';
-            }
-            for (@synArray) { 
-                if ($_ eq $fields{'status'}) {
-                    $fields{'status_category'} = 'invalid1';
-                    $fields{'synonym'} = $_;
-                    last;
-                }
-            } 
-            for (@nomArray) { 
-                if ($_ eq $fields{'status'}) {
-                    $fields{'status_category'} = 'invalid2';
-                    last;
-                }
-            }    
         }
+	
+	# If the current user is an administrator, set the corresponding hidden field on
+	# the form.
+	
+	$fields{is_admin} = $s->isSuperUser;
     }
-
+    
     # try to match refs in the database to entered author data JA 14-15.1.09
     # this is a loose match because merely listing a bunch of refs is harmless
-    if ( $fields{'author1last'} && $fields{'pubyr'} =~ /^[0-9]{4}$/ )	{
+    
+    if ( $fields{'author1last'} && $fields{'pubyr'} =~ /^[0-9]{4}$/ )
+    {
         my $auth = $fields{'author1last'};
         $auth =~ s/'/\\'/g;
-        my $sql = "SELECT reference_no FROM refs WHERE author1last=".$dbh->quote($auth)." AND pubyr=".$fields{'pubyr'}." AND reference_no!=".$fields{'reference_no'};
-        if ( $s->get('reference_no') > 0 )	{
+	
+        $sql = "SELECT reference_no FROM refs WHERE author1last=".$dbh->quote($auth)." AND pubyr=".$fields{'pubyr'}." AND reference_no!=".$fields{'reference_no'};
+	
+        if ( $s->get('reference_no') > 0 )
+	{
             $sql .= " AND reference_no!=".$s->get('reference_no');
         }
-        if ( $fields{'author2last'} )	{
+	
+        if ( $fields{'author2last'} )
+	{
             $sql .= " AND author2last=".$dbh->quote($fields{'author2last'});
         }
+	
         my @refs = @{$dbt->getData($sql)};
-        for my $r ( @refs )	{
+        
+	for my $r ( @refs )
+	{
             my $ref = PBDB::Reference->new($dbt,$r->{'reference_no'});
-            my $checked;
-            if ( $q->param('ref_has_opinion') == $r->{'reference_no'} ) { $checked=' checked'; }
+            my $checked; 
+	    $checked = ' checked' if $q->param('ref_has_opinion') == $r->{'reference_no'};
+	    
             $fields{'earlier_refs'} .= '<div style="margin-left: 1em; text-indent: -2em;"><input type="radio" id="ref_has_opinion" name="ref_has_opinion" value="'.$r->{'reference_no'}.'" onClick="var f=document.forms[1]; f.author1init.value=\'\'; f.author1last.value=\'\'; f.author2init.value=\'\'; f.author2last.value=\'\'; f.otherauthors.value=\'\'; f.pubyr.value=\'\';"'.$checked.'>'.$ref->formatAsHTML()."</div>\n";
         }
     }
-
-        
+    
     # Get the child name and rank
-    my $childTaxon = PBDB::Taxon->new($dbt,$fields{'child_no'});
+    
+    my $childTaxon = PBDB::Taxon->new($dbt, $fields{child_no});
     my $childName = $childTaxon->get('taxon_name');
     my $childRank = $childTaxon->get('taxon_rank');
-
-    # This block gets a list of potential homonyms, either from the database for an edit || resubmission
-    # or from the values passed in for a new && resubmission
+    
+    # This block gets a list of potential homonyms, either from the database for an edit
+    # || resubmission or from the values passed in for a new && resubmission
+    
     my @child_spelling_nos = ();
     my $childSpellingName = "";
     my $childSpellingRank = "";
-    if ($fields{'child_spelling_no'} > 0) {
-        # This will happen on an edit (first submission) OR resubmission w/homonyms
-        # SQL trick: get not only the authority data for child_spelling_no, but all its homonyms as well
-        my $sql = "SELECT a2.* FROM authorities a1, authorities a2 WHERE a1.taxon_name=a2.taxon_name AND a1.taxon_no=".$dbh->quote($fields{'child_spelling_no'});
+    
+    if ($fields{'child_spelling_no'} > 0)
+    {
+        # This will happen on an edit (first submission) OR resubmission w/homonyms SQL
+        # trick: get not only the authority data for child_spelling_no, but all its
+        # homonyms as well
+	
+        $sql = "SELECT a2.* FROM authorities a1, authorities a2 WHERE a1.taxon_name=a2.taxon_name AND a1.taxon_no=".$dbh->quote($fields{'child_spelling_no'});
         my @results= @{$dbt->getData($sql)}; 
-        foreach my $row (@results) {
+	
+        foreach my $row (@results)
+	{
             push @child_spelling_nos, $row->{'taxon_no'};
             $childSpellingName = $row->{'taxon_name'};
             $childSpellingRank = $row->{'taxon_rank'};
         }
-    } else {
+    }
+    
+    else
+    {
         $childSpellingName = $q->param('child_spelling_name') || $childName;
         $childSpellingRank = $q->param('child_spelling_rank') || $childRank;
         @child_spelling_nos = getTaxonNos($dbt,$childSpellingName,$childSpellingRank);
     }
+    
     # If the childSpellingName and childName are the same (and possibly ambiguous)
     # Use the child_no as the spelling_no so we unneccesarily don't get a radio select to select
     # among the different homonyms
-    if ($childSpellingName eq $childName && $childSpellingRank eq $childRank) {
+    
+    if ($childSpellingName eq $childName && $childSpellingRank eq $childRank)
+    {
         @child_spelling_nos = ($fields{'child_no'});
         $fields{'child_spelling_no'} = $fields{'child_no'};
-    } elsif (@child_spelling_nos ==  1) {
+    }
+    
+    elsif (@child_spelling_nos ==  1)
+    {
         $fields{'child_spelling_no'} = $child_spelling_nos[0];
     }   
     
@@ -510,42 +700,61 @@ sub displayOpinionForm {
     $fields{'child_spelling_rank'} = $childSpellingRank;
 
     $fields{'taxon_display_name'} = $childName;
-
+    
     # This does the same thing for the parent
+    
     my @parent_nos = ();
     my $parentName = "";
-    if ($fields{'parent_spelling_no'} > 0) {
-        # This will happen on an edit (first submission) OR resubmission w/homonyms
-        # SQL trick: get not only the authoritiy data for parent_no, but all its homonyms as well
-        my $sql = "SELECT a2.* FROM authorities a1, authorities a2 WHERE a1.taxon_name=a2.taxon_name AND a1.taxon_no=".$dbh->quote($fields{'parent_spelling_no'});
-        my @results= @{$dbt->getData($sql)}; 
-        foreach my $row (@results) {
+    
+    if ($fields{'parent_spelling_no'} > 0)
+    {
+        # This will happen on an edit (first submission) OR resubmission w/homonyms SQL
+        # trick: get not only the authoritiy data for parent_no, but all its homonyms as
+        # well
+	
+        $sql = "SELECT a2.* FROM authorities a1, authorities a2 WHERE a1.taxon_name=a2.taxon_name AND a1.taxon_no=".$dbh->quote($fields{'parent_spelling_no'});
+        my @results= @{$dbt->getData($sql)};
+	
+        foreach my $row (@results)
+	{
             push @parent_nos, $row->{'taxon_no'};
             $parentName = $row->{'taxon_name'};
         }
-    } else {
+    }
+    
+    else
+    {
         # This block will happen on a resubmission w/o homonyms
-        if ($q->param('belongs_to_parent')) { 
+	
+        if ( $q->param('belongs_to_parent') )
+	{ 
             $parentName = $q->param('belongs_to_parent');
-        } else {
-            if ($childSpellingName =~ / /) {
-                my @bits = split(/\s+/,$childSpellingName);
-                pop @bits;
-                $parentName = join(" ",@bits);
-            }
         }
-        if ($parentName) {
+	
+	elsif ( $childSpellingName =~ / / )
+	{
+	    my @bits = split(/\s+/,$childSpellingName);
+	    pop @bits;
+	    $parentName = join(" ",@bits);
+        }
+	
+        if ($parentName)
+	{
             @parent_nos = getTaxonNos($dbt,$parentName);
         }
     }
-
-    if (@parent_nos == 1) {
+    
+    if (@parent_nos == 1)
+    {
         $fields{'parent_spelling_no'} = $parent_nos[0];
     }
-
-
+    
     my @opinions_to_migrate2;
     my @parents_to_migrate2;
+    
+    # We are no longer migrating opinions. The child_no for each opinion can only be
+    # changed explicitly by administrators. MM 2023-08-23    
+    
     # if ($fields{'status_category'} eq 'invalid1' && $fields{'synonym'} eq 'misspelling of') {
     #     if (scalar(@parent_nos) == 1) {
     #         # errors are ignored because the form is only being displayed
@@ -554,78 +763,110 @@ sub displayOpinionForm {
     #         # @parents_to_migrate2 = @{$ref2};
     #     }
     # } 
-
-	# if this is a second pass and we have a list of alternative taxon
-	#  numbers, make a pulldown menu listing the taxa JA 25.4.04
-	my $parent_pulldown;
-	if ( scalar(@parent_nos) > 1 || (scalar(@parent_nos) == 1 && @opinions_to_migrate2 && $fields{'status_category'} eq 'invalid1' && $fields{'synonym'} eq 'misspelling of')) {
+    
+    # if this is a second pass and we have a list of alternative taxon
+    #  numbers, make a pulldown menu listing the taxa JA 25.4.04
+    
+    my $parent_pulldown;
+    
+    if ( scalar(@parent_nos) > 1 )
+	# || (scalar(@parent_nos) == 1 && @opinions_to_migrate2 &&
+	#  $fields{'status_category'} eq 'invalid1' && $fields{'synonym'} eq 'misspelling of')) 
+    {
         $parent_pulldown .= qq|\n<span class="small">\n|;
-        foreach my $parent_no (@parent_nos) {
-	        my $parent = getParent($dbt,$parent_no);
+	
+        foreach my $parent_no (@parent_nos)
+	{
+	    my $parent = getParent($dbt,$parent_no);
             my $taxon = getTaxa($dbt,{'taxon_no'=>$parent_no},['taxon_no','taxon_name','taxon_rank','author1last','author2last','otherauthors','pubyr']);
             my $pub_info = PBDB::Reference::formatShortRef($taxon);
-
+	    
             my $selected = ($fields{'parent_spelling_no'} == $parent_no) ? "CHECKED" : "";
             $pub_info = ", ".$pub_info if ($pub_info !~ /^\s*$/);
             my $higher_class;
-            if ($parent) {
+	    
+            if ($parent)
+	    {
                 $higher_class = $parent->{'taxon_name'}
-            } else {
+            }
+	    
+	    else
+	    {
                 my $taxon = getTaxa($dbt,{'taxon_no'=>$parent_no});
                 $higher_class = "unclassified $taxon->{taxon_rank}";
             }
+	    
             my @spellings = getAllSpellings($dbt,$parent_no);
-            my $sql = "SELECT DISTINCT(taxon_name) FROM authorities WHERE taxon_no IN ('".join("','",@spellings)."') AND taxon_name!='".$parentName."' ORDER BY taxon_name";
+            $sql = "SELECT DISTINCT(taxon_name) FROM authorities WHERE taxon_no IN ('".join("','",@spellings)."') AND taxon_name!='".$parentName."' ORDER BY taxon_name";
             my @names = @{$dbt->getData($sql)};
             my $equals = "";
             $equals .= " = ".$_->{'taxon_name'} foreach @names;
             $parent_pulldown .= qq|<br><nobr><input type="radio" name="parent_spelling_no" $selected value='$parent_no'> $parentName$equals, $taxon->{taxon_rank}$pub_info [$higher_class]</nobr>\n|;
         }
+	
         $parent_pulldown .= qq|<br><input type="radio" name="parent_spelling_no" value=""> \n<span class=\"prompt\">Other taxon:</span> <input type="text" name="belongs_to_parent" value=""><br>\n|;
         $parent_pulldown .= "\n</span>\n";
-	}
-
+    }
+    
     dbg("parentName $parentName parents: ".scalar(@parent_nos));
     dbg("childSpellingName $childSpellingName spellings: ".scalar(@child_spelling_nos));
-
-    if (!$isNewEntry) {
-        if ($o->get('authorizer_no')) {
+    
+    # If we are editing an existing entry, fill in the authorizer, enterer, and modifier
+    # names and the created and modified dates.
+    
+    if ( $o )
+    {
+        if ($o->get('authorizer_no'))
+	{
             $fields{'authorizer_name'} = "<span class=\"fieldName\">Authorizer:</span> " . PBDB::Person::getPersonName($dbt,$o->get('authorizer_no')); 
-        }   
-        if ($o->get('enterer_no')) { 
+        }
+	
+        if ($o->get('enterer_no'))
+	{ 
             $fields{'enterer_name'} = " <span class=\"fieldName\">Enterer:</span> " . PBDB::Person::getPersonName($dbt,$o->get('enterer_no')); 
         }
-        if ($o->get('modifier_no')) { 
+	
+        if ($o->get('modifier_no'))
+	{ 
             $fields{'modifier_name'} = " <span class=\"fieldName\">Modifier:</span> ".PBDB::Person::getPersonName($dbt,$o->get('modifier_no'));
         }
+	
         $fields{'modified'} = "<span class=\"fieldName\">Modified:</span> ".$fields{'modified'};
         $fields{'created'} = "<span class=\"fieldName\">Created:</span> ".$fields{'created'}; 
     }
 
     my $fossil_record_ref = 0;
-    if ($fields{'reference_no'}) {
+    
+    if ($fields{'reference_no'})
+    {
         my $ref = PBDB::Reference->new($dbt,$fields{'reference_no'}); 
-        if ($ref->{'project_name'} =~ /fossil record/) {
+	
+        if ($ref->{'project_name'} =~ /fossil record/)
+	{
             $fossil_record_ref = 1;
         }
+	
         $fields{formatted_primary_reference} = $ref->formatAsHTML() if ($ref);
     }
-
-    if ($s->get('reference_no') && $s->get('reference_no') != $fields{'reference_no'}) {
+    
+    if ($s->get('reference_no') && $s->get('reference_no') != $fields{'reference_no'})
+    {
         my $ref = PBDB::Reference->new($dbt,$s->get('reference_no'));
         $fields{formatted_current_reference} = $ref->formatAsHTML() if ($ref);
         $fields{'current_reference'} = 'yes';
     } 
-	
-	# Anyone can now edit anything. Restore from CVS if we have to backpedal PS 5/17/2006
-
+    
+    # Anyone can now edit anything. Restore from CVS if we have to backpedal PS 5/17/2006
+    
     # Each of the 'status' row options
-	my $belongs_to_row;
+    my $belongs_to_row;
     my $spelling_row;
-
-    # standard approach to get belongs to
-    # build the spelling pulldown, if necessary, else the spelling box
+    
+    # standard approach to get belongs to build the spelling pulldown, if necessary, else
+    # the spelling box
+    
     my ($higher_rank);
+    
     if ($childRank eq 'subspecies') {
         $higher_rank =  'species';
     } elsif ($childRank eq 'species') {
@@ -633,33 +874,90 @@ sub displayOpinionForm {
     }  else {
         $higher_rank = 'higher taxon';
     }
+    
     my $selected= "CHECKED";
-    $belongs_to_row .= "<div style=\"margin-top: 0.4em;\">\n<span class=\"prompt\">Status and parent:</span> ";
-    my @statusArray;
-    if ( $childRank =~ /species|genus/ )	{
-	@statusArray = ( 'belongs to', @synArray );
-        push @statusArray , @nomArray;
-    } else	{
-	@statusArray = ( 'belongs to', @synArray );
+    
+    $belongs_to_row .= "<div style=\"margin-top: 0.4em;\">\n<span class=\"prompt\">The taxon</span>&nbsp;";
+    
+    my (@child_nos, @child_names, %duplicates);
+    
+    my $orig_no = getOriginalCombination($dbt,$fields{child_no});
+    
+    $sql = "SELECT a.* FROM authorities as a JOIN
+		(SELECT '$orig_no' as taxon_no
+		 UNION SELECT child_spelling_no as taxon_no
+		   FROM opinions WHERE child_no = '$orig_no'
+		 UNION SELECT taxon_no FROM auth_orig WHERE orig_no = '$orig_no')
+			as base using (taxon_no)";
+    
+    if ( my $child_list = $dbh->selectall_arrayref($sql, { Slice => { } }) )
+    {
+	my ($row, $found_child);
+	
+	foreach $row ( @$child_list )
+	{
+	    $duplicates{$row->{taxon_name}}++;
+	}
+	
+	foreach $row ( @$child_list )
+	{
+	    $found_child = 1 if $fields{child_no} eq $row->{taxon_no};
+	    
+	    push @child_nos, $row->{taxon_no};
+	    
+	    my $name = $row->{taxon_name};
+	    
+	    if ( $duplicates{$row->{taxon_name}} > 1 )
+	    {
+		$name .= " ($row->{taxon_rank})";
+	    }
+	    
+	    push @child_names, $name;
+	}
+	
+	unless ( $found_child )
+	{
+	    unshift @child_nos, $fields{child_no};
+	    unshift @child_names, $childName;
+	}
     }
-    $belongs_to_row .= $hbo->htmlSelect('status',\@statusArray, \@statusArray, $fields{'status'});
-
-    if ($parent_pulldown && $selected) {
-        $belongs_to_row .= "$parent_pulldown";
-    } else	{
-        my $parentTaxon = ($selected || ($isNewEntry && $childRank =~ /species/)) ? $parentName : "";
+    
+    $belongs_to_row .= $hbo->htmlSelect('child_no', \@child_names, \@child_nos, $fields{child_no},
+				       'onChange="fix_spelling_reason()"');
+    $belongs_to_row .= " ";
+    
+    my @statusArray = ('belongs to', @synArray);
+    
+    if ( $childRank =~ /species|genus/ )
+    {
+        push @statusArray, @nomArray;
+    }
+    
+    $belongs_to_row .= $hbo->htmlSelect('status', \@statusArray, \@statusArray, $fields{'status'});
+    $belongs_to_row .= "&nbsp;\n";
+    
+    if ($parent_pulldown && $selected)
+    {
+        $belongs_to_row .= $parent_pulldown;
+    }
+    
+    else
+    {
+        my $parentTaxon = ($selected || (!$opinion_no && $childRank =~ /species/)) ? 
+	    $parentName : "";
         $belongs_to_row .= qq|<input name="belongs_to_parent" size="24" value="$parentTaxon">|;
     }
-    $belongs_to_row .= qq|</div>|;
-
+    
+    $belongs_to_row .= "</div>\n";
+    
     # If there is another opinion associated with this reference whose parent taxon has
     # this taxon as its type taxon, set the field 'type_taxon' to 1.
     
-    if (!$reSubmission && !$isNewEntry && $fields{reference_no})
+    if ( !$reSubmission && $opinion_no && $fields{reference_no} )
     {
         # my @taxa = getTypeTaxonList($dbt, $fields{'child_no'}, $fields{'reference_no'});
 	
-	my $sql = "SELECT a.taxon_no, a.type_taxon_no
+	$sql = "SELECT a.taxon_no, a.type_taxon_no
 		FROM opinions as o join authorities as a on a.taxon_no = o.child_spelling_no
 		WHERE o.reference_no = '$fields{reference_no}' and o.ref_has_opinion='YES'";
 	
@@ -681,13 +979,17 @@ sub displayOpinionForm {
     }
     
     my $type_select = "";
-    if ($childRank =~ /species|genus|tribe|family/) {
+    
+    if ( $childRank =~ /species|genus|tribe|family/ )
+    {
         my $checked = ($fields{'type_taxon'}) ? "CHECKED" : "";
         $type_select = "&nbsp;&nbsp;<input name=\"type_taxon\" type=\"checkbox\" $checked  value=\"1\">".
                        " <span class=\"prompt\">This is the type $childRank</span>";
     }
+    
     my ($phyl_keys,$phyl_values) = $hbo->getKeysValues('phylogenetic_status');
-    my $phyl_select = $hbo->htmlSelect('phylogenetic_status',$phyl_keys,$phyl_values,$fields{'phylogenetic_status'});
+    my $phyl_select = $hbo->htmlSelect('phylogenetic_status', $phyl_keys, 
+				       $phyl_values, $fields{'phylogenetic_status'});
     
     $belongs_to_row .= qq|<div style="margin-top: 0.4em;">|;
     if ( $childRank !~ /species/ )	{
@@ -698,10 +1000,10 @@ sub displayOpinionForm {
     }
     $belongs_to_row .= "</div>";
 
-	# if this is a second pass and we have a list of alternative taxon
-	#  numbers, make a pulldown menu listing the taxa JA 25.4.04
+    # if this is a second pass and we have a list of alternative taxon
+    # numbers, make a pulldown menu listing the taxa JA 25.4.04
     # build the spelling pulldown, if necessary, else the spelling box
-
+    
     my @ranks = ();
     if ($childRank =~ /subspecies|species/) {
         @ranks = ('subspecies','species');
@@ -723,57 +1025,85 @@ sub displayOpinionForm {
     my $spelling_note = "<small>If the name is invalid, enter the invalid name and not its senior synonym, replacement, etc.</small>";
     $spelling_row .= "<div><span class=\"prompt\">Full name and rank of the child taxon used in the reference:</span></div>\n";
 
-	my $spelling_rank_pulldown = $hbo->htmlSelect('child_spelling_rank',\@ranks, \@ranks, $fields{'child_spelling_rank'});
-	if (scalar(@child_spelling_nos) > 1 || (scalar(@child_spelling_nos) == 1 && @opinions_to_migrate1)) {
-		$spelling_row .= "<div>";
-		foreach my $child_spelling_no (@child_spelling_nos) {
-			my $parent = getParent($dbt,$child_spelling_no);
-			my $taxon = getTaxa($dbt,{'taxon_no'=>$child_spelling_no},['taxon_no','taxon_name','taxon_rank','author1last','author2last','otherauthors','pubyr']);
-			my $pub_info = PBDB::Reference::formatShortRef($taxon);
-			my $selected = ($fields{'child_spelling_no'} == $child_spelling_no) ? "CHECKED" : "";
-			$pub_info = ", ".$pub_info if ($pub_info !~ /^\s*$/);
-			my $orig_no = getOriginalCombination($dbt,$child_spelling_no);
-			my $orig_info = "";
-			if ($orig_no != $child_spelling_no) {
-				my $orig = getTaxa($dbt,{'taxon_no'=>$orig_no});
-				$orig_info = ", originally $orig->{taxon_name}";
-			}
-			$spelling_row .= qq|<input type="radio" name="child_spelling_no" $selected value='$child_spelling_no'> ${childSpellingName}, $taxon->{taxon_rank}${pub_info}${orig_info} <br>\n|;
-		}
-		$spelling_row .= qq|<input type="radio" name="child_spelling_no" value=""> \nOther taxon: <input type="text" name="child_spelling_name" value="">$spelling_rank_pulldown<br>\n|;
-		$spelling_row .= qq|<input type="hidden" name="new_child_spelling_name" value="$childSpellingName">|;
-		my $new_child_spelling_rank_pulldown = $hbo->htmlSelect('new_child_spelling_rank',\@ranks, \@ranks, $fields{'child_spelling_rank'});
-		$spelling_row .= qq|<input type="radio" name="child_spelling_no" value="-1"> Create a new '$childSpellingName' based off '$childName' with rank $new_child_spelling_rank_pulldown<br>|;
-		$spelling_row .= "$spelling_note</div>";
-	} else {
-		$spelling_row .= qq|<div><input id="child_spelling_name" name="child_spelling_name" size=30 value="$childSpellingName">$spelling_rank_pulldown<br>$spelling_note</div>|;
+    my $spelling_rank_pulldown = $hbo->htmlSelect('child_spelling_rank', \@ranks, \@ranks, 
+						  $fields{'child_spelling_rank'});
+    
+    if ( @child_spelling_nos > 1 )
+	# || (scalar(@child_spelling_nos) == 1 && @opinions_to_migrate1))
+    {
+	$spelling_row .= "<div>";
+	
+	foreach my $child_spelling_no (@child_spelling_nos)
+	{
+	    my $parent = getParent($dbt,$child_spelling_no);
+	    my $taxon = getTaxa($dbt,{'taxon_no'=>$child_spelling_no},
+				['taxon_no','taxon_name','taxon_rank','author1last',
+				 'author2last','otherauthors','pubyr']);
+	    my $pub_info = PBDB::Reference::formatShortRef($taxon);
+	    my $selected = ($fields{'child_spelling_no'} == $child_spelling_no) ? "CHECKED" : "";
+	    $pub_info = ", ".$pub_info if ($pub_info !~ /^\s*$/);
+	    my $orig_no = getOriginalCombination($dbt,$child_spelling_no);
+	    my $orig_info = "";
+	    if ($orig_no != $child_spelling_no)
+	    {
+		my $orig = getTaxa($dbt,{'taxon_no'=>$orig_no});
+		$orig_info = ", originally $orig->{taxon_name}";
+	    }
+	    $spelling_row .= qq|<input type="radio" name="child_spelling_no" $selected value='$child_spelling_no'> ${childSpellingName}, $taxon->{taxon_rank}${pub_info}${orig_info} <br>\n|;
 	}
-
-
+	
+	$spelling_row .= qq|<input type="radio" name="child_spelling_no" value=""> \nOther taxon: <input type="text" name="child_spelling_name" value="">$spelling_rank_pulldown<br>\n|;
+	$spelling_row .= qq|<input type="hidden" name="new_child_spelling_name" value="$childSpellingName">|;
+	
+	my $new_child_spelling_rank_pulldown = $hbo->htmlSelect('new_child_spelling_rank',
+								\@ranks, \@ranks, 
+								$fields{'child_spelling_rank'});
+	
+	$spelling_row .= qq|<input type="radio" name="child_spelling_no" value="-1"> Create a new '$childSpellingName' based off '$childName' with rank $new_child_spelling_rank_pulldown<br>|;
+	$spelling_row .= "$spelling_note</div>";
+    }
+    
+    else
+    {
+	$spelling_row .= qq|<div><input id="child_spelling_name" name="child_spelling_name" size=30 value="$childSpellingName">$spelling_rank_pulldown<br>$spelling_note</div>|;
+    }
+    
     my @select_values = ();
     my @select_keys = ();
-    if ($childRank =~ /subgenus/) {
+    
+    if ( $childRank =~ /subgenus/ )
+    {
         my ($genusName,$subGenusName) = splitTaxon($childName);
-        @select_values = ('original spelling','correction','misspelling','rank change','reassignment');
-        @select_keys = ("original spelling and rank", "correction of '$childName'","misspelling","rank changed from $childRank","reassigned from the original genus '$genusName'");
-    } elsif ($childRank =~ /species/) {
-        @select_values = ('original spelling','recombination','correction','misspelling');
-        @select_keys = ("original spelling and rank","recombination or rank change of '$childName'","correction of '$childName'","misspelling");
-    } else {
-        @select_values = ('original spelling','correction','misspelling','rank change');
-        @select_keys = ("original spelling and rank","correction of '$childName'","misspelling","rank changed from original rank of $childRank");
+        @select_values = ('original spelling', 'correction', 'misspelling', 
+			  'rank change', 'reassignment');
+        @select_keys = ("original spelling and rank", "correction of '$childName'",
+			"misspelling", "rank changed from $childRank", 
+			"reassigned from the original genus '$genusName'");
     }
+    
+    elsif ( $childRank =~ /species/ )
+    {
+        @select_values = ('original spelling', 'recombination', 'correction', 'misspelling');
+        @select_keys = ("original spelling and rank", 
+			"recombination or rank change of '$childName'",
+			"correction of '$childName'", "misspelling");
+    }
+    
+    else
+    {
+        @select_values = ('original spelling', 'correction', 'misspelling', 'rank change');
+        @select_keys = ("original spelling and rank", "correction of '$childName'",
+			"misspelling", "rank changed from original rank of $childRank");
+    }
+    
     $spelling_row .= "<div style=\"margin-top: 0.5em;\"><span class=\"prompt\">Reason why this spelling and rank was used:</span>\n<span>". $hbo->htmlSelect('spelling_reason',\@select_keys,\@select_values,$fields{'spelling_reason'})."</span>";
     
-    #
-    
-    
     dbg("showOpinionForm, fields are: <pre>".Dumper(\%fields)."</pre>");
-
-	$fields{belongs_to_row} = $belongs_to_row;
-	$fields{spelling_row} = $spelling_row;
-
-	# print the form	
+    
+    $fields{belongs_to_row} = $belongs_to_row;
+    $fields{spelling_row} = $spelling_row;
+    
+    # print the form	
     $fields{'error_message'} = $error_message;
     
     unless ( $s->get('role') =~ /authorizer|enterer/ )
@@ -782,15 +1112,14 @@ sub displayOpinionForm {
     }
     
     return $hbo->populateHTML("add_enter_opinion", \%fields);
-    
 }
 
 
-# Call this when you want to submit an opinion form.
-# Pass it the HTMLBuilder object, $hbo, the cgi parameters, $q, and the session, $s.
-#
-# The majority of this method deals with validation of the input to make
-# sure the user didn't screw up, and to display an appropriate error message if they did.
+# Opinion form submit action
+# 
+# The majority of this method deals with validation of the input to make sure the user
+# didn't screw up, and to display an appropriate error message if they did.
+
 sub submitOpinionForm {
     
     my ($dbt,$hbo,$s,$q) = @_;
@@ -804,7 +1133,7 @@ sub submitOpinionForm {
 	die "ERROR: PBDB::Opinion::submitOpinionForm had invalid arguments passed to it\n";
     }
     
-    unless ( $q->param('check_status') eq 'done' )
+    if ( $q->param('check_status') ne 'done' )
     {
 	return "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
     }
@@ -826,13 +1155,11 @@ sub submitOpinionForm {
     
     if ( $opinion_no && $opinion_no > 0 )
     {
-	$isNewEntry = '';
-	
         $o = PBDB::Opinion->new($dbt,$opinion_no) || 
 	    die "Could not create opinion object in displayOpinionForm for opinion_no $opinion_no";
 	
         $fields{'opinion_no'} = $o->get('opinion_no');
-        $fields{'child_no'} = $o->get('child_no');
+        $fields{'child_no'} = $q->numeric_param('child_no'); # $o->get('child_no');
         $fields{'reference_no'} = $o->get('reference_no');
         $fields{'old_author1last'} = $o->get('author1last');
         $fields{'old_author2last'} = $o->get('author2last');
@@ -849,7 +1176,7 @@ sub submitOpinionForm {
 	
 	unless ( $fields{'reference_no'} )
 	{
-	    $errors->add("You must set your current reference before submitting a new opinion");	
+	    $errors->add("You must set your current reference before submitting a new opinion");
 	}
     }
     
@@ -911,7 +1238,7 @@ sub submitOpinionForm {
             my $row = ${$dbt->getData($sql)}[0];
             # also make sure there isn't a primary report of this opinion
             #  JA 9.1.07
-		    my $sql = "SELECT count(*) c FROM opinions o,refs r WHERE ref_has_opinion ='YES' ".
+		    $sql = "SELECT count(*) c FROM opinions o,refs r WHERE ref_has_opinion ='YES' ".
                       " AND child_no=".$dbh->quote($fields{'child_no'}).
                       " AND o.reference_no=r.reference_no".
                       " AND r.author1last=".$dbh->quote($q->param('author1last'));
@@ -994,13 +1321,13 @@ sub submitOpinionForm {
                   " AND child_no=".$dbh->quote($fields{'child_no'}).
                   " AND reference_no=".$dbh->quote($lookup_reference).
                   " AND status NOT IN ('misspelling of')";
-        if (! $isNewEntry) {
+        if ( $o ) {
             $sql .= " AND opinion_no != ".$o->{'opinion_no'};
         }
         my $row = ${$dbt->getData($sql)}[0];
         # also make sure there isn't a secondary report of this opinion
         #  JA 9.1.07
-        my $sql = "SELECT author1last,author2last,pubyr FROM refs WHERE reference_no=".$dbh->quote($lookup_reference);
+        $sql = "SELECT author1last,author2last,pubyr FROM refs WHERE reference_no=".$dbh->quote($lookup_reference);
         my $row2 = ${$dbt->getData($sql)}[0];
         my $row3;
         if ( $row2->{author1last} )	{
@@ -1010,7 +1337,7 @@ sub submitOpinionForm {
             }
             $sql .= " AND child_no=".$dbh->quote($fields{'child_no'}).
                     " AND status NOT IN ('misspelling of','homonym of')";
-            if (! $isNewEntry) {
+            if ( $o ) {
                 $sql .= " AND opinion_no != ".$o->{'opinion_no'};
             }
             $row3 = ${$dbt->getData($sql)}[0];
@@ -1241,6 +1568,8 @@ sub submitOpinionForm {
 	{
             $errors->add("$childSpellingName can't be an alternate spelling of $childName because there is already a '$status' opinion linking them, so they must be biologically distinct");
         }
+	
+	# Add a check against orig_no loops. $$$
 	
 	# else	{
         #     @opinions_to_migrate1 = @{$ref1};
@@ -1561,19 +1890,19 @@ sub submitOpinionForm {
         $fields{'reference_no'} = $q->numeric_param('ref_has_opinion');
     }
     
-    # If the 'entangle' checkbox is checked, convert it to the value 'ignore' for
-    # 'status_old'. We have repurposed the status_old field to mark opinions that should
-    # be ignored for entanglement purposes, since it currently has no other use.
+    # # If the 'entangle' checkbox is checked, convert it to the value 'ignore' for
+    # # 'status_old'. We have repurposed the status_old field to mark opinions that should
+    # # be ignored for entanglement purposes, since it currently has no other use.
     
-    if ( uc $q->param('entangle') eq 'NO' )
-    {
-	$fields{status_old} = 'ignore';
-    }
+    # if ( uc $q->param('entangle') eq 'NO' )
+    # {
+    # 	$fields{status_old} = 'ignore';
+    # }
     
-    else
-    {
-	$fields{status_old} = '';
-    }
+    # else
+    # {
+    # 	$fields{status_old} = '';
+    # }
     
     # now we'll actually insert or update into the database.
     
@@ -1612,7 +1941,7 @@ sub submitOpinionForm {
 	    return;	
 	}
 	
-	($code, $resultOpinionNumber) = $dbt->insertRecord($s,'opinions', \%fields);
+	($code, $resultOpinionNumber) = $dbt->insertRecord($s, 'opinions', \%fields);
     }
     
     # Otherwise, update the existing rcord.
@@ -1626,7 +1955,7 @@ sub submitOpinionForm {
         }
 	
 	$resultOpinionNumber = $o->get('opinion_no');
-	$dbt->updateRecord($s,'opinions', 'opinion_no',$resultOpinionNumber, \%fields);
+	$dbt->updateRecord($s,'opinions', 'opinion_no', $resultOpinionNumber, \%fields);
 	
 	# If the child_spelling_no has changed, disentangle the old one and update its
 	# classification.  But skip that if the old child_spelling_no is equal to the new
@@ -1638,8 +1967,8 @@ sub submitOpinionForm {
 	     $old_spelling_no ne $fields{child_spelling_no} &&
 	     $old_spelling_no ne $fields{child_no} )
 	{
-	    updateEntanglement($dbt, $old_spelling_no);
-	    updateCache($dbt, $old_spelling_no);
+	    $dbh->do("INSERT INTO check_opinions (opinion_no, child_no, child_spelling_no)
+		VALUES ($resultOpinionNumber, 0, $old_spelling_no)");
 	}
     }
     
@@ -1661,19 +1990,18 @@ sub submitOpinionForm {
     # Make sure opinions authority information is synchronized with the original
     # combination 
     
-    PBDB::Taxon::propagateAuthorityInfo($dbt,$q,$fields{'child_no'});
-
+    propagateAuthorityInfo($dbt,$q,$fields{'child_no'});
+    
     #     # Remove any duplicates that may have been added as a result of the migration
     #     $resultOpinionNumber = removeDuplicateOpinions($dbt,$s,$fields{'child_no'},$resultOpinionNumber);
     # }
-
+    
     fixMassEstimates($dbt,$dbh,$fields{'child_no'});
     
-    $o = PBDB::Opinion->new($dbt,$resultOpinionNumber); 
-    my ($opinion,$relation,$authority) = $o->formatAsHTML('return_array'=>1);
-    $relation =~ s/according to/of/i;
-    my $opinionHTML = $opinion.$relation.$authority;
-
+    $o = PBDB::Opinion->new($dbt,$resultOpinionNumber);
+    
+    my $opinionHTML = $o->formatAsHTML($dbh, use_of => 1);
+    
     my $enterupdate = ($isNewEntry) ? 'entered' : 'updated';
 
     # we need to warn about the nasty case in which the author has synonymized
@@ -1826,6 +2154,134 @@ sub submitOpinionForm {
 }
 
 
+
+# Opinion form administrative actions
+
+sub submitOpinionAction {
+    
+    my ($dbt, $hbo, $s, $q) = @_;
+    
+    # Make sure we have an opinion_no that corresponds to an opinion record in the database.
+    
+    my $opinion_no = $q->numeric_param('opinion_no') ||
+	die "Missing opinion_no in submitOpinionAction";
+    
+    my $o = PBDB::Opinion->new($dbt, $opinion_no) || 
+	die "Could not create opinion object in submitOpinionAction for opinion_no $opinion_no";
+    
+    # Get the original child_no value, so that we can display the new list of opinions for
+    # that taxon. 
+    
+    my $child_no = $o->{child_no};
+    my $child_spelling_no = $o->{child_spelling_no};
+    
+    my $update_values = { };
+    
+    my $do_update;
+    my $do_delete;
+    
+    my $dbh = $dbt->dbh;
+    
+    # Execute the requested action.
+    
+    if ( $q->param('action_suppress') )
+    {
+	$update_values->{status_old} = 'ignore';
+	$dbt->updateRecord($s, 'opinions', 'opinion_no', $opinion_no, $update_values);
+    }
+    
+    elsif ( $q->param('action_restore') )
+    {
+	$update_values->{status_old} = undef;
+	$dbt->updateRecord($s, 'opinions', 'opinion_no', $opinion_no, $update_values);
+    }
+    
+    elsif ( $q->param('action_reprocess') )
+    {
+	$dbh->do("INSERT INTO check_opinions (opinion_no, child_no, child_spelling_no)
+		VALUES ($opinion_no, $child_no, $child_spelling_no)");
+	# updateEntanglement($dbt, $child_no);
+	# updateEntanglement($dbt, $child_spelling_no);
+    }
+    
+    # elsif ( $q->param('action_child_no') )
+    # {
+    # 	my $new_orig = $q->param('new_orig');
+    # 	my $t;
+	
+    # 	if ( $new_orig && $new_orig =~ /^\d+$/ || $new_orig =~ /^\w[\w ]+$/ )
+    # 	{
+    # 	    $t = Taxon->new($dbt, $new_orig);
+    # 	}
+	
+    # 	if ( $t && $t->{taxon_no} )
+    # 	{
+    # 	    $update_values->{child_no} = $t->{taxon_no};
+    # 	    $do_update = 1;
+    # 	    $do_check = 1;
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    return displayOpinionForm($dbt, $hbo, $s, $q, 
+    # 				      "The taxonomic name '$new_orig' was not found in the database");
+    # 	}
+    # }
+    
+    # elsif ( $q->param('action_delete') )
+    # {
+    # 	$do_delete = 1;
+    # }
+    
+    else
+    {
+	die "Unknown action in submitOpinionAction";
+    }
+    
+    # Update or delete the opinion record as appropriate.
+    
+    # if ( $do_update )
+    # {
+    # 	$dbt->updateRecord($s, 'opinions', 'opinion_no', $opinion_no, $update_values);
+    # }
+    
+    # elsif ( $do_delete )
+    # {
+    # 	$dbt->deleteRecord($s, 'opinions', 'opinion_no', $opinion_no);
+    # }
+    
+    # # If there is an old child number, check it as well.
+    
+    # if ( $do_check )
+    # {
+    # 	checkEntanglement($dbh, $child_no);
+    # }
+    
+    # # Then adjust the original name relation for the child_no and for the
+    # # child_spelling_no if different.
+    
+    # if ( $child_no )
+    # {
+    # 	updateEntanglement($dbt, $child_spelling_no) if $child_spelling_no &&
+    # 	    $child_spelling_no != $child_no;
+    # 	updateEntanglement($dbt, $child_no);
+    # }
+    
+    # # Then update taxa_tree_cache to reflect the updated or deleted opinion.
+    
+    # if ( $child_no )
+    # {
+    # 	updateCache($dbt, $child_spelling_no) if $child_spelling_no && 
+    # 	    $child_spelling_no != $child_no;
+    # 	updateCache($dbt, $child_no);
+    # }
+    
+    # Redirect back to the list of opinions for the original child_no.
+    
+    Dancer::redirect "/classic/displayOpinionChoiceForm?taxon_no=$child_no";
+}
+
+
 # # row is an opinion database row and must contain the following fields:
 # #   child_no,status,child_spelling_no,parent_spelling_no,opinion_no
 # # JA: there's a long-standing bug in here somewhere that causes the spelling
@@ -1958,153 +2414,396 @@ sub fixMassEstimates	{
 # Displays a form which lists all opinions that currently exist
 # for a reference no/taxon
 # Moved/Adapted from PBDB::Taxon::displayOpinionChoiceForm PS 01/24/2004
+
 sub displayOpinionChoiceForm {
-    my ($q, $s, $dbt, $hbo) = @_;
-    my $dbh = $dbt->dbh;
-    my $output = '';
-
-    my $sepkoski;
-    if ($q->numeric_param('taxon_no')) {
-        my $child_no = $q->numeric_param('taxon_no');
-        my $orig_no = getOriginalCombination($dbt,$child_no);
-        my $sql = "SELECT o.opinion_no AS opinion_no,t.opinion_no AS current_opinion FROM opinions o,$TAXA_TREE_CACHE t,refs r ".
-                  " WHERE o.child_no=$orig_no AND o.child_no=t.taxon_no AND r.reference_no=o.reference_no".
-                  " ORDER BY IF(o.pubyr IS NOT NULL AND o.pubyr != '' AND o.pubyr != '0000', o.pubyr, r.pubyr) ASC";
-        my @results = @{$dbt->getData($sql)};
-        
-        my $t = PBDB::Taxon->new($dbt,$child_no);
-        $output .= "<div align=\"center\">";
-        $output .= "<p class=\"pageTitle\">Which opinion about ".$t->taxonNameHTML()." do you want to edit?</p>\n";
-        
-	$output .= qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
-        $output .= qq|<div align="left"><ul>|;
-        foreach my $row (@results) {
-            my $o = PBDB::Opinion->new($dbt,$row->{'opinion_no'});
-            my ($opinion,$relation,$authority) = $o->formatAsHTML('return_array'=>1);
-            $authority = $relation . makeAnchor("displayReference", "reference_no=$o->{reference_no}", $authority);
-            if ( $row->{'opinion_no'} == $row->{'current_opinion'} )	{
-                $opinion = "<b>$opinion</b>";
-            }
-            # if ( $o->{'reference_no'} != 6930 )	{
-                $output .= "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=$row->{opinion_no}", $opinion) . "$authority" . "</li>";
-            # } else	{
-            #     $output .= qq|<li>$opinion $authority*</li>|;
-            #     $sepkoski = qq|<br>\n*Opinions from Sepkoski's Compendium cannot be edited.|;
-            # }
-        }
-        $output .= "<li>" . makeAnchor("displayOpinionForm", "child_no=$orig_no&amp;child_spelling_no=$child_no&amp;opinion_no=-1", "Create a <b>new</b> opinion record") . "</li>";
-        $output .= qq|</ul></div>\n|;
-    } else {
-        my @where = ();
-        my @errors = ();
-        my $join_refs = "";
-        if ($q->numeric_param("reference_no")) {
-            push @where, "o.reference_no=".$q->numeric_param("reference_no");
-        }
-        if ($q->param("authorizer_reversed")) {
-            my $sql = "SELECT person_no FROM person WHERE name like ".$dbh->quote(PBDB::Person::reverseName($q->param('authorizer_reversed')));
-            my $authorizer_no = ${$dbt->getData($sql)}[0]->{'person_no'};
-            if (!$authorizer_no) {
-                push @errors, $q->param('authorizer_reversed')." is misformatted. Try something like 'Raup, D.'" if (!$authorizer_no); 
-            } else {
-                push @where, "o.authorizer_no=".$authorizer_no; 
-            }
-        }
-        if ($q->param("enterer_reversed")) {
-            my $sql = "SELECT person_no FROM person WHERE name like ".$dbh->quote(PBDB::Person::reverseName($q->param('enterer_reversed')));
-            my $enterer_no = ${$dbt->getData($sql)}[0]->{'person_no'};
-            if (!$enterer_no) {
-                push @errors, $q->param('enterer_reversed')." is misformatted. Try something like 'Raup, D.'" if (!$enterer_no); 
-            } else {
-                push @where, "o.enterer_no=".$enterer_no; 
-            }
-        }
-        if ($q->param('created_year')) {
-            my ($yyyy,$mm,$dd) = ($q->param('created_year'),$q->param('created_month'),$q->param('created_day'));
-            my $date = $dbh->quote(sprintf("%d-%02d-%02d 00:00:00",$yyyy,$mm,$dd));
-            my $sign = ($q->param('created_before_after') eq 'before') ? '<=' : '>=';
-            push @where,"o.created $sign $date";
-        }
-        if ($q->param('pubyr')) {
-            my $pubyr = $dbh->quote($q->param('pubyr'));
-            push @where,"((o.ref_has_opinion NOT LIKE 'YES' AND o.pubyr LIKE $pubyr) OR (o.ref_has_opinion LIKE 'YES' AND r.pubyr LIKE $pubyr))";
-            $join_refs = " LEFT JOIN refs r ON (o.reference_no=r.reference_no)";
-        }
-        if ($q->param('author')) {
-            my $author = $dbh->quote($q->param('author'));
-            my $authorWild = $dbh->quote('%'.$q->param('author').'%');
-            push @where,"((o.ref_has_opinion NOT LIKE 'YES' AND (o.author1last LIKE $author OR o.author2last LIKE $author OR o.otherauthors LIKE $authorWild)) OR".
-                        "(o.ref_has_opinion LIKE 'YES' AND (r.author1last LIKE $author OR r.author2last LIKE $author OR r.otherauthors LIKE $authorWild)))";
-            $join_refs = " LEFT JOIN refs r ON (o.reference_no=r.reference_no)";
-        }
-
-        # WARNING: changes in MySQL 5.0.12 force the use of parentheses in
-        #  the FROM clause when performing a LEFT JOIN
-        if (@where && !@errors) {
-            push @where , "o.child_no=t.taxon_no AND a.taxon_no=o.child_no";
-            my $sql = "SELECT o.opinion_no AS opinion_no,t.opinion_no AS current_opinion,o.reference_no,o.ref_has_opinion FROM (opinions o,$TAXA_TREE_CACHE t,authorities a) ".
-                      $join_refs.
-                      " WHERE ".join(" AND ",@where).
-                      " ORDER BY a.taxon_name ASC";
-            my @results = @{$dbt->getData($sql)};
-            if (scalar(@results) == 0) {
-                $q->param('errors' => '<div style="margin-bottom: 1.5em;">No opinions were found</div>');
-                return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-            }
-            $output .= "<div align=\"center\">";
-            if ($s->isDBMember())	{
-                $output .= "<p class=\"pageTitle\">Select an opinion to edit</p>\n";
-            } else	{
-                $output .= "<p class=\"pageTitle\">Opinions from ".PBDB::Reference::formatShortRef($dbt,$q->numeric_param("reference_no"))."</p>\n";
-            }
-
-            $output .= qq|<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">\n|;
-            $output .= qq|<div class="small" align="left">|;
-            $output .= qq|<ul>|;
-            foreach my $row (@results) {
-                my $o = PBDB::Opinion->new($dbt,$row->{'opinion_no'});
-                my ($opinion,$relation,$authority) = $o->formatAsHTML('return_array'=>1);
-                $authority = $relation.$authority;
-                if ( $row->{'opinion_no'} == $row->{'current_opinion'} )	{
-                    $opinion = "<b>".$opinion."</b>";
-                }
-                if ( $q->numeric_param('reference_no') == $row->{'reference_no'} && $row->{'ref_has_opinion'} eq "YES" )	{
-                    $authority = "";
-                }
-                if ($s->isDBMember())	{
-                    $output .= "<li>" . makeAnchor("displayOpinionForm", "opinion_no=$row->{opinion_no}", $opinion) . " $authority";
-                } else	{
-                    $output .= "<li>$opinion $authority</li>\n";
-                }
-            }
-            $output .= "</ul>";
-            $output .= "</div>";
-            $output .= "</div>";
-            $output .= "</div>";
-        } else {
-            if (@errors) {
-                my $message = qq|<div class="small" style="margin-bottom: 1.5em;">\n\n<ul>\n|;
-                $message .= "<li class='medium'>$_</li>" foreach @errors;
-                $message .= "</ul>\n</div>\n<br>\n"; 
-                $q->param('errors' => $message);
-                return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-            } else {
-                $q->param('errors' => '<div style="margin-bottom: 1.5em;">No search terms were entered</div>');
-                return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
-            }
-        }
-    } 
     
-    if ($q->numeric_param("taxon_no")) {
-        $output .= qq|<div class="verysmall" style="margin-left: 4em; text-align: left;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>The currently favored opinion is in <b>bold</b>.\n<br>\nCreate a new opinion if your author's name is not in the above list.<br>\nDo not select an old opinion unless it was entered incorrectly or incompletely.$sepkoski</p></div>\n|;
-    } elsif ($q->numeric_param('reference_no') && $s->isDBMember())	{
-        $output .= qq|<div class="tiny" style="padding-left: 8em; padding-bottom: 3em;"><p>An "opinion" is when an author classifies or synonymizes a taxon.<br>|;
-        $output .= qq|You may want to read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')">FAQ</a>.</p></div>\n|;
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    my $can_edit = $s->isDBMember;
+    
+    my ($sql, $result, @clauses, @errors, $page_title, $output);
+    my ($taxon_no, $orig_no, $reference_no, $person_no, $person_name, $role, $author);
+    my ($base_taxon);
+    
+    my $other_joins = '';
+    
+    # If we are given the parameter 'taxon_no', display all opinions about that taxon and
+    # its variants.
+    
+    if ( $taxon_no = $q->numeric_param('taxon_no') )
+    {
+	push @clauses, "1=1";
+	
+        $orig_no = getOriginalCombination($dbt, $taxon_no);
+	
+        my $t = PBDB::Taxon->new($dbt, $taxon_no);
+	my $taxon_name = $t->taxonNameHTML;
+	
+	$page_title = "Opinions about $taxon_name";
     }
-    $output .= "</form>\n";
-    $output .= "</div>\n";
-    $output .= "</div>\n";
+    
+    else
+    {
+	$page_title = "Opinions";
+    }
+    
+    if ( $reference_no = $q->numeric_param("reference_no") )
+    {
+	push @clauses, "o.reference_no='$reference_no'";
+	
+	my $ref_anchor = makeAnchor("displayReference", "reference_no=$reference_no",
+				    formatShortRef($dbt, $reference_no));
+	
+	$page_title .= " from $ref_anchor,";
+    }
+    
+    my ($name_value, $field);
+    
+    if ( $name_value = $q->param("enterer") )
+    {
+	$field = 'enterer_no';
+	$role = 'entered by';
+    }
+    
+    elsif ( $name_value = $q->param("authorizer") )
+    {
+	$field = 'authorizer_no';
+	$role = 'authorized by';
+    }
+    
+    if ( $name_value )
+    {
+	if ( $name_value =~ /^\d+$/ )
+	{
+	    $person_no = $name_value;
+	    
+	    $sql = "SELECT name FROM person WHERE person_no='$person_no'";
+	    
+	    ($person_name) = $dbh->selectrow_array($sql);
+	    
+	    $person_name ||= "PBDB contributor $person_no";
+	}
+	
+	else
+	{
+	    if ( $name_value =~ qr{ ^ (.+?) \s* , \s* (.+[.]) \s* $ }xs )
+	    {
+		$name_value = "$2 $1";
+	    }
+	    
+	    my $quoted = $dbh->quote($name_value);
+	    
+	    $sql = "SELECT person_no FROM person
+		    WHERE name like $quoted LIMIT 1";
+	    
+	    ($person_no) = $dbh->selectrow_array($sql);
+	    
+	    if ( $person_no )
+	    {
+		$person_name = $name_value;
+	    }
+	    
+	    else
+	    {
+		push @errors, "Database contributor '$name_value' was not found.";
+		$person_no = '0';
+	    }
+	    
+	    push @clauses, "o.$field='$person_no'";
+	    
+	    $page_title .= " $role $person_name,";
+	}
+    }
+    
+    if ( $author = $q->param('author') )
+    {
+	my $quoted = $dbh->quote($author);
+	my $quoted_wild = $dbh->quote("%$author%");
+	
+	push @clauses, 
+	    "((o.ref_has_opinion not like 'YES' and 
+			(o.author1last like $quoted or o.author2last like $quoted or 
+			 o.otherauthors like $quoted_wild)) or
+		  (o.ref_has_opinion = 'YES' and 
+			(r.author1last like $quoted or r.author2last like $quoted or
+			 r.otherauthors like $quoted_wild)))";
+	    
+	$page_title .= " authored by $author,";
+    }
+    
+    if ( $q->param('created_year') )
+    {
+	my ($yyyy,$mm,$dd) = ($q->param('created_year'),$q->param('created_month'),$q->param('created_day'));
+	my $date = $dbh->quote(sprintf("%d-%02d-%02d 00:00:00",$yyyy,$mm,$dd));
+	my $which = $q->param('created_before_after');
+	my $sign = $which eq 'before' ? '<=' : '>=';
+	
+	push @clauses,"o.created $sign $date";
+	
+	$page_title .= " created $which $date,";
+    }
+    
+    if ( my $pubyr = $q->param('pubyr') )
+    {
+	my ($lower, $upper, $single);
+	
+	if ( $pubyr =~ /^(\d*)-(\d\d\d\d)$/ )
+	{
+	    $lower = $1;
+	    $upper = $2;
+	}
+	
+	elsif ( $pubyr =~ /^(\d\d\d\d)-(\d*)$/ )
+	{
+	    $lower = $1;
+	    $upper = $2;
+	}
+	
+	elsif ( $pubyr =~ /^(\d\d\d\d)$/ )
+	{
+	    $single = $1;
+	}
+	
+	else
+	{
+	    push @errors, "Invalid publication year range '$pubyr'";
+	}
+	
+	if ( $upper && $lower && $upper < $lower )
+	{
+	    push @errors, "Invalid publication year range '$pubyr'";
+	}
+	
+	if ( $single )
+	{
+	    my $quoted = $dbh->quote($pubyr);
+	    push @clauses, 
+		"((o.ref_has_opinion not like 'YES' and o.pubyr like $quoted) or 
+		  (o.ref_has_opinion like 'YES' and r.pubyr like $quoted))";
+	}
+	
+	if ( $lower )
+	{
+	    my $quoted = $dbh->quote($lower);
+	    push @clauses, 
+		"((o.ref_has_opinion not like 'YES' and o.pubyr >= $quoted) or 
+		  (o.ref_has_opinion like 'YES' and r.pubyr >= $quoted))";
+	}
+	
+	if ( $upper )
+	{
+	    my $quoted = $dbh->quote($upper);
+	    push @clauses, 
+		"((o.ref_has_opinion not like 'YES' and o.pubyr <= $quoted) or 
+		  (o.ref_has_opinion like 'YES' and r.pubyr <= $quoted))";
+	}
+	
+	$page_title .= " published in $pubyr,";
+    }
+    
+    if ( $base_taxon = $q->param('base_taxon') )
+    {
+	if ( ! $taxon_no )
+	{
+	    my $base_no;
+	    
+	    if ( $base_taxon =~ /^\d+$/ )
+	    {
+		$base_no = $base_taxon;
+		
+		$page_title .= " within taxon $base_no,";
+	    }
+	    
+	    else
+	    {
+		my $bt = getTaxa($dbt, { taxon_name => $base_taxon });
+		
+		if ( $bt )
+		{
+		    $base_no = $bt->{taxon_no};
+		    
+		    $page_title .= " within $bt->{taxon_name},";
+		}
+		
+		else
+		{
+		    push @errors, "Unknown taxon '$base_taxon'";
+		}
+	    }
+	    
+	    if ( $base_no )
+	    {
+		$other_joins .= "left join $TAXA_TREE_CACHE as base on t.lft between base.lft and base.rgt ";
+		push @clauses, "base.taxon_no = '$base_no'";
+		
+	    }
+	}
+    }
+    
+    # If errors occurred, or if no search terms were entered, return an error message and
+    # the opinion search form.
+    
+    if ( @errors )
+    {
+	my $message = qq|<div class="small" style="margin-bottom: 1.5em;">\n\n<ul>\n|;
+	$message .= "<li class='medium'>$_</li>" foreach @errors;
+	$message .= "</ul>\n</div>\n<br>\n"; 
+	$q->param('errors' => $message);
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    elsif ( !@clauses )
+    {
+	$q->param('errors' => '<div style="margin-bottom: 1.5em;">No search terms were entered</div>');
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    # Otherwise, query for the requested opinions. If we are displaying information about
+    # a particular taxon, use the following expression:
+    
+    my $filter = join(' and ', @clauses);
+	
+    if ( $orig_no )
+    {
+        $sql = "
+	    SELECT o.opinion_no, t.opinion_no as current_opinion,
+		    if(o.pubyr != '', o.pubyr, r.pubyr) as pubyr
+	    FROM (SELECT opinion_no FROM opinions WHERE child_no='$orig_no'
+		  UNION SELECT opinion_no
+		  FROM opinions as o join auth_orig as ao on ao.taxon_no=o.child_no
+		  WHERE ao.orig_no='$orig_no') as base
+	      join opinions as o using (opinion_no)
+	      left join $TAXA_TREE_CACHE as t on t.taxon_no = o.child_no
+	      left join refs as r on r.reference_no = o.reference_no
+	    WHERE $filter
+	    ORDER BY pubyr asc";
+	
+	$result = $dbh->selectall_arrayref($sql, { Slice => { } });
+    }
+    
+    # Otherwise, use the following expression:
+    
+    else
+    {
+	$sql = "
+	    SELECT o.opinion_no, t.opinion_no as current_opinion,
+		    if(o.pubyr != '', o.pubyr, r.pubyr) as pubyr
+	    FROM opinions as o
+	      left join auth_orig as ao on ao.taxon_no = o.child_no
+	      left join $TAXA_TREE_CACHE as t on t.taxon_no = coalesce(ao.orig_no, o.child_no)
+	      left join authorities as a on a.taxon_no = t.spelling_no
+	      left join refs as r on r.reference_no = o.reference_no
+	      $other_joins
+	    WHERE $filter
+	    ORDER BY a.taxon_name asc, pubyr asc";
+	
+	$result = $dbh->selectall_arrayref($sql, { Slice => { } });
+    }
+    
+    # If no opinions were found, display the opinion search form with an error message.
+    
+    unless ( ref $result eq 'ARRAY' && @$result )
+    {
+	$q->param('errors' => '<div style="margin-bottom: 1.5em;">No opinions were found</div>');
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    # Otherwise, generate a list of the retrieved opinions.
+    
+    $page_title =~ s/,$//;
+    
+    $output = <<HEADER;
+<div align="center">
+<p class="pageTitle">$page_title</p>
+<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">
+<div align="left">
+<ul>
+HEADER
+	    
+    foreach my $row ( @$result )
+    {
+	my $opinion_no = $row->{opinion_no};
+	
+	my $o = PBDB::Opinion->new($dbt, $opinion_no);
+	
+	my $reflink = "reference_no=$o->{reference_no}";
+	
+	my ($opline, $authority) = $o->formatAsHTML($dbh);
+	
+	if ( $o->{ref_has_opinion} )
+	{
+	    $authority = " according to " . makeAnchor("displayReference", $reflink, $authority);
+	}
+	
+	else
+	{
+	    my $short_ref = formatShortRef($dbt, $o->{reference_no});
+	    
+	    $authority = " according to $authority in " . 
+		makeAnchor("displayReference", $reflink, $short_ref);
+	}
+	
+	if ( $opinion_no == $row->{current_opinion} )
+	{
+	    $opline = "<b>$opline</b>";
+	}
+	
+	if ( $reference_no && $o->{reference_no} == $reference_no && $o->{ref_has_opinion} )
+	{
+	    $authority = "";
+	}
+	
+	$output .= "<li>" . makeAnchor("displayOpinionForm", "opinion_no=$opinion_no",
+				       $opline) . $authority . "</li>\n";
+    }
+    
+    # If we are displaying opinions about a specific taxon, add a link to create a new
+    # opinion about that taxon.
+    
+    if ( $orig_no && @clauses == 1 )
+    {
+	my $params = "child_no=$orig_no&amp;child_spelling_no=$taxon_no&amp;opinion_no=-1";
+	
+        $output .= "<li>" . makeAnchor("displayOpinionForm", $params,
+				       "Create a <b>new</b> opinion record") . "</li>\n";
+    }
+    
+    # Close out the HTML elements surrounding the list.
+    
+    $output .= <<FOOTER;
+</ul>
+</div>
+</div>
+</div>
 
+FOOTER
+    
+    # Add a documentation string.
+    
+    if ( $taxon_no )
+    {
+        $output .= <<NOTE;
+<div class="verysmall" style="margin-left: 4em; text-align: left;">
+<p>An "opinion" is when an author classifies or synonymizes a taxon.<br>
+The currently favored opinion is in <b>bold</b>.<br>
+Create a new opinion if your author's name is not in the above list.<br>
+Do not edit an old opinion unless it was entered incorrectly or incompletely.
+</p></div>
+NOTE
+    }
+    
+    else
+    {
+        $output .= <<NOTE;
+<div class="tiny" style="padding-left: 8em; padding-bottom: 3em;">
+<p>An "opinion" is when an author classifies or synonymizes a taxon.<br>
+You may want to read the <a href="javascript:tipsPopup('/public/tips/taxonomy_FAQ.html')">FAQ</a>.
+</p></div>
+NOTE
+    }
+    
     return $output;
 }
 

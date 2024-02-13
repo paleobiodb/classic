@@ -10,7 +10,7 @@ use PBDB::Taxonomy qw(getTaxa getChildren);
 use PBDB::Ecology;
 use PBDB::Reference;
 use PBDB::TimeLookup;
-use PBDB::Download;
+# use PBDB::Download;
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($HTML_DIR $TAXA_TREE_CACHE);
 

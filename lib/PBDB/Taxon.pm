@@ -19,7 +19,7 @@ use PBDB::Taxonomy qw(getOriginalCombination getAllSpellings getTaxa
 		      getParents computeMatchLevel getTypeTaxonList
 		      validTaxonName splitTaxon);
 
-use PBDB::TaxaCache qw(addTaxaCacheRow);
+use PBDB::TaxaCache qw(addTaxaCacheRow updateOrig);
 
 use PBDB::Debug qw(dbg printWarnings);
 
@@ -39,7 +39,7 @@ use Exporter qw(import);
 
 our @EXPORT_OK = qw(extractCatalogNumber processSpecimenMeasurement updateChildNames
 		    updateImplicitBelongsTo addImplicitChildOpinion addSpellingAuthority
-		    formatTaxon guessTaxonRank);
+		    formatTaxon guessTaxonRank propagateAuthorityInfo);
 
 use fields qw(dbt DBrow);
 
@@ -959,11 +959,21 @@ sub submitAuthorityForm {
     if ($isNewEntry)
     {
 	($status, $resultTaxonNumber) = $dbt->insertRecord($s,'authorities', \%fields);
-	addTaxaCacheRow($dbt,$resultTaxonNumber);
 	
-	if ($parent_no)
+	if ( $resultTaxonNumber )
 	{
-	    addImplicitChildOpinion($dbt,$s,$resultTaxonNumber,$parent_no,\%fields,$pubyr);
+	    addTaxaCacheRow($dbt, $resultTaxonNumber);
+	    updateOrig($dbt, $resultTaxonNumber);
+	    
+	    if ($parent_no)
+	    {
+		addImplicitChildOpinion($dbt,$s,$resultTaxonNumber,$parent_no,\%fields,$pubyr);
+	    }
+	}
+	
+	else
+	{
+	    die "ERROR: could not create authority record for taxon $fields{taxon_name}: result=$status";
 	}
     }
     
@@ -1562,11 +1572,18 @@ sub addSpellingAuthority {
     }
 
     my ($return_code, $new_taxon_no) = $dbt->insertRecord($s,'authorities', \%record);
-    addTaxaCacheRow($dbt,$new_taxon_no);
-    dbg("create new authority record, got return code $return_code");
-    if (!$return_code) {
-        die("Unable to create new authority record for $record{taxon_name}. Please contact support");
+    if ( $new_taxon_no )
+    {
+	addTaxaCacheRow($dbt, $new_taxon_no);
+	updateOrig($dbt, $new_taxon_no);
     }
+    
+    else
+    {
+	dbg("create new authority record, got return code $return_code");
+        die("ERROR: could not create authority record for $record{taxon_name}. Please contact support");
+    }
+    
     my @set_warnings = setOccurrencesTaxonNoByTaxon($dbt,$s->get('authorizer_no'),$new_taxon_no);
     return ($new_taxon_no,\@set_warnings);
 }

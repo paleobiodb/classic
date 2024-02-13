@@ -216,6 +216,7 @@ sub getAllClassification {
 		left join authorities as a on a.taxon_no = o.child_spelling_no
 		left join refs as r on r.reference_no = o.reference_no
 	WHERE coalesce(po.orig_no, o.parent_spelling_no) not in ('$synonyms')
+	    and (o.status_old is null or o.status_old <> 'ignore')
 	    and (o.status like '%nomen%' or o.parent_no > 0)
             and o.status not in ('misspelling of','homonym of')
             and (co.orig_no=$orig_no or
@@ -301,12 +302,13 @@ sub getMostRecentSpelling {
     
     my ($sql, $spelling_no, $opinion_no, $reason);
     
-    if ( $options->{'reference_no'} )
+    if ( my $reference_no = $options->{'reference_no'} )
     {
-        $sql = "SELECT child_spelling_no FROM opinions as o join auth_orig as ao
+        $sql = "SELECT child_spelling_no FROM opinions as o left join auth_orig as ao
 			on ao.taxon_no = o.child_spelling_no
-		WHERE o.reference_no=$options->{reference_no} and o.ref_has_opinion='YES'
-		    and ao.orig_no='$orig_no'";
+		WHERE o.reference_no='$reference_no' and o.ref_has_opinion='YES'
+		    and (o.child_no='$orig_no' or ao.orig_no='$orig_no')
+		    and (o.status_old is null or o.status_old <> 'ignore')";
 	
 	($spelling_no) = $dbh->selectrow_array($sql);
     }
@@ -314,7 +316,7 @@ sub getMostRecentSpelling {
     else
     {
         $sql = "SELECT spelling_no, opinion_no FROM $TAXA_TREE_CACHE as t
-		WHERE taxon_no=$orig_no";
+		WHERE taxon_no='$orig_no'";
 	
 	($spelling_no, $opinion_no) = $dbh->selectrow_array($sql);
 	
@@ -384,7 +386,7 @@ sub isMisspelling {
     my ($dbt,$taxon_no) = @_;
     my $answer = 0;
     my $sql = "SELECT count(*) cnt FROM opinions WHERE child_spelling_no='$taxon_no'
-		AND status='misspelling of'";
+		AND status='misspelling of' and (status_old is null or status_old <> 'ignore')";
     my $row = ${$dbt->getData($sql)}[0];
     return $row->{'cnt'};
 }
@@ -459,6 +461,7 @@ sub getTaxonNos {
     return @taxon_nos;
 }
 
+
 # Now a large centralized function, PS 5/3/2006
 # @taxa_rows = getTaxa($dbt,\%options,\@fields)
 # Pass it a $dbt object first, a hashref of options, an arrayref of fields. See examples.
@@ -500,12 +503,13 @@ sub getTaxonNos {
 #     $taxon = getTaxa($dbt,'taxon_no'=>555);
 
 sub getTaxa {
-    my $dbt = shift;
-    my $options = shift;
-    my $fields = shift;
+    
+    my ($dbt, $options, $fields) = @_;
+    
     my $dbh = $dbt->dbh;
-
-    if ( $options->{'ignore_common_name'} )	{
+    
+    if ( $options->{'ignore_common_name'} )
+    {
         $options->{'common_name'} = "";
     }
 
@@ -741,8 +745,9 @@ sub getJuniorSynonyms {
     {
 	my $taxon_no = pop(@queue) || last;
 	
-	my $sql = "SELECT DISTINCT child_no
-		    FROM opinions WHERE parent_no=$taxon_no AND child_no != parent_no";
+	my $sql = "SELECT DISTINCT child_no FROM opinions
+		WHERE parent_no=$taxon_no and child_no != parent_no
+			and (status_old is null or status_old <> 'ignore')";
 	
 	my @results = @{$dbt->getData($sql)};
 	
@@ -794,6 +799,7 @@ sub getAllSpellings {
     my $list = join("','", @taxon_nos);
     
     my $sql = "SELECT DISTINCT child_spelling_no as sp FROM opinions WHERE child_no in ('$list')
+			and (status_old is null or status_old <> 'ignore')
 	       UNION SELECT DISTINCT taxon_no as sp FROM auth_orig WHERE orig_no in ('$list')
 	       UNION SELECT taxon_no as sp FROM authorities WHERE taxon_no in ('$list')";
     
@@ -1026,7 +1032,8 @@ sub getTypeTaxonList {
     
     my $sql =  "SELECT a.taxon_no, a.taxon_rank, a.taxon_name
 		FROM authorities as a join opinions as o on a.taxon_no = o.parent_no
-		WHERE child_no='$type_taxon_no' and taxon_rank != '$focal_rank'";
+		WHERE child_no='$type_taxon_no' and taxon_rank != '$focal_rank'
+			and (o.status_old is null or o.status_old <> 'ignore')";
     
     if ( @parent_nos )
     {
@@ -1638,13 +1645,15 @@ sub getClassOrderFamily	{
 		FROM $TAXA_TREE_CACHE as t
 			join opinions as o on o.child_no = t.taxon_no
 			join authorities as a on a.taxon_no = o.child_spelling_no
-		WHERE t.spelling_no in ($parent_list)
+		WHERE t.spelling_no in ($parent_list) 
+			and (o.status_old is null or o.status_old <> 'ignore')
 	    UNION SELECT taxon_rank, spelling_no as parent_no, count(*) as c
 		FROM $TAXA_TREE_CACHE as t
 			join auth_orig as ao on ao.orig_no = t.taxon_no
 			join opinions as o on o.child_spelling_no = ao.taxon_no
 			join authorities as a on a.taxon_no = o.child_spelling_no
 		WHERE t.spelling_no in ($parent_list)
+			and (o.status_old is null or o.status_old <> 'ignore')
 		GROUP BY taxon_rank, child_spelling_no";
 	
 	# my $sql = "SELECT taxon_rank,spelling_no as parent_no,count(*) c FROM
@@ -1844,7 +1853,8 @@ sub getImmediateChildren {
 	my $child_list = $synonym_no;
 	
 	$sql = "SELECT DISTINCT child_no,child_spelling_no
-		FROM opinions WHERE parent_no IN ($synonym_list)";
+		FROM opinions WHERE parent_no IN ($synonym_list)
+			and (status_old is null or status_old <> 'ignore')";
 	
 	my $child_result = $dbh->selectcol_arrayref($sql, { Columns => [1, 2] });
 	
@@ -2037,7 +2047,10 @@ sub getChildren {
         if ($return_type eq 'immediate_children') {
             my $sql = "SELECT taxon_no FROM $TAXA_TREE_CACHE WHERE synonym_no=$synonym_no";
             my $synonym_nos = join(",",-1,map {$_->{'taxon_no'}} @{$dbt->getData($sql)});
-            $sql = "SELECT DISTINCT child_no,child_spelling_no FROM opinions WHERE parent_no IN ($synonym_nos)";
+	    
+            $sql = "SELECT DISTINCT child_no, child_spelling_no FROM opinions 
+		    WHERE parent_no IN ($synonym_nos)
+			and (status_old is null or status_old <> 'ignore')";
             $child_nos = join(",",-1,map {($_->{'child_no'},$_->{'child_spelling_no'})} @{$dbt->getData($sql)});
         }
         # Ordering is very important. 
