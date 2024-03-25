@@ -1,1 +1,2 @@
 pm: *.pm ../PBData/*.pm
+local: *.pm

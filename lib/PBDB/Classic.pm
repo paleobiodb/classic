@@ -1,5 +1,8 @@
 package PBDB;
 use utf8;
+
+use lib '/data/MyApp/lib/PBData';
+
 use Dancer ':syntax';
 use Wing::Perl;
 use Ouch;
@@ -48,6 +51,7 @@ use PBDB::TypoChecker;
 use PBDB::Review;
 use PBDB::NexusfileWeb;  # slated for removal
 use PBDB::PrintHierarchy;
+use PBDB::Timescales;
 use PBDB::Strata;
 use PBDB::DownloadTaxonomy;
 use PBDB::Download;
@@ -61,8 +65,6 @@ use PBDB::Debug qw(dbg save_request log_request log_step profile_request profile
 use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LOG_REQUESTS
 		       $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO 
 		       makeAnchor);
-
-use lib '/data/MyApp/lib/PBData';
 
 use ExternalIdent;
 # use PBLogger;
@@ -1811,6 +1813,12 @@ sub displayCollResults {
             $numLeft = "the next " . $limit;
         }
         $output .= "<a href=\"$exec_url?$getString\"><b>View $numLeft matches</b></a> - ";
+	
+	my $getAll = $getString;
+	$getAll =~ s/\browOffset=\d+&?//;
+	$getAll =~ s/\blimit=\d+/limit=10000/;
+	
+	$output .= "<a href=\"$exec_url?$getAll\"><b>View all</b></a> - ";
     } 
 
 	if ( $type eq "add" )	{
@@ -3196,6 +3204,19 @@ sub basicTaxonInfo	{
 
 ## END Taxon Info Stuff
 ##############
+
+
+sub displayTimescale {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $output =  $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Timescales::displayTimescale($dbt, $hbo, $s, $q);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
+}
+
 
 # sub beginFirstAppearance	{
 # 	print $hbo->stdIncludes( $PAGE_TOP );

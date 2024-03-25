@@ -24,7 +24,7 @@ our $WRITE_URL		= '/classic';
 our $DATA_URL		= $CONFIG{DATA_URL} || '';
 our $TEST_DATA_URL	= $CONFIG{TEST_DATA_URL} || $DATA_URL;
 our $GDD_URL		= $CONFIG{GDD_URL} || '';
-our $INTERVAL_URL	= $CONFIG{INTERVAL_URL} || '/classic';
+our $INTERVAL_URL	= '/classic/displayTimescale?interval=';
 our $HTML_DIR		= $CONFIG{HTML_DIR} || $APP_DIR;
 our $DATA_DIR		= $CONFIG{DATA_DIR} || "$APP_DIR/data";
 our $WEBAPP_DIR		= $CONFIG{WEBAPP_DIR} || "$APP_DIR/resources";

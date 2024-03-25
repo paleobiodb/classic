@@ -685,9 +685,9 @@ sub doCollections{
     my $max = ($max_no) ? $interval_hash{$max_no}->{interval_name} : "";
     my $min = ($min_no) ? $interval_hash{$min_no}->{interval_name} : ""; 
     if ($max ne $min && $min) {
-        $range .= " base of the <a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$max_no\">$max</a> to the top of the <a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$min_no\">$min</a>";
+        $range .= " base of the <a href=\"$INTERVAL_URL$max_no\">$max</a> to the top of the <a href=\"$INTERVAL_URL$min_no\">$min</a>";
     } else {
-        $range .= " <a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$max_no\">$max</a>";
+        $range .= " <a href=\"$INTERVAL_URL$max_no\">$max</a>";
     }
     $range .= " <i>or</i> $lb to $ub Ma";
 
@@ -818,9 +818,9 @@ sub doCollections{
         if (!$min) {
             $min = $max;
         }
-        my $res = "<span class=\"small\"><a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$row->{max_interval_no}\">$interval_hash{$max}->{interval_name}</a>";
+        my $res = "<span class=\"small\"><a href=\"$INTERVAL_URL$row->{max_interval_no}\">$interval_hash{$max}->{interval_name}</a>";
         if ( $max != $min ) {
-            $res .= " - " . "<a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$row->{min_interval_no}\">$interval_hash{$min}->{interval_name}</a>";
+            $res .= " - " . "<a href=\"$INTERVAL_URL$row->{min_interval_no}\">$interval_hash{$min}->{interval_name}</a>";
         }
         if ( $row->{"seq_strat"} =~ /glacial/ )	{
             $res .= " <span class=\"verysmall\">($row->{'seq_strat'})</span>";

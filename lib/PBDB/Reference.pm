@@ -42,7 +42,7 @@ use fields qw(reference_no
 				author2init
 				author2last
 				otherauthors
-			
+				authorizer
                 dbt);  # list of allowable data fields.
 
 						

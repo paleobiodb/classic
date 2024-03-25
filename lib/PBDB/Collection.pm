@@ -45,17 +45,18 @@ use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCES
 # This function will die on error, so call it in an eval loop
 # PS 08/11/2005
 sub getCollections {
-	my $dbt = $_[0];
-	my $s = $_[1];
-	my $dbh = $dbt->dbh;
-	my %options = %{$_[2]};
-	my @fields = @{$_[3]};
-	
-	# Set up initial values
-	my (@where,@occ_where,@reid_where,@tables,@from,@left_joins,@groupby,@having,@errors,@warnings);
-	@tables = ("collections c");
-	# There fields must always be here
-	@from = ("c.authorizer_no","c.collection_no","c.collection_name","c.access_level","c.release_date","c.reference_no","DATE_FORMAT(release_date, '%Y%m%d') rd_short","c.research_group");
+    
+    my $dbt = $_[0];
+    my $s = $_[1];
+    my $dbh = $dbt->dbh;
+    my %options = %{$_[2]};
+    my @fields = @{$_[3]};
+    
+    # Set up initial values
+    my (@where,@occ_where,@reid_where,@tables,@from,@left_joins,@groupby,@having,@errors,@warnings);
+    @tables = ("collections c");
+    # There fields must always be here
+    @from = ("c.authorizer_no","c.collection_no","c.collection_name","c.access_level","c.release_date","c.reference_no","DATE_FORMAT(release_date, '%Y%m%d') rd_short","c.research_group");
     
     # Now add on any requested fields
     foreach my $field (@fields) {
@@ -69,12 +70,11 @@ sub getCollections {
     }
 
 
-	# 9.4.08
-	if ( $options{'field_name'} =~ /[a-z]/ && $options{'field_includes'} =~ /[A-Za-z0-9]/ )	{
-		$options{$options{'field_name'}} = $options{'field_includes'};
-	}
-
-
+    # 9.4.08
+    if ( $options{'field_name'} =~ /[a-z]/ && $options{'field_includes'} =~ /[A-Za-z0-9]/ )	{
+	$options{$options{'field_name'}} = $options{'field_includes'};
+    }
+    
     # the next two are mutually exclusive
     if ($options{'count_occurrences'} || $options{'sortby'} eq 'occurrences')	{
         push @from, "taxon_no,count(*) AS c";
@@ -265,10 +265,10 @@ sub getCollections {
         }
         push @where, " c.$COLLECTION_NO IN (".join(", ",keys(%collections)).")";
     }
-    
+	
     # Handle time terms
-	if ( $options{'max_interval'} || $options{'min_interval'} || $options{'max_interval_no'} || $options{'min_interval_no'}) {
-
+    if ( $options{'max_interval'} || $options{'min_interval'} || $options{'max_interval_no'} || $options{'min_interval_no'}) {
+	
         #These seeminly pointless four lines are necessary if this script is called from Download or whatever.
         # if the $q->param($var) is not set (undef), the parameters array passed into processLookup doesn't get
         # set properly, so make sure they can't be undef PS 04/10/2005
@@ -333,7 +333,43 @@ sub getCollections {
         # only use the interval names if there is no direct estimate
         # added ma_unit and direct_ma support (egads!) 24.1.10
         push @where , "((c.max_interval_no IN ($val) AND c.min_interval_no IN (0,$val) AND c.direct_ma IS NULL AND c.max_ma IS NULL AND c.min_ma IS NULL) OR (c.max_ma_unit='YBP' AND c.max_ma IS NOT NULL AND c.max_ma/1000000<=$lower AND c.min_ma/1000000>=$upper) OR (c.max_ma_unit='Ka' AND c.max_ma IS NOT NULL AND c.max_ma/1000<=$lower AND c.min_ma/1000>=$upper) OR (c.max_ma_unit='Ma' AND c.max_ma IS NOT NULL AND c.max_ma<=$lower AND c.min_ma>=$upper) OR (c.direct_ma_unit='YBP' AND c.direct_ma/1000000<=$lower AND c.direct_ma/1000000>=$upper) OR (c.direct_ma_unit='Ka' AND c.direct_ma/1000<=$lower AND c.direct_ma/1000>=$upper AND c.direct_ma) OR (c.direct_ma_unit='Ma' AND c.direct_ma<=$lower AND c.direct_ma>=$upper))";
+    }
+    
+    # Handle direct interval and timescale queries.
+    
+    elsif ( my $uses_no = $options{uses_interval} )
+    {
+	my $qint = $dbh->quote($uses_no);
+	
+	unless ( $uses_no =~ /^\d+$/ )
+	{
+	    ($uses_no) = $dbh->selectrow_array("SELECT interval_no FROM interval_data
+		WHERE interval_name like $qint");
+	    
+	    if ( $uses_no )
+	    {
+		$qint = $dbh->quote($uses_no);
+	    }
+	    
+	    else
+	    {
+		push @errors, "unknown interval '$options{uses_interval}'";
+	    }
 	}
+	
+	push @where, "(c.max_interval_no = $qint or c.min_interval_no = $qint or c.ma_interval_no = $qint)";
+    }
+    
+    elsif ( $options{uses_timescale} )
+    {
+	my $qts = $dbh->quote($options{uses_timescale});
+	
+	push @where, "(c.max_interval_no = sm.interval_no or c.min_interval_no = sm.interval_no or c.ma_interval_no = sm.interval_no)";
+	
+	push @where, "sm.scale_no = $qts";
+	
+	push @tables, "scale_map sm";
+    }
 
 	# Handle half/quarter degrees for long/lat respectively passed by Map.pm PS 11/23/2004
     if ( $options{"coordres"} eq "half") {
@@ -390,7 +426,7 @@ IS NULL))";
 	if ($options{'epoch'}) {
 		my $epochName = $dbh->quote($options{'epoch'});
 		push @where, "(epoch_min LIKE " . $epochName . " OR epoch_max LIKE " . $epochName . ")";
-	}
+	    }
 	
     # Handle authorizer/enterer/modifier - mostly legacy except for person
     if ($options{'person_reversed'}) {
