@@ -51,7 +51,7 @@ use PBDB::TypoChecker;
 use PBDB::Review;
 use PBDB::NexusfileWeb;  # slated for removal
 use PBDB::PrintHierarchy;
-use PBDB::Timescales;
+use PBDB::Timescales qw(collectionIntervalLabel);
 use PBDB::Strata;
 use PBDB::DownloadTaxonomy;
 use PBDB::Download;
@@ -66,6 +66,7 @@ use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LO
 		       $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO 
 		       makeAnchor);
 
+use IntervalBase;
 use ExternalIdent;
 # use PBLogger;
 
@@ -371,6 +372,14 @@ sub classic_request {
 	    $reference_name = 'ERROR';
 	}
     }
+    
+    # Make sure we have cached interval data
+    
+    unless ( IntervalBase->cache_filled )
+    {
+	IntervalBase->cache_interval_data($dbt->dbh);
+    }
+    
     
 #     if ( $q->path_info() =~ m{^/nexus/} ) {
 # 	$action = 'getNexusFile';
@@ -1640,35 +1649,42 @@ sub displayCollResults {
 
 	# Build a short descriptor of the collection's time place
 	# first part JA 7.8.03
-	my $timeplace;
+	my $timeplace = '';
+	    
+	    if ( $dataRow->{max_interval_no} )
+	    {
+		$timeplace = PBDB::Timescales::collectionIntervalLabel($dataRow->{max_interval_no},
+						     $dataRow->{min_interval_no});
+		$timeplace .= " - ";
+	    }
+	    
+            # if ($seen_interval{$dataRow->{'max_interval_no'}." ".$dataRow->{'min_interval_no'}}) {
+            #     $timeplace = $seen_interval{$dataRow->{'max_interval_no'}." ".$dataRow->{'min_interval_no'}}." - ";
+            # } elsif ( $dataRow->{'max_interval_no'} > 0 )	{
+            #     my @intervals = ();
+            #     push @intervals, $dataRow->{'max_interval_no'} if ($dataRow->{'max_interval_no'});
+            #     push @intervals, $dataRow->{'min_interval_no'} if ($dataRow->{'min_interval_no'} && $dataRow->{'min_interval_no'} != $dataRow->{'max_interval_no'});
+            #     my $max_lookup;
+            #     my $min_lookup;
+            #     if (@intervals) {
+            #         my $t = new PBDB::TimeLookup($dbt);
+            #         my $lookup = $t->lookupIntervals(\@intervals,['interval_name','ten_my_bin']);
+            #         $max_lookup = $lookup->{$dataRow->{'max_interval_no'}};
+            #         if ($dataRow->{'min_interval_no'} && $dataRow->{'min_interval_no'} != $dataRow->{'max_interval_no'}) {
+            #             $min_lookup = $lookup->{$dataRow->{'min_interval_no'}};
+            #         } 
+            #     }
+            #     $timeplace .= "<nobr>" . $max_lookup->{'interval_name'} . "</nobr>";
+            #     if ($min_lookup) {
+            #         $timeplace .= "/<nobr>" . $min_lookup->{'interval_name'} . "</nobr>"; 
+            #     }
+            #     if ($max_lookup->{'ten_my_bin'} && (!$min_lookup || $min_lookup->{'ten_my_bin'} eq $max_lookup->{'ten_my_bin'})) {
+            #         $timeplace .= " - <nobr>$max_lookup->{'ten_my_bin'}</nobr> ";
+            #     }
+            #     $timeplace .= " - ";
 
-            if ($seen_interval{$dataRow->{'max_interval_no'}." ".$dataRow->{'min_interval_no'}}) {
-                $timeplace = $seen_interval{$dataRow->{'max_interval_no'}." ".$dataRow->{'min_interval_no'}}." - ";
-            } elsif ( $dataRow->{'max_interval_no'} > 0 )	{
-                my @intervals = ();
-                push @intervals, $dataRow->{'max_interval_no'} if ($dataRow->{'max_interval_no'});
-                push @intervals, $dataRow->{'min_interval_no'} if ($dataRow->{'min_interval_no'} && $dataRow->{'min_interval_no'} != $dataRow->{'max_interval_no'});
-                my $max_lookup;
-                my $min_lookup;
-                if (@intervals) {
-                    my $t = new PBDB::TimeLookup($dbt);
-                    my $lookup = $t->lookupIntervals(\@intervals,['interval_name','ten_my_bin']);
-                    $max_lookup = $lookup->{$dataRow->{'max_interval_no'}};
-                    if ($dataRow->{'min_interval_no'} && $dataRow->{'min_interval_no'} != $dataRow->{'max_interval_no'}) {
-                        $min_lookup = $lookup->{$dataRow->{'min_interval_no'}};
-                    } 
-                }
-                $timeplace .= "<nobr>" . $max_lookup->{'interval_name'} . "</nobr>";
-                if ($min_lookup) {
-                    $timeplace .= "/<nobr>" . $min_lookup->{'interval_name'} . "</nobr>"; 
-                }
-                if ($max_lookup->{'ten_my_bin'} && (!$min_lookup || $min_lookup->{'ten_my_bin'} eq $max_lookup->{'ten_my_bin'})) {
-                    $timeplace .= " - <nobr>$max_lookup->{'ten_my_bin'}</nobr> ";
-                }
-                $timeplace .= " - ";
-            }
-
-			$timeplace =~ s/\/(Lower|Upper)//g;
+            # }
+			# $timeplace =~ s/\/(Lower|Upper)//g;
 
 			# rest of timeplace construction JA 20.8.02
 			if ( $dataRow->{"state"} && $dataRow->{"country"} eq "United States" )	{

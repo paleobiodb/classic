@@ -5,7 +5,8 @@ package PBDB::Constants;
 use base 'Exporter';
 use FindBin;
 
-our @EXPORT_OK = qw(%CONFIG $WRITE_URL $APP_DIR $DATA_URL $TEST_DATA_URL $GDD_URL $INTERVAL_URL 
+our @EXPORT_OK = qw(%CONFIG $WRITE_URL $APP_DIR $DATA_URL $TEST_DATA_URL $GDD_URL
+		    $INTERVAL_URL $RANGE_URL
 		    $HTML_DIR $DATA_DIR $WEBAPP_DIR $WEBAPP_PATH $MESSAGE_FILE
 		    $CGI_DEBUG %DEBUG_USERID $LOG_REQUESTS
 		    $MAIN_DATABASE $WING_DATABASE $TAXA_TREE_CACHE $TAXON_TREES
@@ -25,6 +26,7 @@ our $DATA_URL		= $CONFIG{DATA_URL} || '';
 our $TEST_DATA_URL	= $CONFIG{TEST_DATA_URL} || $DATA_URL;
 our $GDD_URL		= $CONFIG{GDD_URL} || '';
 our $INTERVAL_URL	= '/classic/displayTimescale?interval=';
+our $RANGE_URL		= '/classic/displayTimescale?range=';
 our $HTML_DIR		= $CONFIG{HTML_DIR} || $APP_DIR;
 our $DATA_DIR		= $CONFIG{DATA_DIR} || "$APP_DIR/data";
 our $WEBAPP_DIR		= $CONFIG{WEBAPP_DIR} || "$APP_DIR/resources";

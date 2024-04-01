@@ -1,4 +1,7 @@
-
+/*
+ *  These declarations are used for displaying timescales with /classic/displayTimescale
+ *  and /public/classic_js/timescales.js.
+ */
 
 
 .ts_heading {
@@ -15,8 +18,15 @@
     
     border: 1px solid;
     padding: 10px;
-    margin-left: 80px;
+    margin-left: 50px;
     margin-right: 30px;
+}
+
+.ts_floatbutton {
+    
+    position: static;
+    right: 30px;
+    bottom: 20px;
 }
 
 .ts_panel {
@@ -59,12 +69,31 @@
     border: 1px solid;
 }
 
+.ts_corner {
+    text-align: center;
+    border: 0px;
+}
+
 .ts_interval {
     
     text-align: center;
     padding: 10px;
     padding-bottom: 5px;
     border: 1px solid;
+}
+
+.ts_empty {
+    
+    padding: 0px;
+    border: 1px solid;
+}
+
+.ts_lintime {
+    
+    font-size: 50%;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    line-height: 0x;
 }
 
 .ts_highlight {
@@ -78,15 +107,34 @@
     padding-right: 10px;
     padding-top: 0px;
     padding-bottom: 0px;
+    line-height: 0px;
     vertical-align: top;
+    height: 20px;
 }
 
 .ts_boundlabel {
     
     position: relative;
-    bottom: 12px;
+    line-height: 0px;
+    bottom: 0px;
+}
+
+.ts_lastlabel {
+    
+    position: relative;
+    bottom: 6px;
+    line-height: 10px;
+}
+
+.ts_ovlist {
+    margin-top: 0px;
+}
+
+.ts_expand {
+    margin-left: 100px;
 }
 
 .ts_list {
     margin-left: 60px;
 }
+

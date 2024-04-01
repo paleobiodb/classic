@@ -1,10 +1,11 @@
+<!-- This template is used by /classic/displayTimescale  -->
 
 <link rel="stylesheet" href="/public/classic_css/timescales.css">
 <script src="/public/classic_js/timescales.js"></script>
 
-<div onclick="closeIntervalDetails()">
+<div onclick="closeDetails()">
 
-%%heading%%
+<h3 class="ts_heading">%%heading%%</h3>
 
 <div show="details">
   <div id="details" class="ts_details">%%details%%</div>
@@ -25,5 +26,43 @@
 
 <script language="javascript">
 %%idata%%
+    
+var time_display = 'regular';
+    
+var tsapp = new TimescaleDisplayApp ( );
+  
+function selectInterval ( )
+{
+    tsapp.selectInterval(event);
+}
+
+function closeDetails ( )
+{
+    tsapp.closeIntervalDetails(event);
+}
+
+function toggleTime ( )
+{
+    let elt = document.getElementById('ts_showtime');
+    
+    if ( time_display == 'regular' )
+    {
+	time_display = 'linear';
+	tsapp.showTime('linear');
+	elt.textContent = 'Show regular time';
+    }
+    
+    else
+    {
+	time_display = 'regular';
+	tsapp.showTime('regular');
+	elt.textContent = 'Show linear time';
+    }
+}
+    
+function showOverlapList ( )
+{
+    document.getElementById('ts_ovlist').style.display = 'block';
+}
 </script>
 

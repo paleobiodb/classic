@@ -14,7 +14,7 @@ use PBDB::EcologyEntry;
 use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
-use PBDB::Constants qw($INTERVAL_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE 
+use PBDB::Constants qw($INTERVAL_URL $RANGE_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE 
 		       makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeURL);
 
 use strict;
@@ -818,9 +818,10 @@ sub doCollections{
         if (!$min) {
             $min = $max;
         }
-        my $res = "<span class=\"small\"><a href=\"$INTERVAL_URL$row->{max_interval_no}\">$interval_hash{$max}->{interval_name}</a>";
+        my $res = "<span class=\"small\"><a href=\"$INTERVAL_URL$max\" target=\"classic2\">$interval_hash{$max}{interval_name}</a>";
         if ( $max != $min ) {
-            $res .= " - " . "<a href=\"$INTERVAL_URL$row->{min_interval_no}\">$interval_hash{$min}->{interval_name}</a>";
+	    $res = "<span class=\"small\"><a href=\"$RANGE_URL$max-$min\" target=\"classic2\">$interval_hash{$max}{interval_name} - $interval_hash{$min}{interval_name}</a>";
+            # $res .= " - " . "<a href=\"$INTERVAL_URL$row->{min_interval_no}\">$interval_hash{$min}->{interval_name}</a>";
         }
         if ( $row->{"seq_strat"} =~ /glacial/ )	{
             $res .= " <span class=\"verysmall\">($row->{'seq_strat'})</span>";
