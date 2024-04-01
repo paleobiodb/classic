@@ -8,7 +8,7 @@
 # source code, configuration file and other local content. You can build this preload
 # image locally using the command 'pbdb build classic preload'.
 
-FROM perl:5.32-threaded AS paleomacro_classic_preload
+FROM perl:5.38-threaded AS paleomacro_classic_preload
 
 ENV LANG=en_US.UTF-8
 
