@@ -393,7 +393,7 @@ sub dequeue {
     
     # print STDERR "QUEUE = $self->{queue}\n";
     
-    if ( $self->{queue} eq '' )
+    unless ( $self->{queue} )
     {
 	return ( );
     }
