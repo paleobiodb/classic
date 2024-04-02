@@ -30,7 +30,9 @@ function checkForm ( ) {
 
 <div align="center">
   <p class="pageTitle">%%page_title%%</p>
-  <p>%%error%%</p>
+  <div show="error">
+    <div class="errorMessage">%%error%%</div>
+  </div>
 </div>
 
 <div align=center>
@@ -74,8 +76,40 @@ function checkForm ( ) {
         <td style="padding-left: 1em;">Reference #: </td><td><input name=reference_no class="small" size="6"></td>
       </tr>
       <tr>
-        <td>Time interval (or age in Ma): </td><td colspan="3"><select name="eml_max_interval" class="small"><option></option><option value="Late/Upper">late</option><option value="Middle">middle</option><option value="Early/Lower">early</option></select><input name="max_interval" class="small" size="16" onKeyUp="doComplete(event, this, intervalNames(),1);">
-        to <select name="eml_min_interval" class="small"><option></option><option value="Late/Upper">late</option><option value="Middle">middle</option><option value="Early/Lower">early</option></select><input name="min_interval" class="small" size="16" onKeyUp="doComplete(event, this, intervalNames(),1);"></td>
+        <td>Time interval (or age in Ma): </td>
+	<td colspan="3">
+	  <select name="eml_max_interval" class="small">
+	    <option></option>
+	    <option value="Late">Late/Upper</option>
+	    <option value="Middle">Middle</option>
+	    <option value="Early">Early/Lower</option>
+	  </select>
+	  
+	  <input name="max_interval" class="small" size="16" onKeyUp="doComplete(event, this, intervalNames(),1);">
+          to
+	  <select name="eml_min_interval" class="small">
+	    <option></option>
+	    <option value="Late">Late/Upper</option>
+	    <option value="Middle">Middle</option>
+	    <option value="Early">Early/Lower</option>
+	  </select>
+	  
+	  <input name="min_interval" class="small" size="16" onKeyUp="doComplete(event, this, intervalNames(),1);">
+	  
+	  <select name="timerule" class="small" style="margin-left: 20px">
+	    <option value="contained">contained in</option>
+	    <option value="major">majority overlap</option>
+	    <option value="defined">definition</option>
+	  </select>
+	  
+	  <div class="mytip"><img src="/JavaScripts/img/hidden_help.png">
+	    <div class="mytiptext">With 'contained in', this search works the way
+	      it always has. With 'majority overlap', it selects collections with
+	      more than 50% of their age span lying within the specified range. With
+	      'defined', it selects collections which use the specified interval(s)
+	      in their stratographic definition.</div>
+	    </div>
+	</td>
       </tr>
       <div hide="action=displaySearchStrataResults">
         <tr>

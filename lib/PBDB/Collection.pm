@@ -31,6 +31,10 @@ use Encode;
 use PBDB::Debug;
 use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCES makeAnchor);
 
+use TableDefs qw(%TABLE);
+use CoreTableDefs;
+use IntervalBase qw(int_bounds int_defined);
+
 # This function has been generalized to use by a number of different modules
 # as a generic way of getting back collection results, including maps, collection search, confidence, and taxon_info
 # These are simple options, corresponding to database fields, that can be passed in:
@@ -267,108 +271,239 @@ sub getCollections {
     }
 	
     # Handle time terms
-    if ( $options{'max_interval'} || $options{'min_interval'} || $options{'max_interval_no'} || $options{'min_interval_no'}) {
-	
-        #These seeminly pointless four lines are necessary if this script is called from Download or whatever.
-        # if the $q->param($var) is not set (undef), the parameters array passed into processLookup doesn't get
-        # set properly, so make sure they can't be undef PS 04/10/2005
-        my $eml_max = ($options{'eml_max_interval'} || '');
-        my $max = ($options{'max_interval'} || '');
-        my $eml_min = ($options{'eml_min_interval'} || '');
-        my $min = ($options{'min_interval'} || '');
-        if ($max =~ /[a-zA-Z]/ && !PBDB::Validation::checkInterval($dbt,$eml_max,$max)) {
-            push @errors, "There is no record of $eml_max $max in the database";
-        }
-        if ($min =~ /[a-z][A-Z]/ && !PBDB::Validation::checkInterval($dbt,$eml_min,$min)) {
-            push @errors, "There is no record of $eml_min $min in the database";
-        }
-        my $t = new PBDB::TimeLookup($dbt);
- 		my ($intervals,$errors,$warnings);
-        if ($options{'max_interval_no'} =~ /^\d+$/) {
- 		    ($intervals,$errors,$warnings) = $t->getRangeByInterval('',$options{'max_interval_no'},'',$options{'min_interval_no'});
-        } else {
- 		    ($intervals,$errors,$warnings) = $t->getRange($eml_max,$max,$eml_min,$min);
-        }
-        push @errors, @$errors if ref $errors eq 'ARRAY';
-        push @warnings, @$warnings if ref $warnings eq 'ARRAY';
-        my $val = join(",",@$intervals);
-        if ( ! $val )	{
-            $val = "-1";
-            if ( $options{'max_interval'} =~ /[^0-9.]/ || $options{'min_interval'} =~ /[^0-9.]/ ) {
-                push @errors, "Please enter a valid time term or broader time range";
-            }
-            # otherwise they must have entered numerical values, so there
-            #  are no worries
-        }
-
-        # need to know the boundaries of the interval to make use of the
-        #  direct estimates JA 5.4.07
-        my ($ub,$lb) = $t->getBoundaries();
-        my $upper = 999999;
-        my $lower;
-        my %lowerbounds = %{$lb};
-        my %upperbounds = %{$ub};
-        for my $intvno ( @$intervals )  {
-            if ( $upperbounds{$intvno} < $upper )   {                                                                  
-                $upper = $upperbounds{$intvno};
-            }
-            if ( $lowerbounds{$intvno} > $lower )   {
-                $lower = $lowerbounds{$intvno};
-            }
-        }
-        # if the search terms were Ma values, you don't care what the
-        #  boundaries of what are for purposes of getting collections with
-        #  direct age estimates JA 15.5.07
-        if ( $options{'max_interval'} =~ /^[0-9.]+$/ || $options{'min_interval'} =~ /^[0-9.]+$/ )	{
-            $lower = $options{'max_interval'};
-            $upper = $options{'min_interval'};
-        }
-        # added 1600 yr fudge factor to prevent uncalibrated 14C dates from
-        #  putting Pleistocene collections in the Holocene; there is only a
-        #  tiny chance that it might mess up a numerical Holocene search
-        #  JA 24.1.10
-        $lower -= 0.0016;
-        $upper -= 0.0016;
-
-        # only use the interval names if there is no direct estimate
-        # added ma_unit and direct_ma support (egads!) 24.1.10
-        push @where , "((c.max_interval_no IN ($val) AND c.min_interval_no IN (0,$val) AND c.direct_ma IS NULL AND c.max_ma IS NULL AND c.min_ma IS NULL) OR (c.max_ma_unit='YBP' AND c.max_ma IS NOT NULL AND c.max_ma/1000000<=$lower AND c.min_ma/1000000>=$upper) OR (c.max_ma_unit='Ka' AND c.max_ma IS NOT NULL AND c.max_ma/1000<=$lower AND c.min_ma/1000>=$upper) OR (c.max_ma_unit='Ma' AND c.max_ma IS NOT NULL AND c.max_ma<=$lower AND c.min_ma>=$upper) OR (c.direct_ma_unit='YBP' AND c.direct_ma/1000000<=$lower AND c.direct_ma/1000000>=$upper) OR (c.direct_ma_unit='Ka' AND c.direct_ma/1000<=$lower AND c.direct_ma/1000>=$upper AND c.direct_ma) OR (c.direct_ma_unit='Ma' AND c.direct_ma<=$lower AND c.direct_ma>=$upper))";
-    }
-    
-    # Handle direct interval and timescale queries.
-    
-    elsif ( my $uses_no = $options{uses_interval} )
+    if ( $options{max_interval} || $options{min_interval} || 
+	 $options{max_interval_no} || $options{min_interval_no})
     {
-	my $qint = $dbh->quote($uses_no);
+	my $eml_max = $options{eml_max_interval} || '';
+        my $max = $options{max_interval} || '';
+        my $eml_min = $options{eml_min_interval} || '';
+        my $min = $options{min_interval} || '';
 	
-	unless ( $uses_no =~ /^\d+$/ )
+	my $max_name = $eml_max ? "$eml_max $max" : $max;
+	my $min_name = $eml_min ? "$eml_min $min" : $min;
+	
+        if ( $max =~ /[a-zA-Z]/ && !int_defined($max_name) )
 	{
-	    ($uses_no) = $dbh->selectrow_array("SELECT interval_no FROM interval_data
-		WHERE interval_name like $qint");
+            push @errors, "unknown interval '$max_name'";
+        }
+	
+        if ( $min =~ /[a-zA-Z]/ && !int_defined($min_name) )
+	{
+            push @errors, "unknown interval '$min_name'";
+        }
+	
+	if ( $options{timerule} && $options{timerule} eq 'major' && ! @errors )
+	{
+	    my ($max_age, $min_age, $dummy);
 	    
-	    if ( $uses_no )
+	    if ( $max =~ /[a-zA-Z]/ )
 	    {
-		$qint = $dbh->quote($uses_no);
+		($max_age, $min_age) = int_bounds($max_name);
+	    }
+	    
+	    elsif ( $max =~ /^[0-9.]+$/ )
+	    {
+		$max_age = $max;
+	    }
+	    
+	    elsif ( $options{max_interval_no} )
+	    {
+		($max_age, $min_age) = int_bounds($options{max_interval_no});
+		
+		unless ( defined $max_age )
+		{
+		    push @errors, "invalid value '$options{max_interval_no}' for 'max_interval_no'";
+		}
+	    }
+	    
+	    elsif ( $max ne '' )
+	    {
+		push @errors, "invalid interval '$max_name'";
 	    }
 	    
 	    else
 	    {
-		push @errors, "unknown interval '$options{uses_interval}'";
+		push @errors, "you must enter both a maximum and minimum interval or age";
+	    }
+	    
+	    if ( $min =~ /[a-zA-Z]/ )
+	    {
+		($dummy, $min_age) = int_bounds($min_name);
+	    }
+	      
+	    elsif ( $min =~ /^[0-9.]+$/ )
+	    {
+		$min_age = $min;
+	    }
+	    
+	    elsif ( $options{min_interval_no} )
+	    {
+		($dummy, $min_age) = int_bounds($options{min_interval_no});
+		
+		unless ( defined $min_age )
+		{
+		    push @errors, "invalid value '$options{min_interval_no}' for 'min_interval_no'";
+		}
+	    }
+	    
+	    elsif ( $min ne '' )
+	    {
+		push @errors, "invalid interval '$min_name'";
+	    }
+	    
+	    elsif ( ! defined $min_age )
+	    {
+		push @errors, "you must enter both a maximum and minimum interval or age";
+	    }
+	    
+	    unless ( defined $min_age && defined $max_age && $max_age > $min_age )
+	    {
+		push @errors, "you must enter a non-empty age range";
+	    }
+	    
+	    unless ( @errors )
+	    {
+		my $qearly = $dbh->quote($max_age);
+		my $qlate = $dbh->quote($min_age);
+		
+		push @tables, "$TABLE{COLLECTION_MATRIX} as cm";
+		push @where, "cm.collection_no = c.collection_no";
+		push @where, "cm.early_age > cm.late_age";
+		push @where, "if(cm.late_age >= $qlate, 
+		      if(cm.early_age <= $qearly, cm.early_age - cm.late_age, $qearly - cm.late_age), 
+		      if(cm.early_age > $qearly, $qearly - $qlate, cm.early_age - $qlate)) / 
+			(cm.early_age - cm.late_age) >= 0.5";
 	    }
 	}
 	
-	push @where, "(c.max_interval_no = $qint or c.min_interval_no = $qint or c.ma_interval_no = $qint)";
+	elsif ( $options{timerule} && $options{timerule} eq 'defined' && ! @errors )
+	{
+	    my ($max_no, $min_no);
+	    
+	    if ( $max =~ /^[0-9.]/ || $min =~ /^[0-9.]/ )
+	    {
+		push @errors, "you must specify an interval name, not an age";
+	    }
+	    
+	    if ( $max_name )
+	    {
+		$max_no = int_defined($max_name);
+		push @errors, "unknown interval '$max_name'" unless $max_no;
+	    }
+	    
+	    elsif ( $options{max_interval_no} )
+	    {
+		$max_no = int_defined($options{max_interval_no});
+		push @errors, "unknown value '$options{max_interval_no}' for 'max_interval_no'";
+	    }
+	    
+	    if ( $min_name )
+	    {
+		$min_no = int_defined($min_name);
+		push @errors, "unknown interval '$min_name'" unless $min_no;
+	    }
+	    
+	    elsif ( $options{min_interval_no} )
+	    {
+		$max_no = int_defined($options{min_interval_no});
+		push @errors, "unknown value '$options{min_interval_no}' for 'min_interval_no'";
+	    }		
+	    
+	    unless ( @errors )
+	    {
+		my $qmax = $dbh->quote($max_no);
+		my $qmin = $dbh->quote($min_no);
+		
+		if ( $max_no && $min_no )
+		{
+		    push @where, "c.max_interval_no = $qmax and c.min_interval_no = $qmin";
+		}
+		
+		elsif ( $min_no )
+		{
+		    push @where, "c.min_interval_no = $qmin";
+		}
+		
+		elsif ( $max_no )
+		{
+		    push @where, "(c.max_interval_no = $qmax or c.min_interval_no = $qmax or c.ma_interval_no = $qmax)";
+		}
+	    }
+	}
+	
+	elsif ( ! @errors )
+	{
+	    my $t = new PBDB::TimeLookup($dbt);
+	    my ($intervals,$errors,$warnings);
+	    
+	    if ($options{'max_interval_no'} =~ /^\d+$/)
+	    {
+		($intervals,$errors,$warnings) = $t->getRangeByInterval('',$options{'max_interval_no'},'',
+									$options{'min_interval_no'});
+	    } else {
+		($intervals,$errors,$warnings) = $t->getRange($eml_max,$max,$eml_min,$min);
+	    }
+	    
+	    push @errors, @$errors if ref $errors eq 'ARRAY';
+	    push @warnings, @$warnings if ref $warnings eq 'ARRAY';
+	    
+	    my $val = join(",",@$intervals);
+	    if ( ! $val )	{
+		$val = "-1";
+		if ( $options{'max_interval'} =~ /[^0-9.]/ || $options{'min_interval'} =~ /[^0-9.]/ ) {
+		    push @errors, "Please enter a valid time term or broader time range";
+		}
+		# otherwise they must have entered numerical values, so there
+		#  are no worries
+	    }
+	    
+	    # need to know the boundaries of the interval to make use of the
+	    #  direct estimates JA 5.4.07
+	    my ($ub,$lb) = $t->getBoundaries();
+	    my $upper = 999999;
+	    my $lower;
+	    my %lowerbounds = %{$lb};
+	    my %upperbounds = %{$ub};
+	    for my $intvno ( @$intervals )  {
+		if ( $upperbounds{$intvno} < $upper )   {                                                                  
+		    $upper = $upperbounds{$intvno};
+		}
+		if ( $lowerbounds{$intvno} > $lower )   {
+		    $lower = $lowerbounds{$intvno};
+		}
+	    }
+	    # if the search terms were Ma values, you don't care what the
+	    #  boundaries of what are for purposes of getting collections with
+	    #  direct age estimates JA 15.5.07
+	    if ( $options{'max_interval'} =~ /^[0-9.]+$/ || $options{'min_interval'} =~ /^[0-9.]+$/ )	{
+		$lower = $options{'max_interval'};
+		$upper = $options{'min_interval'};
+	    }
+	    # added 1600 yr fudge factor to prevent uncalibrated 14C dates from
+	    #  putting Pleistocene collections in the Holocene; there is only a
+	    #  tiny chance that it might mess up a numerical Holocene search
+	    #  JA 24.1.10
+	    $lower -= 0.0016;
+	    $upper -= 0.0016;
+	    
+	    # only use the interval names if there is no direct estimate
+	    # added ma_unit and direct_ma support (egads!) 24.1.10
+	    push @where , "((c.max_interval_no IN ($val) AND c.min_interval_no IN (0,$val) AND c.direct_ma IS NULL AND c.max_ma IS NULL AND c.min_ma IS NULL) OR (c.max_ma_unit='YBP' AND c.max_ma IS NOT NULL AND c.max_ma/1000000<=$lower AND c.min_ma/1000000>=$upper) OR (c.max_ma_unit='Ka' AND c.max_ma IS NOT NULL AND c.max_ma/1000<=$lower AND c.min_ma/1000>=$upper) OR (c.max_ma_unit='Ma' AND c.max_ma IS NOT NULL AND c.max_ma<=$lower AND c.min_ma>=$upper) OR (c.direct_ma_unit='YBP' AND c.direct_ma/1000000<=$lower AND c.direct_ma/1000000>=$upper) OR (c.direct_ma_unit='Ka' AND c.direct_ma/1000<=$lower AND c.direct_ma/1000>=$upper AND c.direct_ma) OR (c.direct_ma_unit='Ma' AND c.direct_ma<=$lower AND c.direct_ma>=$upper))";
+	}
     }
+    
+    # Handle the 'uses_timescale' parameter. This selects all collection whose
+    # definition includes an interval in the specified timescale.
     
     elsif ( $options{uses_timescale} )
     {
 	my $qts = $dbh->quote($options{uses_timescale});
 	
-	push @where, "(c.max_interval_no = sm.interval_no or c.min_interval_no = sm.interval_no or c.ma_interval_no = sm.interval_no)";
+	push @where, "(c.max_interval_no = id.interval_no or c.min_interval_no = id.interval_no or c.ma_interval_no = id.interval_no)";
 	
-	push @where, "sm.scale_no = $qts";
+	push @where, "id.scale_no = $qts";
 	
-	push @tables, "scale_map sm";
+	push @tables, "$TABLE{INTERVAL_DATA} as id";
     }
 
 	# Handle half/quarter degrees for long/lat respectively passed by Map.pm PS 11/23/2004
@@ -769,31 +904,36 @@ IS NULL))";
 
     # Print out an errors that may have happened.
     # htmlError print header/footer and quits as well
-    if (!scalar(@where)) {
+    if (!scalar(@where) && !@errors) {
         push @errors, "No search terms were entered";
     }
     
-	if (@errors) {
-		my $message = "<div align=\"center\">".PBDB::Debug::printErrors(\@errors)."<br>";
-		if ( $options{"calling_script"} eq "displayCollResults" )	{
-			return;
-		} elsif ( $options{"calling_script"} eq "Review" )	{
-			return;
-		} elsif ( $options{"calling_script"} eq "Map" )	{
-			$message .= makeAnchor("mapForm", "<b>Try again</b>");
-		} elsif ( $options{"calling_script"} eq "Confidence" )	{
-			$message .= makeAnchor("displaySearchSectionForm", "<b>Try again</b>");
-		} elsif ( $options{"type"} eq "add" )	{
-			$message .= makeAnchor("displaySearchCollsForAdd", "type=add", "<b>Try again</b>");
-		} else	{
-			$message .= makeAnchor("displaySearchColls", "type=$options{type}", "<b>Try again</b>");
-		}
-		$message .= "</div><br>";
-		PBDB::displayCollectionForm($message);
-		return;
-		die($message);
-	}
-
+    # if (@errors) {
+    # 	my $message = "<div align=\"center\">".PBDB::Debug::printErrors(\@errors)."<br>";
+    # 	if ( $options{"calling_script"} eq "displayCollResults" )	{
+    # 	    # return;
+    # 	} elsif ( $options{"calling_script"} eq "Review" )	{
+    # 	    return;
+    # 	} elsif ( $options{"calling_script"} eq "Map" )	{
+    # 	    $message .= makeAnchor("mapForm", "<b>Try again</b>");
+    # 	} elsif ( $options{"calling_script"} eq "Confidence" )	{
+    # 	    $message .= makeAnchor("displaySearchSectionForm", "<b>Try again</b>");
+    # 	} elsif ( $options{"type"} eq "add" )	{
+    # 	    $message .= makeAnchor("displaySearchCollsForAdd", "type=add", "<b>Try again</b>");
+    # 	} else	{
+    # 	    $message .= makeAnchor("displaySearchColls", "type=$options{type}", "<b>Try again</b>");
+    # 	}
+    # 	$message .= "</div><br>";
+    # 	PBDB::displayCollectionForm($message);
+    # 	return;
+    # 	die($message);
+    # }
+    
+    if ( @errors )
+    {
+	return ([], 0, \@errors);
+    }
+    
     if ($options{'count_occurrences'})	{
         push @groupby,"taxon_no";
     # Cover all our bases
@@ -871,9 +1011,9 @@ IS NULL))";
         }
     }
     if ($options{'count_occurrences'})	{
-        return (\@dataRows,$totalRows,\@warnings,\@results);
+        return (\@dataRows,$totalRows,\@errors,\@results);
     } else	{
-        return (\@dataRows,$totalRows,\@warnings);
+        return (\@dataRows,$totalRows,\@errors);
     }
 }
 

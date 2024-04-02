@@ -1369,45 +1369,76 @@ sub displaySearchColls {
     
     my ($q, $s, $dbt, $hbo, $error) = @_;
     
-    # my $error = shift;
-	# Get the type, passed or on queue
-	my $type = $q->param("type");
-	if ( ! $type ) {
-		# QUEUE
-		my %queue = $s->dequeue();
-		$type = $queue{type} || 'view';
-	}
-
-	# Have to have a reference #, unless we are just searching
-	my $reference_no = $s->get("reference_no");
-	if ( ! $reference_no && $type !~ /^(?:basic|analyze_abundance|view|edit|reclassify_occurrence|count_occurrences|most_common)$/) {
-	    # Come back here... requeue our option
-	    $s->enqueue_action("displaySearchColls", "type=$type");
-	    $q->param('type' => 'select');
-	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-	}
-
-	# Show the "search collections" form
-	my %vars = ();
-	$vars{'enterer_me'} = $s->get('enterer_reversed');
-	$vars{'action'} = "displayCollResults";
-	$vars{'type'} = $type;
-	$vars{'error'} = $error;
-
-	$vars{'links'} = qq|
+    # Get the type, passed or on queue
+    
+    my $type = $q->param("type");
+    
+    unless ( $type )
+    {
+	my %queue = $s->dequeue();
+	$type = $queue{type} || 'view';
+    }
+    
+    # Have to have a reference #, unless we are just searching
+    
+    my $reference_no = $s->get("reference_no");
+    
+    if ( ! $reference_no && $type !~ /^(?:basic|analyze_abundance|view|edit|reclassify_occurrence|count_occurrences|most_common)$/)
+    {
+	# Come back here... requeue our option
+	$s->enqueue_action("displaySearchColls", "type=$type");
+	$q->param('type' => 'select');
+	return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
+    }
+    
+    # Show the "search collections" form
+    
+    my %vars = ();
+    $vars{'enterer_me'} = $s->get('enterer_reversed');
+    $vars{'action'} = "displayCollResults";
+    $vars{'type'} = $type;
+    $vars{'error'} = $error;
+    
+    $vars{'links'} = qq|
 <p><span class="mockLink" onClick="javascript: document.collForm.submit();"><b>Search collections</b></span>
 |;
 
-	if ( $type eq "view" || ! $type )	{
-		$vars{'links'} = qq|
+    if ( $type eq "view" || ! $type )	{
+	$vars{'links'} = qq|
 <p><span class="mockLink" onClick="document.collForm.basic.value = 'yes'; document.collForm.submit();"><b>Search for basic info</b></span> -
 <span class="mockLink" onClick="document.collForm.basic.value = ''; document.collForm.submit();"><b>Search for full details</b></span></p>
 |;
-	} elsif ($type eq 'occurrence_table') {
-		$vars{'reference_no'} = $reference_no;
-		$vars{'limit'} = 20;
+    }
+    
+    elsif ($type eq 'occurrence_table')
+    {
+	$vars{'reference_no'} = $reference_no;
+	$vars{'limit'} = 20;
+    }
+    
+   # If there are errors, put them together into an HTML list.
+    
+    my $error_content;
+    
+    if ( ref $error eq 'ARRAY' )
+    {
+	my $error_content = "<ul>\n";
+	
+	foreach my $msg ( @$error )
+	{
+	    $error_content .= "<li>$msg</li>\n";
 	}
-
+	
+	$error_content .= "</ul>\n";
+	
+	$vars{error} = $error_content;
+    }
+    
+    elsif ( $error )
+    {
+	$vars{error} = "<ul><li>$error</li></ul>\n";
+    }
+    
     # Spit out the HTML
 
     my $output = $hbo->stdIncludes($PAGE_TOP);
@@ -1443,186 +1474,259 @@ sub displayCollResults {
     
     # dataRows might be passed in by basicCollectionSearch
     # my $dataRows = shift;
-	my $ofRows;
-	if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
-	    $ofRows = scalar(@$dataRows);
-	}
-
-	# return if PBDB::PBDBUtil::checkForBot();
     
-	# if ( ! $s->get('enterer') && $q->param('type') eq "reclassify_occurrence" )    {
-	# 	$output .= $hbo->stdIncludes( $PAGE_TOP );
-	# 	$output .= "<center>\n<p class=\"pageTitle\">Sorry!</p>\n";
-        # $output .= "<p>You can't reclassify occurrences unless you <a href=\"https://paleobiodb.org/account\">login</a> first.</p>\n</center>\n";
-	# 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
-	# 	return;
-	# }
+    my $ofRows;
+    if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
+	$ofRows = scalar(@$dataRows);
+    }
     
-	logRequest($s,$q);
-
-	my $limit = $q->param('limit') || 30 ;
-	my $rowOffset = $q->param('rowOffset') || 0;
-
-	# limit passed to permissions module
-	my $perm_limit;
-
-	# effectively don't limit the number of collections put into the
-	#  initial set to examine when adding a new one
-	if ( $q->param('type') eq "add" )	{
-#		$perm_limit = 1000000;
-		$perm_limit = $limit + $rowOffset;
-	} else {
-		if ($q->param("type") =~ /occurrence_table|occurrence_list|count_occurrences|most_common/ ||
+    # return if PBDB::PBDBUtil::checkForBot();
+    
+    # if ( ! $s->get('enterer') && $q->param('type') eq "reclassify_occurrence" )    {
+    # 	$output .= $hbo->stdIncludes( $PAGE_TOP );
+    # 	$output .= "<center>\n<p class=\"pageTitle\">Sorry!</p>\n";
+    # $output .= "<p>You can't reclassify occurrences unless you <a href=\"https://paleobiodb.org/account\">login</a> first.</p>\n</center>\n";
+    # 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    # 	return;
+    # }
+    
+    logRequest($s,$q);
+    
+    my $limit = $q->param('limit') || 30 ;
+    my $rowOffset = $q->param('rowOffset') || 0;
+    
+    # limit passed to permissions module
+    my $perm_limit;
+    
+    # effectively don't limit the number of collections put into the
+    #  initial set to examine when adding a new one
+    
+    if ( $q->param('type') eq "add" )
+    {
+	#		$perm_limit = 1000000;
+	$perm_limit = $limit + $rowOffset;
+    } 
+    
+    else
+    {
+	if ($q->param("type") =~ /occurrence_table|occurrence_list|count_occurrences|most_common/ ||
             $q->param('taxon_name') && ($q->param('type') eq "reid" ||
                                         $q->param('type') eq "reclassify_occurrence")) {
             # We're passing the collection_nos directly to the functions, so pass all of them                                            
-			$perm_limit = 1000000000;
-		} else {
-			$perm_limit = $limit + $rowOffset;
-		}
-	}
-    
-	my $type;
-	if ( $q->param('type') ) {
-		$type = $q->param('type');			# It might have been passed (ReID)
+	    $perm_limit = 1000000000;
 	} else {
-		# QUEUE
-		my %queue = $s->dequeue();		# Most of 'em are queued
-		$type = $queue{type};
-		if ( ! $type )	{
-			$type = "view";
-		}
+	    $perm_limit = $limit + $rowOffset;
 	}
-
+    }
+    
+    my $type = $q->param('type');
+    
+    $type = 'view' if $q->param('view');
+    
+    unless ( $type )
+    {
+	my %queue = $s->dequeue();		# Most of 'em are queued
+	$type = $queue{type} || 'view';
+    }
+    
     my $exec_url = ($type =~ /view/) ? "" : $WRITE_URL;
-
-    my $action =  
-          ($type eq "add") ? "displayCollectionDetails"
-        : ($type eq "edit") ? "displayCollectionForm"
-        : ($type eq "view") ? "displayCollectionDetails"
-        : ($type eq "edit_occurrence") ? "displayOccurrenceAddEdit"
-        : ($type eq "occurrence_list") ? "displayOccurrenceListForm"
-#        : ($type eq "analyze_abundance") ? "rarefyAbundances"
-        : ($type eq "reid") ? "displayOccsForReID"
-        : ($type eq "reclassify_occurrence") ?  "startDisplayOccurrenceReclassify"
-        : ($type eq "most_common") ? "displayMostCommonTaxa"
-        : "displayCollectionDetails";
+    
+    my $action = ($type eq "add") ? "displayCollectionDetails"
+	       : ($type eq "edit") ? "displayCollectionForm"
+	       : ($type eq "view") ? "displayCollectionDetails"
+	       : ($type eq "edit_occurrence") ? "displayOccurrenceAddEdit"
+	       : ($type eq "occurrence_list") ? "displayOccurrenceListForm"
+#              : ($type eq "analyze_abundance") ? "rarefyAbundances"
+	       : ($type eq "reid") ? "displayOccsForReID"
+	       : ($type eq "reclassify_occurrence") ?  "startDisplayOccurrenceReclassify"
+	       : ($type eq "most_common") ? "displayMostCommonTaxa"
+	       : "displayCollectionDetails";
 
 	# GET COLLECTIONS
 	# Build the SQL
 	# which function to use depends on whether the user is adding a collection
-	my $sql;
+    my $sql;
     
-	my ($warnings,$occRows) = ([],[]);
-
-	if ( $q->param('type') eq "add" )	{
-		# you won't have an in list if you are adding
-		($dataRows,$ofRows) = processCollectionsSearchForAdd($q, $s, $dbt, $hbo);
-	} elsif ( ! $dataRows )	{
-		my %options = $q->Vars();
-		my $fields = ["authorizer","country", "state", "max_interval_no", "min_interval_no","collection_aka","collectors","collection_dates"];
-		if ($q->param('output_format') eq 'xml') {
-			push @$fields, "latdeg","latmin","latsec","latdir","latdec","lngdeg","lngmin","lngsec","lngdir","lngdec";
-		}
-		if ($type eq "reclassify_occurrence" || $type eq "reid") {
-	# Want to not get taxon_nos when reclassifying. Otherwise, if the taxon_no is set to zero, how will you find it?
-			$options{'no_authority_lookup'} = 1;
-			$options{'match_subgenera'} = 1;
-		}
-		$options{'limit'} = $perm_limit;
+    my ($errors,$warnings,$occRows) = ([],[],[]);
+    
+    if ( $q->param('type') eq "add" )
+    {
+	# you won't have an in list if you are adding
+	($dataRows,$ofRows) = processCollectionsSearchForAdd($q, $s, $dbt, $hbo);
+    } 
+    
+    elsif ( ! $dataRows )
+    {
+	my %options = $q->Vars();
+	
+	my $fields = ["authorizer", "country", "state", "max_interval_no", "min_interval_no",
+		      "collection_aka","collectors","collection_dates"];
+	
+	if ($type eq "reclassify_occurrence" || $type eq "reid")
+	{
+	    # Want to not get taxon_nos when reclassifying. Otherwise, if the
+	    # taxon_no is set to zero, how will you find it?
+	    $options{'no_authority_lookup'} = 1;
+	    $options{'match_subgenera'} = 1;
+	}
+	
+	$options{'limit'} = $perm_limit;
+	
 	# Do a looser match against old ids as well
-		$options{'include_old_ids'} = 1;
-	# Even if we have a match in the authorities table, still match against the bare occurrences/reids  table
-		$options{'include_occurrences'} = 1;
-		if ($q->param("taxon_list")) {
-			my @in_list = split(/,/,$q->param('taxon_list'));
-			$options{'taxon_list'} = \@in_list if (@in_list);
-		}
-		if ($type eq "count_occurrences")	{
-			$options{'count_occurrences'} = 1;
-		}
-		if ($type eq "most_common")	{
-			$options{'include_old_ids'} = 0;
-		}
-
-		$options{'calling_script'} = "displayCollResults";
-		($dataRows,$ofRows,$warnings,$occRows) = PBDB::CollectionEntry::getCollections($dbt,$s,\%options,$fields);
+	
+	$options{'include_old_ids'} = 1;
+	
+	# Even if we have a match in the authorities table, still match against
+	# the bare occurrences/reids  table
+	
+	$options{'include_occurrences'} = 1;
+	
+	if ($q->param("taxon_list"))
+	{
+	    my @in_list = split(/,/,$q->param('taxon_list'));
+	    $options{'taxon_list'} = \@in_list if (@in_list);
 	}
-
-	# DISPLAY MATCHING COLLECTIONS
-	my @dataRows;
-	if ( $dataRows && ref $dataRows eq 'ARRAY' )	{
-		@dataRows = @$dataRows;
+	
+	if ($type eq "count_occurrences")
+	{
+	    $options{'count_occurrences'} = 1;
 	}
-	my $displayRows = scalar(@dataRows);	# get number of rows to display
-
-	if ( $type eq 'occurrence_table' && @dataRows) {
-	    my @colls = map {$_->{$COLLECTION_NO}} @dataRows;
-	    return displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
-	} elsif ( $type eq 'count_occurrences' && @dataRows) {
-	    return PBDB::Collection::countOccurrences($dbt,$hbo,\@dataRows,$occRows);
-	} elsif ( $type eq 'most_common' && @dataRows) {
-	    return displayMostCommonTaxa(\@dataRows);
-	} elsif ( $displayRows > 1  || ($displayRows == 1 && $type eq "add")) {
-		# go right to the chase with ReIDs if a taxon_rank was specified
-		if ($q->param('taxon_name') && ($q->param('type') eq "reid" ||
-                                        $q->param('type') eq "reclassify_occurrence")) {
-			# get all collection #'s and call displayOccsForReID
-			my @colls;
-			foreach my $row (@dataRows) {
-				push(@colls , $row->{$COLLECTION_NO});
-			}
-			if ($q->param('type') eq 'reid')	{
-			    return displayOccsForReID($q, $s, $dbt, $hbo, \@colls);
-			} else	{
-			    return startDisplayOccurrenceReclassify($q,$s,$dbt,$hbo,\@colls);
-			}
-		    }
-
-		$output .= $hbo->stdIncludes( $PAGE_TOP );
+	
+	if ($type eq "most_common")
+	{
+	    $options{'include_old_ids'} = 0;
+	}
+	
+	if ( $options{view} =~ /standard/ )
+	{
+	    $options{sortby} ||= 'collection_no';
+	    $options{limit} ||= 30;
+	}
+	
+	$options{'calling_script'} = "displayCollResults";
+	
+	($dataRows,$ofRows,$errors,$occRows) = 
+	    PBDB::Collection::getCollections($dbt, $s, \%options, $fields);
+	
+	if ( ref $errors eq 'ARRAY' && @$errors )
+	{
+	    return displaySearchColls($q, $s, $dbt, $hbo, $errors);
+	}
+    }
+    
+    # DISPLAY MATCHING COLLECTIONS
+    my @dataRows;
+    
+    if ( $dataRows && ref $dataRows eq 'ARRAY' )
+    {
+	@dataRows = @$dataRows;
+    }
+    
+    my $displayRows = scalar(@dataRows);	# get number of rows to display
+    
+    if ( $type eq 'occurrence_table' && @dataRows)
+    {
+	my @colls = map {$_->{$COLLECTION_NO}} @dataRows;
+	return displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
+    }
+    
+    elsif ( $type eq 'count_occurrences' && @dataRows)
+    {
+	return PBDB::Collection::countOccurrences($dbt,$hbo,\@dataRows,$occRows);
+    }
+    
+    elsif ( $type eq 'most_common' && @dataRows)
+    {
+	return displayMostCommonTaxa(\@dataRows);
+    }
+    
+    elsif ( $displayRows > 1  || ($displayRows == 1 && $type eq "add"))
+    {
+	# go right to the chase with ReIDs if a taxon_rank was specified
+	if ($q->param('taxon_name') && ($q->param('type') eq "reid" ||
+                                        $q->param('type') eq "reclassify_occurrence"))
+	{
+	    # get all collection #'s and call displayOccsForReID
+	    my @colls;
+	    
+	    foreach my $row (@dataRows)
+	    {
+		push(@colls , $row->{$COLLECTION_NO});
+	    }
+	    
+	    if ($q->param('type') eq 'reid')
+	    {
+		return displayOccsForReID($q, $s, $dbt, $hbo, \@colls);
+	    }
+	    
+	    else
+	    {
+		return startDisplayOccurrenceReclassify($q,$s,$dbt,$hbo,\@colls);
+	    }
+	}
+	
+	$output .= $hbo->stdIncludes( $PAGE_TOP );
+	
+	# Display header link that says which collections we're currently viewing
+	if (@$warnings) {
+	    $output .= "<div align=\"center\">".PBDB::Debug::printWarnings($warnings)."</div>";
+	}
+	
+	$output .= "<center>";
+	
+	if ($ofRows > 1)
+	{
+	    $output .= "<p class=\"pageTitle\">There are $ofRows matches\n";
+	    
+	    if ($ofRows > $limit)
+	    {
+		$output .= " - here are";
 		
-		# Display header link that says which collections we're currently viewing
-		if (@$warnings) {
-		    $output .= "<div align=\"center\">".PBDB::Debug::printWarnings($warnings)."</div>";
+		if ($rowOffset > 0)
+		{
+		    $output .= " rows ".($rowOffset+1)." to ";
+		    my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
+		    $output .= $printRows;
 		}
 		
-		$output .= "<center>";
-		if ($ofRows > 1) {
-		    $output .= "<p class=\"pageTitle\">There are $ofRows matches\n";
-		    if ($ofRows > $limit) {
-			$output .= " - here are";
-			if ($rowOffset > 0) {
-			    $output .= " rows ".($rowOffset+1)." to ";
-			    my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-			    $output .= $printRows;
-			} else {
-			    $output .= " the first ";
-			    my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
-			    $output .= $printRows;
-			    $output .= " rows";
-			}
-		    }
-		    $output .= "</p>\n";
-		} elsif ( $ofRows == 1 ) {
-		    $output .= "<p class=\"pageTitle\">There is exactly one match</p>\n";
-		} else	{
-		    $output .= "<p class=\"pageTitle\">There are no matches</p>\n";
+		else
+		{
+		    $output .= " the first ";
+		    my $printRows = ($ofRows < $rowOffset + $limit) ? $ofRows : $rowOffset + $limit;
+		    $output .= $printRows;
+		    $output .= " rows";
 		}
-		$output .= "</center>\n";
-		
-		$output .= qq|<div class="displayPanel" style="margin-left: auto; margin-right: auto; padding: 0.5em; padding-left: 1em;">
+	    }
+	    
+	    $output .= "</p>\n";
+	}
+	
+	elsif ( $ofRows == 1 )
+	{
+	    $output .= "<p class=\"pageTitle\">There is exactly one match</p>\n";
+	}
+	
+	else
+	{
+	    $output .= "<p class=\"pageTitle\">There are no matches</p>\n";
+	}
+	
+	$output .= "</center>\n";
+	
+	$output .= qq|<div class="displayPanel" style="margin-left: auto; margin-right: auto; padding: 0.5em; padding-left: 1em;">
 	<table class="small" border="0" cellpadding="4" cellspacing="0">|;
 
-		# print columns header
-		$output .= qq|<tr>
+	# print columns header
+	$output .= qq|<tr>
 <th>Collection</th>
 <th align=left>Authorizer</th>
 <th align=left nowrap>Collection name</th>
 <th align=left>Reference</th>
 |;
-		$output .= "<th align=left>Distance</th>\n" if ($type eq 'add');
-		$output .= "</tr>\n\n";
-		
+	
+	$output .= "<th align=left>Distance</th>\n" if ($type eq 'add');
+	$output .= "</tr>\n\n";
+	
         # Make non-editable links not highlighted  
         my ($p,%is_modifier_for); 
         if ($type eq 'edit') { 
@@ -1630,26 +1734,36 @@ sub displayCollResults {
             %is_modifier_for = %{$p->getModifierList()};
         }
 
-		# Loop through each data row of the result set
+	# Loop through each data row of the result set
         my %seen_ref;
         my %seen_interval;
-        for(my $count=$rowOffset;$count<scalar(@dataRows) && $count < $rowOffset+$limit;$count++) {
+        
+	for(my $count=$rowOffset;$count<scalar(@dataRows) && $count < $rowOffset+$limit;$count++)
+	{
             my $dataRow = $dataRows[$count];
-			# Get the reference_no of the row
+	    
+	    # Get the reference_no of the row
+	    
             my $reference;
-            if ($seen_ref{$dataRow->{'reference_no'}}) {
+	    
+            if ($seen_ref{$dataRow->{'reference_no'}})
+	    {
                 $reference = $seen_ref{$dataRow->{'reference_no'}};
-            } else {
+            }
+	    
+	    else
+	    {
                 my $sql = "SELECT reference_no,author1last,author2last,otherauthors,pubyr FROM refs WHERE reference_no=".$dataRow->{'reference_no'};
                 my $ref = ${$dbt->getData($sql)}[0];
                 # Build the reference string
                 $reference = PBDB::Reference::formatShortRef($ref,'alt_pubyr'=>1, 'link_id'=>1);
                 $seen_ref{$dataRow->{'reference_no'}} = $reference;
             }
-
-	# Build a short descriptor of the collection's time place
-	# first part JA 7.8.03
-	my $timeplace = '';
+	    
+	    # Build a short descriptor of the collection's time place
+	    # first part JA 7.8.03
+	    
+	    my $timeplace = '';
 	    
 	    if ( $dataRow->{max_interval_no} )
 	    {
@@ -1686,69 +1800,96 @@ sub displayCollResults {
             # }
 			# $timeplace =~ s/\/(Lower|Upper)//g;
 
-			# rest of timeplace construction JA 20.8.02
-			if ( $dataRow->{"state"} && $dataRow->{"country"} eq "United States" )	{
-				$timeplace .= $dataRow->{"state"};
-			} else	{
-				$timeplace .= $dataRow->{"country"};
-			}
-
-			# should it be a dark row, or a light row?  Alternate them...
- 			if ( $count % 2 == 0 ) {
-				$output .= "<tr class=\"darkList\">";
- 			} else {
-				$output .= "<tr>";
-			}
-
-
-            if ($type ne 'edit' || 
-                $type eq 'edit' && ($s->get("superuser") ||
-                                   ($s->get('authorizer_no') && $s->get("authorizer_no") == $dataRow->{'authorizer_no'}) ||
-                                    $is_modifier_for{$dataRow->{'authorizer_no'}})) {
+	    # rest of timeplace construction JA 20.8.02
+	    if ( $dataRow->{"state"} && $dataRow->{"country"} eq "United States" )	{
+		$timeplace .= $dataRow->{"state"};
+	    } else	{
+		$timeplace .= $dataRow->{"country"};
+	    }
+	    
+	    # should it be a dark row, or a light row?  Alternate them...
+	    if ( $count % 2 == 0 ) {
+		$output .= "<tr class=\"darkList\">";
+	    } else {
+		$output .= "<tr>";
+	    }
+	    
+            if ( $type ne 'edit' || 
+		 $type eq 'edit' && ($s->get("superuser") ||
+				     ($s->get('authorizer_no') && 
+				      $s->get("authorizer_no") == $dataRow->{'authorizer_no'}) ||
+				     $is_modifier_for{$dataRow->{'authorizer_no'}}) )
+	    {
                 # This needs re-coding to make the html anchor work - jpjenk
-                if ( $q->param('basic') =~ /yes/i && $type eq "view" )	{
+                if ( $q->param('basic') =~ /yes/i && $type eq "view" || $q->param('view') =~ /standard/ )
+		{
                     $output .= "<td align=center valign=top><a href=\"$exec_url?a=basicCollectionSearch&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
-                } else	{
+                }
+		
+		else
+		{
                     $output .= "<td align=center valign=top><a href=\"$exec_url?a=$action&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
                 }
-
+		
                 # for collection edit:
-                if($q->param('use_primary')){
+		
+                if ( $q->param('use_primary') )
+		{
                     $output .= "&use_primary=yes";
                 }
                 
                 # These may be useful to displayOccsForReID
-                if($q->param('genus_name')){
+		
+                if ( $q->param('genus_name') )
+		{
                     $output .= "&genus_name=".$q->param('genus_name');
                 }
                 
-                if($q->param('species_name')){
+                if( $q->param('species_name') )
+		{
                     $output .= "&species_name=".$q->param('species_name');
                 }
-                if ($q->param('occurrences_authorizer_no')) {
+		
+                if ( $q->param('occurrences_authorizer_no') )
+		{
                     $output .= "&occurrences_authorizer_no=".$q->numeric_param('occurrences_authorizer_no');
                 }
-                $output .= "\">$dataRow->{$COLLECTION_NO}</a></td>";
-            } else {	
+                
+		$output .= "\">$dataRow->{$COLLECTION_NO}</a></td>";
+		
+            }
+	    
+	    else
+	    {	
                 # Don't link it if if we're in edit mode and we don't have permission
                 $output .= "<td align=center valign=top>$dataRow->{$COLLECTION_NO}</td>";
             }
-
-
+	    
             my $collection_names = $dataRow->{'collection_name'};
-            if ($dataRow->{'collection_aka'} || $dataRow->{'collectors'} ||$dataRow->{'collection_dates'}) {
+	    
+            if ( $dataRow->{'collection_aka'} || $dataRow->{'collectors'} || 
+		 $dataRow->{'collection_dates'} )
+	    {
                 $collection_names .= " (";
             }
-            if ($dataRow->{'collection_aka'}) {
+	    
+            if ( $dataRow->{'collection_aka'} )
+	    {
                 $collection_names .= "= $dataRow->{collection_aka}";
-                if ($dataRow->{'collectors'} ||$dataRow->{'collection_dates'}) {
+		
+                if ( $dataRow->{'collectors'} || $dataRow->{'collection_dates'} )
+		{
                     $collection_names .= " / ";
                 }
             }
-            if ($dataRow->{'collectors'} ||$dataRow->{'collection_dates'}) {
+	    
+            if ( $dataRow->{'collectors'} || $dataRow->{'collection_dates'} )
+	    {
                 $collection_names .= "coll.";
             }
-            if ($dataRow->{'collectors'}) {
+            
+	    if ( $dataRow->{'collectors'} )
+	    {
                 my $collectors = " ";
                 $collectors .= $dataRow->{'collectors'};
                 $collectors =~ s/ \(.*\)//g;
@@ -1758,7 +1899,9 @@ sub displayCollResults {
                 $collectors =~ s/\.//g;
                 $collection_names .= $collectors;
             }
-            if ($dataRow->{'collection_dates'}) {
+	    
+            if ( $dataRow->{'collection_dates'} )
+	    {
                 my $years = " ";
                 $years .= $dataRow->{'collection_dates'};
                 $years =~ s/[A-Za-z\.]//g;
@@ -1766,41 +1909,65 @@ sub displayCollResults {
                 $years =~ s/^( |),//;
                 $collection_names .= $years;
             }
-            if ($dataRow->{'collection_aka'} || $dataRow->{'collectors'} ||$dataRow->{'collection_dates'}) {
+	    
+            if ( $dataRow->{'collection_aka'} || $dataRow->{'collectors'} ||
+		 $dataRow->{'collection_dates'} )
+	    {
                 $collection_names .= ")";
             }
-
-            if ($dataRow->{'old_id'}) {
+	    
+            if ( $dataRow->{'old_id'} )
+	    {
                 $timeplace .= " - old id";
             }
+	    
             $output .= "<td valign=top nowrap>$dataRow->{authorizer}</td>\n";
             $output .= qq|<td valign="top" style="padding-left: 0.5em; text-indent: -0.5em;"><span style="padding-right: 1em;">${collection_names}</span> <span class="tiny"><i>${timeplace}</i></span></td>
 |;
             $output .= "<td valign=top nowrap>$reference</td>\n";
             $output .= "<td valign=top align=center>".int($dataRow->{distance})." km </td>\n" if ($type eq 'add');
             $output .= "</tr>";
-            }
-            $output .= "</table>\n</div>\n";
-    } elsif ( $displayRows == 1 ) { # if only one row to display...
-		$q->param($COLLECTION_NO=>$dataRows[0]->{$COLLECTION_NO});
-                if ( $q->param('basic') =~ /yes/i && $type eq "view" )	{
-		    my $output = $hbo->stdIncludes($PAGE_TOP);
-		    $output .= PBDB::Collection::basicCollectionInfo($dbt,$q,$s,$hbo);
-		    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-		    return $output;
-		}
-		# Do the action directly if there is only one row
-		return execAction($q, $s, $dbt, $hbo, $action);
-    } else {
-		# If this is an add,  Otherwise give an error
-		if ( $type eq "add" ) {
-		    return displayCollectionForm($q, $s, $dbt, $hbo);
-		} else {
-		    my $error = "<center>\n<p style=\"margin-top: -1em;\">Your search produced no matches: please try again</p>";
-		    return displaySearchColls($q, $s, $dbt, $hbo, $error);
-		}
+	}
+	
+	$output .= "</table>\n</div>\n";
     }
-
+    
+    # if only one row to display...
+    
+    elsif ( $displayRows == 1 )
+    { 
+	$q->param($COLLECTION_NO=>$dataRows[0]->{$COLLECTION_NO});
+	
+	if ( $q->param('basic') =~ /yes/i && $type eq "view" || $q->param('view') =~ /standard/ )
+	{
+	    my $output = $hbo->stdIncludes($PAGE_TOP);
+	    $output .= PBDB::Collection::basicCollectionInfo($dbt,$q,$s,$hbo);
+	    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	    return $output;
+	}
+	
+	# Do the action directly if there is only one row
+	
+	return execAction($q, $s, $dbt, $hbo, $action);
+	
+    }
+    
+    # If this is an add, and there are no matching results, display the
+    # collection form.
+    
+    elsif ( $type eq "add" )
+    {
+	return displayCollectionForm($q, $s, $dbt, $hbo);
+    }
+    
+    # Otherwise, there are no results, so display the search form again.
+    
+    else
+    {
+	my $error = "Your search produced no matches: please try again";
+	return displaySearchColls($q, $s, $dbt, $hbo, $error);
+    }
+    
     ###
     # Display the footer links
     ###

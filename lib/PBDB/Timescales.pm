@@ -476,11 +476,8 @@ sub displayTimescale {
 		$idata{$ikey}{n_colls} = $n_colls{$interval_no}{colls_defined}
 		    if $n_colls{$interval_no}{colls_defined};
 		
-		if ( $scale_no eq INTL_SCALE )
-		{
-		    $idata{$ikey}{nmc} = $n_colls{$interval_no}{colls_major};
-		    $idata{$ikey}{nmo} = $n_colls{$interval_no}{occs_major};
-		}
+		$idata{$ikey}{nmc} = $n_colls{$interval_no}{colls_major};
+		$idata{$ikey}{nmo} = $n_colls{$interval_no}{occs_major};
 	    }
 	}
     }
@@ -506,10 +503,8 @@ reference_data = $refs_encoded;
 
 display_interval_url = '$INTERVAL_URL';
 display_ref_url =      '/classic/displayRefResults?reference_no=';
-display_colls_def =    '/classic/displayCollResults?type=view&person_type=authorizer' +
-		         '&sortby=collection_no&basic=yes&limit=30&uses_interval=';
-display_colls_cont =   '/classic/displayCollResults?type=view&person_type=authorizer' +
-		         '&sortby=collection_no&basic=yes&limit=30&max_interval_no=';
+display_colls_def =    '/classic/displayCollResults?view=standard&timerule=defined&max_interval=';
+display_colls_cont =   '/classic/displayCollResults?view=standard&timerule=major&max_interval=';
 
 END_DATA
     
@@ -600,7 +595,8 @@ sub generateIntervalDetails {
     
     if ( defined $n_colls )
     {
-	my $anchor = "<a href=\"/classic/displayCollResults?type=view&person_type=authorizer&sortby=collection_no&basic=yes&limit=30&uses_interval=$interval_no\" target=\"_blank\">$n_colls collections</a>";
+	my $name = $idata->{interval_name} || '?';
+	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&timerule=defined&max_interval=$name\" target=\"_blank\">$n_colls collections</a>";
 	
 	$details .= "<p>This interval is used in the definition of $anchor</p>\n";
     }
@@ -687,7 +683,7 @@ sub generateTimescaleDetails {
     
     if ( defined $n_colls && $main_scale )
     {
-	my $anchor = "<a href=\"/classic/displayCollResults?type=view&person_type=authorizer&sortby=collection_no&basic=yes&limit=30&uses_timescale=$main_scale\" target=\"_blank\">$n_colls collections</a>";
+	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&uses_timescale=$main_scale\" target=\"_blank\">$n_colls collections</a>";
 	
 	$details .= "<p>This timescale is used in the definition of $anchor</p>\n";
     }
@@ -964,13 +960,13 @@ sub collectionIntervalLabel {
 	    
 	    if ( $period1 eq $period2 )
 	    {
-		$label .= " - $period1 $bin1-$bin2";
+		$label .= " - $period1 $num1-$num2";
 		return $label;
 	    }
 	    
 	    else
 	    {
-		$label .= " - $period1/$period2";
+		$label .= " - $bin1/$bin2";
 		return $label;
 	    }
 	}

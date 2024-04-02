@@ -175,15 +175,15 @@ function TimescaleDisplayApp ( )
 	
 	if ( data.n_colls )
 	{
-	    let coll_anchor = `<a href="${display_colls_def}${intno}" ${our_target}>` +
+	    let coll_anchor = `<a href="${display_colls_def}${name}" ${our_target}>` +
 		`${data.n_colls} collections</a>`;
 	    details += `<p>This interval is used in the definition of ${coll_anchor}</p>\n`;
 	}
 	
 	if ( data.nmc )
 	{
-	    let coll_anchor = `<a href="${display_colls_cont}${data.interval_no}` +
-		`&min_interval_no=${data.interval_no}" ${our_target}>${data.nmc} collections</a>`;
+	    let coll_anchor = `<a href="${display_colls_cont}${name}" ${our_target}>` +
+		`${data.nmc} collections</a>`;
 	    details += `<p>A total of ${coll_anchor} with ${data.nmo} occurrences lie within this time span</p>\n`;
 	}
 	
