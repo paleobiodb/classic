@@ -580,7 +580,7 @@ sub getCollectionsSet {
     #        $options{$_} = $q->param($_);
     #    }
     #}
-    my ($dataRows) = PBDB::CollectionEntry::getCollections($dbt,$s,\%options,$fields);
+    my ($dataRows) = PBDB::Collection::getCollections($dbt,$s,\%options,$fields);
     return $dataRows;
 }
 
@@ -762,7 +762,7 @@ sub doCollections{
         #     $options{'taxon_list'} = $crown_list;
         #     my $fields = ["country", "state", "max_interval_no", "min_interval_no"];
 
-        #     my ($dataRows,$ofRows) = PBDB::CollectionEntry::getCollections($dbt,$s,\%options,$fields);
+        #     my ($dataRows,$ofRows) = PBDB::Collection::getCollections($dbt,$s,\%options,$fields);
         #     my ($lb,$ub,$max,$minfirst,$min) = getAgeRange($dbt,$dataRows);
         #     for my $coll ( @$dataRows )	{
         #         $iscrown{$coll->{'collection_no'}}++;

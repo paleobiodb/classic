@@ -904,3 +904,27 @@ td.PASTcell,.simpleTableCell{
     display: table;
 }
 
+.mytip {
+    position: relative;
+    display: inline-block;
+}
+
+.mytip .mytiptext {
+    visibility: hidden;
+    width: 200px;
+    font-style: italic;
+    font-size: 0.9em;
+    background-color: white;
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    top: 30px;
+    right: 25px;
+}
+
+.mytip:hover .mytiptext {
+    visibility: visible;
+}
+
