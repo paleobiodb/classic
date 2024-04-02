@@ -214,8 +214,6 @@ sub printIntervalsJava {
 	
 	my $interval_name = $int->{interval_name};
 	
-	$interval_name =~ s/^Early |^Middle |^Late //;
-	
 	unless ( $interval_uniq{$interval_name} )
 	{
 	    $interval_string .= "," if $interval_string;
@@ -233,61 +231,6 @@ is_integer = /^[0-9.]/;
 
 function intervalNames() {
     return pbdb_interval_list;
-}
-
-function checkIntervalNames (require_field) {
-    var frm = document.forms[1];
-    var eml1 = frm.eml_max_interval.options[frm.eml_max_interval.selectedIndex].value;
-    var name1 = frm.max_interval.value;
-    var eml2 = frm.eml_min_interval.options[frm.eml_min_interval.selectedIndex].value;
-    var name2 = frm.min_interval.value;
-    var emlname1 = eml1 + name1;
-    var emlname2 = eml2 + name2;
-    
-    if ( name1 == "" || is_integer.test(name1))   {
-        if (require_field) {
-            var noname ="WARNING!\\n" +
-                    "The maximum interval field is required.\\n" +
-                    "Please fill it in and submit the form again.\\n" +
-                    "Hint: epoch names are better than nothing.\\n";
-            alert(noname);
-            return false;
-        } else {
-            return true;
-        }
-    } 
-    
-    var max_invalid = emlname1 != '' && ! pbdb_interval_list.includes(emlname1);
-    var min_invalid = emlname2 != '' && ! pbdb_interval_list.includes(emlname2);
-    var warning;
-    var word = 'it';
-    
-    if ( max_invalid && min_invalid )
-    {
-        warning = `\${emlname1} and \${emlname2} are not official time terms.`;
-        word = 'them';
-    }
-    
-    else if ( max_invalid )
-    {
-        warning = `\${emlname1} is not an official time term.`;
-    }
-    
-    else if ( min_invalid )
-    {
-        warning = `\${emlname2} is not an official time term.`;
-    }
-
-    if ( warning )
-    {
-        alert(`WARNING!\\n\${warning}\\nPlease correct \${word} and try again.`);
-        return false;
-    }
-
-    else
-    {
-        return true;
-    }
 }
 
 </script>
