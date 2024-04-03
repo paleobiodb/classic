@@ -11,8 +11,8 @@
     <meta charset="UTF-8">
     [% section_head_tags %]
     [% head_tags %]
-    <!-- <title>[% page_title %]</title> -->
-    <title>PBDB</title>
+    <title>[% page_title %]</title>
+    <!-- <title>PBDB</title> -->
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.2/html5shiv.js"></script>

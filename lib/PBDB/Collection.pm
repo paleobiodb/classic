@@ -2020,7 +2020,9 @@ $o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}
 	$output .= "<br>\n\n";
 	$output .= "</div>\n\n";
 	$output .= "</center>";
-
+	
+	$hbo->pageTitle('PBDB Collection');
+	
 	return $output;
 }
 

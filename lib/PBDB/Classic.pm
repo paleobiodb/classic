@@ -397,23 +397,18 @@ sub classic_request {
     
     my $vars = { pbdb_site => Wing->config->get('pbdb_site'),
 	         options => MyApp::DB::Result::Classic->field_options };
-    if ($user) {
+    
+    if ($user)
+    {
         $vars->{current_user} = $user;
 	$vars->{authorizer_no} = $s->{authorizer_no};
 	$vars->{enterer_no} = $s->{enterer_no};
 	$vars->{authorizer_name} = $s->{authorizer_name};
 	$vars->{reference_name} = $reference_name;
 	$vars->{reference_no} = $reference_no;
-	# $vars->{current_user}{display_name} = 'FOO';
-	# $Data::Dumper::Maxdepth = 3;
-	# print STDERR "CURRENT_USER = " . Data::Dumper::Dumper($user) . "\n";
-        # $vars->{options} = ;
     }
     
-    my $output = template 'header_include', $vars;
-    
-    my $print_output;
-    my $return_output;
+    my ($output, $return_output);
     
     no warnings 'once';
     
@@ -456,18 +451,13 @@ sub classic_request {
 	return "\x{FEFF}" . $return_output;
     }
     
-    else
-    {
-	$output .= $return_output;
-    }
+    $vars->{page_title} = $hbo->pageTitle || 'PBDB';
     
-    $vars = {};
-    if ($user) {
-        $vars->{current_user} = $user;
-        $vars->{options} = MyApp::DB::Result::Classic->field_options;
-    }
+    my $output = template 'header_include', $vars;
     
-    $output .= template 'footer_include', $vars;
+    $output .= $return_output;
+    
+    $output .= template 'footer_include', { };
     
     log_step($action, 'DONE', time, $starttime) if $CONFIG{LOG_REQUESTS};
     profile_end_request($profile_out, $starttime, $q) if $profile_out;
@@ -529,6 +519,8 @@ sub displayPreferencesPage {
     $output .= PBDB::Session::displayPreferencesPage($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Preferences');
+    
     return $output;
 }
 
@@ -545,6 +537,8 @@ sub setPreferences {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Session::setPreferences($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Preferences');
     
     return $output;
 }
@@ -599,7 +593,9 @@ sub menu	{
 	    $output .= $hbo->populateHTML('menu', \%vars);
 	    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
 	}
-
+    
+    $hbo->pageTitle('PBDB Main Menu');
+    
     return $output;
 }
 
@@ -640,6 +636,8 @@ sub displayDownloadForm {
     $output .= PBDB::Person::makeAuthEntJavascript($dbt);
     $output .= $hbo->populateHTML('download_form',\%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Download Form (old)');
     
     return $output;
 }
@@ -682,6 +680,8 @@ sub displayDownloadGenerator {
     $output .= PBDB::Person::makeAuthEntJavascript($dbt);
     $output .= $hbo->populateSimple('download_generator',\%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Download Generator');
 
     return $output;
 }
@@ -724,6 +724,8 @@ sub webapp {
     $output .= $app->generateBasePage();
     $output .= $app->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->{page_title} = $app->page_title || 'PBDB App';
+    
     return $output;
 }
 
@@ -746,7 +748,9 @@ sub displayBasicDownloadForm {
     my $output = $hbo->stdIncludes($PAGE_TOP );
     $output .= $hbo->populateHTML('basic_download_form',\%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Download Form (old)');
+    
     return $output;
 }
 
@@ -762,100 +766,12 @@ sub displayDownloadResults {
     $output .= $m->buildDownload( );
     
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Download Results');
 
     return $output;
 }
 
-
-# sub emailDownloadFiles	{
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     my $output = $hbo->stdIncludes( $PAGE_TOP );
-    
-#     my $m = PBDB::Download->new($dbt,$q,$s,$hbo);
-#     $output .= $m->emailDownloadFiles();
-    
-#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
-#     return $output;
-# }
-
-# JA 28.7.08
-# sub displayDownloadMeasurementsForm	{
-    
-#     my ($q, $s, $dbt, $hbo, $message) = @_;
-    
-#     my %vars = $q->Vars();
-#     $vars{'error_message'} = $message;
-    
-#     my $output = $hbo->stdIncludes($PAGE_TOP);
-#     $output .= PBDB::PBDBUtil::printIntervalsJava($dbt,1);
-#     $output .= $hbo->populateHTML('download_measurements_form',\%vars);
-#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-    
-#     return $output;
-# }
-
-# sub displayDownloadMeasurementsResults	{
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-# 	return if PBDB::PBDBUtil::checkForBot();
-    
-#     logRequest($s,$q);
-    
-#     my $output = $hbo->stdIncludes($PAGE_TOP);
-#     $output .= PBDB::Measurement::displayDownloadMeasurementsResults($q,$s,$dbt,$hbo);
-#     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
-#     return $output;
-# }
-
-sub displayDownloadTaxonomyForm {
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-    
-   
-    my %vars = $q->Vars();
-    $vars{'authorizer_me'} = $s->get('authorizer_reversed');
-
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    $output .= PBDB::Person::makeAuthEntJavascript($dbt);
-    $output .= $hbo->populateHTML('download_taxonomy_form',\%vars);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
-    return $output;
-}       
-
-sub getTaxonomyXML {
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-    
-    return if PBDB::PBDBUtil::checkForBot();
-    logRequest($s,$q);
-    
-    return PBDB::DownloadTaxonomy::getTaxonomyXML($dbt,$q,$s,$hbo);
-}
-
-sub displayDownloadTaxonomyResults {
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-    
-    return if PBDB::PBDBUtil::checkForBot();
-    
-    logRequest($s,$q);
-    my $output = $hbo->stdIncludes( $PAGE_TOP );
-    if ($q->param('output_data') =~ /ITIS/i) {
-        $output .= PBDB::DownloadTaxonomy::displayITISDownload($dbt,$q,$s);
-    } else { 
-        $output .= PBDB::DownloadTaxonomy::displayPBDBDownload($dbt,$q,$s);
-    }
-                                              
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-    
-    return $output;
-}  
 
 sub displayReportForm {
     
@@ -864,7 +780,9 @@ sub displayReportForm {
     my $output =$hbo->stdIncludes( $PAGE_TOP );
     $output .= $hbo->populateHTML('report_form');
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Report Form');
+    
     return $output;
 }
 
@@ -943,41 +861,6 @@ sub displayReportForm {
 #     return $output;
 # }
 
-# sub displayCurveForm {
-#     my $std_page_top = $hbo->stdIncludes($PAGE_TOP);
-#     print $std_page_top;
-
-# 	my $html = $hbo->populateHTML('curve_form');
-#     if ($q->param("input_data") =~ /neptune/) {
-#         $html =~ s/<option selected>10 m\.y\./<option>10 m\.y\./;
-#         if ($q->param("input_data") =~ /neptune_pbdb/) {
-#             $html =~ s/<option>Neptune-PBDB PACMAN/<option selected>Neptune-PBDB PACMAN/;
-#         } else {
-#             $html =~ s/<option>Neptune PACMAN/<option selected>Neptune PACMAN/;
-#         }
-#     }
-#     if ($q->param("yourname") && !$s->isDBMember()) {
-#         my $yourname = $q->param("yourname");
-#         $html =~ s/<input name=yourname/<input name=yourname value="$yourname"/;
-#     }
-#     print $html;
-
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub displayCurveResults	{
-# 	require Curve;
-
-# 	logRequest($s,$q);
-
-# 	my $std_page_top = $hbo->stdIncludes($PAGE_TOP);
-# 	print $std_page_top;
-
-# 	my $c = Curve->new($q, $s, $dbt );
-# 	$c->buildCurve($hbo);
-
-# 	print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
 
 # Show a generic page
 sub page {
@@ -1023,6 +906,8 @@ sub displaySearchRefs {
     $output .= PBDB::Reference::displaySearchRefs($dbt,$q,$s,$hbo,$error);
     $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
     
+    $hbo->pageTitle('PBDB Reference Search');
+    
     return $output;
 }
 
@@ -1030,8 +915,8 @@ sub selectReference {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-	$s->setReferenceNo($q->numeric_param("reference_no") );
-	menu($q, $s, $dbt, $hbo );
+    $s->setReferenceNo($q->numeric_param("reference_no") );
+    return menu($q, $s, $dbt, $hbo );
 }
 
 # Wrapper to displayRefEdit
@@ -1055,6 +940,8 @@ sub editCurrentRef {
 	$output .= PBDB::Reference::displaySearchRefs($dbt,$q,$s,$hbo,"<center>Please choose a reference first</center>" );
         $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
 	
+	$hbo->pageTitle('PBDB Bibliographic Reference Search');
+	
 	return $output;
     }
 }
@@ -1077,16 +964,18 @@ sub displayRefResults {
     $output .= PBDB::Reference::displayRefResults($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Bibliographic Reference Results');
+    
     return $output;
 }
 
-sub getReferencesXML {
+# sub getReferencesXML {
     
-    my ($q, $s, $dbt, $hbo) = @_;
+#     my ($q, $s, $dbt, $hbo) = @_;
     
-    logRequest($s,$q);
-    return PBDB::Reference::getReferencesXML($dbt,$q,$s,$hbo);
-}
+#     logRequest($s,$q);
+#     return PBDB::Reference::getReferencesXML($dbt,$q,$s,$hbo);
+# }
 
 sub getTitleWordOdds	{
     
@@ -1097,6 +986,8 @@ sub getTitleWordOdds	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Reference::getTitleWordOdds($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Title Word Odds');
     
     return $output;
 }
@@ -1115,6 +1006,8 @@ sub displayReferenceForm {
     $output .= PBDB::ReferenceEntry::displayReferenceForm($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitleDefault('PBDB Enter Bibliographic Reference');
+    
     return $output;
 }
 
@@ -1126,6 +1019,8 @@ sub displayReference {
     $output .= PBDB::Reference::displayReference($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Bibliographic Reference');
+    
     return $output;
 }
 
@@ -1136,6 +1031,8 @@ sub processReferenceForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::ReferenceEntry::processReferenceForm($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Bibliographic Reference Saved');
     
     return $output;
 }
@@ -1177,6 +1074,8 @@ sub quickSearch	{
 
 	    if ( $result )
 	    {
+		$hbo->pageTitleDefault('PBDB Collection Results');
+		
 		return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
 	    }
 	}
@@ -1204,6 +1103,8 @@ sub quickSearch	{
 	    $output .= menu($q, $s, $dbt, $hbo, "<center>You must use the data service to retrieve information about '$qs'</center>");
 	    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
 	    
+	    $hbo->pageTitle('PBDB Main Menu');
+	    
 	    return $output;
 	}
     }
@@ -1228,6 +1129,8 @@ sub quickSearch	{
 	
 	if ( $result )
 	{
+	    $hbo->pageTitleDefault('PBDB Stratum Results');
+	    
 	    return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
 	}
     }
@@ -1241,6 +1144,8 @@ sub quickSearch	{
 	
 	if ( $result )
 	{
+	    $hbo->pageTitleDefault('PBDB Collection Results');
+	    
 	    return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
 	}
    }
@@ -1272,6 +1177,8 @@ sub quickSearch	{
 	
 	if ( $result )
 	{
+	    $hbo->pageTitleDefault('PBDB Collection Results');
+	    
 	    return $hbo->stdIncludes($PAGE_TOP) . $result . $hbo->stdIncludes($PAGE_BOTTOM);
 	}
     }
@@ -1326,6 +1233,8 @@ sub quickSearch	{
     $output .= menu($q, $s, $dbt, $hbo, '<center>Your search failed to recover any data records</center>');
     $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
     
+    $hbo->pageTitle('PBDB Main Menu');
+    
     return $output;
 }
 
@@ -1360,7 +1269,9 @@ sub displaySearchCollsForAdd	{
     my $output = $hbo->stdIncludes( $PAGE_TOP );
     $output .= $hbo->populateHTML('search_collections_for_add_form' , \%pref);
     $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
-
+    
+    $hbo->pageTitle('PBDB Duplicate Collection Search');
+    
     return $output;
 }
 
@@ -1447,7 +1358,9 @@ sub displaySearchColls {
     # print PBDB::PBDBUtil::printIntervalsJava($dbt,1);
     $output .= $hbo->populateHTML('search_collections_form', \%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Collection Search');
+    
     return $output;
 }
 
@@ -1458,6 +1371,8 @@ sub basicCollectionSearch	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Collection::basicCollectionSearch($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitleDefault('PBDB Collection Results');
     
     return $output;
 }
@@ -1957,6 +1872,8 @@ sub displayCollResults {
     
     elsif ( $type eq "add" )
     {
+	$hbo->pageTitle('PBDB Enter Collection');
+	
 	return displayCollectionForm($q, $s, $dbt, $hbo);
     }
     
@@ -2034,195 +1951,13 @@ sub displayCollResults {
 		$output .= "</center>\n</form>\n";
 	}
 		
-	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitleDefault('PBDB Collection Results');
+    
     return $output;
 } # end sub displayCollResults
 
-
-# sub getOccurrencesXML {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     require PBDB::Download;
-#     require XML::Generator;
-#     logRequest($s,$q);
-
-#     my $rowOffset = $q->param('rowOffset') || 0;
-#     my $limit = $q->param('limit') ? $q->param('limit') : '';
-
-#     # limit passed to permissions module
-#     my $perm_limit = ($limit) ? $limit + $rowOffset : 100000000;
-
-#     $q->param('max_interval_name'=>$q->param("max_interval"));
-#     $q->param('min_interval_name'=>$q->param("min_interval"));
-#     $q->param('collections_coords'=>'YES');
-#     $q->param('collections_coords_format'=>'decimal');
-#     if ($q->param('xml_format') =~ /points/i) { 
-#         $q->param('output_data'=>'collections');
-#     } else {
-#         $q->param('sp'=>'YES');
-#         $q->param('indet'=>'YES');
-#         $q->param('collections_collection_name'=>'YES');
-#         $q->param('collections_collection_environment'=>'YES');
-#         $q->param('collections_pres_mode'=>'YES');
-#         $q->param('collections_reference_no'=>'YES');
-#         $q->param('collections_country'=>'YES');
-#         $q->param('collections_state'=>'YES');
-#         $q->param('collections_geological_group'=>'YES');
-#         $q->param('collections_formation'=>'YES');
-#         $q->param('collections_member'=>'YES');
-#         $q->param('collections_ma_max'=>'YES');
-#         $q->param('collections_ma_min'=>'YES');
-#         $q->param('collections_max_interval_no'=>'YES');
-#         $q->param('collections_min_interval_no'=>'YES');
-#         $q->param('collections_paleocoords'=>'YES');
-#         $q->param('collections_paleocoords_format'=>'decimal');
-#         $q->param('occurrences_occurrence_no'=>'YES');
-#         $q->param('occurrences_subgenus_name'=>'YES');
-#         $q->param('occurrences_species_name'=>'YES');
-#         $q->param('occurrences_plant_organ'=>'YES');
-#         $q->param('occurrences_plant_organ2'=>'YES');
-#         $q->param('occurrences_stratcomments'=>'YES');
-#         $q->param('occurrences_geology_comments'=>'YES');
-#         $q->param('occurrences_collection_comments'=>'YES');
-#         $q->param('occurrences_taxonomy_comments'=>'YES');
-#     }
-
-#     my $d = new PBDB::Download($dbt,$q,$s,$hbo);
-#     my ($dataRows,$allDataRows,$dataRowsSize) = $d->queryDatabase();
-#     my @dataRows = @$dataRows;
-
-#     my $last_record = scalar(@dataRows);
-#     if ($limit && (($rowOffset+$limit) < $last_record)) {
-#         $last_record = $rowOffset + $limit;
-#     } 
-
-#     print "<?xml version=\"1.0\" encoding=\"ISO-8859-1\" standalone=\"yes\"?>\n";
-
-#     my $t = new PBDB::TimeLookup($dbt);
-#     my $time_lookup;
-#     if ($q->param('xml_format') !~ /points/i) { 
-#         $time_lookup = $t->lookupIntervals([],['period_name','epoch_name','stage_name']);
-#     }
-
-#     my $g = XML::Generator->new(escape=>'always',conformance=>'strict',empty=>'args');
-
-#     if ($q->param('xml_format') =~ /points/i) { 
-#         print "<points total=\"$dataRowsSize\">\n";
-#     } else {
-#         print "<occurrences total=\"$dataRowsSize\">\n";
-#     }
-# #    print "<size>".scalar(@dataRows)."</size>";
-#     for (my $i = $rowOffset; $i< $last_record;$i++) {
-#         my $row = $dataRows[$i];
-
-#         if ($q->param('xml_format') =~ /points/i) { 
-#             print $g->p(
-#                 $g->col($row->{'collection_no'}),
-#                 $g->lat($row->{'c.latdec'}),
-#                 $g->lng($row->{'c.lngdec'})
-#             );
-#         } else {
-#             if (!$row->{'c.min_interval_no'} && $row->{'c.max_interval_no'}) {
-#                 $row->{'c.min_interval_no'} = $row->{'c.max_interval_no'};
-#             }
-
-#             my ($period_max,$period_min,$epoch_max,$epoch_min,$stage_max,$stage_min);
-#             my $max_lookup = $time_lookup->{$row->{'c.max_interval_no'}};
-#             my $min_lookup = $time_lookup->{$row->{'c.min_interval_no'}};
-#             # Period lookup
-#             $period_max = $max_lookup->{'period_name'};
-#             $period_min = $min_lookup->{'period_name'};
-#             if (!$period_max) {$period_max = "";}
-#             if (!$period_min) {$period_min= "";}
-
-#             # Epoch lookup
-#             $epoch_max = $max_lookup->{'epoch_name'};
-#             $epoch_min = $min_lookup->{'epoch_name'};
-#             if (!$epoch_max) {$epoch_max = "";}
-#             if (!$epoch_min) {$epoch_min= "";}
-
-#             # Stage lookup
-#             $stage_max = $max_lookup->{'stage_name'};
-#             $stage_min = $min_lookup->{'stage_name'};
-#             if (!$stage_max) {$stage_max = "";}
-#             if (!$stage_min) {$stage_min= "";}
-
-#             my $taxon_name = $row->{'o.genus_name'};
-#             if ($q->param('lump_genera') ne 'YES') {
-#                 if ($row->{'o.subgenus_name'}) {
-#                     $taxon_name .= " ($row->{'o.subgenus_name'})";
-#                 }
-#                 $taxon_name .= " $row->{'o.species_name'}";
-#             }
-
-#             my $plant_organs = $row->{'o.plant_organ'};
-#             if ($row->{'o.plant_organ2'}) {
-#                 $plant_organs .= ",".$row->{'o.plant_organ2'}; 
-#             }
-
-#             print $g->occurrence(
-#                 $g->occurrence_no($row->{'o.occurrence_no'}),
-#                 $g->collection_no($row->{'collection_no'}),
-#                 $g->reference_no($row->{'c.reference_no'}),
-#                 $g->latitude($row->{'c.latdec'}),
-#                 $g->longitude($row->{'c.lngdec'}),
-#                 $g->paleolatitude($row->{'c.paleolatdec'}),
-#                 $g->paleolongitude($row->{'c.paleolngdec'}),
-#                 $g->age_max($row->{'c.ma_max'}),
-#                 $g->age_min($row->{'c.ma_min'}),
-#                 $g->collection_name($row->{'c.collection_name'}),
-#                 $g->environment($row->{'c.environment'}),
-#                 $g->preservation($row->{'c.pres_mode'}),
-#                 $g->group($row->{'c.geological_group'}),
-#                 $g->formation($row->{'c.formation'}),
-#                 $g->member($row->{'c.member'}),
-#                 $g->country($row->{'c.country'}),
-#                 $g->state($row->{'c.state'}),
-#                 $g->taxon_name($taxon_name),
-#                 $g->time_period_max($period_max),
-#                 $g->time_period_min($period_min),
-#                 $g->time_epoch_max($epoch_max),
-#                 $g->time_epoch_min($epoch_min),
-#                 $g->time_stage_max($stage_max),
-#                 $g->time_stage_min($stage_min),
-#                 $g->plant_organ($plant_organs),
-#                 $g->strat_comments($row->{'o.stratcomments'}),
-#                 $g->geology_comments($row->{'o.geology_comments'}),
-#                 $g->collection_comments($row->{'o.collection_comments'}),
-#                 $g->taxonomy_comments($row->{'o.taxonomy_comments'})
-#             );
-#         }
-#         print "\n";
-#     }
-#     if ($q->param('xml_format') =~ /points/i) { 
-#         print "</points>\n";
-#     } else {
-#         print "</occurrences>\n";
-#     }
-# }
-
-# JA 23.6.12
-# hey, it's something
-# sub jsonTaxon	{
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-# 	my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$q->param('name')},['all']);
-# 	my $author = PBDB::TaxonInfo::formatShortAuthor($t);
-# 	my $parent_hash = PBDB::TaxaCache::getParents($dbt,[$t->{'taxon_no'}],'array_full');
-# 	my @parent_array = @{$parent_hash->{$t->{'taxon_no'}}};
-# 	my $cof = PBDB::Collection::getClassOrderFamily($dbt,'',\@parent_array);
-# 	print qq|{ "PaleoDB_no": "$t->{'taxon_no'}", "author": "$author", "common_name": "$t->{'common_name'}", "extant": "$t->{'extant'}", "rank": "$t->{'taxon_rank'}", "family": "$cof->{'family'}", "order": "$cof->{'order'}", "class": "$cof->{'class'}" }|;
-# }
-
-# # JA 27.6.12
-# sub jsonCollection	{
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     return PBDB::Collection::jsonCollection($dbt,$q,$s);
-# }
 
 # JA 5-6.4.04
 # compose the SQL to find collections of a certain age within 100 km of
@@ -2230,13 +1965,13 @@ sub displayCollResults {
 sub processCollectionsSearchForAdd	{
     
     my ($q, $s, $dbt, $hbo) = @_;
+
+    my $dbh = $dbt->dbh;
+    return if PBDB::PBDBUtil::checkForBot();
     
-
-	my $dbh = $dbt->dbh;
-	return if PBDB::PBDBUtil::checkForBot();
-	#require Map;
-
-	# some generally useful trig stuff needed by processCollectionsSearchForAdd
+    #require Map;
+    
+    # some generally useful trig stuff needed by processCollectionsSearchForAdd
 	my $PI = 3.14159265;
 
 	my $sql;
@@ -2401,6 +2136,8 @@ sub displayCollectionForm {
     $output .= PBDB::CollectionEntry::displayCollectionForm($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitleDefault('PBDB Enter Collection');
+    
     return $output;
 }
 
@@ -2418,6 +2155,8 @@ sub processCollectionForm {
     $output .= PBDB::CollectionEntry::processCollectionForm($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Collection Saved');
+    
     return $output;
 }
 
@@ -2430,6 +2169,8 @@ sub displayCollectionDetails {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::CollectionEntry::displayCollectionDetails($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Collection');
     
     return $output;
 }
@@ -2459,6 +2200,8 @@ sub displayCollectionEcology	{
     $output .= PBDB::Collection::displayCollectionEcology($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Collection Ecology');
+    
     return $output;
 }
 
@@ -2471,6 +2214,8 @@ sub explainAEOestimate	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Collection::explainAEOestimate($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_TOP);
+    
+    $hbo->pageTitle('PBDB AEO Estimate');
     
     return $output;
 }
@@ -2493,7 +2238,9 @@ sub submitOpinionSearch {
         $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
     }
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitleDefault('PBDB Opinion Results');
+    
     return $output;
 }
 
@@ -2512,7 +2259,9 @@ sub submitTaxonSearch {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= processTaxonSearch($q, $s, $dbt, $hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitleDefault('PBDB Taxon Results');
+    
     return $output;
 }
 
@@ -2842,6 +2591,8 @@ sub processTaxonSearch {
 	$output .= "</div>\n</div>\n";
 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
 	
+	$hbo->pageTitle('PBDB Taxon Results');
+	
 	return $output;
     }
 }
@@ -2877,7 +2628,9 @@ sub displayAuthorityTaxonSearchForm {
 
     $output .= $hbo->populateHTML('search_taxon_form', \%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Authority Search');
+    
     return $output;
 }
 
@@ -2900,6 +2653,8 @@ sub displayAuthorityForm {
     $output .= PBDB::Taxon::displayAuthorityForm($dbt, $hbo, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitleDefault('PBDB Enter Authority');
+    
     return $output;
 }
 
@@ -2916,6 +2671,8 @@ sub submitAuthorityForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Taxon::submitAuthorityForm($dbt,$hbo, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Authority Saved');
     
     return $output;
 }
@@ -3010,7 +2767,9 @@ sub displayOpinionSearchForm {
 
     $output .= $hbo->populateHTML('search_taxon_form', \%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Opinion Search');
+    
     return $output;
 }
 
@@ -3028,7 +2787,9 @@ sub displayOpinionChoiceForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Opinion::displayOpinionChoiceForm($q, $s, $dbt, $hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Opinion Choice');
+    
     return $output;
 }
 
@@ -3045,7 +2806,9 @@ sub reviewOpinionsForm	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Opinion::reviewOpinionsForm($dbt,$hbo,$s,$q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Review Opinions');
+    
     return $output;
 }
 
@@ -3062,7 +2825,9 @@ sub reviewOpinions	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Opinion::reviewOpinions($dbt,$hbo,$s,$q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Review Opinions');
+    
     return $output;
 }
 
@@ -3095,7 +2860,9 @@ sub displayOpinionForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Opinion::displayOpinionForm($dbt, $hbo, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitleDefault('PBDB Enter Opinion');
+    
     return $output;
 }
 
@@ -3111,29 +2878,9 @@ sub submitOpinionForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Opinion::submitOpinionForm($dbt,$hbo, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
-    return $output;
-}
-
-sub entangledNamesForm	{
     
-    my ($q, $s, $dbt, $hbo, $error) = @_;
+    $hbo->pageTitle('PBDB Opinion Saved');
     
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    $output .= PBDB::Taxon::entangledNamesForm($dbt,$hbo,$s,$q);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
-    return $output;
-}
-
-sub disentangleNames	{
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-    
-    my $output = $hbo->stdIncludes($PAGE_TOP);
-    $output .= PBDB::Taxon::disentangleNames($dbt,$hbo,$s,$q);
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
     return $output;
 }
 
@@ -3144,7 +2891,9 @@ sub submitTypeTaxonSelect {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Taxon::submitTypeTaxonSelect($dbt, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Taxon Saved');
+    
     return $output;
 }
 
@@ -3189,6 +2938,8 @@ sub displayPermissionListForm {
     $output .= PBDB::Permissions::displayPermissionListForm($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Permission List');
+    
     return $output;
 }
 
@@ -3200,6 +2951,8 @@ sub submitPermissionList {
     $output .= PBDB::Permissions::submitPermissionList($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Permission List Saved');
+    
     return $output;
 } 
 
@@ -3210,6 +2963,8 @@ sub submitHeir {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Permissions::submitHeir($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Heir Saved');
     
     return $output;
 } 
@@ -3232,6 +2987,8 @@ sub searchOccurrenceMisspellingForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::TypoChecker::searchOccurrenceMisspellingForm ($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Misspelling Search');
 
     return $output;
 }
@@ -3243,7 +3000,9 @@ sub occurrenceMisspellingForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::TypoChecker::occurrenceMisspellingForm ($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Occurrence Misspelling');
+    
     return $output;
 }
 
@@ -3254,7 +3013,9 @@ sub submitOccurrenceMisspelling {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::TypoChecker::submitOccurrenceMisspelling($dbt,$q,$s,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Occurrence Saved');
+    
     return $output;
 }
 
@@ -3320,7 +3081,9 @@ sub beginTaxonInfo{
     my $output = $hbo->stdIncludes( $PAGE_TOP );
     $output .= PBDB::TaxonInfo::searchForm($hbo, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Taxon Search');
+    
     return $output;
 }
 
@@ -3348,7 +3111,9 @@ sub checkTaxonInfo {
     }
     
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Taxon');
+    
     return $output;
 }
 
@@ -3359,7 +3124,9 @@ sub displayTaxonInfoResults {
     my $output = $hbo->stdIncludes( $PAGE_TOP );
     $output .= PBDB::TaxonInfo::displayTaxonInfoResults($dbt,$s,$q,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Taxon Detail');
+    
     return $output;
 }
 
@@ -3381,6 +3148,9 @@ sub basicTaxonInfo	{
 	my $output = $hbo->stdIncludes( $PAGE_TOP );
 	$output .= $result;
 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	
+	$hbo->pageTitle('PBDB Taxon');
+	
 	return $output;
     }
 }
@@ -3397,183 +3167,11 @@ sub displayTimescale {
     $output .= PBDB::Timescales::displayTimescale($dbt, $hbo, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitleDefault('PBDB Timescale');
+    
     return $output;
 }
 
-
-# sub beginFirstAppearance	{
-# 	print $hbo->stdIncludes( $PAGE_TOP );
-# 	PBDB::TaxonInfo::beginFirstAppearance($hbo, $q, '');
-# 	print $hbo->stdIncludes( $PAGE_BOTTOM );
-# }
-
-# sub displayFirstAppearance	{
-# 	print $hbo->stdIncludes( $PAGE_TOP );
-# 	PBDB::TaxonInfo::displayFirstAppearance($q, $s, $dbt, $hbo);
-# 	print $hbo->stdIncludes( $PAGE_BOTTOM );
-# }
-
-# sub displaySearchFossilRecordTaxaForm {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     print $hbo->stdIncludes( $PAGE_TOP );
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub submitSearchFossilRecordTaxa {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     logRequest($s,$q);
-#     print $hbo->stdIncludes( $PAGE_TOP );
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub displayFossilRecordCurveForm {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     print $hbo->stdIncludes( $PAGE_TOP );
-# 	PBDB::FossilRecord::displayFossilRecordCurveForm($dbt,$q,$s,$hbo);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub submitFossilRecordCurveForm {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     print $hbo->stdIncludes( $PAGE_TOP );
-# 	PBDB::FossilRecord::submitFossilRecordCurveForm($dbt,$q,$s,$hbo);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-### End Module Navigation
-##############
-
-
-##############
-## Scales stuff JA 7.7.03
-# sub intervals	{
-# 	require Scales;
-# 	print $hbo->stdIncludes($PAGE_TOP);
-# 	Scales::intervals($dbt, $hbo, $q);
-# 	print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub searchScale	{
-# 	require Scales;
-# 	print $hbo->stdIncludes($PAGE_TOP);
-# 	Scales::searchScale($dbt, $hbo, $s, $q);
-# 	print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub processShowForm	{
-#     require Scales;
-#     print $hbo->stdIncludes($PAGE_TOP);
-# 	Scales::processShowEditForm($dbt, $hbo, $q, $s, $WRITE_URL);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub processViewScale	{
-#     require Scales;
-#     logRequest($s,$q);
-#     print $hbo->stdIncludes($PAGE_TOP);
-# 	Scales::processViewTimeScale($dbt, $hbo, $q, $s);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub processEditScale	{
-#     require Scales;
-#     print $hbo->stdIncludes($PAGE_TOP);
-# 	Scales::processEditScaleForm($dbt, $hbo, $q, $s, $WRITE_URL);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub displayTenMyBinsDebug {
-#     return if PBDB::PBDBUtil::checkForBot();
-#     require Scales;
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     Scales::displayTenMyBinsDebug($dbt,$q,$s,$hbo);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub submitSearchInterval {
-#     require Scales;
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     Scales::submitSearchInterval($dbt, $hbo, $q);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub displayInterval {
-#     require Scales;
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     Scales::displayInterval($dbt, $hbo, $q);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub displayTenMyBins {
-#     return if PBDB::PBDBUtil::checkForBot();
-#     require Scales;
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     Scales::displayTenMyBins($dbt,$q,$s,$hbo);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-## END Scales stuff
-##############
-
-
-##############
-## Images stuff
-# sub startImage{
-#     my $goal='image';
-#     my $page_title ='Search for the taxon with an image to be added';
-
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     print $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub displayLoadImageForm{
-#     print $hbo->stdIncludes($PAGE_TOP);
-# 	Images::displayLoadImageForm($dbt, $q, $s);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub processLoadImage{
-# 	if (!$s->isDBMember()) {
-# 		login( "Please log in first");
-# 		return;
-# 	} 
-# 	print $hbo->stdIncludes($PAGE_TOP);
-# 	Images::processLoadImage($dbt, $q, $s);
-# 	print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub searchGallery	{
-# 	print $hbo->stdIncludes($PAGE_TOP);
-# 	print $hbo->populateHTML('search_taxoninfo_form' , ['Image gallery search form','',1,1], ['page_title','page_subtitle','gallery_form','basic_fields']);
-# 	print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-
-# sub gallery	{
-# 	Images::gallery($q,$s,$dbt,$hbo);
-# }
-
-# sub displayImage {
-#     if ($q->param("display_header") eq 'NO') {
-#         print $hbo->stdIncludes("blank_page_top") 
-#     } else {
-#         print $hbo->stdIncludes($PAGE_TOP) 
-#     }
-#     my $image_no = $q->numeric_param('image_no');
-#     if (!$image_no) {
-#         print "<div align=\"center\">".PBDB::Debug::printErrors(["No image number specified"])."</div>";
-#     } else {
-#         my $height = $q->param('maxheight');
-#         my $width = $q->param('maxwidth');
-#         Images::displayImage($dbt,$image_no,$height,$width);
-#     }
-#     if ($q->param("display_header") eq 'NO') {
-#         print $hbo->stdIncludes("blank_page_bottom"); 
-#     } else {
-#         print $hbo->stdIncludes($PAGE_BOTTOM); 
-#     }
-# }
-## END Image stuff
-##############
 
 
 ##############
@@ -3588,7 +3186,9 @@ sub startStartEcologyTaphonomySearch{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Ecology/Taphonomy Search');
+    
     return $output;
 }
 
@@ -3602,6 +3202,8 @@ sub startStartEcologyVertebrateSearch{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= $hbo->populateHTML('search_taxon_form',[$page_title,'submitTaxonSearch',$goal],['page_title','action','goal']);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Ecology/Taphonomy Search');
 
     return $output;
 }
@@ -3613,7 +3215,9 @@ sub startPopulateEcologyForm	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::EcologyEntry::populateEcologyForm($dbt, $hbo, $q, $s, $WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Enter Ecology/Taphonomy');
+    
     return $output;
 }
 sub startProcessEcologyForm	{
@@ -3623,7 +3227,9 @@ sub startProcessEcologyForm	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::EcologyEntry::processEcologyForm($dbt, $q, $s, $WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Ecology/Taphonomy Saved');
+    
     return $output;
 }
 
@@ -3646,7 +3252,9 @@ sub displaySpecimenSearchForm	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= $hbo->populateHTML('search_specimen_form',[],[]);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Specimen Search');
+    
     return $output;
 }
 
@@ -3657,7 +3265,9 @@ sub submitSpecimenSearch{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::MeasurementEntry::submitSpecimenSearch($dbt,$hbo,$q,$s,$WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Specimen Results');
+    
     return $output;
 }
 
@@ -3668,7 +3278,9 @@ sub displaySpecimenList {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::MeasurementEntry::displaySpecimenList($dbt,$hbo,$q,$s,$WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Specimen Results');
+    
     return $output;
 }
 
@@ -3679,7 +3291,9 @@ sub populateMeasurementForm{
     my $output .= $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::MeasurementEntry::populateMeasurementForm($dbt,$hbo,$q,$s,$WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitleDefault('PBDB Enter Measurements');
+    
     return $output;
 }
 
@@ -3690,7 +3304,9 @@ sub processMeasurementForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::MeasurementEntry::processMeasurementForm($dbt,$hbo,$q,$s,$WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Measurements Saved');
+    
     return $output;
 }
 
@@ -3707,7 +3323,9 @@ sub deleteSpecimen {
     my $output .= $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::MeasurementEntry::displaySpecimenList($dbt,$hbo,$q,$s,$WRITE_URL);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Delete Specimen');
+    
     return $output;
 }
 
@@ -3727,7 +3345,9 @@ sub displayStrata {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Strata::displayStrata($q,$s,$dbt,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Strata Results');
+    
     return $output;
 }
 
@@ -3738,7 +3358,9 @@ sub displaySearchStrataForm {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::Strata::displaySearchStrataForm($q,$s,$dbt,$hbo);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Strata Search');
+    
     return $output;
 }  
 
@@ -3767,6 +3389,8 @@ sub uploadNexusFile {
     $output .= PBDB::NexusfileWeb::displayUploadPage($dbt, $hbo, $q, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Upload Nexus File');
+    
     return $output;
 }
 
@@ -3788,6 +3412,8 @@ sub editNexusFile {
     $output .= PBDB::NexusfileWeb::editFile($dbt, $hbo, $q, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Edit Nexus File');
+    
     return $output;
 }
 
@@ -3799,6 +3425,8 @@ sub updateNexusFile {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::NexusfileWeb::processEdit($dbt, $hbo, $q, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Nexus File Saved');
     
     return $output;
 }
@@ -3812,6 +3440,8 @@ sub viewNexusFile {
     $output .= PBDB::NexusfileWeb::viewFile($dbt, $hbo, $q, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Nexus File');
+    
     return $output;
 }
 
@@ -3824,6 +3454,8 @@ sub nexusFileSearch {
     $output .= PBDB::NexusfileWeb::displaySearchPage($dbt, $hbo, $q, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
+    $hbo->pageTitle('PBDB Nexus File Search');
+    
     return $output;
 }
 
@@ -3835,6 +3467,8 @@ sub processNexusSearch {
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::NexusfileWeb::processSearch($dbt, $hbo, $q, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Nexus File Results');
     
     return $output;
 }
@@ -3863,7 +3497,9 @@ sub classificationForm	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::PrintHierarchy::classificationForm($hbo, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Taxonomy Search');
+    
     return $output;
 }
 
@@ -3876,7 +3512,9 @@ sub classify	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= PBDB::PrintHierarchy::classify($dbt, $hbo, $s, $q);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Taxonomy Results');
+    
     return $output;
 }
 
@@ -3892,7 +3530,9 @@ sub displaySanityForm	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= $hbo->populateHTML('sanity_check_form',$error_message);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Sanity Check');
+    
     return $output;
 }
 
@@ -3906,6 +3546,10 @@ sub startProcessSanityCheck	{
     my $output = $hbo->stdIncludes($PAGE_TOP);
     $output .= SanityCheck::processSanityCheck($q, $dbt, $hbo, $s);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Sanity Check Results');
+    
+    return $output;
 }
 
 ## END SanityCheck stuff
@@ -4122,6 +3766,9 @@ sub displayOccurrenceAddEdit {
 	$output .= "</div>\n\n</form>\n\n";
 
     $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+    
+    $hbo->pageTitleDefault('PBDB Enter Occurrence');
+    
     return $output;
 } 
 
@@ -4535,8 +4182,9 @@ sub displayOccurrenceListForm	{
 	$vars{'list_collection_no'} = $collection_no;
 	$vars{'reference_no'} = $s->get('reference_no');
 	$output .= $hbo->populateHTML('occurrence_list_form',\%vars);
-
 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Enter Occurrence List');
     
     return $output;
 }
@@ -4768,7 +4416,9 @@ sub processOccurrenceTable {
     }
     $output .= '</p></div>';
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-
+    
+    $hbo->pageTitle('PBDB Occurrences Saved');
+    
     return $output;
 }
 
@@ -5480,6 +5130,9 @@ sub processEditOccurrences {
     $output .= "\n</div>\n<br>\n";
 
     $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+    
+    $hbo->pageTitle('PBDB Occurrences Saved');
+    
     return $output;
 }
 
@@ -5525,6 +5178,8 @@ sub displayReIDCollsAndOccsSearchForm {
     $output .= PBDB::Person::makeAuthEntJavascript($dbt);
     $output .= $hbo->populateHTML('search_occurrences_form',\%vars);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Reidentifications Search');
     
     return $output;
 }
@@ -5743,6 +5398,9 @@ sub displayOccsForReID {
 	$output .= "</tr>\n</table><p>\n";
 
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Occurrences For Reidentification');
+    
     return $output;
 }
 
@@ -6388,6 +6046,8 @@ sub emailList {
 	$output .= "</p>\n\n</div>\n\n";
 	
 	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	
+	$hbo->pageTitle('PBDB Email List');
 	
 	return $output;
     }

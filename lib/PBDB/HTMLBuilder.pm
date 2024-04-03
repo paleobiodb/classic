@@ -307,6 +307,27 @@ sub populateSimple {
 }
 
 
+sub pageTitle {
+    
+    my ($self, $title) = @_;
+    
+    if ( defined $title )
+    {
+	$self->{page_title} = $title;
+    }
+    
+    return $self->{page_title};
+}
+
+
+sub pageTitleDefault {
+    
+    my ($self, $title) = @_;
+    
+    $self->{page_title} ||= $title;
+}
+
+
 # This handles actual parsing.  It basically parses the html in a tree of nodes of stuff we care about.
 # Each node is called a "block" and stored in that variable.  The block is a simple struct with the following relevant fields:
 # block = {

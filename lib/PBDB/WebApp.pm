@@ -91,7 +91,8 @@ sub new {
     
     foreach my $k ( keys %settings )
     {
-	unless ( $k eq 'REQUIRES_LOGIN' || $k eq 'REQUIRES_MEMBER' )
+	unless ( $k eq 'REQUIRES_LOGIN' || $k eq 'REQUIRES_MEMBER' ||
+		 $k eq 'PAGE_TITLE' )
 	{
 	    push @errors, "Unknown setting '$k'";
 	}
@@ -131,6 +132,14 @@ sub requires_member {
     my ($app) = @_;
 
     return $app->{settings}{REQUIRES_MEMBER};
+}
+
+
+sub page_title {
+    
+    my ($app) = @_;
+    
+    return $app->{settings}{PAGE_TITLE};
 }
 
 

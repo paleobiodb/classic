@@ -117,6 +117,8 @@ sub displayTimescale {
 	{
 	    return "<h2>You did not specify any valid intervals</h2>";
 	}
+	
+	$hbo->pageTitle('PBDB Interval');
     }
     
     # If the 'range' parameter was specified, set $b_range and $t_range to
@@ -154,6 +156,8 @@ sub displayTimescale {
 	{
 	    return "<h2>Invalid range '$interval_range'</h2>";
 	}
+	
+	$hbo->pageTitle('PBDB Interval Range');
     }
     
     elsif ( $interval_range )
@@ -900,6 +904,8 @@ sub listTimescales {
 		   diagram => $html };
     
     my $output = $hbo->populateHTML("display_timescales", $fields);
+    
+    $hbo->pageTitle('PBDB Timescale List');
     
     return $output;
 }
