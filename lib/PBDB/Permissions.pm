@@ -9,7 +9,6 @@ package PBDB::Permissions;
 
 use strict;
 use Carp qw(carp);
-use PBDB::Person;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw(makeFormPostTag);
 
