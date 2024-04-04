@@ -5,10 +5,9 @@ use strict;
 
 use TableDefs qw(%TABLE);
 use CoreTableDefs;
-use PB2::IntervalData;
+use IntervalBase qw(BIN_SCALE);
 use PBDB::Debug qw(dbg);
 
-our ($BIN_SCALE) = $PB2::IntervalData::BIN_SCALE;
 
 # This contains various miscellaneous functions that don't belong anywhere
 # else or haven't been moved out yet
@@ -210,7 +209,7 @@ sub printIntervalsJava {
     
     foreach my $int ( $dbh->selectall_array($sql, { Slice => { } }) )
     {
-	next if $int->{scale_no} eq $BIN_SCALE;
+	next if $int->{scale_no} eq BIN_SCALE;
 	
 	my $interval_name = $int->{interval_name};
 	
