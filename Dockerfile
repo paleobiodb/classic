@@ -38,7 +38,7 @@ ENV WING_APP=/data/MyApp
 CMD ["perl", "bin/start_classic.pl"]
 
 COPY classic/patch/error-render.patch /var/tmp/error-render.patch
-RUN patch `perl -MDancer::Error -e 'print $INC{"Dancer/Error.pm"}'` /var/tmp/error-render.patch
+# RUN patch `perl -MDancer::Error -e 'print $INC{"Dancer/Error.pm"}'` /var/tmp/error-render.patch
 
 COPY classic /data/MyApp
 COPY wing /data/Wing

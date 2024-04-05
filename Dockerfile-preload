@@ -23,7 +23,7 @@ RUN apt-get update && \
     apt-get -y install vim
     
 RUN cpanm DBI && \
-    cpanm DBD::mysql && \
+    cpanm DBD::MariaDB && \
     cpanm Dancer && \
     cpanm Moo && \
     cpanm Moose && \
@@ -71,4 +71,5 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm --force Term::ReadLine::Gnu && \
     cpanm URL::Encode
 
+RUN cpanm DBIx::Class::Storage::DBI::MariaDB
 
