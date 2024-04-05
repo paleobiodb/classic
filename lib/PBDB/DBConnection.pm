@@ -23,12 +23,12 @@ sub connect {
     if ( $DB_SOCKET )
     {
         $dsn = "DBI:$DB_DRIVER:database=$MAIN_DB;" .
-	    "host=localhost;mysql_socket=$DB_SOCKET;mysql_enable_utf8=1";
+	    "host=localhost;mysql_socket=$DB_SOCKET";
     }
     
     elsif ( $DB_CONNECTION )
     {
-        $dsn = "DBI:$DB_DRIVER:database=$MAIN_DB;$DB_CONNECTION;mysql_enable_utf8=1";
+        $dsn = "DBI:$DB_DRIVER:database=$MAIN_DB;$DB_CONNECTION";
     }
     
     else
@@ -36,19 +36,13 @@ sub connect {
         die "You must specify either DB_SOCKET or DB_CONNECTION in the file 'pbdb.conf'\n";
     }
     
-    my $connection;
+    $dsn .= ";mysql_enable_utf8=1" if $DB_DRIVER eq "mysql";
     
-    unless ( $DB_PASSWD )
-    {
-        $DB_PASSWD = `cat /home/paleodbpasswd/passwd`;
-        chomp($DB_PASSWD);  #remove the newline!  Very important!
-	die "You must specify a database password.\n";
-    }
-    
-    $connection = DBI->connect($dsn, $DB_USER, $DB_PASSWD, {RaiseError=>1}) ||
+    my $connection = DBI->connect($dsn, $DB_USER, $DB_PASSWD, {RaiseError=>1}) ||
 	die "Could not connect to database '$dsn' with username '$DB_USER'\n";
 
-    $connection->{mysql_enable_utf8} = 1;
+    $connection->{mysql_enable_utf8} = 1 if $DB_DRIVER eq "mysql";
+    
     return $connection;
 }
 
