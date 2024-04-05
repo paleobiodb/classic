@@ -408,12 +408,12 @@ sub classic_request {
 	$vars->{reference_no} = $reference_no;
     }
     
-    my ($output, $return_output);
+    my $action_output;
     
     no warnings 'once';
     
     eval {
-	$return_output = &$action_sub($q, $s, $dbt, $hbo);
+	$action_output = &$action_sub($q, $s, $dbt, $hbo);
     };
     
     my $endtime = time;
@@ -436,7 +436,7 @@ sub classic_request {
 	}
     }
     
-    elsif ( ! $return_output && ! $DB::OUT )
+    elsif ( ! $action_output && ! $DB::OUT )
     {
 	log_step($action, 'NO OUTPUT', $endtime, $starttime) if $CONFIG{LOG_REQUESTS};
 	profile_end_request($profile_out, 0) if $profile_out;
@@ -448,21 +448,24 @@ sub classic_request {
 	my $response = Dancer::SharedData->response;
 	$response->content_type('text/csv');
 	
-	return "\x{FEFF}" . $return_output;
+	return "\x{FEFF}" . $action_output;
     }
     
-    $vars->{page_title} = $hbo->pageTitle || 'PBDB';
-    
-    my $output = template 'header_include', $vars;
-    
-    $output .= $return_output;
-    
-    $output .= template 'footer_include', { };
-    
-    log_step($action, 'DONE', time, $starttime) if $CONFIG{LOG_REQUESTS};
-    profile_end_request($profile_out, $starttime, $q) if $profile_out;
-    
-    return $output;
+    else
+    {
+	$vars->{page_title} = $hbo->pageTitle || 'PBDB';
+	
+	my $output = template 'header_include', $vars;
+	
+	$output .= $action_output;
+	
+	$output .= template 'footer_include', { };
+	
+	log_step($action, 'DONE', time, $starttime) if $CONFIG{LOG_REQUESTS};
+	profile_end_request($profile_out, $starttime, $q) if $profile_out;
+	
+	return $output;
+    }
 };
 
 
