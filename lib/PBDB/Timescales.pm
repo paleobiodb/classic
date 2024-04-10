@@ -409,7 +409,7 @@ sub displayTimescale {
     {
 	my $name = $main_idata->{interval_name} || '?';
 	my $type = $main_idata->{type} || '';
-	my $n_colls = $n_colls{$main_interval}{colls_defined};
+	my $n_colls = $n_colls{$main_interval};
 	my $reference_no = $main_idata->{reference_no};
 	my $long_ref = $long_ref{$reference_no};
 	
@@ -597,13 +597,22 @@ sub generateIntervalDetails {
 	$details .= "<p>This interval is no longer in current use</p>\n";
     }
     
-    if ( defined $n_colls )
+    if ( $n_colls && defined $n_colls->{colls_defined} )
     {
 	my $name = $idata->{interval_name} || '?';
-	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&timerule=defined&max_interval=$name\" target=\"_blank\">$n_colls collections</a>";
+	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&timerule=defined&max_interval=$name\" target=\"_blank\">$n_colls->{colls_defined} collections</a>";
 	
 	$details .= "<p>This interval is used in the definition of $anchor</p>\n";
     }
+    
+    if ( $n_colls && defined $n_colls->{colls_major} )
+    {
+	my $name = $idata->{interval_name} || '?';
+	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&timerule=major&max_interval=$name\" target=\"_blank\">$n_colls->{colls_major} collections</a>";
+	
+	$details .= "<p>A total of $anchor with $n_colls->{occs_major} occurrences lie within this time span</p>\n";
+    }
+
     
     return $details;
 }

@@ -38,6 +38,9 @@
 [%   nb_color = 'background-color: #106580' -%]
 [% END %]
   <body>
+    <style>
+      .nav > li > a { padding-left: 15px; padding-right: 10px }
+    </style>
       <nav class="navbar navbar-inverse navbar-static-top" style="[% GET nb_color %]" role="navigation">
       <div class="container">
 
@@ -148,7 +151,7 @@
           </ul>
           [% END %]
 
-          <form class="navbar-form navbar-right navbar-input-group form-search universalSearchForm"
+          <form class="navbar-form navbar-input-group form-search universalSearchForm"
 			  onsubmit="return acapp.do_submit(this)">
                   <div class="input-group" id="acinput">
                     <input type="text" class="form-control" placeholder="Search the database" id="searchbox"
