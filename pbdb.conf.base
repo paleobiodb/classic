@@ -1,7 +1,6 @@
 DATA_URL = /data1.2/
 DATA_DIR = /data/MyApp/data
 HTML_DIR = /data/MyApp
-INTERVAL_URL = http://fossilworks.org/cgi-bin/bridge.pl
 GDD_URL = https://geodeepdive.org/api/v1/
 ALLOW_LOGIN = 1
 CGI_DEBUG = 0
