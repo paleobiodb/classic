@@ -722,10 +722,10 @@ sub webapp {
 	redirect "/login?app=$app_name&reason=login", 303;
     }
     
-    my $output = $app->stdIncludes($PAGE_TOP);
+    my $output = $app->stdIncludes('app_page_top');
     $output .= PBDB::Person::makeAuthEntJavascript($dbt) if $app->{settings}{INCLUDE_AUTHENT};
     $output .= $app->generateBasePage();
-    $output .= $app->stdIncludes($PAGE_BOTTOM);
+    $output .= $app->stdIncludes('app_page_bottom');
     
     $hbo->{page_title} = $app->page_title || 'PBDB App';
     
