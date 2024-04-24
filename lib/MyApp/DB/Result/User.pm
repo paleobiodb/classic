@@ -666,7 +666,7 @@ sub make_person_no {
 	ouch(500, "Error: could not create person record");
     }
     
-    my $person_no = $dbh->{mysql_insertid};
+    my $person_no = $dbh->last_insert_id();
     
     $sql = "	UPDATE users SET person_no = $person_no
 		WHERE id = $id_quoted";

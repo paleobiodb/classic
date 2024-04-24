@@ -73,3 +73,9 @@ RUN cpanm --force Plugin::Tiny && \
 
 RUN cpanm DBIx::Class::Storage::DBI::MariaDB
 
+LABEL org.opencontainers.image.title="PBDB Classic Base Image"
+
+LABEL org.opencontainers.image.description="This image is used as a base for building the PBDB Classic container image. This version is built with DBD::MariaDB."
+
+LABEL org.opencontainers.image.source=https://github.com/paleobiodb/classic
+
