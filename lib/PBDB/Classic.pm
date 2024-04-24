@@ -6120,6 +6120,23 @@ sub emailList {
 package PBDB::Request;
 
 use URI::Escape;
+use ExternalIdent qw(%IDRE);
+
+our %IDTYPE = ( collection_no => $IDRE{COL},
+		occurrence_no => $IDRE{OCC},
+		reidentification_no => $IDRE{REI},
+		specimen_no => $IDRE{SPM},
+		measurement_no => $IDRE{MEA},
+		taxon_no => $IDRE{TID},
+		opinion_no => $IDRE{OPN},
+		reference_no => $IDRE{REF},
+		interval_no => $IDRE{INT},
+		scale_no => $IDRE{TSC},
+		person_no => $IDRE{PRS},
+		authorizer_no => $IDRE{PRS},
+		enterer_no => $IDRE{PRS},
+		modifier_no => $IDRE{PRS} );
+
 
 sub new {
 
@@ -6132,6 +6149,17 @@ sub new {
 		    cookies => $cookies,
 		    request_method => $request_method,
 		    query_string => $query_string };
+    
+    if ( ref $params_ref eq 'HASH' )
+    {
+	foreach my $k ( keys $params_ref->%* )
+	{
+	    if ( $IDTYPE{$k} && $params_ref->{$k} =~ $IDTYPE{$k} )
+	    {
+		$params_ref->{$k} = $2;
+	    }
+	}
+    }
     
     return bless $request;
 }
