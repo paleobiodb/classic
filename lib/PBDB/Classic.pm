@@ -53,8 +53,6 @@ use PBDB::NexusfileWeb;  # slated for removal
 use PBDB::PrintHierarchy;
 use PBDB::Timescales qw(collectionIntervalLabel);
 use PBDB::Strata;
-use PBDB::DownloadTaxonomy;
-use PBDB::Download;
 use PBDB::WebApp;
 
 # god awful Poling modules
