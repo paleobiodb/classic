@@ -6,3 +6,9 @@ config.yml
 etc/log4perl.conf
 etc/wing.conf
 pbdb.conf
+saves
+public/taxa_downloads/
+captcha/temp/
+message.txt
+*.pid
+

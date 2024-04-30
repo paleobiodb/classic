@@ -25,8 +25,8 @@ use PBDB::EcologyEntry;
 #use Images;
 use PBDB::Measurement qw(getMeasurements getMeasurementTable getMassEstimates);
 use PBDB::Debug qw(dbg);
-use PBDB::PBDBUtil qw(checkForBot);
-use PBDB::Constants qw($INTERVAL_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE 
+use PBDB::PBDBUtil;
+use PBDB::Constants qw($INTERVAL_URL $RANGE_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE 
 		       makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeURL);
 
 
@@ -693,7 +693,7 @@ sub getCollectionsSet {
     #        $options{$_} = $q->param($_);
     #    }
     #}
-    my ($dataRows) = PBDB::CollectionEntry::getCollections($dbt,$s,\%options,$fields);
+    my ($dataRows) = PBDB::Collection::getCollections($dbt,$s,\%options,$fields);
     return $dataRows;
 }
 
@@ -798,9 +798,9 @@ sub doCollections{
     my $max = ($max_no) ? $interval_hash{$max_no}->{interval_name} : "";
     my $min = ($min_no) ? $interval_hash{$min_no}->{interval_name} : ""; 
     if ($max ne $min && $min) {
-        $range .= " base of the <a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$max_no\">$max</a> to the top of the <a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$min_no\">$min</a>";
+        $range .= " base of the <a href=\"$INTERVAL_URL$max_no\">$max</a> to the top of the <a href=\"$INTERVAL_URL$min_no\">$min</a>";
     } else {
-        $range .= " <a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$max_no\">$max</a>";
+        $range .= " <a href=\"$INTERVAL_URL$max_no\">$max</a>";
     }
     $range .= " <i>or</i> $lb to $ub Ma";
 
@@ -875,7 +875,7 @@ sub doCollections{
         #     $options{'taxon_list'} = $crown_list;
         #     my $fields = ["country", "state", "max_interval_no", "min_interval_no"];
 
-        #     my ($dataRows,$ofRows) = PBDB::CollectionEntry::getCollections($dbt,$s,\%options,$fields);
+        #     my ($dataRows,$ofRows) = PBDB::Collection::getCollections($dbt,$s,\%options,$fields);
         #     my ($lb,$ub,$max,$minfirst,$min) = getAgeRange($dbt,$dataRows);
         #     for my $coll ( @$dataRows )	{
         #         $iscrown{$coll->{'collection_no'}}++;
@@ -931,9 +931,10 @@ sub doCollections{
         if (!$min) {
             $min = $max;
         }
-        my $res = "<span class=\"small\"><a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$row->{max_interval_no}\">$interval_hash{$max}->{interval_name}</a>";
+        my $res = "<span class=\"small\"><a href=\"$INTERVAL_URL$max\" target=\"classic2\">$interval_hash{$max}{interval_name}</a>";
         if ( $max != $min ) {
-            $res .= " - " . "<a href=\"$INTERVAL_URL?a=displayInterval&interval_no=$row->{min_interval_no}\">$interval_hash{$min}->{interval_name}</a>";
+	    $res = "<span class=\"small\"><a href=\"$RANGE_URL$max-$min\" target=\"classic2\">$interval_hash{$max}{interval_name} - $interval_hash{$min}{interval_name}</a>";
+            # $res .= " - " . "<a href=\"$INTERVAL_URL$row->{min_interval_no}\">$interval_hash{$min}->{interval_name}</a>";
         }
         if ( $row->{"seq_strat"} =~ /glacial/ )	{
             $res .= " <span class=\"verysmall\">($row->{'seq_strat'})</span>";

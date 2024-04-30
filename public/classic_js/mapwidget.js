@@ -25,7 +25,7 @@ function PBDB_map_widget(mapElementName, options) {
     });
 
     var attribution = new ol.Attribution({
-      html: '&copy; <a href="http://www.opencyclemap.org">OpenCycleMap</a>, &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a'
+      html: '© OpenStreetMap contributors, © CARTO'
     });
 
     // First, create an OpenLayers map, plus a baselayer and some default
@@ -36,7 +36,7 @@ function PBDB_map_widget(mapElementName, options) {
           new ol.layer.Tile({
             source: new ol.source.XYZ({
               attributions: [attribution],
-              url: 'https://stamen-tiles-a.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png'
+              url: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
             })
           }),
           vectorLayer

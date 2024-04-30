@@ -8,7 +8,7 @@
 # source code, configuration file and other local content. You can build this preload
 # image locally using the command 'pbdb build classic preload'.
 
-FROM perl:5.32-threaded AS paleomacro_classic_preload
+FROM perl:5.38-threaded AS paleomacro_classic_preload
 
 ENV LANG=en_US.UTF-8
 
@@ -23,7 +23,7 @@ RUN apt-get update && \
     apt-get -y install vim
     
 RUN cpanm DBI && \
-    cpanm DBD::mysql && \
+    cpanm DBD::MariaDB && \
     cpanm Dancer && \
     cpanm Moo && \
     cpanm Moose && \
@@ -71,4 +71,11 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm --force Term::ReadLine::Gnu && \
     cpanm URL::Encode
 
+RUN cpanm DBIx::Class::Storage::DBI::MariaDB
+
+LABEL org.opencontainers.image.title="PBDB Classic Base Image"
+
+LABEL org.opencontainers.image.description="This image is used as a base for building the PBDB Classic container image. This version is built with DBD::MariaDB."
+
+LABEL org.opencontainers.image.source=https://github.com/paleobiodb/classic
 

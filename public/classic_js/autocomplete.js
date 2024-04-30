@@ -223,12 +223,19 @@ function AutoCompleteObject ( search_box_id, req_type, link_handler )
 	    switch (rtype) {
 	    case "int":
 		if ( currentType != "int" ) { htmlResult += "<h4 class='autocompleteTitle'>Time Intervals</h4>"; currentType = "int"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + oidnum + "' data-rtype='int'>"
-		htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + Math.round(d.eag) + "-" + Math.round(d.lag) + " ma</small></p></div>\n";
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + d.oid + "' data-rtype='int'>";
+		if ( link_classic ) {
+		    linkCount++;
+		    itemLink = '/classic/displayTimescale?interval=' + encodeURI(d.nam);
+		    htmlResult += '<a href="' + itemLink + '">';
+		}
+		htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + Math.round(d.eag) + "-" + Math.round(d.lag) + " ma</small></p>";
+		if ( link_classic ) htmlResult += "</a>";
+		htmlResult += "</div>\n";
 		break;
 	    case "str":
 		if ( currentType != "str" ) { htmlResult += "<h4 class='autocompleteTitle'>Stratigraphic Units</h4>"; currentType = "str"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='str'>"
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='str'>";
 		if ( link_classic ) { 
 		    linkCount++;
 		    itemLink = '/classic/displaySearchStrataResults?group_formation_member=' + encodeURI(d.nam);
@@ -236,51 +243,51 @@ function AutoCompleteObject ( search_box_id, req_type, link_handler )
 		}
 		htmlResult += "<p class='tt-suggestion'>" + d.nam + " " + stratRankMap[d.rnk] + " <small class=taxaRank>in " + 
 		    d.cc2 + "</small></p>"
-		if ( link_classic ) { htmlResult += "</a>"}
+		if ( link_classic ) htmlResult += "</a>";
 		htmlResult += "</div>\n";
 		break;
 	    case "txn":
 		if ( currentType != "txn" ) { htmlResult += "<h4 class='autocompleteTitle'>Taxa</h4>"; currentType = "txn"; }
 		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + 
-		    oidnum + "' data-searchstr='" + oidnum + "' data-rtype='txn'>"
+		    d.oid + "' data-searchstr='" + d.oid + "' data-rtype='txn'>"
 		if ( link_classic) {
 		    linkCount++;
-		    itemLink = '/classic/basicTaxonInfo?taxon_no=' + oidnum;
+		    itemLink = '/classic/basicTaxonInfo?taxon_no=' + d.oid;
 		    htmlResult += '<a href="' + itemLink + '">';
 		}
 		if (d.tdf) { htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + 
 			     " in " + d.htn + "</small><br><small class=misspelling>" + d.tdf + " " + d.acn + "</small></p>"; }
 		else { htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + " in "
 		       + d.htn + "</small></p>"; }
-		if ( link_classic ) { htmlResult += "</a>"}
+		if ( link_classic ) htmlResult += "</a>";
 		htmlResult += "</div>\n";
 		break;
 	    case "col":
 		var interval = d.oei ? d.oei : "" ;
 		if (d.oli) { interval += "-" + d.oli };
 		if ( currentType != "col" ) { htmlResult += "<h4 class='autocompleteTitle'>Collections</h4>"; currentType = "col"; }
-		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + oidnum + "' data-searchval='" + oidnum + "' data-rtype='col'>"
+		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + d.oid + "' data-searchval='" + d.oid + "' data-rtype='col'>"
 		if ( link_classic) {
 		    linkCount++;
-		    itemLink = '/classic/displayCollResults?collection_no=' + oidnum;
+		    itemLink = '/classic/displayCollResults?collection_no=' + d.oid;
 		    htmlResult += '<a href="' + itemLink + '">';
 		}
 		htmlResult += "<p class='tt-suggestion'>" + d.nam + " <br><small class=taxaRank>" + " (" + interval + 
 		    " of " + d.cc2 + ")</small></p>";
-		if ( link_classic ) { htmlResult += "</a>"}
+		if ( link_classic ) htmlResult += "</a>";
 		htmlResult += "</div>\n";
 		break;
 	    case "ref":
 		if ( currentType != "ref" ) { htmlResult += "<h4 class='autocompleteTitle'>References</h4>"; currentType = "ref"; }
 		htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='" + rtype + "' data-oid='" + 
-		    oidnum + "' data-searchval='" + oidnum + "'>"
+		    d.oid + "' data-searchval='" + d.oid + "'>"
 		if ( link_classic) {
 		    linkCount++;
-		    itemLink = '/classic/displayRefResults?reference_no=' + oidnum;
+		    itemLink = '/classic/displayRefResults?reference_no=' + d.oid;
 		    htmlResult += '<a href="' + itemLink + '">';
 		}
 		htmlResult += "<p class='tt-suggestion'>" + " <small> " + d.nam + "</small></p>";
-		if ( link_classic ) { htmlResult += "</a>"}
+		if ( link_classic ) htmlResult += "</a>";
 		htmlResult += "</div>\n";
 		break;
 	    default: //do nothing

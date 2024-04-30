@@ -1,0 +1,140 @@
+/*
+ *  These declarations are used for displaying timescales with /classic/displayTimescale
+ *  and /public/classic_js/timescales.js.
+ */
+
+
+.ts_heading {
+    
+    margin-left: 60px;
+}
+
+.ts_type {
+    
+    font-size: 80%;
+}
+
+.ts_details {
+    
+    border: 1px solid;
+    padding: 10px;
+    margin-left: 50px;
+    margin-right: 30px;
+}
+
+.ts_floatbutton {
+    
+    position: static;
+    right: 30px;
+    bottom: 20px;
+}
+
+.ts_panel {
+    
+    margin-left: 30px;
+}
+
+.ts_display {
+    
+    margin-top: 20px;
+    margin-bottom: 20px;
+    margin-left: 20px;
+    margin-right: 20px;
+    
+    border: 2px solid;
+}
+
+.int_details {
+    
+    width: 350px;
+    position: absolute;
+    left: 25px;
+    top: 300px;
+    border: 1px solid;
+    padding: 15px;
+    background-color: #FFFFFF;
+    font-size: 80%;
+}
+
+.int_heading {
+    
+    font-size: 150%;
+    margin-right: 10px;
+}
+
+.ts_header {
+    
+    text-align: center;
+    padding: 5px;
+    border: 1px solid;
+}
+
+.ts_corner {
+    text-align: center;
+    border: 0px;
+}
+
+.ts_interval {
+    
+    text-align: center;
+    padding: 10px;
+    padding-bottom: 5px;
+    border: 1px solid;
+}
+
+.ts_empty {
+    
+    padding: 0px;
+    border: 1px solid;
+}
+
+.ts_lintime {
+    
+    font-size: 50%;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    line-height: 0x;
+}
+
+.ts_highlight {
+    
+    border: 3px solid;
+}
+
+.ts_bound {
+    
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    line-height: 0px;
+    vertical-align: top;
+    height: 20px;
+}
+
+.ts_boundlabel {
+    
+    position: relative;
+    line-height: 0px;
+    bottom: 0px;
+}
+
+.ts_lastlabel {
+    
+    position: relative;
+    bottom: 6px;
+    line-height: 10px;
+}
+
+.ts_ovlist {
+    margin-top: 0px;
+}
+
+.ts_expand {
+    margin-left: 100px;
+}
+
+.ts_list {
+    margin-left: 60px;
+}
+

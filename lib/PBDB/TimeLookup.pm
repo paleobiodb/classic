@@ -1101,7 +1101,12 @@ sub getRangeByInterval {
     my $dbt = $self->{'dbt'};
 
     my ($eml_max,$max,$eml_min,$min,%options) = @_;
-
+    
+    $eml_max = 'Late/Upper' if $eml_max eq 'Late';
+    $eml_max = 'Early/Lower' if $eml_max eq 'Early';
+    $eml_min = 'Late/Upper' if $eml_min eq 'Late';
+    $eml_min = 'Early/Lower' if $eml_min eq 'Early';
+    
     my @errors = ();
     my @warnings = ();
 

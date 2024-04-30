@@ -18,11 +18,10 @@
       "serializer" : "JSON"
    },
    "db" : [
-      "DBI:mysql:host=mariadb;database=pbdb_wing",
+      "DBI:MariaDB:host=mariadb;database=pbdb_wing",
       "pbdbuser",
       "pbdbpwd",
       {
-         "mysql_enable_utf8" : 1
       },
       {
          "quote_names" : 1

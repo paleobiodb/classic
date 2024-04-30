@@ -148,7 +148,7 @@ sub occurrenceMisspellingForm {
         my %options = $q->Vars();
         # Do a looser match against occurrences/reids tables only
         $options{'limit'} = 10000000;
-        my ($dataRows,$ofRows,$warnings) = PBDB::CollectionEntry::getCollections($dbt,$s,\%options,['collection_no']);  
+        my ($dataRows,$ofRows,$warnings) = PBDB::Collection::getCollections($dbt,$s,\%options,['collection_no']);  
         my @collection_nos = map {$_->{'collection_no'}} @$dataRows;
 
         my $fields = 'a.taxon_rank,a.taxon_name,o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name,o.taxon_no';

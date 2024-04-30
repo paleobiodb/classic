@@ -516,7 +516,7 @@ sub getFileData {
     my ($data) = $dbh->selectrow_array("SELECT data FROM nexus_data
 					WHERE nexusfile_no=$nexusfile_no");
     
-    return decode_utf8($data);
+    return $data;
 }
 
 

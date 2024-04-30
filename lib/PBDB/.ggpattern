@@ -2,3 +2,4 @@ pm: *.pm ../PBData/*.pm
 tmpl: ../../templates/*.html ../../guest_templates/*.html
 pl: ../../bin/*.pl ../../bin/*.psgi
 all: *.pm ../PBData/*.pm ../../templates/*.html ../../guest_templates/*.html ../../bin/*.pl ../../bin/*.psgi
+local: *.pm

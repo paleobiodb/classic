@@ -3,14 +3,11 @@ package PBDB::PBDBUtil;
 
 use strict;
 
-use File::Path;
+use TableDefs qw(%TABLE);
+use CoreTableDefs;
+use IntervalBase qw(BIN_SCALE);
 use PBDB::Debug qw(dbg);
 
-use Exporter qw(import);
-
-our @EXPORT_OK = qw(getResearchGroupSQL getMostRecentReIDforOCC checkForBot
-		    getFilename numberToName printIntervalsJava autoCreateDir
-		    getPersonLookup);
 
 # This contains various miscellaneous functions that don't belong anywhere
 # else or haven't been moved out yet
@@ -25,6 +22,7 @@ our @EXPORT_OK = qw(getResearchGroupSQL getMostRecentReIDforOCC checkForBot
 #                   not collections that might belong to it and others
 #	Returns:	SQL snippet, to be appended with AND
 ##
+
 sub getResearchGroupSQL {
 	my $dbt = shift;
 	my $research_group = shift;
@@ -88,71 +86,44 @@ sub getMostRecentReIDforOcc {
 }
 
 
-# Generation of filenames standardized here to avoid security issues or
-# potential weirdness. PS 3/6/2006
-# If filetype == 1, use date/pid in randomizing filename.  Else use the ip
-# Generally filetype == 1 is good, unless the files need to stick around and
-# be reused for some reason (like in the download script)
-sub getFilename {
-    my $enterer = shift;
-    my $filetype = shift;
+# # Generation of filenames standardized here to avoid security issues or
+# # potential weirdness. PS 3/6/2006
+# # If filetype == 1, use date/pid in randomizing filename.  Else use the ip
+# # Generally filetype == 1 is good, unless the files need to stick around and
+# # be reused for some reason (like in the download script)
+# sub getFilename {
+#     my $enterer = shift;
+#     my $filetype = shift;
 
-    my $filename = "";
-    if ($enterer eq '' || !$enterer) {
-        if ($filetype == 1) {
-            #  0    1    2     3     4    5     6     7     8
-            my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =localtime(time);
-            my $date = sprintf("%d%02d%02d",($year+1900),$mon,$mday);
-            $filename = "guest_".$date."_".$$;
-        } else {
-            my $ip = $ENV{'REMOTE_ADDR'} || 'LOCAL'; 
-            $ip =~ s/\.//g;
-            #my @bits = split(/\./,$ip);
-            #my $longip = ($bits[0] << 24) | ($bits[1] << 16) | ($bits[2] << 8) | ($bits[3]);
-            $filename = $ip;
-        }
-    } else {
-        #$enterer =~ s/['-]+/_/g;
-        $enterer =~ s/[^a-zA-Z0-9_]//g;
-        if (length($enterer) > 30) {
-            $enterer = substr($enterer,0,30);
-        }
-        $filename = $enterer;
-    }
-    return $filename;
-}
-
-
-# pass this a number like "5" and it will return the name ("five").
-# only works for numbers up through 19.  Above that and it will just return
-# the original number.
-#
-sub numberToName {
-    my $num = shift;
-
-    my %numtoname = (  "0" => "zero", "1" => "one", "2" => "two",
-                         "3" => "three", "4" => "four", "5" => "five",
-                         "6" => "six", "7" => "seven", "8" => "eight",
-                         "9" => "nine", "10" => "ten",
-                         "11" => "eleven", "12" => "twelve", "13" => "thirteen",
-                         "14" => "fourteen", "15" => "fifteen", "16" => "sixteen",
-                         "17" => "seventeen", "18" => "eighteen", "19" => "nineteen");
-
-    my $name;
-
-    if ($num < 20) {
-        $name = $numtoname{$num};
-    } else {
-        $name = $num;
-    }
-
-    return $name;
-}
+#     my $filename = "";
+#     if ($enterer eq '' || !$enterer) {
+#         if ($filetype == 1) {
+#             #  0    1    2     3     4    5     6     7     8
+#             my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =localtime(time);
+#             my $date = sprintf("%d%02d%02d",($year+1900),$mon,$mday);
+#             $filename = "guest_".$date."_".$$;
+#         } else {
+#             my $ip = $ENV{'REMOTE_ADDR'} || 'LOCAL'; 
+#             $ip =~ s/\.//g;
+#             #my @bits = split(/\./,$ip);
+#             #my $longip = ($bits[0] << 24) | ($bits[1] << 16) | ($bits[2] << 8) | ($bits[3]);
+#             $filename = $ip;
+#         }
+#     } else {
+#         #$enterer =~ s/['-]+/_/g;
+#         $enterer =~ s/[^a-zA-Z0-9_]//g;
+#         if (length($enterer) > 30) {
+#             $enterer = substr($enterer,0,30);
+#         }
+#         $filename = $enterer;
+#     }
+#     return $filename;
+# }
 
 
-# pass it an array ref and a scalar
-# loops through the array to see if the scalar is a member of it.
-# returns true or false value.
+# # pass it an array ref and a scalar
+# # loops through the array to see if the scalar is a member of it.
+# # returns true or false value.
 # sub isIn {
 #     my $arrayRef = shift;
 #     my $val = shift;
@@ -172,9 +143,9 @@ sub numberToName {
 # }
     
 
-# Pass this an array ref and an element to delete.
-# It returns a reference to a new array but *doesn't* modify the original.
-# Does a string compare (eq)
+# # Pass this an array ref and an element to delete.
+# # It returns a reference to a new array but *doesn't* modify the original.
+# # Does a string compare (eq)
 # sub deleteElementFromArray {
 #     my $ref = shift; 
 #     my $toDelete = shift;
@@ -196,125 +167,171 @@ sub numberToName {
 # the CheckIntervalNames is used for form validation, the intervalNames is used
 # for autocompletion.  They're slightly different in that checkIntervalNames is interested in
 # fully qualified names (i.e. early X) while we don't care about the early/middle/late for the intervalNames
-sub printIntervalsJava  {
-    my $dbt = shift;
-    my $include_ten_my_bins = shift;
-    my $sql = "SELECT eml_interval,interval_name FROM intervals";
-    my @results = @{$dbt->getData($sql)};
+
+sub printIntervalsJava {
     
-    my %intervals_seen;
-    my $intervals = "";
-    foreach my $row (@results)  {
-        if (!$intervals_seen{$row->{'interval_name'}}) {
-            $intervals .= "'$row->{interval_name}', ";
-            $intervals_seen{$row->{'interval_name'}} = 1;
-        }
+    my ($dbt) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    my $sql = "SELECT scale_no, interval_name FROM $TABLE{INTERVAL_DATA}";
+    
+    my $interval_string = '';
+    my $interval_count = 0;
+    my %interval_uniq;
+    
+    foreach my $int ( $dbh->selectall_array($sql, { Slice => { } }) )
+    {
+	next if $int->{scale_no} eq BIN_SCALE;
+	
+	my $interval_name = $int->{interval_name};
+	
+	unless ( $interval_uniq{$interval_name} )
+	{
+	    $interval_string .= "," if $interval_string;
+	    $interval_string .= "\n" if $interval_count && $interval_count % 10 == 0;
+	    $interval_string .= "'$interval_name'";
+	    $interval_uniq{$interval_name}++;
+	    $interval_count++;
+	}
     }
-    $intervals =~ s/, $//;
     
-    my $output = <<END_HEADER;
+    my $output = <<END_JS;
 <script language="JavaScript" type="text/javascript">
-<!-- Begin
+pbdb_interval_list = [$interval_string];
+is_integer = /^[0-9.]/;
+
 function intervalNames() {
-    var intervals = new Array($intervals);
-    return intervals;
+    return pbdb_interval_list;
 }
 
-function checkIntervalNames(require_field) {
-    var frm = document.forms[1];
-    var badname1 = "";
-    var badname2 = "";
-    var alertmessage = "";
-    var eml1 = frm.eml_max_interval.options[frm.eml_max_interval.selectedIndex].value;
-    var time1 = frm.max_interval.value;
-    var eml2 = frm.eml_min_interval.options[frm.eml_min_interval.selectedIndex].value;
-    var time2 = frm.min_interval.value;
-    var emltime1 = eml1 + time1;
-    var emltime2 = eml2 + time2;
-    
-    var isInt = /^[0-9.]+\$/;
-    if ( time1 == "" || isInt.test(time1))   {
-        if (require_field) {
-            var noname ="WARNING!\\n" +
-                    "The maximum interval field is required.\\n" +
-                    "Please fill it in and submit the form again.\\n" +
-                    "Hint: epoch names are better than nothing.\\n";
-            alert(noname);
-            return false;
-        } else {
-            return true;
-        }
-    } 
-END_HEADER
-    
-    for my $i (1..2) {
-        my $check = "    if(";
-        for my $row ( @results) {
-            # this is kind of ugly: we're just not going to let users
-            #  enter a time term that has double quotes because that
-            #  would break the JavaScript
-            if ( $row->{'interval_name'} !~ /"/ )   {
-                $check .= qq| emltime$i != "| . $row->{'eml_interval'} . $row->{'interval_name'} . qq|" &&\n|;
-            }
-        }
-        if ($include_ten_my_bins) {
-            my @binnames = PBDB::TimeLookup::getBins();
-            foreach my $binname (@binnames) {
-                $check .= qq| emltime$i != "|.$binname. qq|" &&\n|;
-            }
-        }
-        if ($i == 1) {
-            chop($check); chop($check); chop($check);#remove trailing &&\n
-        } else {
-            $check .= qq|time$i != ""|;
-        }
-        $check .= ") {\n";
-        $check .= "        badname$i += \"YES\";\n";
-        $check .= "    }\n";
-        $output .= $check;
-    }
-    
-    $output .= <<END_FOOTER;
-                                                                                                                                                             
-    if ( badname1 != "" || badname2 != "" ) {
-        alertmessage = "WARNING!\\n";
-    }
-                                                                                                                                                             
-    if ( badname1 != "" && badname2 != "" ) {
-        alertmessage += eml1 + " " + time1 +
-                        " and " + eml2 + " " + time2 +
-                        " aren't official time terms.\\n";
-        alertmessage += "Please correct them and submit the form again.\\n";
-    } else if ( badname1 != "" ) {
-        alertmessage += eml1 + " " + time1;
-        alertmessage += " isn't an official time term.\\n" +
-                        "Please correct it and submit the form again.\\n";
-    } else if ( badname2 != "" ) {
-        alertmessage += eml2 + " " + time2;
-        alertmessage += " isn't an official time term.\\n" +
-                        "Please correct it and submit the form again.\\n";
-    }
-    if ( alertmessage != "" ) {
-        alertmessage += "Hint: try epoch names instead.";
-        alert(alertmessage);
-        return false;
-    }
-    return true;
-}
-// END -->
 </script>
-END_FOOTER
-    
+
+END_JS
+	
     return $output;
 }
 
-# sub stripTags {
-#     my $s = shift;
-#     $s =~ s/<(?:[^>'"]*|(['"]).*?\1)*>//gs;
-#     $s =~ s/\[.*?\]//gs;
-#     $s =~ s/http:\/\/.*?(\s|$)//gs;
-#     return $s;
+
+# sub printIntervalsJava  {
+#     my $dbt = shift;
+#     my $include_ten_my_bins = shift;
+#     my $sql = "SELECT eml_interval,interval_name FROM intervals";
+#     my @results = @{$dbt->getData($sql)};
+    
+#     my %intervals_seen;
+#     my $intervals = "";
+#     foreach my $row (@results)  {
+#         if (!$intervals_seen{$row->{'interval_name'}}) {
+#             $intervals .= "'$row->{interval_name}', ";
+#             $intervals_seen{$row->{'interval_name'}} = 1;
+#         }
+#     }
+#     $intervals =~ s/, $//;
+    
+#     my $output = <<END_HEADER;
+# <script language="JavaScript" type="text/javascript">
+# <!-- Begin
+# function intervalNames() {
+#     var intervals = new Array($intervals);
+#     return intervals;
 # }
+
+# function checkIntervalNames(require_field) {
+#     var frm = document.forms[1];
+#     var badname1 = "";
+#     var badname2 = "";
+#     var alertmessage = "";
+#     var eml1 = frm.eml_max_interval.options[frm.eml_max_interval.selectedIndex].value;
+#     var time1 = frm.max_interval.value;
+#     var eml2 = frm.eml_min_interval.options[frm.eml_min_interval.selectedIndex].value;
+#     var time2 = frm.min_interval.value;
+#     var emltime1 = eml1 + time1;
+#     var emltime2 = eml2 + time2;
+    
+#     var isInt = /^[0-9.]+\$/;
+#     if ( time1 == "" || isInt.test(time1))   {
+#         if (require_field) {
+#             var noname ="WARNING!\\n" +
+#                     "The maximum interval field is required.\\n" +
+#                     "Please fill it in and submit the form again.\\n" +
+#                     "Hint: epoch names are better than nothing.\\n";
+#             alert(noname);
+#             return false;
+#         } else {
+#             return true;
+#         }
+#     } 
+# END_HEADER
+    
+#     for my $i (1..2) {
+#         my $check = "    if(";
+#         for my $row ( @results) {
+#             # this is kind of ugly: we're just not going to let users
+#             #  enter a time term that has double quotes because that
+#             #  would break the JavaScript
+#             if ( $row->{'interval_name'} !~ /"/ )   {
+#                 $check .= qq| emltime$i != "| . $row->{'eml_interval'} . $row->{'interval_name'} . qq|" &&\n|;
+#             }
+#         }
+#         if ($include_ten_my_bins) {
+#             my @binnames = PBDB::TimeLookup::getBins();
+#             foreach my $binname (@binnames) {
+#                 $check .= qq| emltime$i != "|.$binname. qq|" &&\n|;
+#             }
+#         }
+#         if ($i == 1) {
+#             chop($check); chop($check); chop($check);#remove trailing &&\n
+#         } else {
+#             $check .= qq|time$i != ""|;
+#         }
+#         $check .= ") {\n";
+#         $check .= "        badname$i += \"YES\";\n";
+#         $check .= "    }\n";
+#         $output .= $check;
+#     }
+    
+#     $output .= <<END_FOOTER;
+                                                                                                                                                             
+#     if ( badname1 != "" || badname2 != "" ) {
+#         alertmessage = "WARNING!\\n";
+#     }
+                                                                                                                                                             
+#     if ( badname1 != "" && badname2 != "" ) {
+#         alertmessage += eml1 + " " + time1 +
+#                         " and " + eml2 + " " + time2 +
+#                         " aren't official time terms.\\n";
+#         alertmessage += "Please correct them and submit the form again.\\n";
+#     } else if ( badname1 != "" ) {
+#         alertmessage += eml1 + " " + time1;
+#         alertmessage += " isn't an official time term.\\n" +
+#                         "Please correct it and submit the form again.\\n";
+#     } else if ( badname2 != "" ) {
+#         alertmessage += eml2 + " " + time2;
+#         alertmessage += " isn't an official time term.\\n" +
+#                         "Please correct it and submit the form again.\\n";
+#     }
+#     if ( alertmessage != "" ) {
+#         alertmessage += "Hint: try epoch names instead.";
+#         alert(alertmessage);
+#         return false;
+#     }
+#     return true;
+# }
+# // END -->
+# </script>
+# END_FOOTER
+    
+#     return $output;
+# }
+
+sub stripTags {
+    my $s = shift;
+    $s =~ s/<(?:[^>'"]*|(['"]).*?\1)*>//gs;
+    $s =~ s/\[.*?\]//gs;
+    $s =~ s/http:\/\/.*?(\s|$)//gs;
+    return $s;
+}
 
 sub checkForBot {
     if ($ENV{'HTTP_USER_AGENT'} =~ /slurp|bot|spider|ask jeeves|crawl|archive|holmes|findlinks|webcopier|cfetch|stackrambler|bnserver|petalbot|dotbot|bingbot|applebot|serpstat/i || $ENV{'REMOTE_ADDR'} =~ /^194.85./) {

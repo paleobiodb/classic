@@ -659,6 +659,7 @@ sub displayPreferencesPage {
 
 # Get the current preferences JA 25.6.02
 sub getPreferences	{
+    no warnings 'uninitialized';
     my ($self,$person_no) = @_;
     if (!$person_no) {
         $person_no = $self->{enterer_no};

@@ -11,8 +11,8 @@
     <meta charset="UTF-8">
     [% section_head_tags %]
     [% head_tags %]
-    <!-- <title>[% page_title %]</title> -->
-    <title>PBDB</title>
+    <title>[% page_title %]</title>
+    <!-- <title>PBDB</title> -->
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.2/html5shiv.js"></script>
@@ -38,6 +38,9 @@
 [%   nb_color = 'background-color: #106580' -%]
 [% END %]
   <body>
+    <style>
+      .nav > li > a { padding-left: 15px; padding-right: 10px }
+    </style>
       <nav class="navbar navbar-inverse navbar-static-top" style="[% GET nb_color %]" role="navigation">
       <div class="container">
 
@@ -148,7 +151,7 @@
           </ul>
           [% END %]
 
-          <form class="navbar-form navbar-right navbar-input-group form-search universalSearchForm"
+          <form class="navbar-form navbar-input-group form-search universalSearchForm"
 			  onsubmit="return acapp.do_submit(this)">
                   <div class="input-group" id="acinput">
                     <input type="text" class="form-control" placeholder="Search the database" id="searchbox"

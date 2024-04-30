@@ -426,7 +426,7 @@ sub updateCache {
     
     else
     {
-	print STDOUT "Parents are the same: new parent $new_parent_no old parent $old_parent_no\n" 
+	print STDOUT "Parents are the same: $new_parent_no\n" 
 	    if $DEBUG > 1;
     }
     
