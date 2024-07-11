@@ -1,0 +1,66 @@
+
+<link rel="stylesheet" href="/public/classic_css/disentangle.css">
+<script src="/public/classic_js/disentangle.js" language="JavaScript"></script>
+
+
+<span id="message"></span>
+
+<div align="center">
+  <p class="pageTitle">Disentangle opinions about %%orig_name%%</p>
+</div>
+
+<div class="displayPanel" style="padding: 1em; margin-left: 3em; margin-right: 3em;">
+  <form action="/classic" method="POST" onSubmit="return checkFields()">
+    <input type="hidden" name="action" value="submitDisentangleForm">
+    <table class="disTable">
+      %%opinion_rows%%
+    </table>
+    
+    %%hidden_fields%%
+    
+    <hr>
+    
+    <button disabled type="submit" id="submit">Modify these opinions</button>
+  </form>
+</div>
+
+
+
+<script language="JavaScript">
+  
+  function checkFields () {
+      
+      var max = $("#opinion_count").val();
+      var orig_no = { };
+      var valid = true;
+      
+      for ( var i = 1; i <= max; i++ )
+      {
+	  var child_no = $("#child_no_" + i).val();
+	  var chsp_no = $("#chsp_no_" + i).val();
+	  
+	  if ( orig_no[chsp_no] && orig_no[chsp_no] != child_no )
+	  {
+	      valid = false;
+	      $("#child_no_" + i).css('color', 'red');
+	  }
+	  
+	  else
+	  {
+	      orig_no[chsp_no] = child_no;
+	      $("#child_no_" + i).css('color', 'black');
+	  }
+      }
+      
+      $("#submit").prop('disabled', !valid);
+      return valid;
+  }
+
+
+  function checkForm () {
+      
+      window.alert("checkForm");
+      return 0;
+  }
+  
+</script>
