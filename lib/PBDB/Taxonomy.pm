@@ -27,7 +27,24 @@ our (@EXPORT_OK) = qw(getOriginalCombination getTaxa getTaxonNos getContainerTax
 
 our $DEBUG = 0;
 
+
 sub getOriginalCombination {
+    
+    my ($dbt, $taxon_no) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    my $sql = "SELECT orig_no FROM auth_orig WHERE taxon_no = $taxon_no";
+    
+    my ($orig_no) = $dbh->selectrow_array($sql);
+    
+    $orig_no ||= $taxon_no;
+    
+    return $orig_no;
+}
+
+
+sub getOCFromOpinions {
     
     my ($dbt, $taxon_no, $restrict_to_ref) = @_;
     

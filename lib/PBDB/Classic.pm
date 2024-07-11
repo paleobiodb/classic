@@ -2795,6 +2795,47 @@ sub displayOpinionChoiceForm {
     return $output;
 }
 
+
+sub displayDisentangleForm {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    if (!$s->isDBMember()) {
+	redirect '/login?reason=login', 303;
+    }
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::displayDisentangleForm($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Disentangle Opinions');
+    
+    return $output;
+}
+
+
+sub submitDisentangleForm {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    if (!$s->isDBMember()) {
+	redirect '/login?reason=login', 303;
+    }
+    
+    if (!$s->isSuperUser()) {
+	# $$$ redirect to menu with error
+    }
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::Opinion::submitDisentangleForm($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    $hbo->pageTitle('PBDB Disentangle Result');
+    
+    return $output;
+}
+
+
 sub reviewOpinionsForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;

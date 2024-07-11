@@ -165,6 +165,7 @@ unless ( $check_table )
 		`opinion_no` int unsigned not null,
 		`child_no` int unsigned not null,
 		`child_spelling_no` int unsigned not null,
+		`modifier_no` int unsigned not null default '0',
 		`modified` timestamp default current_timestamp,
 		KEY (`modified`)) Engine=InnoDB";
     
@@ -202,8 +203,7 @@ exit 0;
 
 sub doUpdate {
     
-    my ($sql, $rows, @update_taxon, @update_entanglement);
-    my (%uniq_taxon, %uniq_entanglement);
+    my ($sql, $rows, @update_taxon, %uniq_taxon);
     
     my ($current_time) = $dbh->selectrow_array("SELECT current_timestamp");
     
@@ -237,46 +237,26 @@ sub doUpdate {
 	{
 	    push @update_taxon, $child_no;
 	    $uniq_taxon{$child_no} = 1;
-	    $uniq_entanglement{$child_no} = 1;
 	}
 	
-	if ( $spelling_no && ! $uniq_entanglement{$spelling_no} )
+	if ( $spelling_no && ! $uniq_taxon{$spelling_no} )
 	{
-	    push @update_entanglement, $spelling_no;
-	    $uniq_entanglement{$spelling_no} = 1;
+	    push @update_taxon, $spelling_no;
+	    $uniq_taxon{$spelling_no} = 1;
 	}
     }
     
-    # Unless we found something, we are done.
+    # Unless we found something to update, we are done.
     
-    unless ( @update_taxon || @update_entanglement )
+    unless ( @update_taxon )
     {
 	return;
     }
     
-    # If we have any taxa from the child_spelling_no field of modified opinions,
-    # check them for entanglement unless they will be taken care of below.
-    
-    foreach my $spelling_no ( @update_entanglement )
-    {
-	say "Updating orig_no for $spelling_no" if $DEBUG;
-	
-	eval {
-	    updateOrig($dbt, $spelling_no, 1);
-	};
-	
-	if ( $@ )
-	{
-	    say "EXCEPTION from updateOrig: $@";
-	}
-    }
-    
-    # For each taxon to be updated, update its entanglement first and
-    # then update taxa_tree_cache. If an exception occurs, report it.
-    # If the exception occurred in updateCache, commit any work that
-    # was done.
-    
-    print "Found " . scalar(@update_taxon) . " taxa to update at $current_time\n";
+    # For each taxon to be updated, check its orig_no first and then
+    # update taxa_tree_cache. If an exception occurs, report it. If
+    # the exception occurred in updateCache, commit any work that was
+    # done.
     
     foreach my $taxon_no ( @update_taxon )
     {

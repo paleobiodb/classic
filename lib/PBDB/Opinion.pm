@@ -15,6 +15,7 @@ use PBDB::Validation;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE makeATag makeAnchor makeAnchorWithAttrs);
 
+
 # list of allowable data fields.
 # use fields qw(opinion_no child_no child_spelling_no
 # 	      reference_no author1last author2last pubyr status_old DBrow);  
@@ -1553,12 +1554,14 @@ sub submitOpinionForm {
         # my ($ref1,$ref2,$error) =
         # getOpinionsToMigrate($dbt,$fields{'child_no'},$fields{'child_spelling_no'},$fields{'opinion_no'}); 
 	
-	my $opinion_no = $fields{opinion_no} // '0';
+	my $child_no = $dbh->quote($fields{child_no});
+	my $child_spelling_no = $dbh->quote($fields{child_spelling_no});
+	my $opinion_no = $dbh->quote($fields{opinion_no} // '0');
 	
 	my $sql = "SELECT o.status FROM opinions as o
 			join auth_orig as a2 on a2.taxon_no = o.parent_spelling_no
-		WHERE o.child_no=$fields{child_no} and a2.orig_no=$fields{child_spelling_no}
-		      and status <> 'misspelling of' and opinion_no <> '$opinion_no'
+		WHERE o.child_no=$child_no and a2.orig_no=$child_spelling_no
+		      and status <> 'misspelling of' and opinion_no <> $opinion_no
 		LIMIT 1";
         
 	my ($status) = $dbh->selectrow_array($sql);
@@ -1569,7 +1572,21 @@ sub submitOpinionForm {
             $errors->add("$childSpellingName can't be an alternate spelling of $childName because there is already a '$status' opinion linking them, so they must be biologically distinct");
         }
 	
-	# Add a check against orig_no loops. $$$
+	# MM: Check to see if the child_no / child_spelling_no combination
+	# conflicts with the current taxon_no / orig_no relation. We must ensure
+	# that no loops are created in the auth_orig table. This requires a
+	# recursive query on the auth_orig table.
+	
+	my $sql = "WITH RECURSIVE anc AS (SELECT orig_no FROM auth_orig WHERE taxon_no = $child_no
+		UNION SELECT a.orig_no FROM auth_orig as a join anc on a.taxon_no = anc.orig_no )
+		SELECT orig_no from ancestors where orig_no = $child_spelling_no";
+	
+	my ($loop) = $dbh->selectrow_array($sql);
+	
+	if ( $loop )
+	{
+	    $errors->add("$childSpellingName is the original version of $childName");
+	}
 	
 	# else	{
         #     @opinions_to_migrate1 = @{$ref1};
@@ -1990,7 +2007,7 @@ sub submitOpinionForm {
     # Make sure opinions authority information is synchronized with the original
     # combination 
     
-    propagateAuthorityInfo($dbt,$q,$fields{'child_no'});
+    # propagateAuthorityInfo($dbt,$q,$fields{'child_no'});
     
     #     # Remove any duplicates that may have been added as a result of the migration
     #     $resultOpinionNumber = removeDuplicateOpinions($dbt,$s,$fields{'child_no'},$resultOpinionNumber);
@@ -2003,7 +2020,7 @@ sub submitOpinionForm {
     my $opinionHTML = $o->formatAsHTML($dbh, use_of => 1);
     
     my $enterupdate = ($isNewEntry) ? 'entered' : 'updated';
-
+    
     # we need to warn about the nasty case in which the author has synonymized
     #  genera X and Y, but we do not know the author's opinion on one or more
     #  species placed at some point in X
@@ -2198,8 +2215,10 @@ sub submitOpinionAction {
     
     elsif ( $q->param('action_reprocess') )
     {
-	$dbh->do("INSERT INTO check_opinions (opinion_no, child_no, child_spelling_no)
-		VALUES ($opinion_no, $child_no, $child_spelling_no)");
+	my $modifier_no = $s->get('enterer_no');
+	
+	$dbh->do("INSERT INTO check_opinions (opinion_no, child_no, child_spelling_no, modifier_no)
+		VALUES ($opinion_no, $child_no, $child_spelling_no, $modifier_no)");
 	# updateEntanglement($dbt, $child_no);
 	# updateEntanglement($dbt, $child_spelling_no);
     }
@@ -2424,7 +2443,8 @@ sub displayOpinionChoiceForm {
     my $can_edit = $s->isDBMember;
     
     my ($sql, $result, @clauses, @errors, $page_title, $output);
-    my ($taxon_no, $orig_no, $reference_no, $person_no, $person_name, $role, $author);
+    my ($taxon_no, $orig_no, $orig_name);
+    my ($reference_no, $person_no, $person_name, $role, $author);
     my ($base_taxon);
     
     my $other_joins = '';
@@ -2439,9 +2459,9 @@ sub displayOpinionChoiceForm {
         $orig_no = getOriginalCombination($dbt, $taxon_no);
 	
         my $t = PBDB::Taxon->new($dbt, $taxon_no);
-	my $taxon_name = $t->taxonNameHTML;
+	$orig_name = $t->taxonNameHTML;
 	
-	$page_title = "Opinions about $taxon_name";
+	$page_title = "Opinions about $orig_name";
     }
     
     else
@@ -2712,6 +2732,8 @@ sub displayOpinionChoiceForm {
     
     # Otherwise, generate a list of the retrieved opinions.
     
+    my (@child_nos, %child_uniq);
+    
     $page_title =~ s/,$//;
     
     $output = <<HEADER;
@@ -2727,6 +2749,18 @@ HEADER
 	my $opinion_no = $row->{opinion_no};
 	
 	my $o = PBDB::Opinion->new($dbt, $opinion_no);
+	
+	if ( $o->{child_no} && ! $child_uniq{$o->{child_no}} )
+	{
+	    push @child_nos, $o->{child_no};
+	    $child_uniq{$o->{child_no}} = 1;
+	}
+	
+	if ( $o->{child_spelling_no} && ! $child_uniq{$o->{child_spelling_no}} )
+	{
+	    push @child_nos, $o->{child_spelling_no};
+	    $child_uniq{$o->{child_spelling_no}} = 1;
+	}
 	
 	my $reflink = "reference_no=$o->{reference_no}";
 	
@@ -2770,15 +2804,33 @@ HEADER
 				       "Create a <b>new</b> opinion record") . "</li>\n";
     }
     
-    # Close out the HTML elements surrounding the list.
+    $output .= "</ul>\n";
     
-    $output .= <<FOOTER;
-</ul>
-</div>
-</div>
-</div>
-
-FOOTER
+    # If the user has administrative privileges, and if there is more than one
+    # child taxon listed, they can disentangle.
+    
+    if ( $s->isSuperUser() && @child_nos > 1 && $orig_no )
+    {
+	$output .= "<form action=\"classic/displayDisentangleForm\">\n";
+	$output .= "<input type=\"hidden\" name=\"orig_no\" value=\"$orig_no\">\n";
+	$output .= "<button type=\"submit\">Disentangle</button>&nbsp;$orig_name ";
+	$output .= "from&nbsp;<select name=\"disentangle_no\">\n";
+	
+	foreach my $child_no ( @child_nos )
+	{
+	    if ( $child_no ne $orig_no )
+	    {
+		my $sql = "SELECT taxon_name FROM authorities WHERE taxon_no = $child_no";
+		my ($taxon_name) = $dbh->selectrow_array($sql);
+		$taxon_name ||= '???';
+		$output .= "<option value=\"$child_no\">$taxon_name</option>\n";
+	    }
+	}
+	
+	$output .= "</select>\n</form>\n";
+    }
+    
+    $output .= "</div></div></div>\n";
     
     # Add a documentation string.
     
@@ -2806,6 +2858,365 @@ NOTE
     
     return $output;
 }
+
+
+# displayDisentangleForm ( )
+# 
+# Displays a form which lists all opinions that currently exist
+# for a reference no/taxon, and allows opinions which should refer to
+# different taxa to be disentangled.
+# 
+# Adapted from displayOpinionChoiceForm(), 2024-05-22
+
+sub displayDisentangleForm {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    # Only database administrators can use this form.
+    
+    unless ( $s->isSuperUser() )
+    {
+	$q->param('errors' => "You must have administrative privilege in order to disentangle taxa");
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    my ($sql, $orig_no, $orig_name, $disentangle_no, $disentangle_name);
+    
+    my $output = '';
+    
+    # If we are given the parameter 'orig_no', display all opinions about that taxon and
+    # its variants.
+    
+    if ( $orig_no = $q->numeric_param('orig_no') )
+    {
+        my $t = PBDB::Taxon->new($dbt, $orig_no);
+	$orig_name = $t->taxonNameHTML;
+    }
+    
+    # Otherwise, return an error message.
+    
+    else
+    {
+	$q->param('errors' => "You must specify a taxon to disentangle");
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    unless ( $disentangle_no = $q->numeric_param('disentangle_no') )
+    {
+	$q->param('errors' => "Nothing to disentangle");
+	return PBDB::displayOpinionSearchform($q, $s, $dbt, $hbo);
+    }
+    
+    # Query for all of the opinions on the specified taxon.
+	
+    $sql = "SELECT o.opinion_no, o.child_no, o.child_spelling_no, o.parent_spelling_no,
+		    t.opinion_no as current_opinion,
+		    if(o.pubyr != '', o.pubyr, r.pubyr) as pubyr
+	    FROM (SELECT opinion_no FROM opinions WHERE child_no='$orig_no'
+		  UNION SELECT opinion_no
+		  FROM opinions as o join auth_orig as ao on ao.taxon_no=o.child_no
+		  WHERE ao.orig_no='$orig_no') as base
+	      join opinions as o using (opinion_no)
+	      left join $TAXA_TREE_CACHE as t on t.taxon_no = o.child_no
+	      left join refs as r on r.reference_no = o.reference_no
+	    ORDER BY pubyr asc";
+	
+    my $opinion_list = $dbh->selectall_arrayref($sql, { Slice => { } });
+    
+    # If no opinions were found, display the opinion search form with an error message.
+    
+    unless ( ref $opinion_list eq 'ARRAY' && @$opinion_list )
+    {
+	$q->param('errors' => 'No opinions were found');
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    # Otherwise generate a list of the involved taxa, starting with $orig_no.
+    
+    my (@child_nos, %taxon_uniq, @parent_nos, %parent_uniq);
+    
+    push @child_nos, $orig_no;
+    $taxon_uniq{$orig_no} = 1;
+    
+    foreach my $row ( @$opinion_list )
+    {
+	my $child_no = $row->{child_no};
+	my $spelling_no = $row->{child_spelling_no};
+	my $parent_no = $row->{parent_spelling_no};
+	
+	unless ( $taxon_uniq{$child_no} )
+	{
+	    push @child_nos, $child_no;
+	    $taxon_uniq{$child_no} = 1;
+	}
+	
+	unless ( $taxon_uniq{$spelling_no} )
+	{
+	    push @child_nos, $spelling_no;
+	    $taxon_uniq{$spelling_no} = 1;
+	}
+	
+	unless ( $parent_uniq{$parent_no} )
+	{
+	    push @parent_nos, $parent_no;
+	    $parent_uniq{$parent_no} = 1;
+	}
+    }
+    
+    unless ( @$opinion_list > 1 && @child_nos > 1 )
+    {
+	$q->param('errors' => 'Nothing to disentagle');
+	return PBDB::displayOpinionSearchForm($q, $s, $dbt, $hbo);
+    }
+    
+    my $lookup_str = join(',', @child_nos, @parent_nos);
+    
+    $sql = "SELECT taxon_no, taxon_name, taxon_rank FROM authorities
+	    WHERE taxon_no in ($lookup_str)";
+    
+    my $taxon_list = $dbh->selectall_arrayref($sql, { Slice => { } });
+    
+    my (%taxon_name, %taxon_rank);
+    
+    foreach my $t ( @$taxon_list )
+    {
+	my $taxon_no = $t->{taxon_no};
+	
+	$taxon_name{$taxon_no} = $t->{taxon_name};
+	$taxon_rank{$taxon_no} = $t->{taxon_rank};
+    }
+    
+    foreach my $taxon_no ( @child_nos, @parent_nos )
+    {
+	$taxon_name{$taxon_no} ||= "taxon $taxon_no";
+	$taxon_rank{$taxon_no} ||= "???";
+    }
+    
+    # Now compute the values necessary to generate the form.
+    
+    my $taxon_list = '';
+    
+    foreach my $taxon_no ( $orig_no, $disentangle_no )
+    {
+	$taxon_list .= "<option value=\"$taxon_no\">$taxon_name{$taxon_no}</option>\n";
+    }
+    
+    my $opinion_rows = '';
+    my $hidden_fields = '';
+    my $index;
+    
+    foreach my $i ( 0 .. $opinion_list->$#* )
+    {
+	$index = $i + 1;
+	my $row = $opinion_list->[$i];
+	my $opinion_no = $row->{opinion_no};
+	
+	my $o = PBDB::Opinion->new($dbt, $opinion_no);
+	
+	my $reflink = "reference_no=$o->{reference_no}";
+	
+	# create opinion line $$$
+	
+	my $control = "";
+	my $opline = "";
+	my $authority = "";
+	
+	my $child_no = $o->{child_no};
+	my $chsp_no = $o->{child_spelling_no};
+	my $parsp_no = $o->{parent_spelling_no};
+	
+	my $spelling_html = "<i>$taxon_name{$chsp_no}</i>";
+	my $parent_html = "<i>$taxon_name{$parsp_no}</i>";
+	
+	# Start out the opinion line based on the spelling reason.
+	
+	my $spelling_reason = $o->{spelling_reason};
+	
+	if ( $spelling_reason =~ /misspell/ )
+	{
+	    $opline = "[misspelled as $spelling_html] ";
+	}
+	
+	elsif ( $spelling_reason =~ /correct/ )
+	{
+	    $control = reasonList($index, $spelling_reason, $taxon_rank{$chsp_no});
+	    $opline = " $spelling_html and ";
+	}
+	
+	elsif ( $spelling_reason =~ /rank/ )
+	{
+	    $control = reasonList($index, $spelling_reason, $taxon_rank{$chsp_no});
+	    $opline = " and ";
+	}
+	
+	elsif ( $spelling_reason =~ /reassign/ )
+	{
+	    $control = reasonList($index, $spelling_reason, $taxon_rank{$chsp_no});
+	    $opline = " $spelling_html and ";
+	}
+	
+	elsif ( $spelling_reason =~ /recombin/ )
+	{
+	    $control = reasonList($index, $spelling_reason, $taxon_rank{$chsp_no});
+	    $opline = " $spelling_html and ";
+	}
+	
+	# Continue with the status.
+	
+	my $status = $o->{status};
+	
+	if ( $status =~ /belongs/ )
+	{
+	    $opline .= "belongs to $parent_html" unless $taxon_rank{$chsp_no} =~ /species/
+		and $opline;
+	}
+	
+	elsif ( $status =~ /^[aeiou]/ )
+	{
+	    $opline .= "is an $status of $parent_html";
+	}
+	
+	elsif ( $status =~ /replaced/ )
+	{
+	    $opline .= "is replaced by $parent_html";
+	}
+	
+	elsif ( $status =~ /misspelling/ )
+	{
+	    $opline .= "is a misspelling of $parent_html";
+	}
+	
+	elsif ( $parsp_no )
+	{
+	    $opline .= "is a $status in $parent_html";
+	}
+	
+	else
+	{
+	    $opline .= "is a $status";
+	}
+	
+	$opline =~ s/ and $//;
+	
+	# Now generate the attribution.
+	
+	my $short_ref = formatShortRef($dbt, $o->{reference_no});
+					   
+	if ( $o->{ref_has_opinion} )
+	{
+	    $authority = " according to " . makeAnchor("displayReference", $reflink, $short_ref);
+	}
+	
+	else
+	{
+	    my $opinion_ref = $o->formatShortRef;
+	    
+	    $authority = " according to $opinion_ref in " . 
+		makeAnchor("displayReference", $reflink, $short_ref);
+	}
+	
+	if ( $opinion_no == $row->{current_opinion} )
+	{
+	    $opline = "<b>$opline</b>";
+	}
+	
+	$opinion_rows .= "<tr><td><select id=\"child_no_$index\" " .
+	    "name=\"child_no_$index\" onChange=\"checkFields()\">\n";
+	$opinion_rows .= "$taxon_list</select>\n";
+	$opinion_rows .= "<input type=\"hidden\" id=\"chsp_no_$index\" " .
+	    "name=\"chsp_no_$index\" value=\"$chsp_no\">\n";
+	$opinion_rows .= "<input type=\"hidden\" id=\"opinion_no_$index\" " .
+	    "name=\"opinion_no_$index\" value=\"$opinion_no\">\n";
+	$opinion_rows .= "</td><td>" . $control . 
+	    makeAnchor("displayOpinionForm", "opinion_no=$opinion_no", $opline) . 
+	    $authority . "</td></tr>\n";
+	
+    }
+    
+    $hidden_fields = "<input type=\"hidden\" id=\"opinion_count\" " .
+	"name=\"opinion_count\" value=\"$index\">\n";
+    
+    my $vars = { orig_name => $orig_name,
+		 opinion_rows => $opinion_rows,
+		 hidden_fields => $hidden_fields };
+    
+    my $output = $hbo->populateSimple('disentangle_opinions', $vars);
+    
+    return $output;
+}
+
+
+sub reasonList {
+    
+    my ($index, $reason, $taxon_rank) = @_;
+    
+    my $rec_sel = $reason =~ /recomb/ ? ' selected' : '';
+    my $rea_sel = $reason =~ /reass/ ? ' selected' : '';
+    my $cor_sel = $reason =~ /corr/ ? ' selected' : '';
+    my $ran_sel = $reason =~ /rank/ ? ' selected' : '';
+    
+    my $output = "<select name=\"reason_$index\">\n";
+    $output .= "<option$rec_sel value=\"recombination\">is recombined as</option>\n"
+	if $taxon_rank =~ /species/;
+    $output .= "<option$rea_sel value=\"reassignment\">is reassigned as</option>\n"
+	if $taxon_rank eq 'subgenus';
+    $output .= "<option value=\"original spelling\">[original spelling]</option>\n";
+    $output .= "<option value=\"misspelling\">[misspelled as]</option>\n";
+    $output .= "<option$cor_sel value=\"correction\">is corrected as</option>\n";
+    $output .= "<option$ran_sel value=\"rank change\">is reranked as $taxon_rank</option>\n"
+	if $taxon_rank !~ /species|genus/;
+    $output .= "</select>";
+    
+    return $output;
+}
+
+
+sub submitDisentangleForm {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my @errors;
+    
+    my $opinion_count = $q->numeric_param("opinion_count");
+    
+    my (%opinion_no, %child_no, %chsp_no, %reason);
+    
+    my $output = "<div>\n";
+    
+    my $dbh = $dbt->dbh;
+    
+    unless ( $opinion_count && $opinion_count > 0 )
+    {
+	push @errors, "error in opinion_count";
+    }
+    
+    foreach my $i ( 1 .. $opinion_count )
+    {
+	$opinion_no{$i} = $q->numeric_param("opinion_no_$i");
+	$child_no{$i} = $q->numeric_param("child_no_$i");
+	$chsp_no{$i} = $q->numeric_param("chsp_no_$i");
+	$reason{$i} = $q->param("reason_$i");
+	
+	my $child_no = $dbh->quote($child_no{$i});
+	my $reason = $dbh->quote($reason{$i});
+	my $opinion_no = $dbh->quote($opinion_no{$i});
+	
+	my $stmt = "UPDATE opinions SET ";
+	$stmt .= "child_no = $child_no, ";
+	$stmt .= "spelling_reason = $reason\n" if $reason{$i};
+	$stmt .= "WHERE opinion_no = $opinion_no\n\n";
+	
+	$output .= "<p style=\"font-family: monospace\">$stmt</p>\n";
+    }
+    
+    $output .= "</div>\n";
+    
+    return $output;
+}
+    
+
 
 # # Occasionally duplicate opinions will be created sort of due to user err.  User will enter
 # # an opinions 'A b belongs to A' when 'A b' isn't the original combination.  They they

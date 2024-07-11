@@ -982,7 +982,7 @@ sub submitAuthorityForm {
 	# if it's an old entry, then we'll update.
 	$resultTaxonNumber = $t->get('taxon_no');
 	$status = $dbt->updateRecord($s,'authorities','taxon_no',$resultTaxonNumber, \%fields);
-	propagateAuthorityInfo($dbt,$q,$resultTaxonNumber,1);
+	# propagateAuthorityInfo($dbt,$q,$resultTaxonNumber,1);
 	
         my $db_orig_no = getOriginalCombination($dbt,$resultTaxonNumber);
 	
@@ -2069,7 +2069,7 @@ sub propagateAuthorityInfo {
         sort {$b->[0] <=> $a->[0]}
         map  {[$getDataQuality->($_),$_]}
         @spellings;
-
+    
     my @toUpdate;
     # Get this additional metadata from wherever we can find it, giving preference
     # to the taxa with better authority data

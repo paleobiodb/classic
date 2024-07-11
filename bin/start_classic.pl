@@ -129,7 +129,11 @@ $SIG{TERM} = sub { &kill_classic('TERM') };
 
 system("start_server --port 6000 --pid-file=classic_rest.pid -- starman --workers $rw $run_as --access-log=logs/$rest_log --preload-app bin/rest.psgi &");
 system("start_server --port 6001 --pid-file=classic_web.pid -- starman --workers $ww $run_as --access-log=logs/$web_log --preload-app bin/web.psgi &");
-system("start_server --interval=10 --pid-file=taxa_cached.pid --log-file=logs/$taxa_log -- bin/taxa_cached.pl $run_as &");
+
+unless ( $condif->{no_taxa_cached} )
+{
+    system("start_server --interval=10 --pid-file=taxa_cached.pid --log-file=logs/$taxa_log -- bin/taxa_cached.pl $run_as &");
+}
 
 print STDOUT "Started all services.\n";
 
