@@ -1,6 +1,5 @@
 <script src="/public/classic_js/tabs.js" language="JavaScript" type="text/javascript"></script>
 <script language="JavaScript" type="text/javascript">
-<!-- Begin
 
 var bad_info = ""; // Global variable
 var warnings = 0;
@@ -31,7 +30,7 @@ function checkFields() {
     doCheckFieldsCollectingInfo();
 
     var returnVal = checkIntervalNames(1);
-    if (!returnVal) {g
+    if (!returnVal) {
         return false;
     }
 
@@ -57,8 +56,15 @@ function checkIntervalNames (require_field) {
     if ( eml1 == 'Late/Upper' ) eml1 = 'Late';
     else if ( eml1 == 'Early/Lower' ) eml1 = 'Early';
     
-    if ( eml2 == 'Late/Upper' ) eml1 = 'Late';
+    if ( eml2 == 'Late/Upper' ) eml2 = 'Late';
     else if ( eml2 == 'Early/Lower' ) eml2 = 'Early';
+    
+    if ( eml1 == 'Early' && eml2 == 'Late' )
+    {
+	eml1 = '';
+	eml2 = '';
+	if ( name1 == name2 ) name2 = '';
+    }
     
     var emlname1 = eml1 ? eml1 + ' ' + name1 : name1;
     var emlname2 = eml2 ? eml2 + ' ' + name2 : name2;
@@ -71,42 +77,37 @@ function checkIntervalNames (require_field) {
                     "Hint: epoch names are better than nothing.\\n";
             alert(noname);
             return false;
-        } else {
-            return true;
         }
-    } 
-    
-    var max_invalid = emlname1 != '' && ! pbdb_interval_list.includes(emlname1);
-    var min_invalid = emlname2 != '' && ! pbdb_interval_list.includes(emlname2);
-    var warning;
-    var word = 'it';
-    
-    if ( max_invalid && min_invalid )
-    {
-        warning = `\${emlname1} and \${emlname2} are not official time terms.`;
-        word = 'them';
     }
     
-    else if ( max_invalid )
+    if ( ! pbdb_interval_list.includes(name1) )
     {
-        warning = `\${emlname1} is not an official time term.`;
+	alert(`${name1} is not an official time interval.\nPlease use a different interval name.`);
+	return false;
     }
     
-    else if ( min_invalid )
+    else if ( ! pbdb_interval_list.includes(emlname1) )
     {
-        warning = `\${emlname2} is not an official time term.`;
+	alert(`${emlname1} is not an official time interval.\nUse ${name1} with no prefix.`);
+	return false;
     }
-
-    if ( warning )
+    
+    if ( name2 )
     {
-        alert(`WARNING!\\n\${warning}\\nPlease correct \${word} and try again.`);
-        return false;
+	if ( ! pbdb_interval_list.includes(name2) )
+	{
+	    alert(`${name2} is not an official time interval.\nPlease use a different interval name.`);
+	    return false;
+	}
+	
+	else if ( ! pbdb_interval_list.includes(emlname2) )
+	{
+	    alert(`${emlname2} is not an official time interval.\nUse ${name2} with no prefix.`);
+	    return false;
+	}
     }
-
-    else
-    {
-        return true;
-    }
+    
+    return true;
 }
 
 function doCheckFieldsBasicInfo() {
@@ -475,7 +476,6 @@ function doCheckFieldsComponents() {
 
 }
 
-// End -->
 </script>
 
 <center>
