@@ -308,7 +308,8 @@ sub classic_request {
     my $reference_name = '';
     my $dbh = $dbt->{dbh};
     
-    if ( $action =~ /displayRefResults|displaySearchRefs/ && params->{type} eq 'select' )
+    if ( $action =~ /^displayRefResults|^displaySearchRefs/ && params->{type} eq 'select' || 
+         $action =~ /^selectReference|enterReferenceData/ && params->{reference_no} )
     {
 	my ($data) = PBDB::Reference::getReferences($dbt,$q,$s,$hbo);
 	
@@ -323,8 +324,8 @@ sub classic_request {
 	    {	    
 		$action = $q->reset_params(\%params);
 	    }
-
-	    else
+	    
+	    elsif ( $action != 'enterReferenceData' )
 	    {
 		$action = 'menu';
 	    }
@@ -920,6 +921,43 @@ sub selectReference {
     
     $s->setReferenceNo($q->numeric_param("reference_no") );
     return menu($q, $s, $dbt, $hbo );
+}
+
+sub enterReferenceData {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $output = '';
+    
+    unless ( $s->isLoggedIn() )
+    {
+	redirect '/login?reason=login', 303;
+    }
+    
+    unless ( $s->isDBMember() )
+    {
+	$output .= $hbo->stdIncludes($PAGE_TOP);
+	$output .= "<h2>You must be a database contributor to enter data.</h2>";
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    }
+    
+    else
+    {
+	if ( my $reference_no = $q->numeric_param("reference_no") )
+	{
+	    $s->setReferenceNo($reference_no);
+	}
+	
+	my $vars = { };
+	
+	$output .= $hbo->stdIncludes($PAGE_TOP);
+	$output .= $hbo->populateHTML('enter_data', $vars);
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    }
+    
+    $hbo->pageTitle('PBDB Enter Data');
+    
+    return $output;
 }
 
 # Wrapper to displayRefEdit
