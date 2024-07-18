@@ -17,7 +17,6 @@ use URI::Escape;
 use Text::CSV_XS;
 use HTML::Entities;
 use Class::Date qw(date localdate gmdate now);
-use POSIX qw(ceil floor);
 use DBI;
 
 # PBDB modules
@@ -1508,7 +1507,12 @@ sub displayCollResults {
     if ( $q->param('type') eq "add" )
     {
 	# you won't have an in list if you are adding
-	($dataRows,$ofRows) = processCollectionsSearchForAdd($q, $s, $dbt, $hbo);
+	($dataRows,$ofRows) = PBDB::CollectionEntry::processCollectionsSearchForAdd($q, $s, $dbt, $hbo);
+	
+	unless ( ref $dataRows )
+	{
+	    return displaySearchCollsForAdd($q, $s, $dbt, $hbo);
+	}
     } 
     
     elsif ( ! $dataRows )
@@ -1998,168 +2002,6 @@ sub displayCollResults {
     
     return $output;
 } # end sub displayCollResults
-
-
-# JA 5-6.4.04
-# compose the SQL to find collections of a certain age within 100 km of
-#  a coordinate (required when the user wants to add a collection)
-sub processCollectionsSearchForAdd	{
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-
-    my $dbh = $dbt->dbh;
-    return if PBDB::PBDBUtil::checkForBot();
-    
-    #require Map;
-    
-    # some generally useful trig stuff needed by processCollectionsSearchForAdd
-	my $PI = 3.14159265;
-
-	my $sql;
-
-	# get a list of interval numbers that fall in the geological period
-	my $t = new PBDB::TimeLookup($dbt);
-	$sql = "SELECT interval_no FROM intervals WHERE interval_name LIKE ".$dbh->quote($q->param('period_max'));
-	my $period_no = ${$dbt->getData($sql)}[0]->{'interval_no'};
-	my @intervals = $t->mapIntervals($period_no);
-	$sql = "SELECT c.collection_no, c.collection_aka, c.authorizer_no, p1.name authorizer, c.collection_name, c.access_level, c.research_group, c.release_date, DATE_FORMAT(release_date, '%Y%m%d') rd_short, c.country, c.state, c.latdeg, c.latmin, c.latsec, c.latdec, c.latdir, c.lngdeg, c.lngmin, c.lngsec, c.lngdec, c.lngdir, c.max_interval_no, c.min_interval_no, c.reference_no FROM collections c LEFT JOIN person p1 ON p1.person_no = c.authorizer_no WHERE ";
-	$sql .= "c.max_interval_no IN (" . join(',', @intervals) . ") AND ";
-
-	# convert the submitted lat/long values
-	my ($lat,$lng);
-	
-	($lat) = $q->param('latdec') ne '' ?
-	    PBDB::CollectionEntry::fromDecDeg($q->param('latdeg'), $q->param('latdec')) :
-		    PBDB::CollectionEntry::fromMinSec($q->param('latdeg'),$q->param('latmin'),$q->param('latsec'));
-	
-	($lng) = $q->param('lngdec') ne '' ?
-	    PBDB::CollectionEntry::fromDecDeg($q->param('lngdeg'),$q->param('lngdec')) :
-		    PBDB::CollectionEntry::fromMinSec($q->param('lngdeg'),$q->param('lngmin'),$q->param('lngsec'));
-	
-	# west and south are negative
-	if ( $q->param('latdir') =~ /S/ )	{
-		$lat = "-".$lat;
-	}
-	if ( $q->param('lngdir') =~ /W/ )	{
-		$lng = "-".$lng;
-	}
-	my $mylat = $lat;
-	my $mylng = $lng;
-
-	# convert the coordinates to decimal values
-	# maximum latitude is center point plus 100 km, etc.
-	# longitude is a little tricky because we have to deal with cosines
-	# it's important to use floor instead of int because they round off
-	#  negative numbers differently
-	my $maxlat = floor($lat + 100 / 111);
-	my $minlat = floor($lat - 100 / 111);
-	my $maxlng = floor($lng + ( (100 / 111) / cos($lat * $PI / 180) ) );
-	my $minlng = floor($lng - ( (100 / 111) / cos($lat * $PI / 180) ) );
-
-	# create an inlist of lat/long degree values for hitting the
-	#  collections table
-
-	# reset the limits if you go "north" of the north pole etc.
-	# note that we don't have to get complicated with resetting, say,
-	#  the minlat when you limit maxlat because there will always be
-	#  enough padding
-	# if you're too close to lat 0 or lng 0 there's no problem because
-	#  you'll just repeat some values like 1 or 2 in the inlist, but we
-	#  do need to prevent looking in just one hemisphere
-	# if you have a "wraparound" like this you need to look in both
-	#  hemispheres anyway, so don't add a latdir= or lngdir= clause
-	if ( $maxlat >= 90 )	{
-		$maxlat = 89;
-	} elsif ( $minlat <= -90 )	{
-		$minlat = -89;
-	} elsif ( ( $maxlat > 0 && $minlat > 0 ) || ( $maxlat < 0 && $minlat < 0 ) )	{
-	    my $latdir = $dbh->quote($q->param('latdir'));
-	    $sql .= "c.latdir=$latdir AND ";
-	}
-	if ( $maxlng >= 180 )	{
-		$maxlng = 179;
-	} elsif ( $minlng <= -180 )	{
-		$minlng = -179;
-	} elsif ( ( $maxlng > 0 && $minlng > 0 ) || ( $maxlng < 0 && $minlng < 0 ) )	{
-	    my $lngdir = $dbh->quote($q->param('lngdir'));
-	    $sql .= "c.lngdir=$lngdir AND ";
-	}
-
-	my $inlist;
-	for my $l ($minlat..$maxlat)	{
-		$inlist .= abs($l) . ",";
-	}
-	$inlist =~ s/,$//;
-	$sql .= "c.latdeg IN (" . $inlist . ") AND ";
-
-	$inlist = "";
-	for my $l ($minlng..$maxlng)	{
-		$inlist .= abs($l) . ",";
-	}
-	$inlist =~ s/,$//;
-	$sql .= "c.lngdeg IN (" . $inlist . ")";
-        my $sortby = $q->param('sortby');
-	if ($sortby eq $COLLECTION_NO) {
-		$sql .= " ORDER BY c.$COLLECTION_NO";
-	} elsif ($sortby =~ /^(collection_name|inventory_name)$/) {
-	    $sql .= " ORDER BY c.$sortby";
-	}
-
-	my @dataRows = ();
-
-	my $sth = $dbt->dbh->prepare($sql);
-	$sth->execute();
-	my $p = PBDB::Permissions->new ($s,$dbt);
-	my $limit = 10000000;
-	my $ofRows = 0;
-	$p->getReadRows ( $sth, \@dataRows, $limit, \$ofRows );
-
-	# make sure collections really are within 100 km of the submitted
-	#  lat/long coordinate JA 6.4.04
-	my @tempDataRows;
-
-    # have to recompute this
-    for my $dr (@dataRows)	{
-        my ($lat,$lng);
-        # compute the coordinate
-        $lat = $dr->{'latdeg'};
-        $lng = $dr->{'lngdeg'};
-        if ( $dr->{'latmin'} )	{
-            $lat = $lat + ( $dr->{'latmin'} / 60 ) + ( $dr->{'latsec'} / 3600 );
-        } else	{
-            $lat = $lat . "." . $dr->{'latdec'};
-        }
-    
-        if ( $dr->{'lngmin'} )	{
-            $lng = $lng + ( $dr->{'lngmin'} / 60 ) + ( $dr->{'lngsec'} / 3600 );
-        } else	{
-            $lng = $lng . "." . $dr->{'lngdec'};
-        }
-
-        # west and south are negative
-        if ( $dr->{'latdir'} =~ /S/ )	{
-            $lat = $lat * -1;
-        }
-        if ( $dr->{'lngdir'} =~ /W/ )	{
-            $lng = $lng * -1;
-        }
-
-        # if the points are less than 100 km apart, save
-        #  the collection
-        my $distance = 111 * PBDB::CollectionEntry::GCD($mylat,$lat,abs($mylng-$lng));
-        if ( $distance < 100 )	{
-            $dr->{'distance'} = $distance;
-            push @tempDataRows, $dr;
-        } 
-    }
-
-	if ($q->param('sortby') eq 'distance')	{
-		@tempDataRows = sort {$a->{'distance'} <=> $b->{'distance'}  ||
-		$a->{'collection_no'} <=> $b->{'collection_no'}} @tempDataRows;
-	}
-
-	return (\@tempDataRows,scalar(@tempDataRows));
-}
 
 
 sub displayCollectionForm {

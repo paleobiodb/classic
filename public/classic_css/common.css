@@ -619,6 +619,11 @@ span.nonEditable {
     font-size: 0.9em;
 }
 
+.displayPanelText td {
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
 .shownClassBox	{
 	display: block;
 	overflow: auto;

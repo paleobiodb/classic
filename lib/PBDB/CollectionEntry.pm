@@ -10,7 +10,6 @@ use PBDB::Taxon;
 use PBDB::TaxonInfo;
 use PBDB::Map;
 use PBDB::Collection;
-use PBDB::TimeLookup;
 use PBDB::TaxaCache;
 use PBDB::Person;
 use PBDB::Permissions;
@@ -22,6 +21,9 @@ use PBDB::Debug qw(dbg);
 use URI::Escape;    
 use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCE_NO
 		       makeAnchor makeFormPostTag);
+
+use IntervalBase qw(int_defined int_name int_bounds int_correlation interval_nos_by_age);
+use POSIX qw(floor);
 
 # this is a shell function that will have to be replaced with something new
 #  because PBDB::Collection::getCollections is going with Fossilworks JA 4.6.13
@@ -642,6 +644,180 @@ sub setMaIntervalNo	{
 }
 
 
+# JA 5-6.4.04
+# compose the SQL to find collections of a certain age within 100 km of
+#  a coordinate (required when the user wants to add a collection)
+sub processCollectionsSearchForAdd	{
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+
+    my $dbh = $dbt->dbh;
+    return if PBDB::PBDBUtil::checkForBot();
+    
+    #require Map;
+    
+    # some generally useful trig stuff needed by processCollectionsSearchForAdd
+    my $PI = 3.14159265;
+    
+    my $sql;
+    
+    # get a list of interval numbers that fall in the geological period
+    
+    my @intervals;
+    
+    if ( int_defined($q->param('period_max')) )
+    {
+	my ($b_age, $t_age) = int_bounds($q->param('period_max'));
+	
+	@intervals = interval_nos_by_age($b_age, $t_age);
+    }
+    
+    else
+    {
+	my $period_name = $q->param('period_max');
+	return "Unknown period '$period_name' in processCollectionsSearchForAdd\n";
+    }
+    
+    $sql = "SELECT c.collection_no, c.collection_aka, c.authorizer_no, p1.name authorizer, c.collection_name, c.access_level, c.research_group, c.release_date, DATE_FORMAT(release_date, '%Y%m%d') rd_short, c.country, c.state, c.latdeg, c.latmin, c.latsec, c.latdec, c.latdir, c.lngdeg, c.lngmin, c.lngsec, c.lngdec, c.lngdir, c.max_interval_no, c.min_interval_no, c.reference_no FROM collections c LEFT JOIN person p1 ON p1.person_no = c.authorizer_no WHERE ";
+    $sql .= "c.max_interval_no IN (" . join(',', @intervals) . ") AND ";
+    
+    # convert the submitted lat/long values
+    my ($lat,$lng);
+    
+    ($lat) = $q->param('latdec') ne '' ?
+	PBDB::CollectionEntry::fromDecDeg($q->param('latdeg'), $q->param('latdec')) :
+	  PBDB::CollectionEntry::fromMinSec($q->param('latdeg'),$q->param('latmin'),$q->param('latsec'));
+    
+    ($lng) = $q->param('lngdec') ne '' ?
+	PBDB::CollectionEntry::fromDecDeg($q->param('lngdeg'),$q->param('lngdec')) :
+	  PBDB::CollectionEntry::fromMinSec($q->param('lngdeg'),$q->param('lngmin'),$q->param('lngsec'));
+    
+    # west and south are negative
+    if ( $q->param('latdir') =~ /S/ )	{
+	$lat = "-".$lat;
+    }
+    if ( $q->param('lngdir') =~ /W/ )	{
+	$lng = "-".$lng;
+    }
+    my $mylat = $lat;
+    my $mylng = $lng;
+    
+    # convert the coordinates to decimal values
+    # maximum latitude is center point plus 100 km, etc.
+    # longitude is a little tricky because we have to deal with cosines
+    # it's important to use floor instead of int because they round off
+    #  negative numbers differently
+    my $maxlat = floor($lat + 100 / 111);
+    my $minlat = floor($lat - 100 / 111);
+    my $maxlng = floor($lng + ( (100 / 111) / cos($lat * $PI / 180) ) );
+    my $minlng = floor($lng - ( (100 / 111) / cos($lat * $PI / 180) ) );
+    
+    # create an inlist of lat/long degree values for hitting the
+    #  collections table
+    
+    # reset the limits if you go "north" of the north pole etc.
+    # note that we don't have to get complicated with resetting, say,
+    #  the minlat when you limit maxlat because there will always be
+    #  enough padding
+    # if you're too close to lat 0 or lng 0 there's no problem because
+    #  you'll just repeat some values like 1 or 2 in the inlist, but we
+    #  do need to prevent looking in just one hemisphere
+    # if you have a "wraparound" like this you need to look in both
+    #  hemispheres anyway, so don't add a latdir= or lngdir= clause
+    if ( $maxlat >= 90 )	{
+	$maxlat = 89;
+    } elsif ( $minlat <= -90 )	{
+	$minlat = -89;
+    } elsif ( ( $maxlat > 0 && $minlat > 0 ) || ( $maxlat < 0 && $minlat < 0 ) )	{
+	my $latdir = $dbh->quote($q->param('latdir'));
+	$sql .= "c.latdir=$latdir AND ";
+    }
+    if ( $maxlng >= 180 )	{
+	$maxlng = 179;
+    } elsif ( $minlng <= -180 )	{
+	$minlng = -179;
+    } elsif ( ( $maxlng > 0 && $minlng > 0 ) || ( $maxlng < 0 && $minlng < 0 ) )	{
+	my $lngdir = $dbh->quote($q->param('lngdir'));
+	$sql .= "c.lngdir=$lngdir AND ";
+    }
+    
+    my $inlist;
+    for my $l ($minlat..$maxlat)	{
+	$inlist .= abs($l) . ",";
+    }
+    $inlist =~ s/,$//;
+    $sql .= "c.latdeg IN (" . $inlist . ") AND ";
+    
+    $inlist = "";
+    for my $l ($minlng..$maxlng)	{
+	$inlist .= abs($l) . ",";
+    }
+    $inlist =~ s/,$//;
+    $sql .= "c.lngdeg IN (" . $inlist . ")";
+    my $sortby = $q->param('sortby');
+    if ($sortby eq $COLLECTION_NO) {
+	$sql .= " ORDER BY c.$COLLECTION_NO";
+    } elsif ($sortby =~ /^(collection_name|inventory_name)$/) {
+	$sql .= " ORDER BY c.$sortby";
+    }
+    
+    my @dataRows = ();
+    
+    my $sth = $dbt->dbh->prepare($sql);
+    $sth->execute();
+    my $p = PBDB::Permissions->new ($s,$dbt);
+    my $limit = 10000000;
+    my $ofRows = 0;
+    $p->getReadRows ( $sth, \@dataRows, $limit, \$ofRows );
+    
+    # make sure collections really are within 100 km of the submitted
+    #  lat/long coordinate JA 6.4.04
+    my @tempDataRows;
+    
+    # have to recompute this
+    for my $dr (@dataRows)	{
+        my ($lat,$lng);
+        # compute the coordinate
+        $lat = $dr->{'latdeg'};
+        $lng = $dr->{'lngdeg'};
+        if ( $dr->{'latmin'} )	{
+            $lat = $lat + ( $dr->{'latmin'} / 60 ) + ( $dr->{'latsec'} / 3600 );
+        } else	{
+            $lat = $lat . "." . $dr->{'latdec'};
+        }
+	
+        if ( $dr->{'lngmin'} )	{
+            $lng = $lng + ( $dr->{'lngmin'} / 60 ) + ( $dr->{'lngsec'} / 3600 );
+        } else	{
+            $lng = $lng . "." . $dr->{'lngdec'};
+        }
+	
+        # west and south are negative
+        if ( $dr->{'latdir'} =~ /S/ )	{
+            $lat = $lat * -1;
+        }
+        if ( $dr->{'lngdir'} =~ /W/ )	{
+            $lng = $lng * -1;
+        }
+	
+        # if the points are less than 100 km apart, save
+        #  the collection
+        my $distance = 111 * PBDB::CollectionEntry::GCD($mylat,$lat,abs($mylng-$lng));
+        if ( $distance < 100 )	{
+            $dr->{'distance'} = $distance;
+            push @tempDataRows, $dr;
+        } 
+    }
+    
+    if ($q->param('sortby') eq 'distance')	{
+	@tempDataRows = sort {$a->{'distance'} <=> $b->{'distance'}  ||
+				  $a->{'collection_no'} <=> $b->{'collection_no'}} @tempDataRows;
+    }
+    
+    return (\@tempDataRows,scalar(@tempDataRows));
+}
+
+
 #  * User selects a collection from the displayed list
 #  * System displays selected collection
 sub displayCollectionDetails {
@@ -876,30 +1052,108 @@ sub displayCollectionDetailsPage {
         $row->{'modifier'} =~ s/^, //;
     }
 
+    # Added by MM 2024-07-17
+    
+    $row->{interval} = 'unknown';
+    
+    if ( $row->{max_interval_no} )
+    {
+	no warnings 'uninitialized';
+	
+	my ($b_age, $t_age) = int_bounds($row->{max_interval_no});
+	my ($dummy);
+	
+	if ( my $max_name = int_name($row->{max_interval_no}) )
+	{
+	    $row->{interval} = qq|<a target="_blank" href="$INTERVAL_URL$row->{max_interval_no}">|;
+	    $row->{interval} .= $max_name;
+	    $row->{interval} .= "</a>";
+	}
+	
+	$row->{period} = int_name(int_correlation($row->{max_interval_no}, 'period_no'));
+	$row->{epoch} = int_name(int_correlation($row->{max_interval_no}, 'epoch_no'));
+	$row->{stage} = int_name(int_correlation($row->{max_interval_no}, 'stage_no'));
+	$row->{ten_my_bin} = int_correlation($row->{max_interval_no}, 'ten_my_bin');
+	
+	if ( $row->{min_interval_no} && $row->{min_interval_no} ne $row->{max_interval_no} )
+	{
+	    ($dummy, $t_age) = int_bounds($row->{min_interval_no});
+	    
+	    if ( my $min_name = int_name($row->{min_interval_no}) )
+	    {
+		$row->{interval} .= ' - ';
+		$row->{interval} .= qq|<a target="_blank" href="$INTERVAL_URL$row->{min_interval_no}">|;
+		$row->{interval} .= $min_name;
+		$row->{interval} .= "</a>";
+	    }
+	    
+	    my $min_period = int_name(int_correlation($row->{min_interval_no}, 'period_no'));
+	    my $min_epoch = int_name(int_correlation($row->{min_interval_no}, 'epoch_no'));
+	    my $min_stage = int_name(int_correlation($row->{min_interval_no}, 'stage_no'));
+	    my $min_bin = int_correlation($row->{min_interval_no}, 'ten_my_bin');
+	    
+	    if ( $min_period && $row->{period} && $min_period ne $row->{period} )
+	    {
+		$row->{period} .= " - $min_period";
+	    }
+	    
+	    if ( $min_epoch && $row->{epoch} && $min_epoch ne $row->{epoch} )
+	    {
+		$row->{epoch} .= " - $min_epoch";
+	    }
+	    
+	    if ( $min_stage && $row->{stage} && $min_stage ne $row->{stage} )
+	    {
+		$row->{stage} .= " - $min_stage";
+	    }
+	    
+	    if ( $min_bin && $row->{ten_my_bin} && $min_bin ne $row->{ten_my_bin} )
+	    {
+		$row->{ten_my_bin} .= " - $min_bin";
+	    }
+	}
+	
+	if ( defined $b_age && $b_age ne '' && defined $t_age && $t_age ne '' )
+	{
+	    $row->{age_range} = "$b_age - $t_age m.y. ago";
+	}
+	
+	else
+	{
+	    $row->{age_range} = "bad intervals";
+	}
+    }
+    
+    else
+    {
+	$row->{age_range} = "unknown";
+    }
+    
 	# get the max/min interval names
-	$row->{'interval'} = '';
-	if ( $row->{'max_interval_no'} ) {
-		$sql = "SELECT eml_interval,interval_name FROM intervals WHERE interval_no=" . $row->{'max_interval_no'};
-        my $max_row = ${$dbt->getData($sql)}[0];
-        $row->{'interval'} .= qq|<a href="$INTERVAL_URL$row->{max_interval_no}">|; #old FossilWorks stuff
-        $row->{'interval'} .= $max_row->{'eml_interval'}." " if ($max_row->{'eml_interval'});
-        $row->{'interval'} .= $max_row->{'interval_name'};
-        $row->{'interval'} .= '</a>';
-	} 
+	# $row->{'interval'} = '';
+	# if ( $row->{'max_interval_no'} ) {
+	# 	$sql = "SELECT eml_interval,interval_name FROM intervals WHERE interval_no=" . $row->{'max_interval_no'};
+        # my $max_row = ${$dbt->getData($sql)}[0];
+        # $row->{'interval'} .= qq|<a href="$INTERVAL_URL$row->{max_interval_no}">|; #old FossilWorks stuff
+        # $row->{'interval'} .= $max_row->{'eml_interval'}." " if ($max_row->{'eml_interval'});
+        # $row->{'interval'} .= $max_row->{'interval_name'};
+        # $row->{'interval'} .= '</a>';
+	# } 
 
-	if ( $row->{'min_interval_no'}) {
-		$sql = "SELECT eml_interval,interval_name FROM intervals WHERE interval_no=" . $row->{'min_interval_no'};
-        my $min_row = ${$dbt->getData($sql)}[0];
-        $row->{'interval'} .= " - ";
-        $row->{'interval'} .= qq|<a href="$INTERVAL_URL$row->{min_interval_no}">|; #old FossilWorks stuff
-        $row->{'interval'} .= $min_row->{'eml_interval'}." " if ($min_row->{'eml_interval'});
-        $row->{'interval'} .= $min_row->{'interval_name'};
-        $row->{'interval'} .= '</a>';
+	# if ( $row->{'min_interval_no'}) {
+	# 	$sql = "SELECT eml_interval,interval_name FROM intervals WHERE interval_no=" . $row->{'min_interval_no'};
+        # my $min_row = ${$dbt->getData($sql)}[0];
+        # $row->{'interval'} .= " - ";
+        # $row->{'interval'} .= qq|<a href="$INTERVAL_URL$row->{min_interval_no}">|; #old FossilWorks stuff
+        # $row->{'interval'} .= $min_row->{'eml_interval'}." " if ($min_row->{'eml_interval'});
+        # $row->{'interval'} .= $min_row->{'interval_name'};
+        # $row->{'interval'} .= '</a>';
 
-        if (!$row->{'max_interval_no'}) {
-            $row->{'interval'} .= " <span class=small>(minimum)</span>";
-        }
-	} 
+        # if (!$row->{'max_interval_no'}) {
+        #     $row->{'interval'} .= " <span class=small>(minimum)</span>";
+        # }
+	# } 
+    
     my $time_place = $row->{'collection_name'}.": ";
     $time_place .= "$row->{interval}";
     if ($row->{'state'} && $row->{country} eq "United States") {
@@ -924,21 +1178,21 @@ sub displayCollectionDetailsPage {
     }
     $row->{'collection_name'} = $time_place;
     
-    my @intervals = ();
-    push @intervals, $row->{'max_interval_no'} if ($row->{'max_interval_no'});
-    push @intervals, $row->{'min_interval_no'} if ($row->{'min_interval_no'} && $row->{'min_interval_no'} != $row->{'max_interval_no'});
-    my $max_lookup;
-    my $min_lookup;
-    if (@intervals) { 
-        my $t = new PBDB::TimeLookup($dbt);
-        my $lookup = $t->lookupIntervals(\@intervals);
-        $max_lookup = $lookup->{$row->{'max_interval_no'}};
-        if ($row->{'min_interval_no'}) { 
-            $min_lookup = $lookup->{$row->{'min_interval_no'}};
-        } else {
-            $min_lookup=$max_lookup;
-        }
-    }
+    # my @intervals = ();
+    # push @intervals, $row->{'max_interval_no'} if ($row->{'max_interval_no'});
+    # push @intervals, $row->{'min_interval_no'} if ($row->{'min_interval_no'} && $row->{'min_interval_no'} != $row->{'max_interval_no'});
+    # my $max_lookup;
+    # my $min_lookup;
+    # if (@intervals) { 
+    #     my $t = new PBDB::TimeLookup($dbt);
+    #     my $lookup = $t->lookupIntervals(\@intervals);
+    #     $max_lookup = $lookup->{$row->{'max_interval_no'}};
+    #     if ($row->{'min_interval_no'}) { 
+    #         $min_lookup = $lookup->{$row->{'min_interval_no'}};
+    #     } else {
+    #         $min_lookup=$max_lookup;
+    #     }
+    # }
     # if ($max_lookup->{'base_age'} && $min_lookup->{'top_age'}) {
     #     my @boundaries = ($max_lookup->{'base_age'},$max_lookup->{'top_age'},$min_lookup->{'base_age'},$min_lookup->{'top_age'});
     #     @boundaries = sort {$b <=> $a} @boundaries;
@@ -950,15 +1204,15 @@ sub displayCollectionDetailsPage {
     #     $row->{'age_range'} = "";
     # }
     
-    if ( $row->{max_interval_no} > 0 || $row->{min_interval_no} > 0 )
-    {
-	my ($early_age, $late_age) = lookupAgeRange($dbh, $row->{max_interval_no}, $row->{min_interval_no});
-	$row->{age_range} = "$early_age - $late_age m.y. ago";
-    }
-    else
-    {
-	$row->{age_range} = "unknown";
-    }
+    # if ( $row->{max_interval_no} > 0 || $row->{min_interval_no} > 0 )
+    # {
+    # 	my ($early_age, $late_age) = lookupAgeRange($dbh, $row->{max_interval_no}, $row->{min_interval_no});
+    # 	$row->{age_range} = "$early_age - $late_age m.y. ago";
+    # }
+    # else
+    # {
+    # 	$row->{age_range} = "unknown";
+    # }
     
     if ( $row->{'direct_ma'} )	{
         $row->{'age_estimate'} .= $row->{'direct_ma'};
@@ -995,20 +1249,21 @@ sub displayCollectionDetailsPage {
     } elsif ( $row->{'age_estimate'} && $row->{'max_ma_method'} ne "" )	{
         $row->{'age_estimate'} .= " ".$row->{'max_ma_unit'}." ($link" . $row->{'max_ma_method'} . "$endlink)";
     }
-    foreach my $term ("period","epoch","stage") {
-        $row->{$term} = "";
-        if ($max_lookup->{$term."_name"} &&
-            $max_lookup->{$term."_name"} eq $min_lookup->{$term."_name"}) {
-            $row->{$term} = $max_lookup->{$term."_name"};
-        }
-    }
-    if ($max_lookup->{"ten_my_bin"} &&
-        $max_lookup->{"ten_my_bin"} eq $min_lookup->{"ten_my_bin"}) {
-        $row->{"ten_my_bin"} = $max_lookup->{"ten_my_bin"};
-    } else {
-        $row->{"ten_my_bin"} = "";
-    }
-
+    
+    # foreach my $term ("period","epoch","stage") {
+    #     $row->{$term} = "";
+    #     if ($max_lookup->{$term."_name"} &&
+    #         $max_lookup->{$term."_name"} eq $min_lookup->{$term."_name"}) {
+    #         $row->{$term} = $max_lookup->{$term."_name"};
+    #     }
+    # }
+    # if ($max_lookup->{"ten_my_bin"} &&
+    #     $max_lookup->{"ten_my_bin"} eq $min_lookup->{"ten_my_bin"}) {
+    #     $row->{"ten_my_bin"} = $max_lookup->{"ten_my_bin"};
+    # } else {
+    #     $row->{"ten_my_bin"} = "";
+    # }
+    
     $row->{"zone_type"} =~ s/(^.)/\u$1/;
 
 	# check whether we have period/epoch/locage/intage max AND/OR min:
