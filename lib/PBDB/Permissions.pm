@@ -95,8 +95,8 @@ sub getReadRows {
 			$okToRead = "authorizer";
             # Also if this person has given you permission to edit his data, we can always access it
 		# } elsif ( $is_modifier_for{$row->{'authorizer_no'}}) { 
-		} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
-			$okToRead = "modifier";
+		# } elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
+		# 	$okToRead = "modifier";
 		} elsif ( $row->{rd_short} > $now ) {
 			# Future... must do checks
 			# Access level overrides the release date
@@ -133,8 +133,8 @@ sub getReadRows {
 					if ( $s->get("authorizer_no") == $row->{'authorizer_no'}) {
 						$okToRead = "authorizer"; 
 				#	} elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
-					} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
-						$okToRead = "modifier"; 
+					# } elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
+					# 	$okToRead = "modifier"; 
 					} else {
 						$failedReason = "not authorizer";
 					}
@@ -186,22 +186,23 @@ sub readPermission	{
 	my ($okToRead,$failedReason);
 	my $group = $row->{'research_group'};
 	$group =~ s/ /_/g;
-	if ( $s->get("superuser") == 1 )	{
-		$okToRead = "superuser";
-	} elsif ( $row->{access_level} eq "the public" )	{
-		$okToRead = "public";
-	} elsif ( $row->{access_level} =~ /database members/i && $s->get("authorizer_no") )	{
-		$okToRead = "db member";
-	} elsif ( $row->{access_level} =~ /group members/i && $s->get($group) )	{
-		$okToRead = "group member[$group]";
-	} elsif ( $s->get("authorizer_no") == $row->{'authorizer_no'} )	{
-		$okToRead = "authorizer";
-	# } elsif ( $is_modifier_for{$row->{'authorizer_no'}} )	{
-	} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
-		$okToRead = "modifier";
+	
+	if ( $s->get("superuser") == 1 ) {
+	    $okToRead = "superuser";
 	} elsif ( $row->{rd_short} < $now )	{
 		$okToRead = "past record";
-	}
+	} elsif ( $row->{access_level} eq "the public" ) {
+	    $okToRead = "public";
+	} elsif ( $row->{access_level} =~ /database members/i && $s->get("authorizer_no") ) {
+	    $okToRead = "db member";
+	} elsif ( $row->{access_level} =~ /group members/i && $s->get($group) )	{
+	    $okToRead = "group member[$group]";
+	} elsif ( $row->{access_level} =~ /authorizer/i ) {
+	    $okToRead = 'authorizer' if $s->get("authorizer_no") == $row->{authorizer_no};
+	}    
+	# } elsif ( $s->get("authorizer_no") == $row->{'authorizer_no'} )	{
+	# 	$okToRead = "authorizer";
+	# } elsif ( $is_modifier_for{$row->{'authorizer_no'}} )	{
 	return $okToRead;
 
 }
