@@ -300,7 +300,7 @@ sub updateRecord {
 
     # A list of people who have permitted the current authorizer to edit their records
     my $p = PBDB::Permissions->new($s,$self);
-    my %is_modifier_for = %{$p->getModifierList()};
+    # my %is_modifier_for = %{$p->getModifierList()};
 
     # People doing updates can only update previously empty fields, unless they own the record
     my $updateEmptyOnly = 1;
@@ -308,7 +308,8 @@ sub updateRecord {
     # Or anyone, if the table has no authorizer (i.e. measurements table);
     $updateEmptyOnly = 0 if ($s->isSuperUser());
     $updateEmptyOnly = 0 if (exists $table_row->{'authorizer_no'} && $s->get('authorizer_no') == $table_row->{'authorizer_no'});
-    $updateEmptyOnly = 0 if (exists $table_row->{'authorizer_no'} && $is_modifier_for{$table_row->{'authorizer_no'}});
+    # $updateEmptyOnly = 0 if (exists $table_row->{'authorizer_no'} && $is_modifier_for{$table_row->{'authorizer_no'}});
+    $updateEmptyOnly = 0 if ($s->get('role') =~ /^auth|^ent|^stud/);
     $updateEmptyOnly = 0 if (!exists $table_row->{'authorizer_no'});
     $updateEmptyOnly = 0 if ($table_name =~ /authorities|opinions|refs/);
 
@@ -488,7 +489,7 @@ sub deleteRecord {
 
     # A list of people who have permitted the current authorizer to edit their records
     my $p = PBDB::Permissions->new($s,$self);
-    my %is_modifier_for = %{$p->getModifierList()};
+    # my %is_modifier_for = %{$p->getModifierList()};
 
     # People doing updates can only update previously empty fields, unless they own the record
     my $deletePermission = 0;
@@ -496,7 +497,7 @@ sub deleteRecord {
     # Or anyone, if the table has no authorizer (i.e. measurements table);
     $deletePermission = 1 if ($s->isSuperUser());
     $deletePermission = 1 if (exists $table_row->{'authorizer_no'} && $s->get('authorizer_no') == $table_row->{'authorizer_no'});
-    $deletePermission = 1 if (exists $table_row->{'authorizer_no'} && $is_modifier_for{$table_row->{'authorizer_no'}});
+    # $deletePermission = 1 if (exists $table_row->{'authorizer_no'} && $is_modifier_for{$table_row->{'authorizer_no'}});
     $deletePermission = 1 if (!exists $table_row->{'authorizer_no'});
     $deletePermission = 1 if ($table_name =~ /authorities|opinions/);
 

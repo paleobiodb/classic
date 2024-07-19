@@ -59,7 +59,7 @@ sub getReadRows {
 	my $now = $self->getDate ( );
 
     # Get a list of authorizers who have allowed you to edit their rows as if you own them
-    my %is_modifier_for = %{$self->getModifierList()};
+	# my %is_modifier_for = %{$self->getModifierList()};
 
 	# Ensure they had rd_date in the result set
 	my %requiredResults = ( );
@@ -93,8 +93,9 @@ sub getReadRows {
 		} elsif ( $s->get("authorizer_no") == $row->{'authorizer_no'} ) {
 			# If it is your row, you can see it regardless of access_level
 			$okToRead = "authorizer";
-		} elsif ( $is_modifier_for{$row->{'authorizer_no'}}) { 
             # Also if this person has given you permission to edit his data, we can always access it
+		# } elsif ( $is_modifier_for{$row->{'authorizer_no'}}) { 
+		} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
 			$okToRead = "modifier";
 		} elsif ( $row->{rd_short} > $now ) {
 			# Future... must do checks
@@ -131,7 +132,8 @@ sub getReadRows {
 				if ( $row->{access_level} eq "authorizer only" ) {
 					if ( $s->get("authorizer_no") == $row->{'authorizer_no'}) {
 						$okToRead = "authorizer"; 
-                    } elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
+				#	} elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
+					} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
 						$okToRead = "modifier"; 
 					} else {
 						$failedReason = "not authorizer";
@@ -180,7 +182,7 @@ sub readPermission	{
 	my $row = shift;
 	my $s = $self->{'s'};
 	my $now = $self->getDate ( );
-	my %is_modifier_for = %{$self->getModifierList()};
+	# my %is_modifier_for = %{$self->getModifierList()};
 	my ($okToRead,$failedReason);
 	my $group = $row->{'research_group'};
 	$group =~ s/ /_/g;
@@ -194,7 +196,8 @@ sub readPermission	{
 		$okToRead = "group member[$group]";
 	} elsif ( $s->get("authorizer_no") == $row->{'authorizer_no'} )	{
 		$okToRead = "authorizer";
-	} elsif ( $is_modifier_for{$row->{'authorizer_no'}} )	{
+	# } elsif ( $is_modifier_for{$row->{'authorizer_no'}} )	{
+	} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
 		$okToRead = "modifier";
 	} elsif ( $row->{rd_short} < $now )	{
 		$okToRead = "past record";
@@ -215,7 +218,7 @@ sub getWriteRows {
 	
 	my $s = $self->{'s'};
 
-    my %is_modifier_for = %{$self->getModifierList()};
+	# my %is_modifier_for = %{$self->getModifierList()};
 
 	while ( my $row = $sth->fetchrow_hashref() ) {
 
@@ -229,8 +232,9 @@ sub getWriteRows {
 		} elsif ( $s->get("authorizer_no") eq $row->{'authorizer_no'} ) {
 			# If it is your row, you can see it regardless of access_level
 			$okToWrite = "you own it"; 
-        } elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
-			# if the person has given you modifier priviledges, also could
+		# if the person has given you modifier priviledges, also could
+		# } elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
+		} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
 			$okToWrite = "you have modification privileges"; 
 		} else {
 			$failedReason = "not your row";
@@ -277,7 +281,7 @@ sub getReadWriteRowsForEdit{
 	# for returning data
 	my @results = ();
 
-    my %is_modifier_for = %{$self->getModifierList()};
+	# my %is_modifier_for = %{$self->getModifierList()};
 
 	while ( my $row = $sth->fetchrow_hashref() ) {
 
@@ -290,7 +294,8 @@ sub getReadWriteRowsForEdit{
 		} elsif ( $s->get("authorizer_no") eq $row->{authorizer_no} ) { 
 			# Your row: you can see it regardless of access_level
 			$okToWrite = "you own it"; 
-        } elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
+		# } elsif ($is_modifier_for{$row->{'authorizer_no'}}) { 
+		} elsif ( $s->get("role") =~ /^auth|^ent|^stud/ ) {
 			# if the person has given you modifier priviledges, also could
 			$okToWrite = "you have modification privileges"; 
 		} else {

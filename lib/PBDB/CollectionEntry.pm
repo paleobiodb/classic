@@ -149,12 +149,14 @@ sub displayCollectionForm {
     if (!$isNewEntry) {
         my $collection_no = $row{'collection_no'};
         # We need to take some additional steps for an edit
-        my $p = PBDB::Permissions->new($s,$dbt);
-        my $can_modify = $p->getModifierList();
-        $can_modify->{$s->get('authorizer_no')} = 1;
-        unless ($can_modify->{$row{'authorizer_no'}} || $s->isSuperUser) {
-            my $authorizer = PBDB::Person::getPersonName($dbt,$row{'authorizer_no'});
-            return "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
+        # my $p = PBDB::Permissions->new($s,$dbt);
+        # my $can_modify = $p->getModifierList();
+        # $can_modify->{$s->get('authorizer_no')} = 1;
+        # unless ($can_modify->{$row{'authorizer_no'}} || $s->isSuperUser) {
+	unless ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
+            # my $authorizer = PBDB::Person::getPersonName($dbt,$row{'authorizer_no'});
+            # return "<p class=\"warning\">You may not edit this collection because you are not on the editing permission list of the authorizer ($authorizer)<br>" . makeAnchor("displaySearchColls&type=edit", "<b>Edit another collection</b>");
+	    return "<p class=\"warning\">You may not edit this collection because you are not a database contributor.</p>";
         }
 
         # translate the release date field to populate the pulldown
@@ -488,11 +490,12 @@ sub processCollectionForm {
             
             # If the viewer is the authorizer (or it's me), display the record with edit buttons
             my $links = '<p><div align="center"><table><tr><td>';
-            my $p = PBDB::Permissions->new($s,$dbt);
-            my $can_modify = $p->getModifierList();
-            $can_modify->{$s->get('authorizer_no')} = 1;
+            # my $p = PBDB::Permissions->new($s,$dbt);
+            # my $can_modify = $p->getModifierList();
+            # $can_modify->{$s->get('authorizer_no')} = 1;
             
-            if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {
+            # if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {
+	    if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
                 $links .= "<li>" . makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit this collection") . "- </li>";
             }
             $links .= "<li>" . makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one") . "- </li>";
@@ -873,11 +876,12 @@ sub displayCollectionDetails {
     # Links at bottom
     if ($s->isDBMember()) {
         $links .= '<p><div align="center">';
-        my $p = PBDB::Permissions->new($s,$dbt);
-        my $can_modify = $p->getModifierList();
-        $can_modify->{$s->get('authorizer_no')} = 1;
+        # my $p = PBDB::Permissions->new($s,$dbt);
+        # my $can_modify = $p->getModifierList();
+        # $can_modify->{$s->get('authorizer_no')} = 1;
 
-        if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {  
+        # if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {  
+	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
             $links .= makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit collection") . " - ";
         }
         $links .=  makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one");

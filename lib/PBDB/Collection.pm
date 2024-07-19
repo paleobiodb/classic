@@ -1991,17 +1991,19 @@ $o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}
 
 	if ($s->isDBMember()) {
 		$output .= "<div class=\"medium\" style=\"margin-top: -1em; margin-bottom: 1em;\">\n";
-		my $p = PBDB::Permissions->new($s,$dbt);
-		my $can_modify = $p->getModifierList();
-		$can_modify->{$s->get('authorizer_no')} = 1;
-		if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+		# my $p = PBDB::Permissions->new($s,$dbt);
+		# my $can_modify = $p->getModifierList();
+		# $can_modify->{$s->get('authorizer_no')} = 1;
+		# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+		if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
 			 $output .= makeAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";
 		}
 		$output .= makeAnchor("displayCollectionForm", "prefill_collection_no=$c->{'collection_no'}", "Add a collection copied from this one") . " - ";
-		if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+		# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+		if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
 			$output .= makeAnchor("displayOccurrenceAddEdit", "collection_no=$c->{'collection_no'}", "Edit taxonomic list");
 		}
-		if ( $s->get('role') =~ /authorizer|student|technician/ )	{
+		if ( $s->get('role') =~ /authorizer|enterer|student|technician/ )	{
 			$output .= " - " . makeAnchor("displayOccsForReID", "collection_no=$c->{'collection_no'}", "Reidentify taxa");
 		}
 		$output .= "\n</div>\n\n";

@@ -1691,7 +1691,7 @@ sub displayCollResults {
         my ($p,%is_modifier_for); 
         if ($type eq 'edit') { 
             $p = PBDB::Permissions->new($s,$dbt);
-            %is_modifier_for = %{$p->getModifierList()};
+            # %is_modifier_for = %{$p->getModifierList()};
         }
 
 	# Loop through each data row of the result set
@@ -1776,9 +1776,10 @@ sub displayCollResults {
 	    
             if ( $type ne 'edit' || 
 		 $type eq 'edit' && ($s->get("superuser") ||
-				     ($s->get('authorizer_no') && 
-				      $s->get("authorizer_no") == $dataRow->{'authorizer_no'}) ||
-				     $is_modifier_for{$dataRow->{'authorizer_no'}}) )
+				     $s->get("role" =~ /^auth|^ent|^stud/)) )
+				     # ($s->get('authorizer_no') && 
+				     #  $s->get("authorizer_no") == $dataRow->{'authorizer_no'}) ||
+				     # $is_modifier_for{$dataRow->{'authorizer_no'}}) )
 	    {
                 # This needs re-coding to make the html anchor work - jpjenk
                 if ( $q->param('basic') =~ /yes/i && $type eq "view" || $q->param('view') =~ /standard/ )
@@ -3733,9 +3734,9 @@ sub displayOccurrenceTable {
 	}	
 
     # Get modifier as well
-    my $p = new PBDB::Permissions($s,$dbt);
-    my $can_modify = $p->getModifierList();
-    $can_modify->{$s->get('authorizer_no')} = 1;
+    # my $p = new PBDB::Permissions($s,$dbt);
+    # my $can_modify = $p->getModifierList();
+    # $can_modify->{$s->get('authorizer_no')} = 1;
 
     my $lower_limit = int($q->param("offset")) || 0;
     my $limit = int($q->param("limit")) || 20;
@@ -3916,9 +3917,9 @@ EOF
                 }
 #                $abund_unit = $occ->{'abund_unit'};
                 $occ_reference_no = $occ->{'reference_no'};
-                if (!$can_modify->{$occ->{'authorizer_no'}}) {
-                    $readonly = 1;
-                }
+                # if (!$can_modify->{$occ->{'authorizer_no'}}) {
+                #     $readonly = 1;
+                # }
                 $authorizer=$occ->{'authorizer'}
             } else {
 #                $abund_unit = "DEFAULT";
@@ -4097,9 +4098,9 @@ sub processOccurrenceTable {
         die;
     }
     
-    my $p = new PBDB::Permissions($s,$dbt);
-    my $can_modify = $p->getModifierList();
-    $can_modify->{$s->get('authorizer_no')} = 1;
+    # my $p = new PBDB::Permissions($s,$dbt);
+    # my $can_modify = $p->getModifierList();
+    # $can_modify->{$s->get('authorizer_no')} = 1;
 
     $output .= $hbo->stdIncludes($PAGE_TOP);
     $output .= '<div align="center"><p class="pageTitle">Occurrence table entry results</p></div>';
@@ -4191,11 +4192,11 @@ sub processOccurrenceTable {
 
             if ($in_db) {
                 my $authorizer_no = $db_row->{'authorizer_no'};
-                unless ($can_modify->{$authorizer_no}) {
-                    push @uneditable,$collection_no;
-                    $total_occs++;
-                    next;
-                }
+                # unless ($can_modify->{$authorizer_no}) {
+                #     push @uneditable,$collection_no;
+                #     $total_occs++;
+                #     next;
+                # }
             }
         
             if ($in_form && $in_db) {
