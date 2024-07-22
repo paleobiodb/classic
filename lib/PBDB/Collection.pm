@@ -1244,6 +1244,10 @@ sub basicCollectionSearch {
 
     if ( $NO && $NO !~ /^[0-9]+$/xi )
     {
+	$NO =~ s/</&lt;/g;
+	$NO =~ s/>/&gt;/g;
+	$NO =~ s/"/&quot;/g;
+	$NO =~ s/'/&apos;/g;
 	return PBDB::displaySearchColls($q, $s, $dbt, $hbo, "Invalid parameter value '$NO' for 'collection_no'\n");
     }
 
@@ -1254,6 +1258,10 @@ sub basicCollectionSearch {
 
     elsif ( $NAME =~ /[-+'"0-9]/ )
     {
+	$NAME =~ s/</&lt;/g;
+	$NAME =~ s/>/&gt;/g;
+	$NAME =~ s/"/&quot;/g;
+	$NAME =~ s/'/&apos;/g;
 	return PBDB::displaySearchColls($q, $s, $dbt, $hbo, "Invalid parameter value '$NAME' for 'collection_name'\n");
     }
 
