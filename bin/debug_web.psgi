@@ -16,34 +16,44 @@ no warnings 'once';
 $DB::single = 1;
 $DB::deep = 500;
     
-if ( $ARGV[0] && $ARGV[0] =~ /^get$|^post$|^debug$|^list$|^show$/i )
+if ( $ARGV[0] )
 {
-    set apphandler => 'Debug';
-    set logger => 'console';
-    set show_errors => 0;
+    my $cmd = lc $ARGV[0];
     
-    # if ( defined $ARGV[2] && $ARGV[2] =~ /cookie=([^&]+)/ )
-    # {
-    # 	param session_id => $1;
-    # }
-    
-    if ( lc $ARGV[0] eq 'debug' )
+    if ( $cmd =~ /^get$|^post$|^debug$|^list$|^show$/i )
     {
-	my ($method, $path, $query) = PBDB::Debug::load_request($ARGV[1], 1);
+	set apphandler => 'Debug';
+	set logger => 'console';
+	set show_errors => 0;
 	
-	@ARGV = ($method, $path, $query);
+	# if ( defined $ARGV[2] && $ARGV[2] =~ /cookie=([^&]+)/ )
+	# {
+	# 	param session_id => $1;
+	# }
+	
+	if ( lc $ARGV[0] eq 'debug' )
+	{
+	    my ($method, $path, $query) = PBDB::Debug::load_request($ARGV[1], 1);
+	    
+	    @ARGV = ($method, $path, $query);
+	}
+	
+	elsif ( lc $ARGV[0] eq 'list' )
+	{
+	    PBDB::Debug::list_request($ARGV[1]);
+	    exit;
+	}
+	
+	elsif ( lc $ARGV[0] eq 'show' )
+	{
+	    PBDB::Debug::load_request($ARGV[1], 1);
+	    exit;
+	}
     }
     
-    elsif ( lc $ARGV[0] eq 'list' )
+    elsif ( $cmd eq 'test' )
     {
-	PBDB::Debug::list_request($ARGV[1]);
-	exit;
-    }
-    
-    elsif ( lc $ARGV[0] eq 'show' )
-    {
-	PBDB::Debug::load_request($ARGV[1], 1);
-	exit;
+	set port => 6003;
     }
 }
 
