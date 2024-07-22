@@ -1,2 +1,3 @@
 pm: *.pm ../PBData/*.pm
+templates: ../../templates/*.html ../../guest_templates/*.html
 local: *.pm
