@@ -324,7 +324,7 @@ sub classic_request {
 		$action = $q->reset_params(\%params);
 	    }
 	    
-	    elsif ( $action != 'enterReferenceData' )
+	    else
 	    {
 		$action = 'menu';
 	    }
