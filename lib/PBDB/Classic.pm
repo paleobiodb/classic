@@ -3558,7 +3558,7 @@ sub displayOccurrenceAddEdit {
 	$output .= qq|<input name="list_collection_no" value="$collection_no" type=hidden>\n|;
 	$output .= qq|<input name="check_status" type="hidden">\n|;
 	
-	my @optional = ('editable_collection_no','subgenera','genus_and_species_only','abundances','plant_organs');
+	my @optional = ('subgenera','genus_and_species_only','abundances','plant_organs');
 	my $header_vars = {
 		'collection_no'=>$collection_no,
 		'collection_name'=>$collection_name
@@ -4923,7 +4923,7 @@ sub processEditOccurrences {
             # previously, a check here for duplicates generated error
             #  messages but (1) was incredibly slow and (2) apparently
             #  didn't work, so there is now a batch check above instead
-
+	    delete $fields{$OCCURRENCE_NO}; delete $fields{reid_no};
             my ($result, $occurrence_no) = $dbt->insertRecord($s,$OCCURRENCES,\%fields);
             if ($result && $occurrence_no =~ /^\d+$/) {
                 push @occurrences, $occurrence_no;
@@ -5157,7 +5157,7 @@ sub displayOccsForReID {
 
 	my $rowCount = 0;
 	my %pref = $s->getPreferences();
-	my @optional = ('editable_collection_no','subgenera','genus_and_species_only','abundances','plant_organs','species_name');
+	my @optional = ('subgenera','genus_and_species_only','abundances','plant_organs','species_name');
     if (@results) {
         my $header_vars = {
             'ref_string'=>$refString,
