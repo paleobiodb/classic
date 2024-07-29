@@ -87,7 +87,7 @@ sub displayOccurrenceAddEdit {
     my %pref = $s->getPreferences();
     $output .= $hbo->populateHTML('js_occurrence_checkform');
     
-    $output .= qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
+    $output .= qq|<form name="occurrenceList" method="post" action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
     $output .= qq|<input name="action" value="processEditOccurrences" type=hidden>\n|;
     $output .= qq|<input name="list_collection_no" value="$collection_no" type=hidden>\n|;
     $output .= qq|<input name="check_status" type="hidden">\n|;
@@ -326,7 +326,7 @@ sub displayOccurrenceListForm	{
     $sql = "SELECT collection_name FROM $COLLECTIONS WHERE collection_no=$collection_no";
     $vars{'collection_name'} = ${$dbt->getData($sql)}[0]->{'collection_name'};
     
-    $output .= qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
+    $output .= qq|<form name="occurrenceList" method="post" action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
     $vars{collection_no} = $collection_no;
     $vars{'collection_no_field'} = 'collection_no';
     $vars{'collection_no_field2'} = 'collection_no';
