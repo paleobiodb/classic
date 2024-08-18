@@ -207,6 +207,9 @@ function intervalNames() {
 
 </script>
 
+<script src="/public/classic_js/check_intervals.js" type="text/javascript" language="JavaScript">
+</script>
+
 END_JS
 	
     return $output;
