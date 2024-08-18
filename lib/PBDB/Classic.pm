@@ -504,6 +504,37 @@ sub testException {
 }
 
 
+# Set or clear one of the debugging cookies.
+
+sub setcookie {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $classic_debug = $q->param('classic');
+    my $api_debug = $q->param('api');
+    
+    if ( $classic_debug eq '1' || $classic_debug eq '0' )
+    {
+	cookie "classicdebug" => $classic_debug, expires => "60 days";
+    }
+    
+    if ( $api_debug eq '1' || $api_debug eq '0' )
+    {
+	cookie "apidebug" => $api_debug, expires => "60 days";
+    }
+    
+    my $classic_new = cookie("classicdebug") || '<i>none</i>';
+    my $api_new = cookie("apidebug") || '<i>none</i>';
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= "<p>classicdebug = $classic_new</p>\n";
+    $output .= "<p>apidebug = $api_new</p>\n";
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
+}
+
+
 # Preferences
 
 sub displayPreferencesPage {
@@ -3586,9 +3617,9 @@ sub processEditOccurrences {
     
     unless ( $q->param('check_status') eq 'done' )
     {
-	my $output = $hbo->$hbo->stdIncludes($PAGE_TOP);
+	my $output = $hbo->stdIncludes($PAGE_TOP);
 	$output .= "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
-	$output .= $hbo->$hbo->stdIncludes($PAGE_BOTTOM);
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
 	return $output;
     }
     

@@ -78,6 +78,8 @@ sub dbg {
     
     my ($message, $level);
     
+    $level ||= 0;
+    
     if ( $CONFIG{DEBUG} && $CONFIG{DEBUG} >= $level && $message )
     {
         print STDERR "DEBUG: $message\n";

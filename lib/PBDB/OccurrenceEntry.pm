@@ -85,12 +85,16 @@ sub displayOccurrenceAddEdit {
     }
     
     my %pref = $s->getPreferences();
-    $output .= $hbo->populateHTML('js_occurrence_checkform');
     
-    $output .= qq|<form name="occurrenceList" method="post" action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
-    $output .= qq|<input name="action" value="processEditOccurrences" type=hidden>\n|;
-    $output .= qq|<input name="list_collection_no" value="$collection_no" type=hidden>\n|;
-    $output .= qq|<input name="check_status" type="hidden">\n|;
+    $output .= <<END_HEADER;
+<script src="/public/classic_js/check_occurrences.js"></script>
+
+<form name="occurrenceList" method="post" action="$WRITE_URL" onSubmit='return checkForm();'>
+<input name="action" value="processEditOccurrences" type=hidden>
+<input name="list_collection_no" value="$collection_no" type=hidden>
+<input name="check_status" type="hidden">
+
+END_HEADER
     
     my @optional = ('subgenera','genus_and_species_only','abundances','plant_organs');
     
@@ -195,92 +199,110 @@ sub formatOccurrenceTaxonName {
     
     my ($occ_row) = @_;
     
-    if ( $occ_row->{'genus_reso'} )
+    my $taxon_name;
+    
+    my $genus_name = $occ_row->{genus_name} || '*Missing genus*';
+    my $species_name = $occ_row->{species_name} || '*Missing species*';
+    
+    if ( $occ_row->{genus_reso} )
     {
-        if ( $occ_row->{'genus_reso'} =~ /"/ )
+        if ( $occ_row->{genus_reso} eq '"' )
 	{
-            $occ_row->{'taxon_name'} = '"';
+	    $taxon_name = "\"$genus_name\"";
         }
 	
-	elsif ( $occ_row->{'genus_reso'} =~ /informal/ )
+	elsif ( $occ_row->{genus_reso} eq 'informal' )
 	{
-            $occ_row->{'taxon_name'} = '<';
-        }
+	    $taxon_name = "<$genus_name>";
+	}
 	
 	else
 	{
-            $occ_row->{'taxon_name'} = $occ_row->{'genus_reso'} . " ";
+            $taxon_name = "$occ_row->{genus_reso} $genus_name";
         }
     }
     
-    $occ_row->{'taxon_name'} .= $occ_row->{'genus_name'};
-    
-    if ( $occ_row->{'genus_reso'} =~ /"/ )
+    else
     {
-        $occ_row->{'taxon_name'} .= '"';
+	$taxon_name = $genus_name;
     }
     
-    elsif ( $occ_row->{'genus_reso'} =~ /informal/ )
+    if ( $occ_row->{subgenus_name} )
     {
-        $occ_row->{'taxon_name'} .= '>';
-    }
-    
-    if ( $occ_row->{'subgenus_name'} )
-    {
-        $occ_row->{'taxon_name'} .=  " ";
-	
-        if ( $occ_row->{'subgenus_reso'} )
+        if ( $occ_row->{subgenus_reso} )
 	{
-            if ( $occ_row->{'subgenus_reso'} =~ /"/ )
+            if ( $occ_row->{subgenus_reso} eq '"' )
 	    {
-                $occ_row->{'subgenus_name'} = '"' . $occ_row->{'subgenus_name'} . '"';
+		$taxon_name .= " (\"$occ_row->{subgenus_name}\")";
             }
 	    
-	    elsif ( $occ_row->{'subgenus_reso'} =~ /informal/ )
+	    elsif ( $occ_row->{subgenus_reso} eq 'informal' )
 	    {
-                $occ_row->{'subgenus_name'} = '<' . $occ_row->{'subgenus_name'} . '>';
+                $taxon_name .= " (<$occ_row->{subgenus_name}>)";
             }
 	    
 	    else
 	    {
-                $occ_row->{'taxon_name'} .= $occ_row->{'subgenus_reso'} . " ";
+                $taxon_name .= " $occ_row->{subgenus_reso} ($occ_row->{subgenus_name})";
             }
-        }
-	
-        $occ_row->{'taxon_name'} .=  "(" . $occ_row->{'subgenus_name'} . ")";
-    }
-    
-    $occ_row->{'taxon_name'} .=  " ";
-    
-    if ( $occ_row->{'species_reso'} )
-    {
-        if ( $occ_row->{'species_reso'} =~ /"/ )
-	{
-            $occ_row->{'species_name'} = '"' . $occ_row->{'species_name'};
-        }
-	
-	elsif ( $occ_row->{'species_reso'} =~ /informal/ )
-	{
-            $occ_row->{'species_name'} = '<' . $occ_row->{'species_name'};
         }
 	
 	else
 	{
-            $occ_row->{'taxon_name'} .= $occ_row->{'species_reso'} . " ";
+	    $taxon_name .= " ($occ_row->{subgenus_name})";
+	}
+    }
+    
+    if ( $occ_row->{species_reso} )
+    {
+        if ( $occ_row->{species_reso} eq '"' )
+	{
+	    $taxon_name .= " \"$species_name\"";
+        }
+	
+	elsif ( $occ_row->{species_reso} eq 'informal' )
+	{
+	    $taxon_name .= " <$species_name>";
+        }
+	
+	else
+	{
+            $taxon_name .= " $occ_row->{species_reso} $species_name";
         }
     }
     
-    $occ_row->{'taxon_name'} .=  $occ_row->{'species_name'};
-    
-    if ( $occ_row->{'species_reso'} =~ /"/ )
+    else
     {
-        $occ_row->{'taxon_name'} .= '"';
+	$taxon_name .= " $species_name";
     }
     
-    elsif ( $occ_row->{'species_reso'} =~ /informal/ )
+    if ( $occ_row->{subspecies_name} )
     {
-        $occ_row->{'taxon_name'} .= '>';
+	if ( $occ_row->{subspecies_reso} )
+	{
+	    if ( $occ_row->{subspecies_reso} eq '"' )
+	    {
+		$taxon_name .= " \"$occ_row->{subspecies_name}\"";
+	    }
+	    
+	    elsif ( $occ_row->{subspecies_reso} eq 'informal' )
+	    {
+		$taxon_name .= " <$occ_row->{subspecies_name}>";
+	    }
+	    
+	    else
+	    {
+		$taxon_name .= " $occ_row->{subspecies_reso} $occ_row->{subspecies_name}";
+	    }
+	}
+	
+	else
+	{
+	    $taxon_name .= " $occ_row->{subspecies_name}";
+	}
     }
+    
+    $occ_row->{taxon_name} = $taxon_name;
     
     return ($occ_row);
 }
@@ -289,8 +311,6 @@ sub formatOccurrenceTaxonName {
 sub displayOccurrenceListForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
-    
-    my $output .= $hbo->populateHTML('js_occurrence_checkform');
     
     my %vars;
     my $collection_no = $q->param('collection_no');
@@ -326,13 +346,12 @@ sub displayOccurrenceListForm	{
     $sql = "SELECT collection_name FROM $COLLECTIONS WHERE collection_no=$collection_no";
     $vars{'collection_name'} = ${$dbt->getData($sql)}[0]->{'collection_name'};
     
-    $output .= qq|<form name="occurrenceList" method="post" action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
     $vars{collection_no} = $collection_no;
     $vars{'collection_no_field'} = 'collection_no';
     $vars{'collection_no_field2'} = 'collection_no';
     $vars{'list_collection_no'} = $collection_no;
     $vars{'reference_no'} = $s->get('reference_no');
-    $output .= $hbo->populateHTML('occurrence_list_form',\%vars);
+    my $output = $hbo->populateHTML('occurrence_list_form',\%vars);
     
     return $output;
 }
@@ -374,7 +393,8 @@ sub displayOccsForReID {
     my $refString = "<b>" . makeAnchor("displayReference", "reference_no=$current_session_ref", "$current_session_ref") . "</b> $formatted_primary<br>";
     
     # Build the SQL
-    my @where = ();
+    
+    my (@where1, @where2);
     my $printCollectionDetails = 0;
     
     # Don't build it directly from the genus_name or species_name, let dispalyCollResults
@@ -388,9 +408,10 @@ sub displayOccsForReID {
     if (@colls)
     {
 	$printCollectionDetails = 1;
-	push @where, "collection_no IN (".join(',',@colls).")";
+	push @where1, "o.collection_no IN (".join(',',@colls).")";
+	push @where2, "o.collection_no IN (".join(',',@colls).")";
 	
-	my ($genus,$subgenus,$species) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
+	my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
 	
 	if ( $genus )
 	{
@@ -399,24 +420,28 @@ sub displayOccsForReID {
 	    {
 		$names .= ", ".$dbh->quote($subgenus);
 	    }
-	    push @where, "(genus_name IN ($names) OR subgenus_name IN ($names))";
+	    push @where1, "(o.genus_name IN ($names) OR o.subgenus_name IN ($names))";
+	    push @where2, "(re.genus_name IN ($names) OR re.subgenus_name IN ($names))";
 	}
-	push @where, "species_name LIKE ".$dbh->quote($species) if ($species);
-    }
-    
-    elsif ($collection_no)
-    {
-	push @where, "collection_no=$collection_no";
+	
+	push @where1, "o.species_name LIKE " . $dbh->quote($species) if $species;
+	push @where1, "o.subspecies_name LIKE " . $dbh->quote($subspecies) if $subspecies;
+	
+	push @where2, "re.species_name LIKE " . $dbh->quote($species) if $species;
+	push @where2, "re.subspecies_name LIKE " . $dbh->quote($subspecies) if $subspecies;
     }
     
     else
     {
-	push @where, "0=1";
+	push @where1, "0=1";
+	push @where2, "0=1";
     }
     
     # some occs are out of primary key order, so order them JA 26.6.04
     
-    my $sql = "SELECT * FROM occurrences WHERE ".join(" AND ",@where);
+    my $sql = "(SELECT o.* FROM occurrences as o WHERE " . join(" AND ",@where1) . "\nUNION\n" .
+	"SELECT o.* FROM occurrences as o join reidentifications as re using (occurrence_no)
+	WHERE " . join(" AND ",@where2) . ")";
     
     my $sortby = $q->param('sort_occs_by');
     
@@ -471,7 +496,15 @@ sub displayOccsForReID {
             }
 	    
             $html .= " " . $row->{"species_reso"};
-            $html .= " " . $row->{"species_name"} . "</td>\n";
+            $html .= " " . $row->{"species_name"};
+	    
+	    if ( $row->{subspecies_name} )
+	    {
+		$html .= " " . $row->{subspecies_reso};
+		$html .= " " . $row->{subspecies_name};
+	    }
+	    
+	    $html . "</td>\n";
             $html .= " <td>". $row->{"comments"} . "</td>\n";
 	    
             if ($pref{'plant_organs'} eq "yes")
@@ -608,6 +641,8 @@ sub displayOccsForReID {
 # Rewritten PS to be a bit clearer, handle deletions of occurrences, and use DBTransationManager
 # for consistency/simplicity.
 
+# Rewritten MM 2024-07-30
+
 sub processEditOccurrences {
     
     my ($q, $s, $dbt, $hbo) = @_;
@@ -644,13 +679,7 @@ sub processEditOccurrences {
     
     elsif ( $q->param('taxon_list') )
     {
-	my $taxon_list = $q->param('taxon_list');
-	
-	# collapse down multiple delimiters, if any
-	
-	$taxon_list =~ s/[^A-Za-z0-9 <>\.\"\?\*#\/][^A-Za-z0-9 <>\.\"\?\(\)\*#\/]/=/g;
-	
-	my @lines = split /[^A-Za-z0-9 <>\.\"\?\(\)\*#\/]/,$taxon_list;
+	my @lines = split /[\n\r]+/, $q->param('taxon_list');
 	
 	my (@names,@comments,@colls,@refs,@occs,@reids);
 	
@@ -696,22 +725,17 @@ sub processEditOccurrences {
     my @param_names = $q->param();
     
     # list of required fields
-    my @required_fields = ("collection_no", "taxon_name", "reference_no");
-    my @warnings = ();
-    my @occurrences = ();
-    my @occurrences_to_delete = ();
-    
-    my @genera = ();
-    my @subgenera = ();
-    my @species = ();
-    my @latin_names = ();
-    my @resos = ("\?","aff\.","cf\.","ex gr\.","n\. gen\.","n\. subgen\.","n\. sp\.","sensu lato");
-    
+    my @errors;
+    my @warnings;
+    my @occurrences;
+    my @occurrences_to_delete;
     my @matrix;
+    
+    my (@genera, @subgenera, @species, @subspecies, @latin_names);
     
     # loop over all rows submitted from the form
     
-    for (my $i = 0;$i < @rowTokens; $i++)
+    for (my $i = 0; $i < @rowTokens; $i++)
     {
         # Flatten the table into a single row, for easy manipulation
         my %fields;
@@ -725,203 +749,335 @@ sub processEditOccurrences {
                 $fields{$param} = $vars[$i];
             }
         }
-
+	
         my $rowno = $i + 1;
 
-        # extract the genus, subgenus, and species names and resos
+        # Extract the genus, subgenus, and species names and resos
         #  JA 5.7.07
+	# Rewritten by MM 2024-08-09 - now includes subspecies
 	
-        if ( $fields{'taxon_name'} )
+        if ( $fields{taxon_name} )
 	{
-            my $name = $fields{'taxon_name'};
+            my $name = $fields{taxon_name};
 	    
-	    # n. gen. n. sp. at the end
+	    # Check for n. gen., n. sp., etc.  These have an unambiguous meaning
+	    # wherever they occur. Removing them may leave extra spaces in the
+	    # name.
 	    
-            if ( $name =~ /n\. gen\. n\. sp\.$/ )
+	    if ( $name =~ /(.*)n[.] gen[.](.*)/ )
 	    {
-                $name =~ s/n\. gen\. n\. sp\.$//;
-                $fields{'genus_reso'} = "n. gen.";
-                $fields{'species_reso'} = "n. sp.";
-            }
+		$fields{genus_reso} = "n. gen.";
+		$name = "$1 $2";
+	    }
 	    
-	    # n. sp. or sensu lato after a species name at the end
-	    
-            elsif ( $name =~ / [a-z]+ (n\. sp\.|sensu lato)$/ )
+	    if ( $name =~ /(.*)n[.] subgen[.](.*)/ )
 	    {
-                if ( $name =~ /sensu lato$/ )	{
-                    $fields{'species_reso'} = "sensu lato";
-                } else	{
-                    $fields{'species_reso'} = "n. sp.";
-                }
-                $name =~ s/ (n\. sp\.|sensu lato)$//;
-            }
+		$fields{subgenus_reso} = "n. subgen.";
+		$name = "$1 $2";
+	    }
 	    
-	    # a bad idea, but some users may put n. sp. before the species name
-	    
-            elsif ( $name =~ / n\. sp\./ )
+	    if ( $name =~ /(.*)n[.] sp[.](.*)/ )
 	    {
-                $fields{'species_reso'} = "n. sp.";
-                $name =~ s/ n\. sp\.//;
-            }
+		$fields{species_reso} = "n. sp.";
+		$name = "$1 $2";
+	    }
 	    
-	    # users may want to enter n. sp. as a qualifier for a sp., in which
-	    #  case they will probably write out n. sp. followed by nothing
-	    # this tests for a genus or subgenus name immediately beforehand
-	    
-            $name =~ s/([A-Z][a-z]+("|\)|"\)|))( n\. sp\.)$/$1 n. sp. sp./;
-	    
-	    # hack: stash the informals and replace them with dummy values
-	    
-            my %informal;
-            my $foo;
-	    
-            if ( $name =~ /^</ )
+	    if ( $name =~ /(.*)n[.] subsp[.](.*)/ )
 	    {
-                ($informal{'genus'},$foo) = split />/,$name;
-                $informal{'genus'} =~ s/<//;
-                $name =~ s/^<[^>]*> /Genus /;
-            }
+		$fields{subspecies_reso} = "n. subsp.";
+		$name = "$1 $2";
+	    }
 	    
-            if ( $name =~ / <.*> / )
+	    # Now deconstruct the name component by component, using the same
+	    # rules as the Javascript form checker.
+	    
+	    # Start with the genus and any qualifier that may precede it.
+	    
+	    if ( $name =~ /^\s*([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)\s+(.*)/ )
 	    {
-                ($informal{'subgenus'},$foo) = split />/,$name;
-                ($foo,$informal{'subgenus'}) = split /</,$informal{'subgenus'};
-                $name =~ s/ <.*> / \(Subgenus\) /;
-            }
+		$fields{genus_reso} = $1;
+		$name = $2;
+	    }
 	    
-            if ( $name =~ />$/ )
+	    if ( $name =~ /^\s*<(.*?)>\s+(.*)/ )
 	    {
-                ($foo,$informal{'species'}) = split /</,$name;
-                $informal{'species'} =~ s/>//;
-                $name =~ s/ <.*>/ species/;
-            }
+		$fields{genus_reso} = 'informal';
+		$fields{genus_name} = $1;
+		$name = $2;
+	    }
 	    
-            $name =~ s/^ //;
-            $name =~ s/ $//;
-	    
-            my @words = split / /, $name;
-	    
-            for my $reso ( @resos )
+	    elsif ( $name =~ /^\s*("?)([A-Za-z]+)("?)\s*(.*)/ )
 	    {
-                if ( $words[0]." ".$words[1] eq $reso )
-		{
-                    $fields{'genus_reso'} = $reso;
-                    splice @words , 0 , 2;
-                }
+		$fields{genus_reso} = $1 || '';
+		$fields{genus_name} = $2;
+		$name = $4;
 		
-		elsif ( $words[0] eq $reso )
+		unless ( $1 eq $3 )
 		{
-                    $fields{'genus_reso'} = shift @words;
-                    last;
-                }
-            }
-	    
-            $fields{'genus_name'} = shift @words;
-            $fields{'species_name'} = pop @words;
-	    
-            for my $reso ( @resos )
-	    {
-                if ( $words[$#words-1]." ".$words[$#words] eq $reso )
-		{
-                    $fields{'species_reso'} = $reso;
-                    splice @words , 0 , 2;
-                }
-		
-		elsif ( $words[$#words] eq $reso )
-		{
-                    $fields{'species_reso'} = pop @words;
-                    last;
-                }
-            }
-	    
-            # there is either nothing left, or a subgenus
-	    
-            if ( $#words > -1 )
-	    {
-                $fields{'subgenus_name'} = pop @words;
-            }
-	    
-            if ( $#words > -1 )
-	    {
-                for my $reso ( @resos )
-		{
-                    if ( $words[0]." ".$words[1] eq $reso )
-		    {
-                        $fields{'subgenus_reso'} = $reso;
-                        # shift @words , 2;
-			shift @words;
-                    }
-		    
-		    elsif ( $words[0] eq $reso )
-		    {
-                        $fields{'subgenus_reso'} = shift @words;
-                        last;
-                    }
-                }
-            }
-	    
-            $fields{'subgenus_name'} =~ s/\(//;
-            $fields{'subgenus_name'} =~ s/\)//;
-	    
-            for my $f ( "genus","subgenus","species" )
-	    {
-                if ( $fields{$f.'_name'} =~ /"/ )
-		{
-                    $fields{$f.'_reso'} = '"';
-                    $fields{$f.'_name'} =~ s/"//g;
-                }
-		
-                if ( $informal{$f} )
-		{
-                    $fields{$f.'_name'} = $informal{$f};
-                    $fields{$f.'_reso'} = 'informal';
-                }
-		
-                $fields{$f.'_reso'} =~ s/\\//;
-            }
-	    
-            push @genera , $fields{'genus_name'};
-            push @subgenera , $fields{'subgenus_name'};
-            push @species , $fields{'species_name'};
-	    
-            if ( $fields{'species_name'} =~ /^[a-z]*$/ )
-	    {
-                if ( $fields{'subgenus_name'} =~ /^[A-Z][a-z]*$/ )
-		{
-                    push @latin_names , $fields{'genus_name'} ." (". $fields{'subgenus_name'} .") ". $fields{'species_name'};
-                }
-		
-		else
-		{
-                    push @latin_names , $fields{'genus_name'} ." ". $fields{'species_name'};
-                }
-            }
+		    push @errors, "Invalid name '$fields{taxon_name}': mismatched &quot; on genus";
+		    next;
+		}
+	    }
 	    
 	    else
 	    {
-                if ( $fields{'subgenus_name'} =~ /^[A-Z][a-z]*$/ )
-		{
-                    push @latin_names , $fields{'genus_name'} ." (". $fields{'subgenus_name'} . ")";
-                }
-		
-		else
-		{
-                    push @latin_names , $fields{'genus_name'};
-                }
-            }
+		push @errors, "Invalid name '$fields{taxon_name}': could not resolve genus";
+		next;
+	    }
 	    
-            $fields{'latin_name'} = $latin_names[$#latin_names];
+	    if ( $fields{genus_name} && $fields{genus_reso} ne 'informal' &&
+		 $fields{genus_name} !~ /^[A-Z][a-z]+$/ )
+	    {
+		push @errors, "Invalid name '$fields{genus_name}': bad capitalization on genus";
+	    }
+	    
+	    # Continue with a possible subgenus and preceding qualifier.
+	    
+	    if ( $name =~ /^([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)\s+([(].*)/ )
+	    {
+		$fields{subgenus_reso} = $1;
+		$name = $2;
+	    }
+	    
+	    if ( $name =~ /^[(]<(.*?)>[)]\s+(.*)/ )
+	    {
+		$fields{subgenus_reso} = 'informal';
+		$fields{subgenus_name} = $1;
+		$name = $2;
+	    }
+	    
+	    elsif ( $name =~ /^[(]("?)([A-Za-z]+)("?)[)]\s+(.*)/ )
+	    {
+		$fields{subgenus_reso} = $1 || '';
+		$fields{subgenus_name} = $2;
+		$name = $4;
+		
+		unless ( $1 eq $3 )
+		{
+		    push @errors, "Invalid name '$fields{taxon_name}': mismatched &quot; on subgenus";
+		    next;
+		}
+	    }
+	    
+	    elsif ( $name =~ /[(]/ )
+	    {
+		push @errors, "Invalid name '$fields{taxon_name}': could not resolve subgenus";
+		next;
+	    }
+	    
+	    else
+	    {
+		$fields{subgenus_name} ||= '';
+		$fields{subgenus_reso} ||= '';
+	    }
+	    
+	    if ( $fields{subgenus_name} && $fields{subgenus_reso} ne 'informal' &&
+		 $fields{subgenus_name} !~ /^[A-Z][a-z]+$/ )
+	    {
+		push @errors, "invalid name '$fields{taxon_name}': bad capitalization on subgenus";
+	    }
+	    
+	    # Continue with a species name and any qualifier that may precede it.
+	    
+	    if ( $name =~ /^([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)\s+(.*)/ )
+	    {
+		$fields{species_reso} = $1;
+		$name = $2;
+	    }
+	    
+	    if ( $name =~ /^<(.*?)>(.*)/ )
+	    {
+		$fields{species_reso} = 'informal';
+		$fields{species_name} = $1;
+		$name = $2;
+	    }
+	    
+	    elsif ( $name =~ /^("?)([A-Za-z]+[.]?)("?)(.*)/ )
+	    {
+		$fields{species_reso} = $1 || '';
+		$fields{species_name} = $2;
+		$name = $4;
+		
+		unless ( $1 eq $3 )
+		{
+		    push @errors, "Invalid name '$fields{taxon_name}': mismatched &quot; on species";
+		}
+	    }
+	    
+	    elsif ( $fields{species_reso} && ! $fields{species_name}  )
+	    {
+		push @errors, "Invalid name '$fields{taxon_name}': could not resolve species";
+		next;
+	    }
+	    
+	    else
+	    {
+		$fields{species_reso} ||= '';
+		$fields{species_name} ||= '';
+	    }
+	    
+	    if ( $fields{species_name} && $fields{species_reso} ne 'informal' )
+	    {
+		if ( $fields{species_name} =~ /[.]$/ )
+		{
+		    if ( $fields{species_name} !~ /^(?:sp|spp|indet)[.]$/ )
+		    {
+			push @errors, "Invalid name '$fields{taxon_name}': " . 
+			    "'$fields{species_name}' is not valid";
+			next;
+		    }
+		}
+		
+		elsif ( $fields{species_name} !~ /^[a-z]+$/ )
+		{
+		    push @errors, "Invalid name '$fields{taxon_name}': bad capitalization on species";
+		    next;
+		}
+	    }
+	    
+	    # Finish with a possible subspecies name and any qualifier that may precede it.
+	    
+	    if ( $name =~ /^\s+([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)(.*)/ )
+	    {
+		$fields{subspecies_reso} = $1;
+		$name = $2;
+	    }
+	    
+	    if ( $name =~ /^\s+<(.*?)>(.*)/ )
+	    {
+		$fields{subspecies_reso} = 'informal';
+		$fields{subspecies_name} = $1;
+		$name = $2;
+	    }
+	    
+	    elsif ( $name =~ /^\s+("?)([A-Za-z]+[.]?)("?)(.*)/ )
+	    {
+		$fields{subspecies_reso} = $1 || '';
+		$fields{subspecies_name} = $2;
+		$name = $4;
+		
+		unless ( $1 eq $3 )
+		{
+		    push @errors, "Invalid name '$fields{taxon_name}': mismatched &quot; on subspecies";
+		}
+	    }
+	    
+	    elsif ( $name && ! $fields{species_name} )
+	    {
+		push @errors, "Invalid name '$fields{taxon_name}': could not resolve species";
+		next;
+	    }
+	    
+	    elsif ( $fields{subspecies_reso} )
+	    {
+		push @errors, "Invalid name '$fields{taxon_name}': could not resolve subspecies";
+		next;
+	    }
+	    
+	    elsif ( $name )
+	    {
+		push @errors, "Invalid name '$fields{taxon_name}': could not parse '$name'";
+		next;
+	    }
+	    
+	    else
+	    {
+		$fields{subspecies_reso} ||= '';
+		$fields{subspecies_name} ||= '';
+	    }
+	    
+	    if ( $fields{subspecies_name} && $fields{subspecies_reso} ne 'informal' )
+	    {
+		if ( $fields{subspecies_name} =~ /[.]$/ )
+		{
+		    if ( $fields{subspecies_name} !~ /^(?:subsp|subspp|indet)[.]$/ )
+		    {
+			push @errors, "Invalid name '$fields{taxon_name}': " . 
+			    "'$fields{subspecies_name}' is not valid";
+			next;
+		    }
+		}
+		
+		elsif ( $fields{subspecies_name} !~ /^[a-z]+$/ )
+		{
+		    push @errors, "Invalid name '$fields{taxon_name}': bad capitalization on subspecies";
+		    next;
+		}
+	    }
+	    
+	    # Now put the name back together again.
+	    
+            push @genera, $fields{genus_name};
+            push @subgenera, $fields{subgenus_name};
+            push @species, $fields{species_name};
+	    push @subspecies, $fields{subspecies_name};
+	    
+	    $fields{latin_name} = '';
+	    
+	    # We can only resolve a taxonomic name if neither the genus nor the
+	    # subgenus are informal. If the species is informal or is indet.
+	    # etc. then the taxonomic name will stop with the first component or
+	    # the subgenus.
+	    
+	    if ( $fields{genus_reso} ne 'informal' )
+	    {
+		$fields{latin_name} = $fields{genus_name};
+		
+		if ( $fields{subgenus_name} )
+		{
+		    $fields{latin_name} .= " ($fields{subgenus_name})";
+		}
+		
+		if ( $fields{species_name} =~ /^[a-z]+$/ && 
+		     $fields{species_reso} ne 'informal' )
+		{
+		    $fields{latin_name} .= " $fields{species_name}";
+		    
+		    if ( $fields{subspecies_name} =~ /^[a-z]+$/ && 
+			 $fields{subspecies_reso} ne 'informal' )
+		    {
+			$fields{latin_name} .= " $fields{subspecies_name}";
+		    }
+		}
+		
+		push @latin_names, $fields{latin_name};
+	    }
         }
 	
-	%{$matrix[$i]} = %fields;
-
+	$matrix[$i] = \%fields;
+	
 	# end of first pass
     }
     
-    # check for duplicates JA 2.4.08
+    # If any errors were found, don't process the list. Instead, throw up a
+    # bulleted list of error messages with a link to go back to the occurrence
+    # list and re-edit.  This should not actually happen, because the javascript
+    # function in check_occurrences.js should catch bad names before they are
+    # submitted.  But something might slip through.
+    
+    if ( @errors )
+    {
+	$output .= "<div class=\"errorMessage\"><ul>\n";
+	
+	foreach my $msg ( @errors )
+	{
+	    $output .= "<li>$msg</li>\n";
+	}
+	
+	$output .= "</ul></div>\n";
+	
+	$output .= "<div style=\"text-align: center\"><form>\n";
+	$output .= "<button onclick=\"history.back()\">Go back and edit the list</button>\n";
+	$output .= "</form></div>\n";
+	
+	return $output;
+    }
+    
+    # Check for duplicates JA 2.4.08
     # this section replaces the old occurrence-by-occurrence check that
     #  used checkDuplicates; it's much faster and uses more lenient
     #  criteria because isolated duplicates are handled by the JavaScript
+    # Rewritten by MM 2024-08-09
     
     my $quoted_no = $dbh->quote($collection_no);
     
@@ -935,24 +1091,34 @@ sub processEditOccurrences {
     
     if ( $#occrefs > 0 )
     {
-	my $newrows;
-	my %newrow;
+	my $newrows = 0;
+	my $dupes = 0;
+	my %check_row;
 	
-	for (my $i = 0;$i < @rowTokens; $i++)
+	for (my $i = 0; $i < @rowTokens; $i++)
 	{
-	    if ( $matrix[$i]{'genus_name'} =~ /^[A-Z][a-z]*$/ && $matrix[$i]{occurrence_no} == -1 )
+	    if ( $matrix[$i]{genus_name} =~ /^[A-Z][a-z]+$/ && $matrix[$i]{occurrence_no} == -1 )
 	    {
-		$newrow{ $matrix[$i]{'genus_reso'} ." ". $matrix[$i]{'genus_name'} ." ". $matrix[$i]{'subgenus_reso'} ." ". $matrix[$i]{'subgenus_name'} ." ". $matrix[$i]{'species_reso'} ." ". $matrix[$i]{'species_name'} }++;
+		my $check_name = join('|', $matrix[$i]{genus_reso}, $matrix[$i]{genus_name},
+				      $matrix[$i]{subgenus_reso}, $matrix[$i]{subgenus_name},
+				      $matrix[$i]{species_reso}, $matrix[$i]{species_name},
+				      $matrix[$i]{subspecies_reso}, $matrix[$i]{subspecies_name});
+		
+		$check_row{$check_name}++;
 		$newrows++;
 	    }
 	}
 	
 	if ( $newrows > 0 )
 	{
-	    my $dupes;
-	    for my $or ( @occrefs )
+	    for my $occ ( @occrefs )
 	    {
-		if ( $newrow{ $or->{'genus_reso'} ." ". $or->{'genus_name'} ." ". $or->{'subgenus_reso'} ." ". $or->{'subgenus_name'} ." ". $or->{'species_reso'} ." ". $or->{'species_name'} } > 0 )
+		my $check_name = join('|', $occ->{genus_reso}, $occ->{genus_name},
+				      $occ->{subgenus_reso}, $occ->{subgenus_name},
+				      $occ->{species_reso}, $occ->{species_name},
+				      $occ->{subspecies_reso}, $occ->{subspecies_name});
+		
+		if ( $check_row{$check_name} > 0 )
 		{
 		    $dupes++;
 		}
@@ -960,19 +1126,22 @@ sub processEditOccurrences {
 	    
 	    if ( $newrows == $dupes && $newrows == 1 )
 	    {
-		push @warnings , "Nothing was entered or updated because the new occurrence was a duplicate";
+		push @warnings, "Nothing was entered or updated because " . 
+		    "the new occurrence was a duplicate";
 		@rowTokens = ();
 	    }
 	    
 	    elsif ( $newrows == $dupes )
 	    {
-		push @warnings , "Nothing was entered or updated because all the new records were duplicates";
+		push @warnings , "Nothing was entered or updated because " . 
+		    "all the new records were duplicates";
 		@rowTokens = ();
 	    }
 	    
 	    elsif ( $dupes >= 3 )
 	    {
-		push @warnings , "Nothing was entered or updated because there were too many duplicate entries";
+		push @warnings , "Nothing was entered or updated because " . 
+		    "there were too many duplicate entries";
 		@rowTokens = ();
 	    }
 	}
@@ -981,49 +1150,48 @@ sub processEditOccurrences {
 	# do this here and not earlier because taxon_no is not
 	# stored in the entry form
 	
-	for my $or ( @occrefs )
+	for my $occ ( @occrefs )
 	{
-	    if ( $or->{'taxon_no'} > 0 && $or->{'genus_reso'} !~ /informal/ )
+	    if ( $occ->{taxon_no} > 0 && $occ->{genus_reso} ne 'informal' &&
+		 $occ->{subgenus_reso} ne 'informal' )
 	    {
-		my $latin_name;
+		my $latin_name = $occ->{genus_name};
 		
-		if ( $or->{'species_name'} =~ /^[a-z]*$/ && $or->{'species_reso'} !~ /informal/ )
+		if ( $occ->{subgenus_name} =~ /^[A-Z][a-z]+$/ )
 		{
-		    if ( $or->{'subgenus_name'} =~ /^[A-Z][a-z]*$/ && $or->{'subgenus_reso'} !~ /informal/ )
-		    {
-			$latin_name = $or->{'genus_name'} ." (". $or->{'subgenus_name'} .") ". $or->{'species_name'};
-		    }
+		    $latin_name .= " ($occ->{subgenus_name})";
+		}
+		
+		if ( $occ->{species_name} =~ /^[a-z]$/ && 
+		     $occ->{species_reso} ne 'informal' )
+		{
+		    $latin_name .= " $occ->{species_name}";
 		    
-		    else
+		    if ( $occ->{subspecies_name} =~ /^[a-z]$/ && 
+			 $occ->{subspecies_reso} ne 'informal' )
 		    {
-			$latin_name = $or->{'genus_name'} ." ". $or->{'species_name'};
+			$latin_name .= " $occ->{subspecies_name}";
 		    }
 		}
 		
-		else
-		{
-		    if ( $or->{'subgenus_name'} =~ /^[A-Z][a-z]*$/ && $or->{'subgenus_reso'} !~ /informal/ )
-		    {
-			$latin_name = $or->{'genus_name'} ." (". $or->{'subgenus_name'} . ")";
-		    }
-		    
-		    else
-		    {
-			$latin_name = $or->{'genus_name'};
-		    }
-		}
-		
-		$taxon_no{$latin_name} = $or->{'taxon_no'};
+		$taxon_no{$latin_name} = $occ->{'taxon_no'};
 	    }
 	}
     }
     
-    # get as many taxon numbers as possible at once JA 2.4.08
+    # Get as many taxon numbers as possible at once JA 2.4.08
     # this greatly speeds things up because we now only need to use
     #  getBestClassification as a last resort
     
-    $sql = "	SELECT taxon_name,taxon_no,count(*) c FROM authorities
-		WHERE taxon_name IN ('" . join('\',\'',@latin_names) . "') GROUP BY taxon_name";
+    # Rewritten by MM 2024-08-11. We only search on names that don't already
+    # have a taxon number.
+    
+    my @filtered_names = grep { ! $taxon_no{$_} } @latin_names;
+    
+    my $name_string = join "','", @filtered_names;
+    
+    $sql = "	SELECT taxon_name, taxon_no, count(*) c FROM authorities
+		WHERE taxon_name IN ('$name_string') GROUP BY taxon_name";
     
     my @taxonrefs = @{$dbt->getData($sql)};
     
@@ -1043,25 +1211,18 @@ sub processEditOccurrences {
     # a couple of (fast harmless) checks in the section section are
     #  repeated here for simplicity
     
-    my (@to_check,%dupe_colls);
+    my (@to_check, %dupe_colls);
     
-    for (my $i = 0;$i < @rowTokens; $i++)
+    for (my $i = 0; $i < @rowTokens; $i++)
     {
-	my %fields = %{$matrix[$i]};
-	
-	if ( $fields{'genus_name'} eq "" && $fields{occurrence_no} < 1 )
+	if ( $matrix[$i]{genus_name} eq "" && $matrix[$i]{occurrence_no} < 1 )
 	{
 	    next;
 	}
         
-	if ( $fields{'reference_no'} !~ /^\d+$/ && $fields{'genus'} =~ /[A-Za-z]/ )
+	if ( $matrix[$i]{reference_no} !~ /^\d+$/ || $matrix[$i]{collection_no} !~ /^\d+$/ )
 	{
-	    next; 
-	}
-	
-	if ( $fields{collection_no} !~ /^\d+$/ )
-	{
-	    next; 
+	    next;
 	}
 	
 	# guess the taxon no by trying to find a single match for the name
@@ -1070,27 +1231,27 @@ sub processEditOccurrences {
 	# only do this for non-informal taxa
 	# done here and not in the last pass because we need the taxon_nos
 	
-	if ( $taxon_no{$fields{'latin_name'}} > 0 )
+	my $latin_name = $matrix[$i]{latin_name};
+	
+	if ( $taxon_no{$latin_name} > 0 )
 	{
-	    $fields{'taxon_no'} = $taxon_no{$fields{'latin_name'}};
+	    $matrix[$i]{taxon_no} = $taxon_no{$latin_name};
 	}
 	
-	elsif ( $taxon_no{$fields{'latin_name'}} eq "" )
+	elsif ( $taxon_no{$latin_name} eq "" )
 	{
-	    $fields{'taxon_no'} = PBDB::Taxon::getBestClassification($dbt,\%fields);
+	    $matrix[$i]{taxon_no} = PBDB::Taxon::getBestClassification($dbt, $matrix[$i]);
 	}
 	
 	else
 	{
-	    $fields{'taxon_no'} = 0;
+	    $matrix[$i]{taxon_no} = 0;
 	}
 	
-	if ( $fields{'taxon_no'} > 0 && $fields{'species_reso'} eq "n. sp." )
+	if ( $matrix[$i]{taxon_no} > 0 && $matrix[$i]{species_reso} eq "n. sp." )
 	{
-	    push @to_check , $fields{'taxon_no'};
+	    push @to_check , $matrix[$i]{taxon_no};
 	}
-	
-	%{$matrix[$i]} = %fields;
     }
     
     if ( @to_check )
@@ -1103,34 +1264,34 @@ sub processEditOccurrences {
 	{
 	    @to_check = ();
 	    
-	    push @to_check , $_->{'taxon_no'} foreach @species;
+	    push @to_check , $_->{taxon_no} foreach @species;
 	    $sql = "(SELECT taxon_no,collection_no FROM occurrences WHERE collection_no!=$collection_no AND taxon_no in (".join(',',@to_check).") AND species_reso='n. sp.') UNION (SELECT taxon_no,collection_no FROM reidentifications WHERE collection_no!=$collection_no AND taxon_no in (".join(',',@to_check).") AND species_reso='n. sp.')";
 	    
 	    my @dupe_refs = @{$dbt->getData($sql)};
 	    
 	    if ( @dupe_refs )
 	    {
-		$dupe_colls{$_->{'taxon_no'}} .= ", ".$_->{collection_no} foreach @dupe_refs;
+		$dupe_colls{$_->{taxon_no}} .= ", ".$_->{collection_no} foreach @dupe_refs;
 		for (my $i = 0;$i < @rowTokens; $i++)
 		{
 		    my %fields = %{$matrix[$i]};
-		    if ( ! $dupe_colls{$fields{'taxon_no'}} || ! $fields{'taxon_no'} )
+		    if ( ! $dupe_colls{$fields{taxon_no}} || ! $fields{taxon_no} )
 		    {
 			next;
 		    }
 		    
-		    $dupe_colls{$fields{'taxon_no'}} =~ s/^, //;
+		    $dupe_colls{$fields{taxon_no}} =~ s/^, //;
 		    
-		    if ( $dupe_colls{$fields{'taxon_no'}} =~ /^[0-9]+$/ )
+		    if ( $dupe_colls{$fields{taxon_no}} =~ /^[0-9]+$/ )
 		    {
                         # jpjenk-question
-			push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$fields{'taxon_no'}\"><i>$fields{'genus_name'} $fields{'species_name'}</i></a> has already been marked as new in collection $dupe_colls{$fields{'taxon_no'}}, so it won't be recorded as such in this one";
+			push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$fields{taxon_no}\"><i>$fields{genus_name} $fields{species_name}</i></a> has already been marked as new in collection $dupe_colls{$fields{taxon_no}}, so it won't be recorded as such in this one";
 		    }
 		    
-		    elsif ( $dupe_colls{$fields{'taxon_no'}} =~ /, [0-9]/ )
+		    elsif ( $dupe_colls{$fields{taxon_no}} =~ /, [0-9]/ )
 		    {
-			$dupe_colls{$fields{'taxon_no'}} =~ s/(, )([0-9]*)$/ and $2/;
-			push @warnings, "<i>$fields{'genus_name'} $fields{'species_name'}</i> has already been marked as new in collections $dupe_colls{$fields{'taxon_no'}}, so it won't be recorded as such in this one";
+			$dupe_colls{$fields{taxon_no}} =~ s/(, )([0-9]*)$/ and $2/;
+			push @warnings, "<i>$fields{genus_name} $fields{species_name}</i> has already been marked as new in collections $dupe_colls{$fields{taxon_no}}, so it won't be recorded as such in this one";
 		    }
 		}
 	    }
@@ -1139,15 +1300,15 @@ sub processEditOccurrences {
 	    
 	    for my $s ( @species )
 	    {
-		if ( ! $dupe_colls{$s->{'taxon_no'}} && $s->{'type_locality'} < 1 )
+		if ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} < 1 )
 		{
-		    push @to_update , $s->{'taxon_no'};
+		    push @to_update , $s->{taxon_no};
 		}
 		
-		elsif ( ! $dupe_colls{$s->{'taxon_no'}} && $s->{'type_locality'} > 0 && $s->{'type_locality'} != $collection_no )
+		elsif ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} > 0 && $s->{type_locality} != $collection_no )
 		{
                     # jpjenk-question
-		    push @warnings, "The type locality of <a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$s->{'taxon_no'}\"><i>$s->{'taxon_name'}</i></a> has already been marked as new in collection $s->{'type_locality'}, which seems incorrect";
+		    push @warnings, "The type locality of <a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$s->{taxon_no}\"><i>$s->{taxon_name}</i></a> has already been marked as new in collection $s->{type_locality}, which seems incorrect";
 		}
 	    }
 	    
@@ -1167,14 +1328,14 @@ sub processEditOccurrences {
 	my %fields = %{$matrix[$i]};
 	my $rowno = $i + 1;
 	
-	if ( $fields{'genus_name'} eq "" && $fields{occurrence_no} < 1 )
+	if ( $fields{genus_name} eq "" && $fields{occurrence_no} < 1 )
 	{
 		next;
 	}
 	
 	# check that all required fields have a non empty value
 	
-        if ( $fields{'reference_no'} !~ /^\d+$/ && $fields{'genus'} =~ /[A-Za-z]/ )
+        if ( $fields{reference_no} !~ /^\d+$/ && $fields{genus} =~ /[A-Za-z]/ )
 	{
             push @warnings, "There is no reference number for row $rowno, so it was skipped";
             next; 
@@ -1188,9 +1349,9 @@ sub processEditOccurrences {
 	
 	my $taxon_name = PBDB::CollectionEntry::formatOccurrenceTaxonName(\%fields);
 
-        if ($fields{'genus_name'} =~ /^\s*$/)
+        if ($fields{genus_name} =~ /^\s*$/)
 	{
-            if ($fields{occurrence_no} =~ /^\d+$/ && $fields{'reid_no'} != -1)
+            if ($fields{occurrence_no} =~ /^\d+$/ && $fields{reid_no} != -1)
 	    {
                 # THIS IS AN UPDATE: CASE 1 or CASE 3. We will be deleting this record, 
                 # Do nothing for now since this is handled below;
@@ -1205,53 +1366,74 @@ sub processEditOccurrences {
 	
 	else
 	{
-            if (!PBDB::Validation::validOccurrenceGenus($fields{'genus_reso'},$fields{'genus_name'}))
+            if (!PBDB::Validation::validOccurrenceGenus($fields{genus_reso},
+							$fields{genus_name}))
 	    {
-                push @warnings, "The genus ($fields{'genus_name'}) in row $rowno is blank or improperly formatted, so it was skipped";
+                push @warnings, "The genus ($fields{genus_name}) in row $rowno is blank " . 
+		    "or improperly formatted, so it was skipped";
                 next; 
             }
             
-	    if ($fields{'subgenus_name'} !~ /^\s*$/ && !PBDB::Validation::validOccurrenceGenus($fields{'subgenus_reso'},$fields{'subgenus_name'}))
+	    if ($fields{subgenus_name} !~ /^\s*$/ && 
+		!PBDB::Validation::validOccurrenceGenus($fields{subgenus_reso},
+							$fields{subgenus_name}))
 	    {
-                push @warnings, "The subgenus ($fields{'subgenus_name'}) in row $rowno is improperly formatted, so it was skipped";
+                push @warnings, "The subgenus ($fields{subgenus_name}) in row $rowno is " . 
+		    "improperly formatted, so it was skipped";
                 next; 
             }
             
-	    if ($fields{'species_name'} =~ /^\s*$/ || !PBDB::Validation::validOccurrenceSpecies($fields{'species_reso'},$fields{'species_name'}))
+	    if ($fields{species_name} =~ /^\s*$/ || 
+		!PBDB::Validation::validOccurrenceSpecies($fields{species_reso},
+							  $fields{species_name}))
 	    {
-                push @warnings, "The species ($fields{'species_name'}) in row $rowno is blank or improperly formatted, so it was skipped";
+                push @warnings, "The species ($fields{species_name}) in row $rowno is blank " . 
+		    "or improperly formatted, so it was skipped";
                 next; 
             }
+	    
+	    if ($fields{subspecies_name} !~ /^\s*$/ && 
+		!PBDB::Validation::validOccurrenceSpecies($fields{subspecies_reso}, 
+							  $fields{subspecies_name}))
+	    {
+		push @warnings, "The subspecies ($fields{subspecies_name}) in row $rowno is " . 
+		    "blank or imporperly formatted, so it was skipped";
+		next;
+	    }
         }
 	
         if ($fields{occurrence_no} =~ /^\d+$/ && $fields{occurrence_no} > 0 &&
-            (($fields{'reid_no'} =~ /^\d+$/ && $fields{'reid_no'} > 0) || ($fields{'reid_no'} == -1)))
+            (($fields{reid_no} =~ /^\d+$/ && $fields{reid_no} > 0) || ($fields{reid_no} == -1)))
 	{
             # We're either updating or inserting a reidentification
 	    
-            my $sql = "SELECT reference_no FROM $OCCURRENCES WHERE occurrence_no=$fields{occurrence_no}";
-            my $occurrence_reference_no = ${$dbt->getData($sql)}[0]->{'reference_no'};
+            my $sql = "SELECT reference_no FROM $OCCURRENCES 
+			WHERE occurrence_no=$fields{occurrence_no}";
+            my $occurrence_reference_no = ${$dbt->getData($sql)}[0]->{reference_no};
 	    
-            if ($fields{'reference_no'} == $occurrence_reference_no)
+            if ($fields{reference_no} == $occurrence_reference_no)
 	    {
-                push @warnings, "The occurrence of taxon $taxon_name in row $rowno and its reidentification have the same reference number";
+                push @warnings, "The occurrence of taxon $taxon_name in row $rowno and its " . 
+		    "reidentification have the same reference number";
                 next;
             }
 	    
             # don't insert a new reID using a ref already used to reID this
             # occurrence 
 	    
-            if ( $fields{'reid_no'} == -1 )
+            if ( $fields{reid_no} == -1 )
 	    {
-                my $sql = "SELECT reference_no FROM reidentifications WHERE occurrence_no=$fields{'occurrence_no'}";
+                my $sql = "SELECT reference_no FROM reidentifications 
+			WHERE occurrence_no=$fields{occurrence_no}";
                 my @reidrows = @{$dbt->getData($sql)};
                 my $isduplicate;
 		
                 for my $reidrow ( @reidrows )
 		{
-                    if ($fields{'reference_no'} == $reidrow->{reference_no})
+                    if ($fields{reference_no} == $reidrow->{reference_no})
 		    {
-                        push @warnings, "This reference already has been used to reidentify the occurrence of taxon $taxon_name in row $rowno";
+                        push @warnings, "This reference already has been used to reidentify " . 
+			    "the occurrence of taxon $taxon_name in row $rowno";
                        $isduplicate++;
                        next;
                     }
@@ -1266,37 +1448,49 @@ sub processEditOccurrences {
         
 	# CASE 1: UPDATE REID
 	
-        if ($fields{'reid_no'} =~ /^\d+$/ && $fields{'reid_no'} > 0 &&
+        if ($fields{reid_no} =~ /^\d+$/ && $fields{reid_no} > 0 &&
             $fields{occurrence_no} =~ /^\d+$/ && $fields{occurrence_no} > 0)
 	{
             # CASE 1a: Delete record
-            if ($fields{'genus_name'} =~ /^\s*$/)
+            if ($fields{genus_name} =~ /^\s*$/)
 	    {
-                $dbt->deleteRecord($s,'reidentifications','reid_no',$fields{'reid_no'});
-            } 
+                $dbt->deleteRecord($s,'reidentifications','reid_no',$fields{reid_no});
+            }
             
 	    # CASE 1b: Update record
             else
 	    {
                 # ugly hack: make sure taxon_no doesn't change unless
                 #  genus_name or species_name did JA 1.4.04
-                my $old_row = ${$dbt->getData("SELECT * FROM reidentifications WHERE reid_no=$fields{'reid_no'}")}[0];
+		
+                my $old_row = ${$dbt->getData("SELECT * FROM reidentifications
+						WHERE reid_no=$fields{reid_no}")}[0];
+		
                 die ("no reid for $fields{reid_no}") if (!$old_row);
-                if ($old_row->{'genus_name'} eq $fields{'genus_name'} &&
-                    $old_row->{'subgenus_name'} eq $fields{'subgenus_name'} &&
-                    $old_row->{'species_name'} eq $fields{'species_name'})
+		
+		$old_row->{subgenus_name} ||= '';
+		$old_row->{species_name} ||= '';
+		$old_row->{subspecies_name} ||= '';
+		
+                if ($old_row->{genus_name} eq $fields{genus_name} &&
+                    $old_row->{subgenus_name} eq $fields{subgenus_name} &&
+                    $old_row->{species_name} eq $fields{species_name} &&
+		    $old_row->{subspecies_name} eq $fields{subspecies_name})
 		{
-                    delete $fields{'taxon_no'};
+                    delete $fields{taxon_no};
                 }
-
-                $dbt->updateRecord($s,'reidentifications','reid_no',$fields{'reid_no'},\%fields);
-
-                if ($old_row->{'reference_no'} != $fields{'reference_no'})
+		
+                $dbt->updateRecord($s,'reidentifications','reid_no',$fields{reid_no},\%fields);
+		
+                if ($old_row->{reference_no} != $fields{reference_no})
 		{
                     dbg("calling setSecondaryRef (updating ReID)<br>");
-                    unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, $fields{'reference_no'}))
+                    unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, 
+									  $fields{collection_no}, 
+									  $fields{reference_no}))
 		    {
-                           PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no},$fields{'reference_no'});
+			PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no},
+							       $fields{reference_no});
                     }
                 }
             }
@@ -1309,12 +1503,16 @@ sub processEditOccurrences {
 	# CASE 2: NEW REID
 	
 	elsif ($fields{occurrence_no} =~ /^\d+$/ && $fields{occurrence_no} > 0 && 
-               $fields{'reid_no'} == -1)
+               $fields{reid_no} == -1)
 	{
             # Check for duplicates
-            my @keys = ("genus_reso","genus_name","subgenus_reso","subgenus_name","species_reso","species_name","occurrence_no");
+	    
+            my @keys = ("genus_reso", "genus_name", "subgenus_reso", "subgenus_name",
+			"species_reso", "species_name", "subspecies_reso", "subspecies_name", 
+			"occurrence_no");
+	    
             my %vars = map{$_,$dbh->quote($_)} @fields{@keys};
-
+	    
             my $dupe_id = $dbt->checkDuplicates("reidentifications", \%vars);
 
             if ( $dupe_id )
@@ -1322,11 +1520,15 @@ sub processEditOccurrences {
                 push @warnings, "Row ". ($i + 1) ." may be a duplicate";
             }
             
+	    delete $fields{reid_no};
+	    
 	    $dbt->insertRecord($s,'reidentifications',\%fields);
-
-            unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, $fields{'reference_no'}))
+	    
+            unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, 
+								  $fields{reference_no}))
 	    {
-		PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no}, $fields{'reference_no'});
+		PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no}, 
+						       $fields{reference_no});
             }
 	    
             setMostRecentReID($dbt, $fields{occurrence_no});
@@ -1338,12 +1540,19 @@ sub processEditOccurrences {
 	elsif($fields{occurrence_no} =~ /^\d+$/ && $fields{occurrence_no} > 0)
 	{
             # CASE 3a: Delete record
-            if ($fields{'genus_name'} =~ /^\s*$/)
+	    
+            if ($fields{genus_name} =~ /^\s*$/)
 	    {
-                # We push this onto an array for later processing because we can't delete an occurrence
-                # With reids attached to it, so we want to let any reids be deleted first
-                my $old_row = ${$dbt->getData("SELECT * FROM $OCCURRENCES WHERE occurrence_no=$fields{occurrence_no}")}[0];
-                push @occurrences_to_delete, [$fields{occurrence_no},PBDB::CollectionEntry::formatOccurrenceTaxonName($old_row),$i];
+                # We push this onto an array for later processing because we
+                # can't delete an occurrence With reids attached to it, so we
+                # want to let any reids be deleted first 
+		
+                my $old_row = ${$dbt->getData("SELECT * FROM $OCCURRENCES 
+						WHERE occurrence_no=$fields{occurrence_no}")}[0];
+		
+                push @occurrences_to_delete, [$fields{occurrence_no},
+					      PBDB::CollectionEntry::formatOccurrenceTaxonName($old_row),
+					      $i];
             }
 	    
             # CASE 3b: Update record
@@ -1352,23 +1561,34 @@ sub processEditOccurrences {
 	    {
                 # ugly hack: make sure taxon_no doesn't change unless
                 #  genus_name or species_name did JA 1.4.04
-                my $old_row = ${$dbt->getData("SELECT * FROM $OCCURRENCES WHERE occurrence_no=$fields{occurrence_no}")}[0];
+		
+                my $old_row = ${$dbt->getData("SELECT * FROM $OCCURRENCES 
+						WHERE occurrence_no=$fields{occurrence_no}")}[0];
+		
                 die ("no reid for $fields{reid_no}") if (!$old_row);
 		
-                if ($old_row->{'genus_name'} eq $fields{'genus_name'} &&
-                    $old_row->{'subgenus_name'} eq $fields{'subgenus_name'} &&
-                    $old_row->{'species_name'} eq $fields{'species_name'})
+		$old_row->{subgenus_name} ||= '';
+		$old_row->{species_name} ||= '';
+		$old_row->{subspecies_name} ||= '';
+		
+                if ($old_row->{genus_name} eq $fields{genus_name} &&
+                    $old_row->{subgenus_name} eq $fields{subgenus_name} &&
+                    $old_row->{species_name} eq $fields{species_name} &&
+		    $old_row->{subspecies_name} eq $fields{subspecies_name})
 		{
-                    delete $fields{'taxon_no'};
+                    delete $fields{taxon_no};
                 }
 		
                 $dbt->updateRecord($s,$OCCURRENCES,"occurrence_no",$fields{occurrence_no},\%fields);
 		
-                if($old_row->{'reference_no'} != $fields{'reference_no'})
+                if($old_row->{reference_no} != $fields{reference_no})
 		{
                     dbg("calling setSecondaryRef (updating occurrence)<br>");
-                    unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, $fields{'reference_no'}))	{
-                           PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no}, $fields{'reference_no'});
+                    unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, 
+									  $fields{reference_no}))
+		    {
+			PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no}, 
+							       $fields{reference_no});
                     }
                 }
             }
@@ -1393,9 +1613,11 @@ sub processEditOccurrences {
                 push @occurrences, $occurrence_no;
             }
 	    
-            unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, $fields{'reference_no'}))
+            unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{collection_no}, 
+								  $fields{reference_no}))
 	    {
-		PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no}, $fields{'reference_no'});
+		PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{collection_no}, 
+						       $fields{reference_no});
             }
         }
     }
@@ -1408,11 +1630,11 @@ sub processEditOccurrences {
 	
         my $sql = "SELECT COUNT(*) c FROM reidentifications WHERE occurrence_no=$occurrence_no";
 	
-        my $reid_cnt = ${$dbt->getData($sql)}[0]->{'c'};
+        my $reid_cnt = ${$dbt->getData($sql)}[0]->{c};
 	
         $sql = "SELECT COUNT(*) c FROM specimens WHERE occurrence_no=$occurrence_no";
 	
-        my $measure_cnt = ${$dbt->getData($sql)}[0]->{'c'};
+        my $measure_cnt = ${$dbt->getData($sql)}[0]->{c};
 	
         if ($reid_cnt)
 	{
@@ -1432,7 +1654,7 @@ sub processEditOccurrences {
     
     $output .= qq|<div align="center"><p class="large" style="margin-bottom: 1.5em;">|;
     $sql = "SELECT collection_name AS coll FROM collections WHERE collection_no=$collection_no";
-    $output .= ${$dbt->getData($sql)}[0]->{'coll'};
+    $output .= ${$dbt->getData($sql)}[0]->{coll};
     $output .= "</p></div>\n\n";
     
     # Links to re-edit, etc
@@ -1481,8 +1703,9 @@ sub processEditOccurrences {
     # insert 
     
     my @new_genera = PBDB::TypoChecker::newTaxonNames($dbt,\@genera,'genus_name');
-    my @new_subgenera =  PBDB::TypoChecker::newTaxonNames($dbt,\@subgenera,'subgenus_name');
-    my @new_species =  PBDB::TypoChecker::newTaxonNames($dbt,\@species,'species_name');
+    my @new_subgenera = PBDB::TypoChecker::newTaxonNames($dbt,\@subgenera,'subgenus_name');
+    my @new_species = PBDB::TypoChecker::newTaxonNames($dbt,\@species,'species_name');
+    my @new_subspecies = PBDB::TypoChecker::newTaxonNames($dbt,\@subspecies, 'subspecies_name');
     
     $output .= qq|<div style="padding-left: 1em; padding-right: 1em;>"|;
     
@@ -1491,13 +1714,29 @@ sub processEditOccurrences {
     if ($q->param('list_collection_no'))
     {
         my $collection_no = $q->numeric_param("list_collection_no");
-        my $coll = ${$dbt->getData("SELECT collection_no,reference_no FROM $COLLECTIONS WHERE collection_no=$collection_no")}[0];
-    	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,{collection_no=>$collection_no, 'hide_reference_no'=>$coll->{'reference_no'},'new_genera'=>\@new_genera, 'new_subgenera'=>\@new_subgenera, 'new_species'=>\@new_species, 'do_reclassify'=>1, 'warnings'=>\@warnings, 'save_links'=>$links });
+        my $coll = ${$dbt->getData("SELECT collection_no,reference_no FROM $COLLECTIONS 
+					WHERE collection_no=$collection_no")}[0];
+    	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,
+							    {collection_no=>$collection_no, 
+							     hide_reference_no=>$coll->{reference_no},
+							     new_genera=>\@new_genera,
+							     new_subgenera=>\@new_subgenera,
+							     new_species=>\@new_species,
+							     do_reclassify=>1,
+							     warnings=>\@warnings,
+							     save_links=>$links });
     }
     
     else
     {
-    	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,{'occurrence_list'=>\@occurrences, 'new_genera'=>\@new_genera, 'new_subgenera'=>\@new_subgenera, 'new_species'=>\@new_species, 'do_reclassify'=>1, 'warnings'=>\@warnings, 'save_links'=>$links });
+    	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,
+							    {occurrence_list=>\@occurrences, 
+							     new_genera=>\@new_genera, 
+							     new_subgenera=>\@new_subgenera,
+							     new_species=>\@new_species,
+							     do_reclassify=>1,
+							     warnings=>\@warnings,
+							     save_links=>$links });
     }
     
     if ( ! $return )
