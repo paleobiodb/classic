@@ -83,7 +83,7 @@ sub new {
     
     my $top_chars = substr($txt, 0, 1000);
     
-    my %settings = ( $top_chars =~ /([A-Z_]+) = ([^;\n]+)/xg );
+    my %settings = ( $top_chars =~ /([A-Z_]+) \s* = \s* (.*?) (?:[;\n]|\s+-->)/xg );
     
     # If we have any errors, save them now.
     
