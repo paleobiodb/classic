@@ -355,7 +355,7 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
 	# JA 5.9.11
 	if ( $discussion )	{
 		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeATag('basicTaxonInfo', "taxon_no=$4")/ge;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag('displayReference', "reference_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag('app\/refs', "#display=$4")/ge;
 		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeATag('basicCollectionSearch', "collection_no=$4")/ge;
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;
@@ -1231,7 +1231,7 @@ sub displayTaxonClassification {
                 }
                 my $pub_info = PBDB::Reference::formatShortRef($authority);
                 if ($authority->{'ref_is_authority'} =~ /yes/i) {
-                    $pub_info = makeAnchor("displayReference?reference_no=$authority->{reference_no}&amp;is_real_user=$is_real_user", $pub_info);
+                    $pub_info = makeAnchor("app/refs#display=$authority->{reference_no}", $pub_info);
                 }
                 my $orig_no = getOriginalCombination($dbt,$taxon_no);
                 if ($orig_no != $taxon_no) {
@@ -2813,8 +2813,8 @@ sub displaySynonymyList	{
 				$authorstring .= " and " . $refdata->{author2last};
 			}
 			if ( $refdata->{ref_is_authority} eq "YES" || $refdata->{ref_has_opinion} eq "YES" )	{
-				$authorstring = makeAnchor("displayReference", "reference_no=$refdata->{reference_no}&amp;is_real_user=$is_real_user", 
-							   $authorstring);
+			    $authorstring = makeAnchor("app/refs", "#display=$refdata->{reference_no}", 
+						       $authorstring);
 			}
 			$synkey .= $authorstring;
 		}
@@ -3784,7 +3784,7 @@ sub basicTaxonInfo	{
 	if ( $taxon_no )	{
 		my $author = formatShortAuthor($auth);
 		if ( $auth->{'ref_is_authority'} =~ /y/i )	{
-			$author = makeAnchor("displayReference", "reference_no=$auth->{'reference_no'}&amp;is_real_user=$is_real_user", $author);
+			$author = makeAnchor("app/refs", "#display=$auth->{'reference_no'}", $author);
 		}
 		$header .= $author;
 		if ( $auth->{'common_name'} )	{
@@ -3828,7 +3828,7 @@ sub basicTaxonInfo	{
 	if ( $auth->{'discussion'} )	{
 		my $discussion = $auth->{'discussion'};
 		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeATag("basicTaxonInfo", "taxon_no=$4")/ge;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag("displayReference", "reference_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag("app\/refs", "#display=$4")/ge;
 		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeATag("basicCollectionSearch", "collection_no=$4")/ge;
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;

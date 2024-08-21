@@ -288,7 +288,7 @@ sub displayAuthorityForm {
 	if ( $ref )
 	{
 	    $fields{formatted_primary_reference} = $ref->formatAsHTML();
-	    $fields{primary_reference_link} = makeAnchor("displayReference", "type=view&reference_no=$fields{reference_no}", "view"); #jpjenk-question: is this the correct handling of qq{}
+	    $fields{primary_reference_link} = makeAnchor("app/refs", "#display=$fields{reference_no}", "view"); #jpjenk-question: is this the correct handling of qq{}
 	}
     }
     
@@ -299,7 +299,7 @@ sub displayAuthorityForm {
 	if ( $ref )
 	{
 	    $fields{formatted_current_reference} = $ref->formatAsHTML();
-	    $fields{current_reference_link} = makeAnchor("displayReference", "type=view&reference_no=$current_ref", "view"); #jpjenk-question: is this the correct handling of qq{}
+	    $fields{current_reference_link} = makeAnchor("app/refs", "#display=$current_ref", "view"); #jpjenk-question: is this the correct handling of qq{}
         }
         $fields{'current_reference'} = 1;
     } 

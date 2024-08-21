@@ -205,7 +205,7 @@ sub formatShortRef  {
 
     if ($options{'link_id'}) {
         if ($refData->{'reference_no'}) {
-            $shortRef = makeAnchor("displayReference", "reference_no=$refData->{reference_no}", $shortRef);
+            $shortRef = makeAnchor("app/refs", "#display=$refData->{reference_no}", $shortRef);
         }
     }
     if ($options{'show_comments'}) {
@@ -457,24 +457,24 @@ sub displayRefResults {
 	    {
 		if ($type eq 'add')
 		{
-		    $output .= makeAnchor("displayReferenceForm", "reference_no=$row->{reference_no}", $row->{reference_no});
+		    $output .= makeAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no});
 		}
 		elsif ($type eq 'edit')
 		{
-		    $output .= makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=edit", $row->{reference_no});
+		    $output .= makeAnchor("app/refs", "#display=$row->{reference_no}&type=edit", $row->{reference_no});
 		}
 		elsif ($type eq 'view')
 		{
-		    $output .= makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "</br>";
+		    $output .= makeAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no}) . "</br>";
 		}
 		else
 		{
-		    $output .= makeAnchor("displayRefResults", "reference_no=$row->{reference_no}&type=select", $row->{reference_no}) . "<br>";
+		    $output .= makeAnchor("selectReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "<br>";
 		}
 	    }
 	    else
 	    {
-		$output .= makeAnchor("displayReference", "reference_no=$row->{reference_no}", $row->{reference_no});
+		$output .= makeAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no});
 	    }
 	    $output .= "</td>";
 	    my $formatted_reference = formatLongRef($row);
@@ -482,8 +482,8 @@ sub displayRefResults {
 	    if ( $type eq 'view' && $s->isDBMember() )
 	    {
 		$output .= " <small>";
-		$output .= makeAnchor("displayRefResults", "type=select&reference_no=$row->{reference_no}", "select") . " - ";
-		$output .= makeAnchor("displayRefResults", "type=edit&reference_no=$row->{reference_no}", "edit") . "</small>";
+		$output .= makeAnchor("selectReference", "reference_no=$row->{reference_no}", "select")
+		    . "</small>";
 	    }
 	    my $reference_summary = getReferenceLinkSummary($dbt,$s,$row->{'reference_no'});
 	    $output .= "<br><small>$reference_summary</small></td>";
@@ -1128,7 +1128,7 @@ sub getReferences {
 		my @links;
 		for my $l ( @likes )	{
 			if ( $l->{'c'} == 1 )	{
-				push @links , makeAnchor("displayReference", "reference_no=$l->{'reference_no'}", $l->{'name'});
+				push @links , makeAnchor("app/refs", "#display=$l->{'reference_no'}", $l->{'name'});
 			} else	{
 			    my $params = "name=$l->{'name'}";
 			    $params .= "&year=$options{'year'}&year_relation=$options{'year_relation'}" if $options{year};

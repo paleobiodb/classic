@@ -1813,10 +1813,7 @@ function showAuthors()	{
 
 	$sql = "SELECT * FROM refs WHERE reference_no=".$c->{'reference_no'};
 	my $ref = ${$dbt->getData($sql)}[0];
-	$output .= "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeAnchor("displayReference", "reference_no=$c->{reference_no}", "more details");
-	if ( $s->isDBMember() ) {
-		$output .= " - " . makeAnchor("displayRefResults", "type=edit&reference_no=$c->{reference_no}", "edit");
-	}
+	$output .= "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeAnchor("app/refs", "#display=$c->{reference_no}", "more details");
 	$output .= "</p>\n\n";
 
 	$c->{'collection_type'} ? $output .= "<p $indent>Purpose of describing collection: $c->{'collection_type'} analysis<p>\n\n" : "";

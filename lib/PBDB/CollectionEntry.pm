@@ -141,7 +141,7 @@ sub displayCollectionForm {
     my $formatted_primary = PBDB::Reference::formatLongRef($ref);
 
     $vars{'ref_string'} = '<table cellspacing="0" cellpadding="2" width="100%"><tr>'.
-    "<td valign=\"top\">" . makeAnchor("displayReference", "reference_no=$vars{reference_no}", "$vars{'reference_no'}") . ".</b>&nbsp;</td>".
+    "<td valign=\"top\">" . makeAnchor("app/refs", "#display=$vars{reference_no}", "$vars{'reference_no'}") . ".</b>&nbsp;</td>".
     "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
     "<td>$formatted_primary</td>".
     "</tr></table>";      
@@ -990,7 +990,7 @@ sub displayCollectionDetailsPage {
         my $ref = PBDB::Reference::getReference($dbt,$row->{'reference_no'});
         my $formatted_primary = PBDB::Reference::formatLongRef($ref);
         $row->{'reference_string'} = '<table cellspacing="0" cellpadding="2" width="100%"><tr>'.
-            "<td valign=\"top\">" . makeAnchor("displayReference", "reference_no=$row->{reference_no}", "$row->{'reference_no'}") . ".</a></td>".
+            "<td valign=\"top\">" . makeAnchor("app/refs", "#display=$row->{reference_no}", "$row->{'reference_no'}") . ".</a></td>".
             "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
             "<td>$formatted_primary</td>".
             "</tr></table>";
@@ -1006,7 +1006,7 @@ sub displayCollectionDetailsPage {
                 my $formatted_secondary = PBDB::Reference::formatLongRef($ref);
                 my $class = ($i % 2 == 0) ? 'class="darkList"' : '';
                 $table .= "<tr $class>".
-                    "<td valign=\"top\">" . makeAnchor("displayReference", "reference_no=$sr", "$sr") . "</a></td>".
+                    "<td valign=\"top\">" . makeAnchor("app/refs", "#display=$sr", "$sr") . "</a></td>".
                     "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
                     "<td>$formatted_secondary</td>".
                     "</tr>";

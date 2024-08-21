@@ -131,8 +131,8 @@ END_HEADER
         my $occ_read_only = ($occ_row->{'writeable'} == 0) ? "all" : ""; 
 	
         $occ_row->{'darkList'} = ($occ_read_only eq 'all' && $gray_counter%2 == 0) ? "darkList" : "";
-	$occ_row->{reference_link} = makeAnchor("displayReference", 
-						"type=view&reference_no=$occ_row->{reference_no}", "view")
+	$occ_row->{reference_link} = makeAnchor("app/refs", 
+						"#display=$occ_row->{reference_no}", "view")
 	    if $occ_row->{reference_no};
 	
         $output .= $hbo->populateHTML("occurrence_edit_row", $occ_row, [$occ_read_only]);
@@ -152,7 +152,7 @@ END_HEADER
             # Read Only
             my $re_read_only = $occ_read_only;
             $re_row->{'darkList'} = $occ_row->{'darkList'};
-	    $re_row->{reference_link} = makeAnchor("displayReference", "type=view&reference_no=$re_row->{reference_no}", "view")
+	    $re_row->{reference_link} = makeAnchor("app/refs", "#display=$re_row->{reference_no}", "view")
 		if $re_row->{reference_no};
             
             $output .= $hbo->populateHTML("reid_edit_row", $re_row, [$re_read_only]);
@@ -390,7 +390,7 @@ sub displayOccsForReID {
     my $ref = PBDB::Reference::getReference($dbt,$current_session_ref);
     
     my $formatted_primary = PBDB::Reference::formatLongRef($ref);
-    my $refString = "<b>" . makeAnchor("displayReference", "reference_no=$current_session_ref", "$current_session_ref") . "</b> $formatted_primary<br>";
+    my $refString = "<b>" . makeAnchor("app/refs", "#display=$current_session_ref", "$current_session_ref") . "</b> $formatted_primary<br>";
     
     # Build the SQL
     
@@ -541,7 +541,7 @@ sub displayOccsForReID {
             
             my $ref = PBDB::Reference::getReference($dbt,$row->{'reference_no'});
             my $formatted_primary = PBDB::Reference::formatShortRef($ref);
-            my $refString = '<b>' . makeAnchor("displayReference", "reference_no=$row->{reference_no}", "$row->{reference_no}") . "</b>&nbsp;$formatted_primary";
+            my $refString = '<b>' . makeAnchor("app/refs", "display=$row->{reference_no}", "$row->{reference_no}") . "</b>&nbsp;$formatted_primary";
 
             $html .= "<tr><td colspan=20 class=\"verysmall\" style=\"padding-bottom: 0.75em;\">Original reference: $refString<br>\n";
             # Print the collections details
