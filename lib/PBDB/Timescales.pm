@@ -381,12 +381,20 @@ sub displayTimescale {
     
     foreach my $reference_no ( @reference_list )
     {
-	my $ref = PBDB::Reference->new($dbt, $reference_no);
+	my $ref;
+	
+	eval { $ref = PBDB::Reference->new($dbt, $reference_no) };
 	
 	if ( $ref )
 	{
 	    $long_ref{$reference_no} = $ref->formatLongRef();
 	    $short_ref{$reference_no} = $ref->formatShortRef();
+	}
+	
+	else
+	{
+	    $long_ref{$reference_no} = "<i>Reference unavailable</i>";
+	    $short_ref{$reference_no} = "<i>Reference unavailable</i>";
 	}
     }
     
