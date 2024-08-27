@@ -13,7 +13,7 @@ use PBDB::Constants qw(%CONFIG);
 sub connect {
     
     my $dsn;
-    my $DB_DRIVER = $CONFIG{DB_DRIVER} || "mysql";
+    my $DB_DRIVER = $CONFIG{DB_DRIVER} || "mariadb";
     my $MAIN_DB = $CONFIG{MAIN_DATABASE} || "pbdb";
     my $DB_SOCKET = $CONFIG{DB_SOCKET};
     my $DB_CONNECTION = $CONFIG{DB_CONNECTION};
