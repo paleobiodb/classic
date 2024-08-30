@@ -1653,6 +1653,7 @@ sub buildTaxonomicList {
 		# classification using the species name.
 		
 		my $classify_taxon_no = $rowref->{taxon_no};
+		my $count = 1;
 		
 		if ( ! $classify_taxon_no && $rowref->{subspecies_name} &&
 		     $rowref->{species_reso} ne 'informal' )
@@ -1660,12 +1661,24 @@ sub buildTaxonomicList {
 		    my $dbh = $dbt->dbh;
 		    my $species_name = $dbh->quote("$rowref->{genus_name} $rowref->{species_name}");
 		    
-		    my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $species_name";
+		    my $sql = "SELECT taxon_no, count(*) FROM authorities
+			WHERE taxon_name = $species_name GROUP BY taxon_name";
 		    
-		    ($classify_taxon_no) = $dbh->selectrow_array($sql);
+		    ($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
 		}
 		
-                if ( $classify_taxon_no )
+		if ( ! $classify_taxon_no && $rowref->{genus_reso} ne 'informal' )
+		{
+		    my $dbh = $dbt->dbh;
+		    my $genus_name = $dbh->quote("$rowref->{genus_name}");
+		    
+		    my $sql = "SELECT taxon_no, count(*) FROM authorities
+				WHERE taxon_name = $genus_name GROUP BY taxon_name";
+		    
+		    ($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
+		}
+		
+                if ( $classify_taxon_no && $count == 1 )
 		{
                     # Get parents
 		    my $class_hash = PBDB::TaxaCache::getParents($dbt,[$classify_taxon_no],
@@ -1682,8 +1695,11 @@ sub buildTaxonomicList {
 							      'taxon_rank','pubyr']);
 			unshift @class_array , $taxon;
 			
-			$rowref->{synonym_name} = getSynonymName($dbt, $rowref->{taxon_no},
-								 $taxon->{taxon_name});
+			if ( $taxon->{taxon_name} eq $rowref->{taxon_name} )
+			{
+			    $rowref->{synonym_name} = getSynonymName($dbt, $rowref->{taxon_no},
+								     $taxon->{taxon_name});
+			}
 		    }
 		    
                     $rowref = getClassOrderFamily($dbt, \$rowref, \@class_array);
@@ -2414,6 +2430,7 @@ sub getReidHTMLTableByOccNum {
 	    # using the species name.
 	    
 	    my $classify_taxon_no = $row->{taxon_no};
+	    my $count = 1;
 	    
 	    if ( ! $classify_taxon_no && $row->{subspecies_name} &&
 		 $row->{species_reso} ne 'informal' )
@@ -2421,12 +2438,24 @@ sub getReidHTMLTableByOccNum {
 		my $dbh = $dbt->dbh;
 		my $species_name = $dbh->quote("$row->{genus_name} $row->{species_name}");
 		
-		my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $species_name";
+		my $sql = "SELECT taxon_no, count(*) FROM authorities
+			WHERE taxon_name = $species_name GROUP BY taxon_name";
 		
-		($classify_taxon_no) = $dbh->selectrow_array($sql);
+		($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
 	    }
 	    
-            if ( $classify_taxon_no )
+	    if ( ! $classify_taxon_no && $row->{genus_reso} ne 'informal' )
+	    {
+		my $dbh = $dbt->dbh;
+		my $genus_name = $dbh->quote("$row->{genus_name}");
+		
+		my $sql = "SELECT taxon_no, count(*) FROM authorities
+			WHERE taxon_name = $genus_name GROUP BY taxon_name";
+		
+		($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
+	    }
+	    
+            if ( $classify_taxon_no && $count == 1 )
 	    {
                 my $class_hash = PBDB::TaxaCache::getParents($dbt, [$classify_taxon_no], 'array_full');
                 my @class_array = @{$class_hash->{$classify_taxon_no}};
@@ -2442,7 +2471,11 @@ sub getReidHTMLTableByOccNum {
 
 		    $classification->{$taxon->{taxon_rank}} = $taxon;
 		    
-		    $row->{synonym_name} = getSynonymName($dbt, $row->{taxon_no}, $taxon->{taxon_name});
+		    if ( $taxon->{taxon_name} eq $row->{taxon_name} )
+		    {
+			$row->{synonym_name} = getSynonymName($dbt, $row->{taxon_no}, 
+							      $taxon->{taxon_name});
+		    }
 		}
 		
                 $row = getClassOrderFamily($dbt,\$row,\@class_array);

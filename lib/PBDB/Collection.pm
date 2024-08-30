@@ -2000,38 +2000,42 @@ function showAuthors()	{
 	$o->{formatted} =~ s/^ //g;
 	$o->{formatted} = "$ital$o->{formatted}$ital2";
 	    
-	if ( ! $lookup{$o->{'synonym_no'}} && $o->{'taxon_no'} )
+	if ( ! $lookup{$o->{synonym_no}} && $o->{taxon_no} )
 	{
-	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_no=$o->{'taxon_no'}", $o->{'formatted'});
+	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_no=$o->{taxon_no}", $o->{formatted});
 	}
-	    
-	elsif ( ! $o->{'taxon_no'} )
+	
+	elsif ( ! $o->{taxon_no} )
 	{
-	    my $name = $o->{'genus_name'};
-	    if ( $o->{'species_name'} !~ /(sp|spp|indet)\./ )
+	    my $name = $o->{genus_name};
+	    if ( $o->{species_name} !~ /(sp|spp|indet)\./ )
 	    {
-		$name .= " ".$o->{'species_name'};
+		$name .= " $o->{species_name}";
 	    }
-	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_name=$name", $o->{'formatted'});
+	    if ( $o->{subspecies_name} )
+	    {
+		$name .= " $o->{subspecies_name}";
+	    }
+	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_name=$name", $o->{formatted});
 	}
-	    
+	
 	if ( $postfix )
 	{
-	    $o->{'formatted'} .= " ".$postfix;
+	    $o->{formatted} .= " $postfix";
 	}
-	    
-	if ( $lookup{$o->{'synonym_no'}} )
+	
+	if ( $lookup{$o->{synonym_no}} )
 	{
-	    $o->{formatted} = '"' . $o->{formatted} . '" = ' . $lookup{$o->{'synonym_no'}};
+	    $o->{formatted} = "&quot;$o->{formatted}&quot; = " . $lookup{$o->{synonym_no}};
 	}
-	    
-	$o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}</span></sup>|;
-	    
-	if ( $o->{'abund_value'} )
+	
+	$o->{formatted} .= qq|<sup><span class="tiny">$refCiteNo{$o->{reference_no}}</span></sup>|;
+	
+	if ( $o->{abund_value} )
 	{
-	    $o->{'formatted'} .= "[".$o->{'abund_value'}."]";
+	    $o->{formatted} .= " [$o->{abund_value}]";
 	}
-	    
+	
 	# get author/year info
 	my $author = $authors{$o->{'synonym_no'}};
 	# erase author if the classified taxon isn't a species but
@@ -2049,6 +2053,7 @@ function showAuthors()	{
 	# authorities table, look them up using the species name.
 	
 	my $classify_taxon_no = $o->{taxon_no};
+	my $count = 1;
 	
 	if ( ! $classify_taxon_no && $o->{subspecies_name} &&
 	     $o->{species_reso} ne 'informal' )
@@ -2056,12 +2061,24 @@ function showAuthors()	{
 	    my $dbh = $dbt->dbh;
 	    my $species_name = $dbh->quote("$o->{genus_name} $o->{species_name}");
 	    
-	    my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $species_name";
+	    my $sql = "SELECT taxon_no, count(*) FROM authorities 
+			WHERE taxon_name = $species_name GROUP BY taxon_name";
 	    
-	    ($classify_taxon_no) = $dbh->selectrow_array($sql);
+	    ($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
 	}
 	
-	if ( $classify_taxon_no )
+	if ( ! $classify_taxon_no && $o->{genus_reso} ne 'informal' )
+	{
+	    my $dbh = $dbt->dbh;
+	    my $genus_name = $dbh->quote("$o->{genus_name}");
+	    
+	    my $sql = "SELECT taxon_no, count(*) FROM authorities
+			WHERE taxon_name = $genus_name GROUP BY taxon_name";
+	    
+	    ($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
+	}
+	
+	if ( $classify_taxon_no && $count == 1 )
 	{
 	    my $class_hash = PBDB::TaxaCache::getParents($dbt, [$classify_taxon_no], 'array_full');
 	    my @class_array = @{$class_hash->{$classify_taxon_no}};
@@ -2075,11 +2092,6 @@ function showAuthors()	{
 	    }
 	    
 	    $o = getClassOrderFamily($dbt,\$o,\@class_array);
-	}
-	
-	else
-	{
-	    $o = { };
 	}
 	
 	if ( ! $o->{class} && ! $o->{order} && ! $o->{family} )
