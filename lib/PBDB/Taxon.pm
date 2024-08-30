@@ -945,6 +945,7 @@ sub submitAuthorityForm {
 	my $status;
 	
 	if ($isNewEntry) {
+	        delete $fields{taxon_no} if $fields{taxon_no} eq '';
 		($status, $resultTaxonNumber) = $dbt->insertRecord($s,'authorities', \%fields);
 		PBDB::TaxaCache::addName($dbt,$resultTaxonNumber);
 		

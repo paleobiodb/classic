@@ -1940,7 +1940,7 @@ function showAuthors()	{
 	    $o->{'species_reso'} = "";
 	}
 	    
-	if ( $o->{subspecies_reso} eq "n. subsp." )
+	if ( $o->{subspecies_reso} eq "n. ssp." )
 	{
 	    $postfix .= " " . $o->{subspecies_reso};
 	    $o->{subspecies_reso} = "";
@@ -2043,17 +2043,50 @@ function showAuthors()	{
 	    $author = "";
 	}
 	    
-	# get class/order/family names
-	my $class_hash = PBDB::TaxaCache::getParents($dbt,[$o->{'taxon_no'}],'array_full');
-	my @class_array = @{$class_hash->{$o->{'taxon_no'}}};
-	my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$o->{'taxon_no'}},['taxon_name','taxon_rank','pubyr','common_name']);
-	unshift @class_array , $taxon;
-	$o = getClassOrderFamily($dbt,\$o,\@class_array);
-	if ( ! $o->{'class'} && ! $o->{'order'} && ! $o->{'family'} )
+	# Get class/order/family names. If the taxonomic name of this occurrence
+	# is listed in the authorities table, look them up directly. Otherwise,
+	# if it is a subspecies and the species name is listed in the
+	# authorities table, look them up using the species name.
+	
+	my $classify_taxon_no = $o->{taxon_no};
+	
+	if ( ! $classify_taxon_no && $o->{subspecies_name} &&
+	     $o->{species_reso} ne 'informal' )
 	{
-	    $o->{'class'} = "unclassified";
+	    my $dbh = $dbt->dbh;
+	    my $species_name = $dbh->quote("$o->{genus_name} $o->{species_name}");
+	    
+	    my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $species_name";
+	    
+	    ($classify_taxon_no) = $dbh->selectrow_array($sql);
 	}
-
+	
+	if ( $classify_taxon_no )
+	{
+	    my $class_hash = PBDB::TaxaCache::getParents($dbt, [$classify_taxon_no], 'array_full');
+	    my @class_array = @{$class_hash->{$classify_taxon_no}};
+	    
+	    if ( $o->{taxon_no} )
+	    {
+		my $taxon = PBDB::TaxonInfo::getTaxa($dbt, {taxon_no=>$o->{taxon_no}},
+						     ['taxon_name','taxon_rank','pubyr','common_name']);
+		
+		unshift @class_array , $taxon;
+	    }
+	    
+	    $o = getClassOrderFamily($dbt,\$o,\@class_array);
+	}
+	
+	else
+	{
+	    $o = { };
+	}
+	
+	if ( ! $o->{class} && ! $o->{order} && ! $o->{family} )
+	{
+	    $o->{class} = "unclassified";
+	}
+	
 	# put everything together
 	#$o->{formatted} .= $rankOfNo{$o->{'synonym_no'}};
 	if ( $o->{'class'} ne $lastclass || 

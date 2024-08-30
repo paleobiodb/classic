@@ -19,8 +19,7 @@ use PBDB::Reclassify;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;    
-use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCE_NO
-		       makeAnchor makeFormPostTag);
+use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS makeAnchor makeFormPostTag);
 
 use IntervalBase qw(int_defined int_name int_bounds int_correlation interval_nos_by_age);
 use POSIX qw(floor);
@@ -258,7 +257,7 @@ sub processCollectionForm {
 	my $reference_no = $q->numeric_param("reference_no");
 	my $secondary = $q->numeric_param('secondary_reference_no');
 
-	my $collection_no = $q->param($COLLECTION_NO);
+	my $collection_no = $q->param('collection_no');
 
 	my $isNewEntry = ($collection_no > 0) ? 0 : 1;
     
@@ -409,7 +408,7 @@ sub processCollectionForm {
         # figure out the release date, enterer, and authorizer
         my $created = now();
         if (!$isNewEntry) {
-            my $sql = "SELECT created FROM $COLLECTIONS WHERE $COLLECTION_NO=$collection_no";
+            my $sql = "SELECT created FROM $COLLECTIONS WHERE collection_no=$collection_no";
             my $row = ${$dbt->getData($sql)}[0];
             die "Could not fetch collection $collection_no from the database" unless $row;
             $created = $row->{created};
@@ -423,7 +422,7 @@ sub processCollectionForm {
         my ($dupe,$matches) = (0,0);
         if ($isNewEntry) {
             $dupe = $dbt->checkDuplicates($COLLECTIONS,\%vars);
-#          $matches = $dbt->checkNearMatch($COLLECTIONS,$COLLECTION_NO,$q,99,"something=something?");
+#          $matches = $dbt->checkNearMatch($COLLECTIONS,'collection_no',$q,99,"something=something?");
         }
 
         if ($dupe) {
@@ -436,7 +435,7 @@ sub processCollectionForm {
                 my ($status,$coll_id) = $dbt->insertRecord($s,$COLLECTIONS, \%vars);
                 $collection_no = $coll_id;
             } else {
-                my $status = $dbt->updateRecord($s,$COLLECTIONS,$COLLECTION_NO,$collection_no,\%vars);
+                my $status = $dbt->updateRecord($s,$COLLECTIONS,'collection_no',$collection_no,\%vars);
             }
         }
 
@@ -483,7 +482,7 @@ sub processCollectionForm {
         $output .= "<center><p class=\"pageTitle\" style=\"margin-bottom: -0.5em;\"><font color='red'>Collection record $verb</font></p><p class=\"medium\"><i>Do not press the back button!</i></p></center>";
 
 	my $coll;
-       	my ($colls_ref) = getCollections($dbt,$s,{$COLLECTION_NO=>$collection_no},['authorizer','enterer','modifier','*']);
+       	my ($colls_ref) = getCollections($dbt,$s,{collection_no=>$collection_no},['authorizer','enterer','modifier','*']);
        	$coll = $colls_ref->[0];
 
         if ($coll) {
@@ -758,8 +757,8 @@ sub processCollectionsSearchForAdd	{
     $inlist =~ s/,$//;
     $sql .= "c.lngdeg IN (" . $inlist . ")";
     my $sortby = $q->param('sortby');
-    if ($sortby eq $COLLECTION_NO) {
-	$sql .= " ORDER BY c.$COLLECTION_NO";
+    if ($sortby eq 'collection_no') {
+	$sql .= " ORDER BY c.collection_no";
     } elsif ($sortby =~ /^(collection_name|inventory_name)$/) {
 	$sql .= " ORDER BY c.$sortby";
     }
@@ -1582,7 +1581,7 @@ sub buildTaxonomicList {
 	    if ( $rowref->{'occurrence_no'} )
 	    {
 		$mostRecentReID = PBDB::PBDBUtil::getMostRecentReIDforOcc($dbt,
-									  $rowref->{$OCCURRENCE_NO},1);
+									  $rowref->{occurrence_no},1);
 	    }
 	    
 	    # if the occurrence has been reidentified at least once
@@ -1600,7 +1599,7 @@ sub buildTaxonomicList {
 		
 		my $show_collection = '';
 		my ($table,$classification,$reid_are_reclassifications) = 
-		    getReidHTMLTableByOccNum($dbt,$hbo,$s,$rowref->{$OCCURRENCE_NO}, 0, 
+		    getReidHTMLTableByOccNum($dbt,$hbo,$s,$rowref->{occurrence_no}, 0, 
 					     $options{'do_reclassify'});
 		
 		$are_reclassifications = 1 if ($reid_are_reclassifications);
@@ -1646,33 +1645,53 @@ sub buildTaxonomicList {
 	    
 	    # otherwise this occurrence has never been reidentified
 	    
-	    else {
-		# get the classification (by PM): changed 2.4.04 by JA to
-		#  use the occurrence number instead of the taxon name
+	    else
+	    {
+		# If the taxonomic name of this occurrence is in the authorities table,
+		# get its classification directly. Otherwise, if it is a subspecies, check
+		# to see if the species is in the authorities table. If so, get the
+		# classification using the species name.
 		
-                if ($rowref->{'taxon_no'})
+		my $classify_taxon_no = $rowref->{taxon_no};
+		
+		if ( ! $classify_taxon_no && $rowref->{subspecies_name} &&
+		     $rowref->{species_reso} ne 'informal' )
+		{
+		    my $dbh = $dbt->dbh;
+		    my $species_name = $dbh->quote("$rowref->{genus_name} $rowref->{species_name}");
+		    
+		    my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $species_name";
+		    
+		    ($classify_taxon_no) = $dbh->selectrow_array($sql);
+		}
+		
+                if ( $classify_taxon_no )
 		{
                     # Get parents
-		    my $class_hash = PBDB::TaxaCache::getParents($dbt,[$rowref->{'taxon_no'}],
+		    my $class_hash = PBDB::TaxaCache::getParents($dbt,[$classify_taxon_no],
 								 'array_full');
 		    
-                    my @class_array = @{$class_hash->{$rowref->{'taxon_no'}}};
+                    my @class_array = @{$class_hash->{$classify_taxon_no}};
 		    
                     # Get Self as well, in case we're a family indet.
 		    
-                    my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$rowref->{'taxon_no'}},
-							 ['taxon_name','common_name',
-							  'taxon_rank','pubyr']);
-                    unshift @class_array , $taxon;
-                    $rowref = getClassOrderFamily($dbt,\$rowref,\@class_array);
-		    
-                    if ( ! $rowref->{'class'} && ! $rowref->{'order'} && ! $rowref->{'family'} )
+		    if ( $rowref->{taxon_no} )
 		    {
-                        $rowref->{'class'} = "unclassified";
+			my $taxon = PBDB::TaxonInfo::getTaxa($dbt, {taxon_no => $rowref->{taxon_no}},
+							     ['taxon_name','common_name',
+							      'taxon_rank','pubyr']);
+			unshift @class_array , $taxon;
+			
+			$rowref->{synonym_name} = getSynonymName($dbt, $rowref->{taxon_no},
+								 $taxon->{taxon_name});
+		    }
+		    
+                    $rowref = getClassOrderFamily($dbt, \$rowref, \@class_array);
+		    
+                    if ( ! $rowref->{class} && ! $rowref->{order} && ! $rowref->{family} )
+		    {
+                        $rowref->{class} = "unclassified";
                     }
-                    
-		    $rowref->{'synonym_name'} = getSynonymName($dbt,$rowref->{'taxon_no'},
-							       $taxon->{'taxon_name'});
                 }
 		
 		else
@@ -1689,7 +1708,7 @@ sub buildTaxonomicList {
                         if (@all_matches)
 			{
                             $are_reclassifications = 1;
-                            $rowref->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $rowref->{$OCCURRENCE_NO},0,1,\@all_matches,$rowref->{'taxon_no'},$taxon_name);
+                            $rowref->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $rowref->{occurrence_no},0,1,\@all_matches,$rowref->{'taxon_no'},$taxon_name);
                         }
                     }
                 }
@@ -1820,9 +1839,9 @@ sub buildTaxonomicList {
 	{
 	    $return .= makeFormPostTag();
             $return .= "<input type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n"; 
-            if ($options{$COLLECTION_NO})
+            if ($options{collection_no})
 	    {
-                $return .= "<input type=\"hidden\" name=\"$COLLECTION_NO\" value=\"$options{$COLLECTION_NO}\">\n"; 
+                $return .= "<input type=\"hidden\" name=\"collection_no\" value=\"$options{collection_no}\">\n"; 
             }
         }
 	
@@ -1845,7 +1864,7 @@ sub buildTaxonomicList {
             #  JA 13.1.07
             @sorted = sort{ $a->{lft} <=> $b->{lft} ||
                                $a->{rgt} <=> $b->{rgt} ||
-                               $a->{$OCCURRENCE_NO} <=> $b->{$OCCURRENCE_NO} } @grand_master_list;
+                               $a->{occurrence_no} <=> $b->{occurrence_no} } @grand_master_list;
             #@sorted = sort{ $a->{class_no} <=> $b->{class_no} ||
             #                   $a->{order_no} <=> $b->{order_no} ||
             #                   $a->{family_no} <=> $b->{family_no} ||
@@ -1880,8 +1899,8 @@ sub buildTaxonomicList {
                     #}
                     # Can I just stick it at the end?
 		    
-                    if(($single->{$OCCURRENCE_NO} > $sorted[-1]->{$OCCURRENCE_NO}) &&
-                       ($single->{$OCCURRENCE_NO} - $sorted[-1]->{$OCCURRENCE_NO} == 1))
+                    if(($single->{occurrence_no} > $sorted[-1]->{occurrence_no}) &&
+                       ($single->{occurrence_no} - $sorted[-1]->{occurrence_no} == 1))
 		    {
                         push @sorted, $single;
                     }
@@ -1892,12 +1911,12 @@ sub buildTaxonomicList {
 		    {
                         for(my $index = 0; $index < @sorted-1; $index++)
 			{
-                            if($single->{$OCCURRENCE_NO} > 
-			       $sorted[$index]->{$OCCURRENCE_NO})
+                            if($single->{occurrence_no} > 
+			       $sorted[$index]->{occurrence_no})
 			    { 
                                 # if we find a variance of 1, bingo!
-                                if($single->{$OCCURRENCE_NO} -
-				   $sorted[$index]->{$OCCURRENCE_NO} == 1)
+                                if($single->{occurrence_no} -
+				   $sorted[$index]->{occurrence_no} == 1)
 				{
                                     splice @sorted, $index+1, 0, $single;
                                     $slot_found=1;
@@ -1907,7 +1926,7 @@ sub buildTaxonomicList {
 				else
 				{
                                     # store the (positive) variance
-                                    push(@variances, $single->{$OCCURRENCE_NO}-$sorted[$index]->{$OCCURRENCE_NO});
+                                    push(@variances, $single->{occurrence_no}-$sorted[$index]->{occurrence_no});
                                 }
                             }
 			    
@@ -1923,9 +1942,9 @@ sub buildTaxonomicList {
                         if(!$slot_found)
 			{
                             # end variance:
-                            if($sorted[-1]->{$OCCURRENCE_NO}-$single->{$OCCURRENCE_NO}>0)
+                            if($sorted[-1]->{occurrence_no}-$single->{occurrence_no}>0)
 			    {
-                                push(@variances,$sorted[-1]->{$OCCURRENCE_NO}-$single->{$OCCURRENCE_NO});
+                                push(@variances,$sorted[-1]->{occurrence_no}-$single->{occurrence_no});
                             }
 			    
                             else
@@ -2228,7 +2247,7 @@ sub formatOccurrenceTaxonName {
 	$taxon_name .= '"';
     }
     
-    elsif ( $row->{subspecies_reso} && $row->{subspecies_reso} ne 'n. subsp.' &&
+    elsif ( $row->{subspecies_reso} && $row->{subspecies_reso} ne 'n. ssp.' &&
 	    $row->{subspecies_reso} ne 'sensu lato' )
     {
 	$taxon_name .= ' ' . $row->{subspecies_reso} . ' ' . $subspecies_name;
@@ -2271,9 +2290,9 @@ sub formatOccurrenceTaxonName {
         $taxon_name .= " n. sp.";
     }
     
-    elsif ( $row->{subspecies_reso} eq 'n. subsp.' )
+    elsif ( $row->{subspecies_reso} eq 'n. ssp.' )
     {
-	$taxon_name .= " n. subsp.";
+	$taxon_name .= " n. ssp.";
     }
     
     if ($row->{'plant_organ'} && $row->{'plant_organ'} ne 'unassigned')
@@ -2342,88 +2361,133 @@ sub getSynonymName {
 # pass it an occurrence number or reid_no
 # the second parameter tells whether it's a reid_no (true) or occurrence_no (false).
 sub getReidHTMLTableByOccNum {
-	my ($dbt,$hbo,$s,$occNum,$isReidNo,$doReclassify) = @_;
-
-	my $sql = "SELECT genus_reso, genus_name, subgenus_reso, subgenus_name, species_reso, species_name, subspecies_reso, subspecies_name, plant_organ, re.comments as comments, re.reference_no as reference_no,  pubyr, taxon_no, occurrence_no, reid_no, collection_no FROM reidentifications re"
-            . " LEFT JOIN refs r ON re.reference_no=r.reference_no ";
-	if ($isReidNo) {
-		$sql .= " WHERE reid_no = $occNum";
-	} else {
-		$sql .= " WHERE occurrence_no = $occNum";
-	}
-    $sql .= " ORDER BY r.pubyr ASC, re.reid_no ASC";
+    
+    my ($dbt,$hbo,$s,$occNum,$isReidNo,$doReclassify) = @_;
+    
+    my $fieldName = $isReidNo ? 'reid_no' : 'occurrence_no';
+    
+    my $sql = "SELECT genus_reso, genus_name, subgenus_reso, subgenus_name, species_reso, 
+		species_name, subspecies_reso, subspecies_name, plant_organ, 
+		re.comments as comments, re.reference_no as reference_no, pubyr, taxon_no,
+		occurrence_no, reid_no, collection_no 
+	FROM reidentifications as re left join refs as r on re.reference_no=r.reference_no
+	WHERE $fieldName = $occNum
+	ORDER BY r.pubyr ASC, re.reid_no ASC";
+    
     my @results = @{$dbt->getData($sql)};
-	my $html = "";
+    my $html = "";
     my $classification = {};
     my $are_reclassifications = 0;
-
+    
     # We always get all of them PS
-	foreach my $row ( @results ) {
-		$row->{'taxon_name'} = "&nbsp;&nbsp;&nbsp;&nbsp;= ".formatOccurrenceTaxonName($row);
+    foreach my $row ( @results )
+    {
+	$row->{'taxon_name'} = "&nbsp;&nbsp;&nbsp;&nbsp;= ".formatOccurrenceTaxonName($row);
         
-		# format the reference (PM)
-		$row->{'reference_no'} = PBDB::Reference::formatShortRef($dbt,$row->{'reference_no'},'no_inits'=>1,'link_id'=>1);
-       
-		# get the taxonomic authority JA 19.4.04
-		my $taxon;
-		if ($row->{'taxon_no'}) {
-			$taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_no','taxon_name','common_name','taxon_rank','author1last','author2last','otherauthors','pubyr','reference_no','ref_is_authority']);
+	# format the reference (PM)
+	$row->{'reference_no'} = PBDB::Reference::formatShortRef($dbt, $row->{'reference_no'},
+								 no_inits => 1, link_id => 1);
+	
+	# get the taxonomic authority JA 19.4.04
+	my $taxon;
+	if ($row->{'taxon_no'})
+	{
+	    $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},
+					      ['taxon_no','taxon_name','common_name','taxon_rank',
+					       'author1last','author2last','otherauthors','pubyr',
+					       'reference_no','ref_is_authority']);
+	    
+	    if ($taxon->{'taxon_rank'} =~ /species/ || $row->{'species_name'} =~ /^indet\.|^sp\./)
+	    {
+		$row->{'authority'} = PBDB::Reference::formatShortRef($taxon, no_inits => 1,
+							      link_id => $taxon->{'ref_is_authority'});
+	    }
+	}
+	
+	# Classify this occurrence based on the most recent identification.
+	
+        if ( $row == $results[$#results] )
+	{
+	    # The taxonomic name of this reidentification is i the authorities table, get
+	    # its classification directly. Otherwise, if it is a subspecies, check to see
+	    # if the species is in the authorities table. If so, get the classification
+	    # using the species name.
+	    
+	    my $classify_taxon_no = $row->{taxon_no};
+	    
+	    if ( ! $classify_taxon_no && $row->{subspecies_name} &&
+		 $row->{species_reso} ne 'informal' )
+	    {
+		my $dbh = $dbt->dbh;
+		my $species_name = $dbh->quote("$row->{genus_name} $row->{species_name}");
+		
+		my $sql = "SELECT taxon_no FROM authorities WHERE taxon_name = $species_name";
+		
+		($classify_taxon_no) = $dbh->selectrow_array($sql);
+	    }
+	    
+            if ( $classify_taxon_no )
+	    {
+                my $class_hash = PBDB::TaxaCache::getParents($dbt, [$classify_taxon_no], 'array_full');
+                my @class_array = @{$class_hash->{$classify_taxon_no}};
+		
+		if ( $row->{taxon_no} )
+		{
+		    my $taxon = PBDB::TaxonInfo::getTaxa($dbt, {taxon_no=>$row->{taxon_no}},
+							 ['taxon_name','taxon_rank','pubyr']);
+		
+		    unshift @class_array , $taxon;
+		    
+		    # Include the taxon itself in the classification, it my be a family and be an indet.
 
-			if ($taxon->{'taxon_rank'} =~ /species/ || $row->{'species_name'} =~ /^indet\.|^sp\./) {
-				$row->{'authority'} = PBDB::Reference::formatShortRef($taxon,'no_inits'=>1,'link_id'=>$taxon->{'ref_is_authority'});
-			}
+		    $classification->{$taxon->{taxon_rank}} = $taxon;
+		    
+		    $row->{synonym_name} = getSynonymName($dbt, $row->{taxon_no}, $taxon->{taxon_name});
 		}
-
-        # Just a default value, so form looks correct
-        # JA 2.4.04: changed this so it only works on the most recently published reID
-        if ( $row == $results[$#results] )	{
-            if ($row->{'taxon_no'}) {
-                my $class_hash = PBDB::TaxaCache::getParents($dbt,[$row->{'taxon_no'}],'array_full');
-                my @class_array = @{$class_hash->{$row->{'taxon_no'}}};
-                my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['taxon_name','taxon_rank','pubyr']);
-
-		unshift @class_array , $taxon;
+		
                 $row = getClassOrderFamily($dbt,\$row,\@class_array);
-
+		
 		# row has the classification now, so stash it
-		$classification->{'class'}{'taxon_name'} = $row->{'class'};
-		$classification->{'order'}{'taxon_name'} = $row->{'order'};
-		$classification->{'family'}{'taxon_name'} = $row->{'family'};
-
-                # Include the taxon as well, it my be a family and be an indet.
-                $classification->{$taxon->{'taxon_rank'}} = $taxon;
-
-                $row->{'synonym_name'} = getSynonymName($dbt,$row->{'taxon_no'},$taxon->{'taxon_name'});
+		
+		$classification->{class}{taxon_name} = $row->{class};
+		$classification->{order}{taxon_name} = $row->{order};
+		$classification->{family}{taxon_name} = $row->{family};
+		
                 # only $classification is being returned, so piggyback lft and
                 #  rgt on it
                 # I hate having to hit taxa_tree_cache with a separate SELECT,
                 #  but you can't hit it until you already know there's a
                 #  taxon_no you can use JA 23.1.07
-                my $sql = "SELECT lft,rgt FROM $TAXA_TREE_CACHE WHERE taxon_no=" . $row->{'taxon_no'};
+                my $sql = "SELECT lft,rgt FROM $TAXA_TREE_CACHE WHERE taxon_no=$classify_taxon_no";
                 my $lftrgtref = ${$dbt->getData($sql)}[0];
-                $classification->{'lft'}{'taxon_no'} = $lftrgtref->{'lft'};
-                $classification->{'rgt'}{'taxon_no'} = $lftrgtref->{'rgt'};
-            } else {
-                if ($doReclassify) {
-                    $row->{'show_classification_select'} = 'YES';
-                    my $taxon_name = $row->{genus_name}; 
-                    $taxon_name .= " ($row->{subgenus_name})" if ($row->{subgenus_name});
-                    $taxon_name .= " $row->{species_name}";
-		    $taxon_name .= " $row->{subspecies_name}" if $row->{subspecies_name};
-                    my @all_matches = PBDB::Taxon::getBestClassification($dbt,$row);
-                    if (@all_matches) {
-                        $are_reclassifications = 1;
-                        $row->{'classification_select'} = PBDB::Reclassify::classificationSelect($dbt, $row->{$OCCURRENCE_NO},0,1,\@all_matches,$row->{'taxon_no'},$taxon_name);
-                    }
-                }
+                $classification->{lft}{taxon_no} = $lftrgtref->{lft};
+                $classification->{rgt}{taxon_no} = $lftrgtref->{rgt};
             }
+	    
+	    elsif ($doReclassify)
+	    {
+		$row->{'show_classification_select'} = 'YES';
+		my $taxon_name = $row->{genus_name}; 
+		$taxon_name .= " ($row->{subgenus_name})" if ($row->{subgenus_name});
+		$taxon_name .= " $row->{species_name}";
+		$taxon_name .= " $row->{subspecies_name}" if $row->{subspecies_name};
+		
+		if ( my @all_matches = PBDB::Taxon::getBestClassification($dbt,$row) )
+		{
+		    $are_reclassifications = 1;
+		    $row->{'classification_select'} = 
+			PBDB::Reclassify::classificationSelect($dbt, $row->{occurrence_no}, 
+							       0, 1, \@all_matches, $row->{taxon_no}, 
+							       $taxon_name);
 		}
-    
-		$row->{'hide_collection_no'} = 1;
-		$html .= $hbo->populateHTML("taxa_display_row", $row);
+	    }
 	}
-
-	return ($html,$classification,$are_reclassifications);
+	
+	$row->{'hide_collection_no'} = 1;
+	$html .= $hbo->populateHTML("taxa_display_row", $row);
+    }
+    
+    return ($html,$classification,$are_reclassifications);
 }
 
 ## sub getPaleoCoords

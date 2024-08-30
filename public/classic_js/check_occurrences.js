@@ -227,16 +227,15 @@ function checkForm()
 		    continue;
 		}
 		
-		if ( /[.][^ ]/.test(taxonName) )
+		if ( /ssp[.] nov[.]|nov[.] ssp[.]|n[.]ssp[.]|n[.]subsp[.]/.test(taxonName) )
 		{
-		    errors += errstr("A period must be followed by a space", taxon_names[i]);
+		    errors += errstr("Use n. ssp. for a new species", taxon_names[i]);
 		    continue;
 		}
 		
-		if ( / [a-z][.]/.test(taxonName) && ( taxonName.search(/ [a-z][.]/) != 
-						      taxonName.search(/ n[.] (sub)?(gen|sp)[.]/) ) )
+		if ( /[.][^ ]/.test(taxonName) )
 		{
-		    errors += errstr("Species names must be written out", taxon_names[i]);
+		    errors += errstr("A period must be followed by a space", taxon_names[i]);
 		    continue;
 		}
 		
@@ -320,9 +319,9 @@ function checkForm()
 		    rest = match[1] + ' ' + match[2];
 		}
 		
-		if ( match = rest.match(/(.*)n[.] subsp[.](.*)/) )
+		if ( match = rest.match(/(.*)n[.] (?:ssp|subsp)[.](.*)/) )
 		{
-		    subspeciesReso = "n. subsp.";
+		    subspeciesReso = "n. ssp.";
 		    rest = match[1] + ' ' + match[2];
 		}
 		

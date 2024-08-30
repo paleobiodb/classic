@@ -236,8 +236,13 @@
 		  continue;
 	      }
 	      
-	      if ( / [a-z][.]/.test(taxonName) && ( taxonName.search(/ [a-z][.]/) != 
-						    taxonName.search(/ n[.] (sub)?(gen|sp)[.]/) ) )
+	      if ( /ssp[.] nov[.]|nov[.] ssp[.]|n[.] ssp[.]/.test(taxonName) )
+	      {
+		  errors += errstr("Use n. ssp. for a new subspecies", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( / [a-mo-z][.]/.test(taxonName) )
 	      {
 		  errors += errstr("Species names must be written out", taxon_names[i]);
 		  continue;
@@ -438,7 +443,7 @@
 		  continue;
 	      }
 	      
-	      if ( match = rest.match(/^\s+([?]|aff[.]|cf[.]|ex gr[.]|n[.] subsp[.]|sensu lato)(.*)/) )
+	      if ( match = rest.match(/^\s+([?]|aff[.]|cf[.]|ex gr[.]|n[.] subsp[.]|n[.] ssp[.]|sensu lato)(.*)/) )
 	      {
 		  subspeciesReso = match[1];
 		  rest = match[2];

@@ -377,7 +377,7 @@ sub displayOccsForReID {
     
     my $printCollDetails = 0;
     
-    my $output = $hbo->populateHTML('js_occurrence_checkform');
+    my $output = "<script src=\"/public/classic_js/check_occurrences.js\"></script>\n\n";
     
     my $pageNo = $q->param('page_no');
     
@@ -782,10 +782,10 @@ sub processEditOccurrences {
 		$name = "$1 $2";
 	    }
 	    
-	    if ( $name =~ /(.*)n[.] subsp[.](.*)/ )
+	    if ( $name =~ /(.*)n[.] (subsp|ssp)[.](.*)/ )
 	    {
-		$fields{subspecies_reso} = "n. subsp.";
-		$name = "$1 $2";
+		$fields{subspecies_reso} = "n. ssp.";
+		$name = "$1 $3";
 	    }
 	    
 	    # Now deconstruct the name component by component, using the same
@@ -795,12 +795,24 @@ sub processEditOccurrences {
 	    
 	    if ( $name =~ /^\s*([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)\s+(.*)/ )
 	    {
+		if ( $fields{genus_reso} )
+		{
+		    push @errors, "Conflicting genus reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{genus_reso} = $1;
 		$name = $2;
 	    }
 	    
 	    if ( $name =~ /^\s*<(.*?)>\s+(.*)/ )
 	    {
+		if ( $fields{genus_reso} )
+		{
+		    push @errors, "Conflicting genus reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{genus_reso} = 'informal';
 		$fields{genus_name} = $1;
 		$name = $2;
@@ -808,7 +820,18 @@ sub processEditOccurrences {
 	    
 	    elsif ( $name =~ /^\s*("?)([A-Za-z]+)("?)\s*(.*)/ )
 	    {
-		$fields{genus_reso} = $1 || '';
+		if ( $fields{genus_reso} && $1 )
+		{
+		    push @errors, "Conflicting genus reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
+		elsif ( $1 )
+		{
+		    $fields{genus_reso} = $1;
+		}
+		
+		$fields{genus_reso} ||= '';
 		$fields{genus_name} = $2;
 		$name = $4;
 		
@@ -835,12 +858,24 @@ sub processEditOccurrences {
 	    
 	    if ( $name =~ /^([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)\s+([(].*)/ )
 	    {
+		if ( $fields{subgenus_reso} )
+		{
+		    push @errors, "Conflicting subgenus reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{subgenus_reso} = $1;
 		$name = $2;
 	    }
 	    
 	    if ( $name =~ /^[(]<(.*?)>[)]\s+(.*)/ )
 	    {
+		if ( $fields{subgenus_reso} )
+		{
+		    push @errors, "Conflicting subgenus reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{subgenus_reso} = 'informal';
 		$fields{subgenus_name} = $1;
 		$name = $2;
@@ -848,7 +883,18 @@ sub processEditOccurrences {
 	    
 	    elsif ( $name =~ /^[(]("?)([A-Za-z]+)("?)[)]\s+(.*)/ )
 	    {
-		$fields{subgenus_reso} = $1 || '';
+		if ( $fields{subgenus_reso} && $1 )
+		{
+		    push @errors, "Conflicting subgenus reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
+		elsif ( $1 )
+		{
+		    $fields{subgenus_reso} = $1;
+		}
+		
+		$fields{subgenus_reso} ||= '';
 		$fields{subgenus_name} = $2;
 		$name = $4;
 		
@@ -881,12 +927,24 @@ sub processEditOccurrences {
 	    
 	    if ( $name =~ /^([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)\s+(.*)/ )
 	    {
+		if ( $fields{species_reso} )
+		{
+		    push @errors, "Conflicting species reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{species_reso} = $1;
 		$name = $2;
 	    }
 	    
 	    if ( $name =~ /^<(.*?)>(.*)/ )
 	    {
+		if ( $fields{species_reso} )
+		{
+		    push @errors, "Conflicting species reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{species_reso} = 'informal';
 		$fields{species_name} = $1;
 		$name = $2;
@@ -894,7 +952,18 @@ sub processEditOccurrences {
 	    
 	    elsif ( $name =~ /^("?)([A-Za-z]+[.]?)("?)(.*)/ )
 	    {
-		$fields{species_reso} = $1 || '';
+		if ( $fields{species_reso} && $1 )
+		{
+		    push @errors, "Conflicting species reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
+		elsif ( $1 )
+		{
+		    $fields{species_reso} = $1;
+		}
+		
+		$fields{species_reso} ||= '';
 		$fields{species_name} = $2;
 		$name = $4;
 		
@@ -939,12 +1008,24 @@ sub processEditOccurrences {
 	    
 	    if ( $name =~ /^\s+([?]|aff[.]|cf[.]|ex gr[.]|sensu lato)(.*)/ )
 	    {
+		if ( $fields{subspecies_reso} )
+		{
+		    push @errors, "Conflicting subspecies reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{subspecies_reso} = $1;
 		$name = $2;
 	    }
 	    
 	    if ( $name =~ /^\s+<(.*?)>(.*)/ )
 	    {
+		if ( $fields{subspecies_reso} )
+		{
+		    push @errors, "Conflicting subspecies reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
 		$fields{subspecies_reso} = 'informal';
 		$fields{subspecies_name} = $1;
 		$name = $2;
@@ -952,7 +1033,18 @@ sub processEditOccurrences {
 	    
 	    elsif ( $name =~ /^\s+("?)([A-Za-z]+[.]?)("?)(.*)/ )
 	    {
-		$fields{subspecies_reso} = $1 || '';
+		if ( $fields{subspecies_reso} && $1 )
+		{
+		    push @errors, "Conflicting subspecies reso on '$fields{taxon_name}'";
+		    next;
+		}
+		
+		elsif ( $1 )
+		{
+		    $fields{subspecies_reso} = $1;
+		}
+		
+		$fields{subspecies_reso} ||= '';
 		$fields{subspecies_name} = $2;
 		$name = $4;
 		
@@ -1162,12 +1254,12 @@ sub processEditOccurrences {
 		    $latin_name .= " ($occ->{subgenus_name})";
 		}
 		
-		if ( $occ->{species_name} =~ /^[a-z]$/ && 
+		if ( $occ->{species_name} =~ /^[a-z]+$/ && 
 		     $occ->{species_reso} ne 'informal' )
 		{
 		    $latin_name .= " $occ->{species_name}";
 		    
-		    if ( $occ->{subspecies_name} =~ /^[a-z]$/ && 
+		    if ( $occ->{subspecies_name} =~ /^[a-z]+$/ && 
 			 $occ->{subspecies_reso} ne 'informal' )
 		    {
 			$latin_name .= " $occ->{subspecies_name}";
@@ -1204,14 +1296,16 @@ sub processEditOccurrences {
 	}
     }
     
-    # finally, check for n. sp. resos that appear to be duplicates and
+    # finally, check for n. sp. that appear to be duplicates and
     #  insert a type_locality number if there's no problem JA 14-15.12.08
     # this is not 100% because it will miss cases where a species was
     #  entered with "n. sp." using two different combinations
     # a couple of (fast harmless) checks in the section section are
     #  repeated here for simplicity
     
-    my (@to_check, %dupe_colls);
+    # check for n. ssp. that appear to be duplicates as well. MM 2024-08-29
+    
+    my (@to_check_species, @to_check_subspecies);
     
     for (my $i = 0; $i < @rowTokens; $i++)
     {
@@ -1238,7 +1332,7 @@ sub processEditOccurrences {
 	    $matrix[$i]{taxon_no} = $taxon_no{$latin_name};
 	}
 	
-	elsif ( $taxon_no{$latin_name} eq "" )
+	elsif ( $taxon_no{$latin_name} < 0 )
 	{
 	    $matrix[$i]{taxon_no} = PBDB::Taxon::getBestClassification($dbt, $matrix[$i]);
 	}
@@ -1250,64 +1344,81 @@ sub processEditOccurrences {
 	
 	if ( $matrix[$i]{taxon_no} > 0 && $matrix[$i]{species_reso} eq "n. sp." )
 	{
-	    push @to_check , $matrix[$i]{taxon_no};
+	    push @to_check_species, $matrix[$i]{taxon_no};
+	}
+	
+	elsif ( $matrix[$i]{taxon_no} > 0 && $matrix[$i]{subspecies_reso} eq "n. ssp." )
+	{
+	    push @to_check_subspecies, $matrix[$i]{taxon_no};
 	}
     }
     
-    if ( @to_check )
+    if ( @to_check_species )
     {
-	# pre-processing is faster than a join
-	$sql = "SELECT taxon_no,taxon_name,type_locality FROM authorities WHERE taxon_no IN (".join(',',@to_check).") AND taxon_rank='species'";
-	my @species = @{$dbt->getData($sql)};
+	my %dupe_colls;
 	
-	if ( @species )
+	# pre-processing is faster than a join
+	
+	my $check_taxon_nos = join(',', @to_check_species);
+	
+	$sql = "SELECT taxon_no,taxon_name,type_locality FROM authorities
+		WHERE taxon_no in ($check_taxon_nos) and taxon_rank='species'";
+	
+	my @found_species = @{$dbt->getData($sql)};
+	
+	if ( @found_species )
 	{
-	    @to_check = ();
+	    @to_check_species = map { $_->{taxon_no} } @found_species;
+	    $check_taxon_nos = join(',', @to_check_species);
 	    
-	    push @to_check , $_->{taxon_no} foreach @species;
-	    $sql = "(SELECT taxon_no,collection_no FROM occurrences WHERE collection_no!=$collection_no AND taxon_no in (".join(',',@to_check).") AND species_reso='n. sp.') UNION (SELECT taxon_no,collection_no FROM reidentifications WHERE collection_no!=$collection_no AND taxon_no in (".join(',',@to_check).") AND species_reso='n. sp.')";
+	    $sql = "(SELECT taxon_no, collection_no FROM occurrences 
+		WHERE collection_no!=$collection_no and taxon_no in ($check_taxon_nos) and
+			species_reso='n. sp.')
+		UNION (SELECT taxon_no, collection_no FROM reidentifications
+		WHERE collection_no!=$collection_no and taxon_no in ($check_taxon_nos) and
+			species_reso='n. sp.')";
 	    
 	    my @dupe_refs = @{$dbt->getData($sql)};
 	    
 	    if ( @dupe_refs )
 	    {
-		$dupe_colls{$_->{taxon_no}} .= ", ".$_->{collection_no} foreach @dupe_refs;
+		$dupe_colls{$_->{taxon_no}} .= ", $_->{collection_no}" foreach @dupe_refs;
+		
 		for (my $i = 0;$i < @rowTokens; $i++)
 		{
-		    my %fields = %{$matrix[$i]};
-		    if ( ! $dupe_colls{$fields{taxon_no}} || ! $fields{taxon_no} )
+		    my $taxon_no = $matrix[$i]{taxon_no};
+		    my $genus_name = $matrix[$i]{genus_name};
+		    my $species_name = $matrix[$i]{species_name};
+		    
+		    next unless $taxon_no && $dupe_colls{$taxon_no};
+		    
+		    $dupe_colls{$taxon_no} =~ s/^, //;
+		    
+		    if ( $dupe_colls{$taxon_no} =~ /^[0-9]+$/ )
 		    {
-			next;
+			push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$taxon_no\"><i>$genus_name $species_name</i></a> has already been marked as new in collection $dupe_colls{$taxon_no}, so it won't be recorded as such in this one";
 		    }
 		    
-		    $dupe_colls{$fields{taxon_no}} =~ s/^, //;
-		    
-		    if ( $dupe_colls{$fields{taxon_no}} =~ /^[0-9]+$/ )
+		    elsif ( $dupe_colls{$taxon_no} =~ /[1-9]/ )
 		    {
-                        # jpjenk-question
-			push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$fields{taxon_no}\"><i>$fields{genus_name} $fields{species_name}</i></a> has already been marked as new in collection $dupe_colls{$fields{taxon_no}}, so it won't be recorded as such in this one";
-		    }
-		    
-		    elsif ( $dupe_colls{$fields{taxon_no}} =~ /, [0-9]/ )
-		    {
-			$dupe_colls{$fields{taxon_no}} =~ s/(, )([0-9]*)$/ and $2/;
-			push @warnings, "<i>$fields{genus_name} $fields{species_name}</i> has already been marked as new in collections $dupe_colls{$fields{taxon_no}}, so it won't be recorded as such in this one";
+			$dupe_colls{$taxon_no} =~ s/(, )([0-9]*)$/ and $2/;
+			push @warnings, "<i>$genus_name $species_name</i> has already been marked as new in collections $dupe_colls{$taxon_no}, so it won't be recorded as such in this one";
 		    }
 		}
 	    }
 	    
 	    my @to_update;
 	    
-	    for my $s ( @species )
+	    for my $s ( @found_species )
 	    {
 		if ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} < 1 )
 		{
 		    push @to_update , $s->{taxon_no};
 		}
 		
-		elsif ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} > 0 && $s->{type_locality} != $collection_no )
+		elsif ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} > 0 && 
+			$s->{type_locality} != $collection_no )
 		{
-                    # jpjenk-question
 		    push @warnings, "The type locality of <a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$s->{taxon_no}\"><i>$s->{taxon_name}</i></a> has already been marked as new in collection $s->{type_locality}, which seems incorrect";
 		}
 	    }
@@ -1320,6 +1431,156 @@ sub processEditOccurrences {
 	    }
 	}
     }
+    
+    if ( @to_check_subspecies )
+    {
+	my %dupe_colls;
+	
+	# pre-processing is faster than a join
+	
+	my $check_taxon_nos = join(',', @to_check_subspecies);
+	
+	$sql = "SELECT taxon_no,taxon_name,type_locality FROM authorities
+		WHERE taxon_no in ($check_taxon_nos) and taxon_rank='subspecies'";
+	
+	my @found_subspecies = @{$dbt->getData($sql)};
+	
+	if ( @found_subspecies )
+	{
+	    @to_check_subspecies = map { $_->{taxon_no} } @found_subspecies;
+	    $check_taxon_nos = join(',', @to_check_subspecies);
+	    
+	    $sql = "(SELECT taxon_no, collection_no FROM occurrences 
+		WHERE collection_no!=$collection_no and taxon_no in ($check_taxon_nos) and
+			subspecies_reso='n. ssp.')
+		UNION (SELECT taxon_no, collection_no FROM reidentifications
+		WHERE collection_no!=$collection_no and taxon_no in ($check_taxon_nos) and
+			subspecies_reso='n. ssp.')";
+	    
+	    my @dupe_refs = @{$dbt->getData($sql)};
+	    
+	    if ( @dupe_refs )
+	    {
+		$dupe_colls{$_->{taxon_no}} .= ", $_->{collection_no}" foreach @dupe_refs;
+		
+		for (my $i = 0;$i < @rowTokens; $i++)
+		{
+		    my $taxon_no = $matrix[$i]{taxon_no};
+		    my $genus_name = $matrix[$i]{genus_name};
+		    my $species_name = $matrix[$i]{species_name};
+		    my $subspecies_name = $matrix[$i]{subspecies_name};
+		    
+		    next unless $taxon_no && $dupe_colls{$taxon_no};
+		    
+		    $dupe_colls{$taxon_no} =~ s/^, //;
+		    
+		    if ( $dupe_colls{$taxon_no} =~ /^[0-9]+$/ )
+		    {
+			push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$taxon_no\"><i>$genus_name $species_name $subspecies_name</i></a> has already been marked as new in collection $dupe_colls{$taxon_no}, so it won't be recorded as such in this one";
+		    }
+		    
+		    elsif ( $dupe_colls{$taxon_no} =~ /[1-9]/ )
+		    {
+			$dupe_colls{$taxon_no} =~ s/(, )([0-9]*)$/ and $2/;
+			push @warnings, "<i>$genus_name $species_name $subspecies_name</i> has already been marked as new in collections $dupe_colls{$taxon_no}, so it won't be recorded as such in this one";
+		    }
+		}
+	    }
+	    
+	    my @to_update;
+	    
+	    for my $s ( @found_subspecies )
+	    {
+		if ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} < 1 )
+		{
+		    push @to_update , $s->{taxon_no};
+		}
+		
+		elsif ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} > 0 && 
+			$s->{type_locality} != $collection_no )
+		{
+		    push @warnings, "The type locality of <a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$s->{taxon_no}\"><i>$s->{taxon_name}</i></a> has already been marked as new in collection $s->{type_locality}, which seems incorrect";
+		}
+	    }
+	    
+	    if ( @to_update )
+	    {
+		$sql = "UPDATE authorities SET type_locality=$collection_no,modified=modified WHERE taxon_no IN (".join(',',@to_update).")";
+		$dbh->do($sql);
+		PBDB::Taxon::propagateAuthorityInfo($dbt,$_) foreach @to_update;
+	    }
+	}
+    }
+    
+    # if ( @to_check_subspecies )
+    # {
+    # 	# pre-processing is faster than a join
+    # 	my $subspecies_taxon_nos = join(',', @to_check_subspecies);
+	
+    # 	$sql = "SELECT taxon_no,taxon_name,type_locality FROM authorities WHERE taxon_no IN ($subspecies_taxon_nos) AND taxon_rank='subspecies'";
+	
+    # 	my @found_subspecies = @{$dbt->getData($sql)};
+	
+    # 	if ( @found_subspecies )
+    # 	{
+    # 	    @to_check_subspecies = map { $_->{taxon_no} } @found_subspecies;
+    # 	    $subspecies_taxon_nos = join(',', @to_check_subspecies);
+	    
+    # 	    $sql = "(SELECT taxon_no, collection_no FROM occurrences WHERE collection_no!=$collection_no AND taxon_no in ($subspecies_taxon_nos) AND species_reso='n. sp.') UNION (SELECT taxon_no,collection_no FROM reidentifications WHERE collection_no!=$collection_no AND taxon_no in ($subspecies_taxon_nos) AND species_reso='n. sp.')";
+	    
+    # 	    my @dupe_refs = @{$dbt->getData($sql)};
+	    
+    # 	    if ( @dupe_refs )
+    # 	    {
+    # 		$dupe_colls{$_->{taxon_no}} .= ", ".$_->{collection_no} foreach @dupe_refs;
+    # 		for (my $i = 0;$i < @rowTokens; $i++)
+    # 		{
+    # 		    my %fields = %{$matrix[$i]};
+    # 		    if ( ! $dupe_colls{$fields{taxon_no}} || ! $fields{taxon_no} )
+    # 		    {
+    # 			next;
+    # 		    }
+		    
+    # 		    $dupe_colls{$fields{taxon_no}} =~ s/^, //;
+		    
+    # 		    if ( $dupe_colls{$fields{taxon_no}} =~ /^[0-9]+$/ )
+    # 		    {
+    #                     # jpjenk-question
+    # 			push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$fields{taxon_no}\"><i>$fields{genus_name} $fields{species_name}</i></a> has already been marked as new in collection $dupe_colls{$fields{taxon_no}}, so it won't be recorded as such in this one";
+    # 		    }
+		    
+    # 		    elsif ( $dupe_colls{$fields{taxon_no}} =~ /, [0-9]/ )
+    # 		    {
+    # 			$dupe_colls{$fields{taxon_no}} =~ s/(, )([0-9]*)$/ and $2/;
+    # 			push @warnings, "<i>$fields{genus_name} $fields{species_name}</i> has already been marked as new in collections $dupe_colls{$fields{taxon_no}}, so it won't be recorded as such in this one";
+    # 		    }
+    # 		}
+    # 	    }
+	    
+    # 	    my @to_update;
+	    
+    # 	    for my $s ( @found_subspecies )
+    # 	    {
+    # 		if ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} < 1 )
+    # 		{
+    # 		    push @to_update , $s->{taxon_no};
+    # 		}
+		
+    # 		elsif ( ! $dupe_colls{$s->{taxon_no}} && $s->{type_locality} > 0 && $s->{type_locality} != $collection_no )
+    # 		{
+    #                 # jpjenk-question
+    # 		    push @warnings, "The type locality of <a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$s->{taxon_no}\"><i>$s->{taxon_name}</i></a> has already been marked as new in collection $s->{type_locality}, which seems incorrect";
+    # 		}
+    # 	    }
+	    
+    # 	    if ( @to_update )
+    # 	    {
+    # 		$sql = "UPDATE authorities SET type_locality=$collection_no,modified=modified WHERE taxon_no IN (".join(',',@to_update).")";
+    # 		$dbh->do($sql);
+    # 		PBDB::Taxon::propagateAuthorityInfo($dbt,$_) foreach @to_update;
+    # 	    }
+    # 	}
+    # }
     
     # last pass, update/insert loop
     
