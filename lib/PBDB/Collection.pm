@@ -112,11 +112,11 @@ sub getCollections {
         my %collections = (-1=>1); #default value, in case we don't find anything else, sql doesn't error out
         my ($sql1,$sql2);
         if ($options{'include_old_ids'}) {
-            $sql1 = "SELECT DISTINCT o.genus_name, o.species_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no, (re.reid_no IS NOT NULL) is_old_id FROM occurrences o LEFT JOIN reidentifications re ON re.occurrence_no=o.occurrence_no WHERE ";
-            $sql2 = "SELECT DISTINCT o.genus_name, o.species_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no, (re.most_recent != 'YES') is_old_id  FROM occurrences o, reidentifications re WHERE re.occurrence_no=o.occurrence_no AND ";
+            $sql1 = "SELECT DISTINCT o.genus_name, o.species_name, o.subspecies_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no, (re.reid_no IS NOT NULL) is_old_id FROM occurrences o LEFT JOIN reidentifications re ON re.occurrence_no=o.occurrence_no WHERE ";
+            $sql2 = "SELECT DISTINCT o.genus_name, o.species_name, o.subspecies_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no, (re.most_recent != 'YES') is_old_id  FROM occurrences o, reidentifications re WHERE re.occurrence_no=o.occurrence_no AND ";
         } else {
-            $sql1 = "SELECT DISTINCT o.genus_name, o.species_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no FROM occurrences o LEFT JOIN reidentifications re ON re.occurrence_no=o.occurrence_no WHERE re.reid_no IS NULL AND ";
-            $sql2 = "SELECT DISTINCT o.genus_name, o.species_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no FROM occurrences o, reidentifications re WHERE re.occurrence_no=o.occurrence_no AND re.most_recent='YES' AND ";
+            $sql1 = "SELECT DISTINCT o.genus_name, o.species_name, o.subspecies_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no FROM occurrences o LEFT JOIN reidentifications re ON re.occurrence_no=o.occurrence_no WHERE re.reid_no IS NULL AND ";
+            $sql2 = "SELECT DISTINCT o.genus_name, o.species_name, o.subspecies_name, o.$COLLECTION_NO, o.taxon_no, re.taxon_no re_taxon_no FROM occurrences o, reidentifications re WHERE re.occurrence_no=o.occurrence_no AND re.most_recent='YES' AND ";
         }
 	if ( $options{'species_reso'} )	{
 		$sql1 .= "(o.species_reso IN ('".join("','",@{$options{'species_reso'}})."') OR re.species_reso IN ('".join("','",@{$options{'species_reso'}})."')) AND ";
@@ -166,7 +166,7 @@ sub getCollections {
             }
 
             # Fix up the genus name and set the species name if there is a space 
-            my ($genus,$subgenus,$species) = PBDB::Taxon::splitTaxon($options{'taxon_name'});
+            my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($options{'taxon_name'});
 
             if (@taxon_nos) {
                 # if taxon is a homonym... make sure we get all versions of the homonym
@@ -193,53 +193,90 @@ sub getCollections {
                 }
             }
             
-            if (!@taxon_nos || $options{'include_occurrences'}) {
+            if (!@taxon_nos || $options{'include_occurrences'})
+	    {
                 # It doesn't exist in the authorities table, so now hit the occurrences table directly 
-                if ($options{'match_subgenera'}) {
+                if ($options{'match_subgenera'})
+		{
                     my $sql1a = $sql1;
                     my $sql1b = $sql1;
                     my $sql2a = $sql2;
                     my $sql2b = $sql2;
                     my $names;
-                    if ($genus)	{
-                        $names .= ",".$dbh->quote($genus);
+		    
+                    if ( $genus )
+		    {
+                        $names .= "," . $dbh->quote($genus);
                     }
-                    if ($subgenus)	{
-                        $names .= ",".$dbh->quote($subgenus);
+		    
+                    if ( $subgenus )
+		    {
+                        $names .= "," . $dbh->quote($subgenus);
                     }
+		    
                     $names =~ s/^,//;
+		    
                     $sql1a .= " o.genus_name IN ($names)";
                     $sql1b .= " o.subgenus_name IN ($names)";
                     $sql2a .= " re.genus_name IN ($names)";
                     $sql2b .= " re.subgenus_name IN ($names)";
-                    if ($species )	{
-                        $sql1a .= " AND o.species_name LIKE ".$dbh->quote($species);
-                        $sql1b .= " AND o.species_name LIKE ".$dbh->quote($species);
-                        $sql2a .= " AND re.species_name LIKE ".$dbh->quote($species);
-                        $sql2b .= " AND re.species_name LIKE ".$dbh->quote($species);
+		    
+                    if ( $species )
+		    {
+                        $sql1a .= " AND o.species_name LIKE " . $dbh->quote($species);
+                        $sql1b .= " AND o.species_name LIKE " . $dbh->quote($species);
+                        $sql2a .= " AND re.species_name LIKE " . $dbh->quote($species);
+                        $sql2b .= " AND re.species_name LIKE " . $dbh->quote($species);
                     }
-                    if ($genus || $subgenus || $species) {
+		    
+		    if ( $subspecies )
+		    {
+                        $sql1a .= " AND o.subspecies_name LIKE " . $dbh->quote($subspecies);
+                        $sql1b .= " AND o.subspecies_name LIKE " . $dbh->quote($subspecies);
+                        $sql2a .= " AND re.subspecies_name LIKE " . $dbh->quote($subspecies);
+                        $sql2b .= " AND re.subspecies_name LIKE " . $dbh->quote($subspecies);
+		    }
+		    
+                    if ( $genus || $subgenus || $species || $subspecies )
+		    {
                         push @results, @{$dbt->getData($sql1a)}; 
                         push @results, @{$dbt->getData($sql1b)}; 
                         push @results, @{$dbt->getData($sql2a)}; 
                         push @results, @{$dbt->getData($sql2b)}; 
                     }
-                } else {
+                }
+		
+		else
+		{
                     my $sql1b = $sql1;
                     my $sql2b = $sql2;
-                    if ($genus)	{
-                        $sql1b .= "o.genus_name LIKE ".$dbh->quote($genus);
-                        $sql2b .= "re.genus_name LIKE ".$dbh->quote($genus);
+		    
+                    if ( $genus )
+		    {
+                        $sql1b .= "o.genus_name LIKE " . $dbh->quote($genus);
+                        $sql2b .= "re.genus_name LIKE " . $dbh->quote($genus);
                     }
-                    if ($subgenus)	{
-                        $sql1b .= " AND o.subgenus_name LIKE ".$dbh->quote($subgenus);
-                        $sql2b .= " AND re.subgenus_name LIKE ".$dbh->quote($subgenus);
+		    
+                    if ( $subgenus )
+		    {
+                        $sql1b .= " AND o.subgenus_name LIKE " . $dbh->quote($subgenus);
+                        $sql2b .= " AND re.subgenus_name LIKE " . $dbh->quote($subgenus);
                     }
-                    if ($species)	{
-                        $sql1b .= " AND o.species_name LIKE ".$dbh->quote($species);
-                        $sql2b .= " AND re.species_name LIKE ".$dbh->quote($species);
+		    
+                    if ( $species )
+		    {
+                        $sql1b .= " AND o.species_name LIKE " . $dbh->quote($species);
+                        $sql2b .= " AND re.species_name LIKE " . $dbh->quote($species);
                     }
-                    if ($genus || $subgenus || $species) {
+		    
+		    if ( $subspecies )
+		    {
+                        $sql1b .= " AND o.subspecies_name LIKE " . $dbh->quote($species);
+                        $sql2b .= " AND re.subspecies_name LIKE " . $dbh->quote($species);
+		    }
+		    
+                    if ( $genus || $subgenus || $species || $subspecies )
+		    {
                         push @results, @{$dbt->getData($sql1b)}; 
                         if ( $sql2 )	{
                             push @results, @{$dbt->getData($sql2b)}; 
@@ -1071,7 +1108,7 @@ sub formatCoordinate	{
 # split off from basicCollectionInfo JA 28.6.12
 sub getTaxonomicList	{
 	my ($dbt,$collNos) = @_;
-	my $sql = "(SELECT o.collection_no,lft,o.reference_no,o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name,o.taxon_no,synonym_no,o.comments,'' FROM occurrences o LEFT JOIN reidentifications re ON (o.occurrence_no=re.occurrence_no) LEFT JOIN $TAXA_TREE_CACHE t ON o.taxon_no=t.taxon_no WHERE o.collection_no IN (".join(',',@$collNos).") AND re.reid_no IS NULL AND lft>0) UNION (SELECT o.collection_no,lft,re.reference_no,re.genus_reso,re.genus_name,re.subgenus_reso,re.subgenus_name,re.species_reso,re.species_name,re.taxon_no,synonym_no,o.comments,re.comments FROM occurrences o,reidentifications re,$TAXA_TREE_CACHE t WHERE o.occurrence_no=re.occurrence_no AND re.collection_no IN (".join(',',@$collNos).") AND re.most_recent='YES' AND re.taxon_no=t.taxon_no AND lft>0) UNION (SELECT o.collection_no,999999,o.reference_no,o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name,o.taxon_no,0,o.comments,'' FROM occurrences o WHERE collection_no IN (".join(',',@$collNos).") AND taxon_no=0) ORDER BY lft";
+	my $sql = "(SELECT o.collection_no,lft,o.reference_no,o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name,o.subspecies_reso,o.subspecies_name,o.taxon_no,synonym_no,o.comments,'' FROM occurrences o LEFT JOIN reidentifications re ON (o.occurrence_no=re.occurrence_no) LEFT JOIN $TAXA_TREE_CACHE t ON o.taxon_no=t.taxon_no WHERE o.collection_no IN (".join(',',@$collNos).") AND re.reid_no IS NULL AND lft>0) UNION (SELECT o.collection_no,lft,re.reference_no,re.genus_reso,re.genus_name,re.subgenus_reso,re.subgenus_name,re.species_reso,re.species_name,re.subspecies_reso,re.subspecies_name,re.taxon_no,synonym_no,o.comments,re.comments FROM occurrences o,reidentifications re,$TAXA_TREE_CACHE t WHERE o.occurrence_no=re.occurrence_no AND re.collection_no IN (".join(',',@$collNos).") AND re.most_recent='YES' AND re.taxon_no=t.taxon_no AND lft>0) UNION (SELECT o.collection_no,999999,o.reference_no,o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name,o.subspecies_reso,o.subspecies_name,o.taxon_no,0,o.comments,'' FROM occurrences o WHERE collection_no IN (".join(',',@$collNos).") AND taxon_no=0) ORDER BY lft";
 	return \@{$dbt->getData($sql)};
 }
 
@@ -1448,47 +1485,50 @@ sub display_colls {
 # JA 6-9.11.09
 sub basicCollectionInfo	{
 
-	my ($dbt,$q,$s,$hbo,$error,$is_bot) = @_;
-	my $dbh = $dbt->dbh;
-	my $output = '';
-	
-	my ($is_real_user,$not_bot) = (0,0);
-	if ( ! $is_bot )	{
-		($is_real_user,$not_bot) = (1,1);
-		if (! $q->request_method() =~ /GET|POST/i && ! $q->param('is_real_user') && ! $s->isDBMember())	{
-			$is_real_user = 0;
-			$not_bot = 0;
-		} elsif (PBDB::PBDBUtil::checkForBot())	{
-			$is_real_user = 0;
-			$not_bot = 0;
-		}
-		if ( $is_real_user > 0 )	{
-			PBDB::logRequest($s,$q);
-		}
+    my ($dbt,$q,$s,$hbo,$error,$is_bot) = @_;
+    my $dbh = $dbt->dbh;
+    my $output = '';
+    
+    my ($is_real_user,$not_bot) = (0,0);
+    if ( ! $is_bot )
+    {
+	($is_real_user,$not_bot) = (1,1);
+	if (! $q->request_method() =~ /GET|POST/i && ! $q->param('is_real_user') && ! $s->isDBMember())	{
+	    $is_real_user = 0;
+	    $not_bot = 0;
+	} elsif (PBDB::PBDBUtil::checkForBot())	{
+	    $is_real_user = 0;
+	    $not_bot = 0;
 	}
-
-	my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->numeric_param('collection_no');
-	my $c = ${$dbt->getData($sql)}[0];
-
-	my $p = PBDB::Permissions->new($s,$dbt);
-	my $okToRead = $p->readPermission($c);
-	# if the collection is protected, pretend the search failed
-	if ( ! $okToRead )	{
-		$q->param('type' => 'view');
-		return PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
-		return;
+	if ( $is_real_user > 0 )	{
+	    PBDB::logRequest($s,$q);
 	}
+    }
+    
+    my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->numeric_param('collection_no');
+    my $c = ${$dbt->getData($sql)}[0];
 
-	my $mockLI = 'class="verysmall" style="margin-top: -1em; margin-left: 2em; text-indent: -1em;"> &bull;';
-	my $indent = 'style="padding-left: 1em; text-indent: -1em;"';
-
-	for my $field ( 'geogcomments','stratcomments','geology_comments','lithdescript','component_comments','taphonomy_comments','collection_comments','taxonomy_comments' )	{
-		while ( $c->{$field} =~ /\n$/ )	{
-			$c->{$field} =~ s/\n$//;
-		}
-		$c->{$field} =~ s/\n\n/\n/g;
-		$c->{$field} =~ s/\n/<\/p>\n<p $mockLI/g;
+    my $p = PBDB::Permissions->new($s,$dbt);
+    my $okToRead = $p->readPermission($c);
+    
+    # if the collection is protected, pretend the search failed
+    if ( ! $okToRead )
+    {
+	$q->param('type' => 'view');
+	return PBDB::displaySearchColls($q, $s, $dbt, $hbo, 'Your search produced no matches: please try again');
+	return;
+    }
+    
+    my $mockLI = 'class="verysmall" style="margin-top: -1em; margin-left: 2em; text-indent: -1em;"> &bull;';
+    my $indent = 'style="padding-left: 1em; text-indent: -1em;"';
+    
+    for my $field ( 'geogcomments','stratcomments','geology_comments','lithdescript','component_comments','taphonomy_comments','collection_comments','taxonomy_comments' )	{
+	while ( $c->{$field} =~ /\n$/ )	{
+	    $c->{$field} =~ s/\n$//;
 	}
+	$c->{$field} =~ s/\n\n/\n/g;
+	$c->{$field} =~ s/\n/<\/p>\n<p $mockLI/g;
+    }
 
 	my $page_vars = {};
 	if ( $c->{'research_group'} =~ /ETE/ && $q->param('guest') eq '' )	{
@@ -1773,10 +1813,7 @@ function showAuthors()	{
 
 	$sql = "SELECT * FROM refs WHERE reference_no=".$c->{'reference_no'};
 	my $ref = ${$dbt->getData($sql)}[0];
-	$output .= "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeAnchor("displayReference", "reference_no=$c->{reference_no}", "more details");
-	if ( $s->isDBMember() ) {
-		$output .= " - " . makeAnchor("displayRefResults", "type=edit&reference_no=$c->{reference_no}", "edit");
-	}
+	$output .= "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeAnchor("app/refs", "#display=$c->{reference_no}", "more details");
 	$output .= "</p>\n\n";
 
 	$c->{'collection_type'} ? $output .= "<p $indent>Purpose of describing collection: $c->{'collection_type'} analysis<p>\n\n" : "";
@@ -1819,221 +1856,348 @@ function showAuthors()	{
 	    return $output;
 	}
 
-	# the following is basically a complete rewrite of buildTaxonomicList
-	# so what?
-
-	my @occs = @{getTaxonomicList($dbt,[$c->{'collection_no'}])};
-	my (%bad,%lookup,@need_authors,%authors,%rankOfNo);
-	for my $o ( @occs )	{
-		if ( $o->{'taxon_no'} != $o->{'synonym_no'} )	{
-			$bad{$o->{'taxon_no'}} = $o->{'synonym_no'};
-		} elsif ( $o->{'taxon_no'} > 0 )	{
-			push @need_authors , $o->{'taxon_no'};
+    # the following is basically a complete rewrite of buildTaxonomicList
+    # so what?
+    
+    my @occs = @{getTaxonomicList($dbt,[$c->{'collection_no'}])};
+    my (%bad,%lookup,@need_authors,%authors,%rankOfNo);
+    for my $o ( @occs )	{
+	if ( $o->{'taxon_no'} != $o->{'synonym_no'} )	{
+	    $bad{$o->{'taxon_no'}} = $o->{'synonym_no'};
+	} elsif ( $o->{'taxon_no'} > 0 )	{
+	    push @need_authors , $o->{'taxon_no'};
+	}
+    }
+    if ( %bad )	{
+	$sql = "SELECT a.taxon_no,a.taxon_name bad,a.taxon_rank,synonym_no,a2.taxon_name good FROM authorities a,authorities a2,$TAXA_TREE_CACHE t,refs r WHERE a.taxon_no=t.taxon_no AND t.synonym_no=a2.taxon_no AND a2.reference_no=r.reference_no AND a.taxon_no IN (".join(',',keys %bad).")";
+	my @seniors = @{$dbt->getData($sql)};
+	for my $s ( @seniors )	{
+	    # ignore rank changes that don't change spellings
+	    if ( $s->{'bad'} ne $s->{'good'} )	{
+		if ( $s->{'taxon_rank'} =~ /genus|species/ )	{
+		    $s->{'good'} = "<i>".$s->{'good'}."</i>";
 		}
+		$s->{'good'} = makeAnchor("basicTaxonInfo", "taxon_no=$s->{synonym_no}", $s->{good});
+		$lookup{$s->{'synonym_no'}} = $s->{'good'};
+		push @need_authors , $s->{'synonym_no'};
+	    }
 	}
-	if ( %bad )	{
-		$sql = "SELECT a.taxon_no,a.taxon_name bad,a.taxon_rank,synonym_no,a2.taxon_name good FROM authorities a,authorities a2,$TAXA_TREE_CACHE t,refs r WHERE a.taxon_no=t.taxon_no AND t.synonym_no=a2.taxon_no AND a2.reference_no=r.reference_no AND a.taxon_no IN (".join(',',keys %bad).")";
-		my @seniors = @{$dbt->getData($sql)};
-		for my $s ( @seniors )	{
-		# ignore rank changes that don't change spellings
-			if ( $s->{'bad'} ne $s->{'good'} )	{
-				if ( $s->{'taxon_rank'} =~ /genus|species/ )	{
-					$s->{'good'} = "<i>".$s->{'good'}."</i>";
-				}
-				$s->{'good'} = makeAnchor("basicTaxonInfo", "taxon_no=$s->{synonym_no}", $s->{good});
-				$lookup{$s->{'synonym_no'}} = $s->{'good'};
-				push @need_authors , $s->{'synonym_no'};
-			}
-		}
+    }
+    if ( @need_authors )	{
+	$sql = "SELECT taxon_no,taxon_rank,IF(ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,refs r WHERE a.reference_no=r.reference_no AND taxon_no IN (".join(',',@need_authors).")";
+	my @ref_info = @{$dbt->getData($sql)};
+	$authors{$_->{'taxon_no'}} = PBDB::Reference::formatShortRef($_) foreach @ref_info;
+	$rankOfNo{$_->{'taxon_no'}} = $_->{'taxon_rank'} foreach @ref_info;
+    }
+    my (%isRef,@refs,$refList,%refCiteNo);
+    $isRef{$_->{'reference_no'}}++ foreach @occs;
+    if ( %isRef )	{
+	@refs = @{$dbt->getData("SELECT reference_no,author1last,author2last,otherauthors,pubyr FROM refs WHERE reference_no IN (".join(',',keys %isRef).") AND reference_no!=$c->{'reference_no'} ORDER BY author1last,author2last,otherauthors,pubyr")};
+    }
+    if ( $#refs > 0 )	{
+	
+	for my $i ( 0..$#refs )	{
+	    $refList .= sprintf("; <sup>%d</sup>".PBDB::Reference::formatShortRef($refs[$i],'link_id'=>1),$i+1);
+	    $refCiteNo{$refs[$i]->{'reference_no'}} = $i + 1;
 	}
-	if ( @need_authors )	{
-		$sql = "SELECT taxon_no,taxon_rank,IF(ref_is_authority='YES',r.author1last,a.author1last) author1last,IF(ref_is_authority='YES',r.author2last,a.author2last) author2last,IF(ref_is_authority='YES',r.otherauthors,a.otherauthors) otherauthors,IF(ref_is_authority='YES',r.pubyr,a.pubyr) pubyr FROM authorities a,refs r WHERE a.reference_no=r.reference_no AND taxon_no IN (".join(',',@need_authors).")";
-		my @ref_info = @{$dbt->getData($sql)};
-		$authors{$_->{'taxon_no'}} = PBDB::Reference::formatShortRef($_) foreach @ref_info;
-		$rankOfNo{$_->{'taxon_no'}} = $_->{'taxon_rank'} foreach @ref_info;
+	$refList =~ s/^; //;
+    }
+    
+    $output .= "<div style=\"margin-left: 0em; margin-right: 1em; border-top: 1px solid darkgray;\">\n\n";
+    $output .= "<p class=\"large\" style=\"margin-top: 0.5em; margin-bottom: 0em;\">Taxonomic list</p>\n\n";
+    if ( $c->{'taxonomy_comments'} )	{
+	$output .= qq|<div class="verysmall" style="margin-left: 2em; margin-top: 0.5em; text-indent: -1em;"> &bull; $c->{'taxonomy_comments'}</div>\n\n|;
+    }
+    $output .= qq|<div class="mockLink" onClick="showAuthors();" style="margin-left: 1em; margin-top: 0.5em; margin-bottom: 0.5em;"> Show authors, comments, and common names</div>\n\n|;
+    $output .= "<table class=\"small\" cellspacing=\"0\" cellpadding=\"4\" class=\"taxonomicList\">\n\n";
+    my ($lastclass,$lastorder,$lastfamily,$class,@with_authors);
+    
+    for my $o ( @occs )
+    {
+	# format taxon names
+	my ($ital,$ital2,$postfix) = ('<i>','</i>','');
+	
+	if ( $o->{'species_name'} =~ /[.]$/ )
+	{
+	    ($ital,$ital2) = ('','');
 	}
-	my (%isRef,@refs,$refList,%refCiteNo);
-	$isRef{$_->{'reference_no'}}++ foreach @occs;
-	if ( %isRef )	{
-		@refs = @{$dbt->getData("SELECT reference_no,author1last,author2last,otherauthors,pubyr FROM refs WHERE reference_no IN (".join(',',keys %isRef).") AND reference_no!=$c->{'reference_no'} ORDER BY author1last,author2last,otherauthors,pubyr")};
+	
+	if ( $o->{'genus_reso'} eq "n. gen." )
+	{
+	    $postfix = $o->{'genus_reso'};
+	    $o->{'genus_reso'} = "";
 	}
-	if ( $#refs > 0 )	{
+	    
+	if ( $o->{'subgenus_reso'} eq "n. subgen." )
+	{
+	    $postfix .= " ".$o->{'subgenus_reso'};
+	    $o->{'subgenus_reso'} = "";
+	}
+	    
+	if ( $o->{'species_reso'} eq "n. sp." )
+	{
+	    $postfix .= " ".$o->{'species_reso'};
+	    $o->{'species_reso'} = "";
+	}
+	    
+	if ( $o->{subspecies_reso} eq "n. ssp." )
+	{
+	    $postfix .= " " . $o->{subspecies_reso};
+	    $o->{subspecies_reso} = "";
+	}
+	    
+	if ( $o->{genus_reso} =~ /informal|"/ )
+	{
+	    $o->{genus_reso} = "";
+	    $o->{genus_name} = $o->{genus_reso} eq 'informal' ?
+		"<$o->{genus_name}>" : "\"$o->{genus_name}\"";
+	    ($ital,$ital2) = ('','') if $o->{genus_reso} eq 'informal';
+	}
+	    
+	if ( $o->{subgenus_reso} =~ /informal|"/ )
+	{
+	    $o->{subgenus_reso} = "";
+	    $o->{subgenus_name} = $o->{subgenus_reso} eq 'informal' ?
+		"<$o->{subgenus_name}>" : "\"$o->{subgenus_name}\"";
+	    ($ital,$ital2) = ('','') if $o->{subgenus_reso} eq 'informal';
+	}
+	    
+	if ( $o->{species_reso} =~ /informal|"/ )
+	{
+	    $o->{species_reso} = "";
+	    $o->{species_name} = $o->{species_reso} eq 'informal' ?
+		"<$o->{species_name}>" : "\"$o->{species_name}\"";
+	    ($ital,$ital2) = ('','') if $o->{species_reso} eq 'informal';
+	}
+	
+	if ( $o->{subspecies_reso} =~ /informal|"/ )
+	{
+	    $o->{subspecies_reso} = "";
+	    $o->{subspecies_name} = $o->{subspecies_reso} eq 'informal' ?
+		"<$o->{subspecies_name}>" : "\"$o->{subspecies_name}\"";
+	}
+	    
+	if ( $o->{'subgenus_reso'} && $o->{'subgenus_name'} )
+	{
+	    $o->{'subgenus_reso'} = "(".$o->{'subgenus_reso'};
+	    $o->{'subgenus_name'} .= ")";
+	}
+	    
+	elsif ( $o->{'subgenus_name'} )
+	{
+	    $o->{'subgenus_name'} = "(".$o->{'subgenus_name'}.")";
+	}
+	    
+	$o->{'formatted'} = "$o->{'genus_reso'} $o->{'genus_name'} $o->{'subgenus_reso'} $o->{'subgenus_name'} $o->{'species_reso'} $o->{'species_name'}";
 		
-		for my $i ( 0..$#refs )	{
-			$refList .= sprintf("; <sup>%d</sup>".PBDB::Reference::formatShortRef($refs[$i],'link_id'=>1),$i+1);
-			$refCiteNo{$refs[$i]->{'reference_no'}} = $i + 1;
-		}
-		$refList =~ s/^; //;
+	if ( $o->{subspecies_name} )
+	{
+	    $o->{formatted} .= " $o->{subspecies_reso} $o->{subspecies_name}";
 	}
-
-	$output .= "<div style=\"margin-left: 0em; margin-right: 1em; border-top: 1px solid darkgray;\">\n\n";
-	$output .= "<p class=\"large\" style=\"margin-top: 0.5em; margin-bottom: 0em;\">Taxonomic list</p>\n\n";
-	if ( $c->{'taxonomy_comments'} )	{
-		$output .= qq|<div class="verysmall" style="margin-left: 2em; margin-top: 0.5em; text-indent: -1em;"> &bull; $c->{'taxonomy_comments'}</div>\n\n|;
+	    
+	$o->{formatted} =~ s/  / /g;
+	$o->{formatted} =~ s/ $//g;
+	$o->{formatted} =~ s/^ //g;
+	$o->{formatted} = "$ital$o->{formatted}$ital2";
+	    
+	if ( ! $lookup{$o->{synonym_no}} && $o->{taxon_no} )
+	{
+	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_no=$o->{taxon_no}", $o->{formatted});
 	}
-	$output .= qq|<div class="mockLink" onClick="showAuthors();" style="margin-left: 1em; margin-top: 0.5em; margin-bottom: 0.5em;"> Show authors, comments, and common names</div>\n\n|;
-	$output .= "<table class=\"small\" cellspacing=\"0\" cellpadding=\"4\" class=\"taxonomicList\">\n\n";
-	my ($lastclass,$lastorder,$lastfamily,$class,@with_authors);
-	for my $o ( @occs )	{
-		# format taxon names
-		my ($ital,$ital2,$postfix) = ('<i>','</i>','');
-		if ( $o->{'species_name'} eq "indet." )	{
-			($ital,$ital2) = ('','');
-		}
-		if ( $o->{'genus_reso'} eq "n. gen." )	{
-			$postfix = $o->{'genus_reso'};
-			$o->{'genus_reso'} = "";
-		}
-		if ( $o->{'subgenus_reso'} eq "n. subgen." )	{
-			$postfix .= " ".$o->{'subgenus_reso'};
-			$o->{'subgenus_reso'} = "";
-		}
-		if ( $o->{'species_reso'} eq "n. sp." )	{
-			$postfix .= " ".$o->{'species_reso'};
-			$o->{'species_reso'} = "";
-		}
-		if ( $o->{'genus_reso'} =~ /informal|"/ )	{
-			$o->{'genus_reso'} =~ s/informal.*|"//;
-			$o->{'genus_name'} = '"'.$o->{'genus_name'}.'"';
-		}
-		if ( $o->{'subgenus_reso'} =~ /informal|"/ )	{
-			$o->{'subgenus_reso'} =~ s/informal.*|"//;
-			$o->{'subgenus_name'} = '"'.$o->{'subgenus_name'}.'"';
-		}
-		if ( $o->{'species_reso'} =~ /informal|"/ )	{
-			$o->{'species_reso'} =~ s/informal.*|"//;
-			$o->{'species_name'} = '"'.$o->{'species_name'}.'"';
-		}
-		if ( $o->{'subgenus_reso'} && $o->{'subgenus_name'} )	{
-			$o->{'subgenus_reso'} = "(".$o->{'subgenus_reso'};
-			$o->{'subgenus_name'} .= ")";
-		} elsif ( $o->{'subgenus_name'} )	{
-			$o->{'subgenus_name'} = "(".$o->{'subgenus_name'}.")";
-		}
-		$o->{'formatted'} = "$o->{'genus_reso'} $o->{'genus_name'} $o->{'subgenus_reso'} $o->{'subgenus_name'} $o->{'species_reso'} $o->{'species_name'}";
-		$o->{'formatted'} =~ s/  / /g;
-		$o->{'formatted'} =~ s/ $//g;
-		$o->{'formatted'} =~ s/^ //g;
-		$o->{'formatted'} = $ital.$o->{'formatted'}.$ital2;
-		if ( ! $lookup{$o->{'synonym_no'}} && $o->{'taxon_no'} )	{
-			$o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_no=$o->{'taxon_no'}", $o->{'formatted'});
-		} elsif ( ! $o->{'taxon_no'} )	{
-			my $name = $o->{'genus_name'};
-			if ( $o->{'species_name'} !~ /(sp|spp|indet)\./ )	{
-				$name .= " ".$o->{'species_name'};
-			}
-			$o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_name=$name", $o->{'formatted'});
-		}
-		if ( $postfix )	{
-			$o->{'formatted'} .= " ".$postfix;
-		}
-		if ( $lookup{$o->{'synonym_no'}} )	{
-			$o->{formatted} = '"' . $o->{formatted} . '" = ' . $lookup{$o->{'synonym_no'}};
-		}
-$o->{'formatted'} .= qq|<sup><span class="tiny">$refCiteNo{$o->{'reference_no'}}</span></sup>|;
-		if ( $o->{'abund_value'} )	{
-			$o->{'formatted'} .= "[".$o->{'abund_value'}."]";
-		}
-
-		# get author/year info
-		my $author = $authors{$o->{'synonym_no'}};
-		# erase author if the classified taxon isn't a species but
-		#  the name looks like a proper species (= no funny characters)
-		if ( $rankOfNo{$o->{'synonym_no'}} !~ /species/ && $o->{'species_name'} !~ /[^a-z]/ && $o->{'species_reso'} !~ /"/ )	{
-			$author = "";
-		}
-
-		# get class/order/family names
-		my $class_hash = PBDB::TaxaCache::getParents($dbt,[$o->{'taxon_no'}],'array_full');
-		my @class_array = @{$class_hash->{$o->{'taxon_no'}}};
-		my $taxon = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$o->{'taxon_no'}},['taxon_name','taxon_rank','pubyr','common_name']);
+	
+	elsif ( ! $o->{taxon_no} )
+	{
+	    my $name = $o->{genus_name};
+	    if ( $o->{species_name} !~ /(sp|spp|indet)\./ )
+	    {
+		$name .= " $o->{species_name}";
+	    }
+	    if ( $o->{subspecies_name} )
+	    {
+		$name .= " $o->{subspecies_name}";
+	    }
+	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_name=$name", $o->{formatted});
+	}
+	
+	if ( $postfix )
+	{
+	    $o->{formatted} .= " $postfix";
+	}
+	
+	if ( $lookup{$o->{synonym_no}} )
+	{
+	    $o->{formatted} = "&quot;$o->{formatted}&quot; = " . $lookup{$o->{synonym_no}};
+	}
+	
+	$o->{formatted} .= qq|<sup><span class="tiny">$refCiteNo{$o->{reference_no}}</span></sup>|;
+	
+	if ( $o->{abund_value} )
+	{
+	    $o->{formatted} .= " [$o->{abund_value}]";
+	}
+	
+	# get author/year info
+	my $author = $authors{$o->{'synonym_no'}};
+	# erase author if the classified taxon isn't a species but
+	#  the name looks like a proper species (= no funny characters)
+	    
+	if ( $rankOfNo{$o->{'synonym_no'}} !~ /species/ && 
+	     $o->{'species_name'} !~ /[^a-z]/ && $o->{'species_reso'} !~ /"/ )
+	{
+	    $author = "";
+	}
+	    
+	# Get class/order/family names. If the taxonomic name of this occurrence
+	# is listed in the authorities table, look them up directly. Otherwise,
+	# if it is a subspecies and the species name is listed in the
+	# authorities table, look them up using the species name.
+	
+	my $classify_taxon_no = $o->{taxon_no};
+	my $count = 1;
+	
+	if ( ! $classify_taxon_no && $o->{subspecies_name} &&
+	     $o->{species_reso} ne 'informal' )
+	{
+	    my $dbh = $dbt->dbh;
+	    my $species_name = $dbh->quote("$o->{genus_name} $o->{species_name}");
+	    
+	    my $sql = "SELECT taxon_no, count(*) FROM authorities 
+			WHERE taxon_name = $species_name GROUP BY taxon_name";
+	    
+	    ($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
+	}
+	
+	if ( ! $classify_taxon_no && $o->{genus_reso} ne 'informal' )
+	{
+	    my $dbh = $dbt->dbh;
+	    my $genus_name = $dbh->quote("$o->{genus_name}");
+	    
+	    my $sql = "SELECT taxon_no, count(*) FROM authorities
+			WHERE taxon_name = $genus_name GROUP BY taxon_name";
+	    
+	    ($classify_taxon_no, $count) = $dbh->selectrow_array($sql);
+	}
+	
+	if ( $classify_taxon_no && $count == 1 )
+	{
+	    my $class_hash = PBDB::TaxaCache::getParents($dbt, [$classify_taxon_no], 'array_full');
+	    my @class_array = @{$class_hash->{$classify_taxon_no}};
+	    
+	    if ( $o->{taxon_no} )
+	    {
+		my $taxon = PBDB::TaxonInfo::getTaxa($dbt, {taxon_no=>$o->{taxon_no}},
+						     ['taxon_name','taxon_rank','pubyr','common_name']);
+		
 		unshift @class_array , $taxon;
-		$o = getClassOrderFamily($dbt,\$o,\@class_array);
-		if ( ! $o->{'class'} && ! $o->{'order'} && ! $o->{'family'} )	{
-			$o->{'class'} = "unclassified";
-		}
-
-		# put everything together
-#$o->{formatted} .= $rankOfNo{$o->{'synonym_no'}};
-		if ( $o->{'class'} ne $lastclass || $o->{'order'} ne $lastorder || $o->{'family'} ne $lastfamily )	{
-			if ( $lastclass || $lastorder || $lastfamily )	{
-				$output .= "\n</div>\n<div class=\"withAuthors\">\n<div style=\"padding-bottom: 0.2em;\">".join("</div><div style=\"padding-bottom: 0.2em;\">\n",@with_authors)."</div></div>\n";
-				$output .= "</tr>\n";
-				@with_authors = ();
-			}
-			my @parents;
-			if ( $class =~ /dark/ )	{
-				$class = '';
-			} elsif ( $#occs > 0 )	{
-				$class = ' class="darkList"';
-			}
-			if ( $o->{'class'} ne $lastclass )	{
-				my $style = ( $o->{'class'} ne $occs[0]->{'class'} ) ? ' style="padding-top: 1.5em;"' : "";
-				$output .= "<tr><td class=\"large\" colspan=\"2\"$style>".$o->{'class'}."</td></tr>\n";
-				$class = ' class="darkList"';
-			}
-			$output .= "<tr$class>\n<td valign=\"top\"><nobr>";
-			$output .= "&nbsp;".join(' - ',$o->{'order'},$o->{'family'})."</nobr></td>\n";
-			$output .= "<td valign=\"top\"><div class=\"noAuthors\">$o->{'formatted'}";
-			push @with_authors , $o->{'formatted'}." ".$author." <span style=\"float: right; clear: right; padding-left: 2em;\">$o->{'common_name'}</span>";
-			$with_authors[$#with_authors] .= ( $o->{'comments'} ) ? "<br>\n<div class=\"verysmall\" style=\"padding-left: 0.75em; padding-top: 0.2em; padding-bottom: 0.3em;\">$o->{'comments'}</div>\n" : "";
-		} else	{
-			$output .= ", $o->{'formatted'}";
-			push @with_authors , $o->{'formatted'}." ".$author." <span style=\"float: right; clear: right; padding-left: 2em;\">$o->{'common_name'}</span>";
-			$with_authors[$#with_authors] .= ( $o->{'comments'} ) ? "<br>\n<div class=\"verysmall\" style=\"padding-left: 0.75em; padding-top: 0.2em; padding-bottom: 0.3em;\">$o->{'comments'}</div>\n" : "";
-		}
-		$lastclass = $o->{'class'};
-		$lastorder = $o->{'order'};
-		$lastfamily = $o->{'family'};
+	    }
+	    
+	    $o = getClassOrderFamily($dbt,\$o,\@class_array);
 	}
-	$output .= "\n</div>\n<div class=\"withAuthors\">\n<div style=\"padding-bottom: 0.2em;\">".join("</div><div style=\"padding-bottom: 0.2em;\">\n",@with_authors)."</div></div>\n";
-	$output .= "</tr>\n";
-	$output .= "</table>\n\n";
-	$output .= "<div class=\"verysmall\" style=\"margin-top: 0.5em;\">$refList</div>\n";
-
-	$output .= "</div>\n</div>\n</div>\n\n";
-
-	if ( $error )	{
-		$output .= "<center><p style=\"margin-top: -1em;\"><i>$error</i></p></center>\n\n";
-	}
-
-	if ($s->isDBMember()) {
-		$output .= "<div class=\"medium\" style=\"margin-top: -1em; margin-bottom: 1em;\">\n";
-		# my $p = PBDB::Permissions->new($s,$dbt);
-		# my $can_modify = $p->getModifierList();
-		# $can_modify->{$s->get('authorizer_no')} = 1;
-		# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
-		if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
-			 $output .= makeAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";
-		}
-		$output .= makeAnchor("displayCollectionForm", "prefill_collection_no=$c->{'collection_no'}", "Add a collection copied from this one") . " - ";
-		# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
-		if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
-			$output .= makeAnchor("displayOccurrenceAddEdit", "collection_no=$c->{'collection_no'}", "Edit taxonomic list");
-		}
-		if ( $s->get('role') =~ /authorizer|enterer|student|technician/ )	{
-			$output .= " - " . makeAnchor("displayOccsForReID", "collection_no=$c->{'collection_no'}", "Reidentify taxa");
-		}
-		$output .= "\n</div>\n\n";
-	}
-
-# $output .= qq|
-# <form method="GET" action="">
-# <input type="hidden" name="a" value="basicCollectionSearch">
-# <input type="hidden" name="last_collection" value="$c->{'collection_no'}">
-# <span class="small">
-# <input type="text" name="collection_name" value="Search again" size="24" onFocus="textClear(collection_name);" onBlur="textRestore(collection_name);" style="font-size: 1.0em;">
-# </span>
-# </form>
-# |;
-
-	$output .= "<br>\n\n";
-	$output .= "</div>\n\n";
-	$output .= "</center>";
 	
-	$hbo->pageTitle('PBDB Collection');
+	if ( ! $o->{class} && ! $o->{order} && ! $o->{family} )
+	{
+	    $o->{class} = "unclassified";
+	}
 	
-	return $output;
+	# put everything together
+	#$o->{formatted} .= $rankOfNo{$o->{'synonym_no'}};
+	if ( $o->{'class'} ne $lastclass || 
+	     $o->{'order'} ne $lastorder || 
+	     $o->{'family'} ne $lastfamily )
+	{
+	    if ( $lastclass || $lastorder || $lastfamily )
+	    {
+		$output .= "\n</div>\n<div class=\"withAuthors\">\n<div style=\"padding-bottom: 0.2em;\">".join("</div><div style=\"padding-bottom: 0.2em;\">\n",@with_authors)."</div></div>\n";
+		$output .= "</tr>\n";
+		@with_authors = ();
+	    }
+	    my @parents;
+	    if ( $class =~ /dark/ )
+	    {
+		$class = '';
+	    }
+	    elsif ( $#occs > 0 )
+	    {
+		$class = ' class="darkList"';
+	    }
+	    if ( $o->{'class'} ne $lastclass )
+	    {
+		my $style = ( $o->{'class'} ne $occs[0]->{'class'} ) ? 
+		    ' style="padding-top: 1.5em;"' : "";
+		$output .= "<tr><td class=\"large\" colspan=\"2\"$style>".$o->{'class'}."</td></tr>\n";
+		$class = ' class="darkList"';
+	    }
+	    $output .= "<tr$class>\n<td valign=\"top\"><nobr>";
+	    $output .= "&nbsp;".join(' - ',$o->{'order'},$o->{'family'})."</nobr></td>\n";
+	    $output .= "<td valign=\"top\"><div class=\"noAuthors\">$o->{'formatted'}";
+	    push @with_authors , $o->{'formatted'}." ".$author." <span style=\"float: right; clear: right; padding-left: 2em;\">$o->{'common_name'}</span>";
+	    $with_authors[$#with_authors] .= ( $o->{'comments'} ) ? "<br>\n<div class=\"verysmall\" style=\"padding-left: 0.75em; padding-top: 0.2em; padding-bottom: 0.3em;\">$o->{'comments'}</div>\n" : "";
+	}
+	    
+	else
+	{
+	    $output .= ", $o->{'formatted'}";
+	    push @with_authors , $o->{'formatted'}." ".$author." <span style=\"float: right; clear: right; padding-left: 2em;\">$o->{'common_name'}</span>";
+	    $with_authors[$#with_authors] .= ( $o->{'comments'} ) ? "<br>\n<div class=\"verysmall\" style=\"padding-left: 0.75em; padding-top: 0.2em; padding-bottom: 0.3em;\">$o->{'comments'}</div>\n" : "";
+	}
+	$lastclass = $o->{'class'};
+	$lastorder = $o->{'order'};
+	$lastfamily = $o->{'family'};
+    }
+	
+    $output .= "\n</div>\n<div class=\"withAuthors\">\n<div style=\"padding-bottom: 0.2em;\">".join("</div><div style=\"padding-bottom: 0.2em;\">\n",@with_authors)."</div></div>\n";
+    $output .= "</tr>\n";
+    $output .= "</table>\n\n";
+    $output .= "<div class=\"verysmall\" style=\"margin-top: 0.5em;\">$refList</div>\n";
+	
+    $output .= "</div>\n</div>\n</div>\n\n";
+	
+    if ( $error )
+    {
+	$output .= "<center><p style=\"margin-top: -1em;\"><i>$error</i></p></center>\n\n";
+    }
+	
+    if ($s->isDBMember())
+    {
+	$output .= "<div class=\"medium\" style=\"margin-top: -1em; margin-bottom: 1em;\">\n";
+	# my $p = PBDB::Permissions->new($s,$dbt);
+	# my $can_modify = $p->getModifierList();
+	# $can_modify->{$s->get('authorizer_no')} = 1;
+	# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser )
+	{
+	    $output .= makeAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";
+	}
+	$output .= makeAnchor("displayCollectionForm", "prefill_collection_no=$c->{'collection_no'}", "Add a collection copied from this one") . " - ";
+	# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser )
+	{
+	    $output .= makeAnchor("displayOccurrenceAddEdit", "collection_no=$c->{'collection_no'}", "Edit taxonomic list");
+	}
+	if ( $s->get('role') =~ /authorizer|enterer|student|technician/ )
+	{
+	    $output .= " - " . makeAnchor("displayOccsForReID", "collection_no=$c->{'collection_no'}", "Reidentify taxa");
+	}
+	$output .= "\n</div>\n\n";
+    }
+	
+    # $output .= qq|
+    # <form method="GET" action="">
+    # <input type="hidden" name="a" value="basicCollectionSearch">
+    # <input type="hidden" name="last_collection" value="$c->{'collection_no'}">
+    # <span class="small">
+    # <input type="text" name="collection_name" value="Search again" size="24" onFocus="textClear(collection_name);" onBlur="textRestore(collection_name);" style="font-size: 1.0em;">
+    # </span>
+    # </form>
+    # |;
+	
+    $output .= "<br>\n\n";
+    $output .= "</div>\n\n";
+    $output .= "</center>";
+	
+    $hbo->pageTitle('PBDB Collection');
+	
+    return $output;
 }
 
 # JA 26-28.6.12

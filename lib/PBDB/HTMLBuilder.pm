@@ -5,7 +5,6 @@ use Class::Date qw(now);
 use HTML::Entities qw(encode_entities);
 use Data::Dumper;
 use PBDB::Reference;
-use PBDB::Person; # not used?
 use PBDB::Constants qw($WRITE_URL $MESSAGE_FILE);
 
 use Encode;

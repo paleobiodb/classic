@@ -83,7 +83,7 @@ sub new {
     
     my $top_chars = substr($txt, 0, 1000);
     
-    my %settings = ( $top_chars =~ /([A-Z_]+) = ([^;\n]+)/xg );
+    my %settings = ( $top_chars =~ /([A-Z_]+) \s* = \s* (.*?) (?:[;\n]|\s+-->)/xg );
     
     # If we have any errors, save them now.
     
@@ -251,17 +251,17 @@ sub substitute_value {
     
     elsif ( $key eq 'is_contributor' || $key eq 'is_member' )
     {
-	return $s->isDBMember() ? 1 : 0;
+	return $s->isDBMember() ? 1 : '';
     }
     
     elsif ( $key eq 'is_loggedin' )
     {
-	return $s->isLoggedIn() ? 1 : 0;
+	return $s->isLoggedIn() ? 1 : '';
     }
     
     elsif ( $key eq 'is_admin' )
     {
-	return $s->isSuperUser() ? 1 : 0;
+	return $s->isSuperUser() ? 1 : '';
     }
     
     elsif ( $key eq 'user_role' )

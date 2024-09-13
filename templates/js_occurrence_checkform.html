@@ -1,288 +1,613 @@
 <script language="JavaScript" type="text/javascript">
-<!-- Begin
 
-function simplify( name )	{
-	// treat subgenera as genera
-	// assumes authors use or don't use subgenus names consistently
-	if ( / \(.*\) /.test( name ) )	{
-		name = name.replace(/^[A-Z][a-z]* /,'');
-		name = name.replace(/\(/,'');
-		name = name.replace(/\)/,'');
-	}
-	name = name.replace(/( |)(n\. gen\.)( |)/,' ');
-	name = name.replace(/( |)(n\. sp\.)( |)/,' ');
-	name = name.replace(/^ /,'');
-	name = name.replace(/ $/,'');
-	return name;
-}
+  function checkForm()
+  {
+      try {
+      var frm = document.forms["occurrenceList"];
+      var rows = 0;
+      var taxon_names = [ ];
+      var abund_values = [ ];
+      var abund_units = [ ];
+      var occurrence_nos = [ ];
+      var reid_nos = [ ];
+      var ref_nos = [ ];
+      var errors = "";
+      
+      // If this script is validating the 'occurrence_add_edit' form:
+      
+      if ( typeof( frm.row_token) != "undefined" )
+      {
+	  rows = frm.row_token.length;
+	  
+	  for ( var i=0; i < frm.taxon_name.length; i++ )
+	  {
+	      taxon_names[i] = frm.taxon_name[i].value;
+	      occurrence_nos[i] = frm.occurrence_no[i] && frm.occurrence_no[i].value;
+	      reid_nos[i] = frm.reid_no && frm.reid_no[i] && frm.reid_no[i].value;
+	      ref_nos[i] = frm.reference_no && frm.reference_no[i] && frm.reference_no[i].value;
+	  }
+      }
+      
+      // If this script is validating the 'occurrence_list' form:
+      
+      else
+      {
+	  if ( /[\n\r]/.test( frm.taxon_list.value ) )
+	  {
+	      var lines = [ ];
+	      lines = frm.taxon_list.value.split(/[\n\r]+/);
+	      for ( var i=0; i < lines.length; i++ )
+	      {
+		  if ( /^\s*[^\*#\/]/.test( lines[i] ) )
+		  {
+		      taxon_names[rows] = lines[i];
+		      occurrence_nos[rows] = -1;
+		      reid_nos[rows] = -1;
+		      ref_nos[rows] = frm.reference_no.value;
+		      rows = rows + 1;
+		  }
+		  
+		  else if ( rows == 0 )
+		  {
+		      errors += "* Don't start the list with a comment\n";
+		  }
+	      }
+	  }
+	  
+	  else
+	  {
+	      taxon_names[0] = frm.taxon_list.value;
+	      occurrence_nos[0] = -1;
+	      reid_nos[0] = -1;
+	      ref_nos[0] = frm.reference_no.value;
+	      rows = 1;
+	  }
+      }
+      
+      var lasterrors = "";
+      var lastocc = 0;
+      var reid_count = { };
+      
+      // need to know which occurrences are reidentified
+      // some strong assumptions: the reid is of the last occurrence
+      
+      for ( var i=0; i < rows; i++ )
+      {
+	  if ( taxon_names[i] != "" && reid_nos[i] > 0 && lastocc > 0 && lastocc == occurrence_nos[i] )
+	  {
+	      reid_count[lastocc] = reid_count[lastocc] + 1;
+	  }
+	  
+	  else if ( taxon_names[i] != "" && reid_nos[i] == 0 )
+	  {
+	      lastocc = occurrence_nos[i];
+	      reid_count[lastocc] = 0;
+	  }
+      }
+      
+      // main pass
+      
+      for ( var i=0; i < rows; i++ )
+      {
+	  if ( taxon_names[i] != "" )
+	  {
+	      // checks for duplicates will need to ignore subgenera,
+	      //  n. gen., and n. sp.
+	      
+	      var simpleName = simplify_name( taxon_names[i] );
+	      
+	      var reid_index = occurrence_nos[i] > 0 ? reid_count[occurrence_nos[i]] : 0;
+	      
+	      // check for dupes
+	      // revised 20.2.08 so only current IDs are matched,
+	      //  as opposed to occurrences since reIDed
+	      
+	      for ( var j=0; j < i; j++ )
+	      {
+		  var simpleName2 = simplify_name( taxon_names[j] );
+		  
+		  if ( taxon_names[j] != "" && simpleName == simpleName2 )
+		  {
+		      var reid_index_2 = occurrence_nos[j] > 0 ? reid_count[occurrence_nos[j]] : 0;
+		      
+		      // case 1: identical occurrence and its own reID
+		      // if ( occurrence_nos[i] == occurrence_nos[j] && reid_index > 0 )
+		      // {
+		      //     errors += "* " + simpleName + " and its reID have the same name\n";
+		      // }
+		      
+		      // case 2: identical occurrences with no reIDs
+		      
+		      if ( reid_index < 1 && reid_index_2 < 1 )
+		      {
+			  errors += "* " + simpleName + " is listed twice\n";
+		      }
+		      
+		      // case 3: identical reIDs
+		      
+		      if ( reid_nos[i] > 0 && reid_nos[j] > 0 && 
+			   occurrence_nos[i] == occurrence_nos[j] )
+		      {
+			  errors += "* " + simpleName + " is listed twice\n";
+		      }
+		      
+		      // case 4: first is a reID and second has no reID
+		      // only complain if the refs are identical
+		      // Update: MM commented this out at Mark Uhen's request
+		      //if ( reid_nos[i] > 0 && reid_index_2 < 1 && ref_nos[i] == ref_nos[j] )	{
+		      //	errors += "* " + simpleName + " is listed twice\n";
+		      //}
+		      
+		      // case 5: first has no reID and second is a reID
+		      if ( reid_index < 1 && reid_nos[j] > 0 && 
+			   ref_nos[i] == ref_nos[j] )
+		      {
+			  errors += "* " + simpleName + " is listed twice\n";
+		      }
+		  }
+	      }
+	      
+	      // Now check each name to make sure it follows all of the rules.
+	      
+	      var taxonName = taxon_names[i];
+	      
+	      // Replace informals with dummies before checking.
+	      
+	      taxonName = taxonName.replace(/^<.*?> /,'Genus ');
+	      taxonName = taxonName.replace(/ [(]<.*?>[)]/,' (Subgenus)');
+	      taxonName = taxonName.replace(/ <.*>/,' species');
+	      
+	      // Remove trailing spaces and collapse whitespace into single spaces.
+	      
+	      taxonName = taxonName.replace(/ +$/, '');
+	      taxonName = taxonName.replace(/ +/g, ' ');
+	      
+	      // Check for obvious errors
+	      
+	      // if ( ! / /.test(taxonName) )
+	      // {
+	      // 	  errors += errstr("Taxon names must include at least two words", taxon_names[i]);
+	      // 	  continue;
+	      // }
+	      
+	      if ( /^ /.test(taxonName) )
+	      {
+		  errors += errstr("Names must not start with a space", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[0-9]/.test(taxonName) )
+	      {
+		  errors += errstr("Numeric digits are not allowed", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[A-Za-z][A-Z]/.test(taxonName) )
+	      {
+		  errors += errstr("Bad capitalization", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /([?]|[.]|sensu lato)[A-Za-z]/.test(taxonName) )
+	      {
+		  errors += errstr("Enter a space after a qualifier like cf.", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[A-Za-z]+[^a-z -][a-z]/.test(taxonName) )
+	      {
+		  errors += errstr("Only small letters can go inside a word", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[.][^ ]/.test(taxonName) )
+	      {
+		  errors += errstr("A period must be followed by a space", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[^A-Za-z ".?()-]/.test(taxonName) )
+	      {
+		  errors += errstr("Name contains an invalid character", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[A-Z][.]/.test(taxonName) )
+	      {
+		  errors += errstr("Genus and subgenus names must be written out", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[A-Z].*n[.] gen/.test(taxonName) )
+	      {
+		  errors += errstr("n. gen. can only appear before the name", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /gen[.] nov[.]|nov[.] gen[.]|n[.] g[.]|n[.]g[.]/.test(taxonName) )
+	      {
+		  errors += errstr("Use n. gen. for a new genus", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /sp[.] nov[.]|nov[.] sp[.]|n[.]sp[.]/.test(taxonName) )
+	      {
+		  errors += errstr("Use n. sp. for a new species", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /ssp[.] nov[.]|nov[.] ssp[.]|n[.] ssp[.]/.test(taxonName) )
+	      {
+		  errors += errstr("Use n. ssp. for a new subspecies", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( / [a-mo-z][.]/.test(taxonName) )
+	      {
+		  errors += errstr("Species names must be written out", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /\( /.test(taxonName) )
+	      {
+		  errors += errstr("Open parentheses have to come right before subgenus names",
+				   taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( / \)/.test(taxonName) )
+	      {
+		  errors += errstr("Close parentheses have to come right after subgenus names",
+				   taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /[^ ]\(/.test(taxonName) || /\)[^ ]/.test(taxonName) )
+	      {
+		  errors += errstr("There must be a space before and after parentheses",
+				   taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /sp[.] indet[.]/.test(taxonName) )
+	      {
+		  errors += errstr("Enter sp. instead of sp. indet.", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /var[.]/.test(taxonName) )
+	      {
+		  errors += errstr("Enter variety names in the comments field only", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /\?$/.test(taxonName) )
+	      {
+		  errors += errstr("Put ? at the beginning of the name", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /(indet|sp|spp)$/.test(taxonName) )
+	      {
+		  errors += errstr("Put a period after indet, sp, or spp", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( /<|>/.test(taxonName) )
+	      {
+		  errors += errstr("Improper or unbalanced &lt; &gt;", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      // Deconstruct the name and make sure it follows the allowed pattern
+	      
+	      var match;
+	      var rest = taxonName;
+	      
+	      var genusName, genusReso, subgenusName, subgenusReso;
+	      var speciesName, speciesReso, subspeciesName, subspeciesReso;
+	      
+	      if ( match = rest.match(/^([?]|aff[.]|cf[.]|ex gr[.]|n[.] gen[.]|sensu lato)\s+(.*)/) )
+	      {
+		  genusReso = match[1];
+		  rest = match[2];
+	      }
+	      
+	      if ( match = rest.match(/^(n[.] sp[.])\s+(.*)/) )
+	      {
+		  speciesReso = match[1];
+		  rest = match[2];
+	      }
+	      
+	      if ( match = rest.match(/^(["]?)([A-Za-z]+)(["]?)\s*(.*)/) )
+	      {
+		  genusName = match[2];
+		  rest = match[4];
+		  
+		  if ( match[1] != match[3] )
+		  {
+		      errors += errstr('Unmatched &quot; on genus name', taxon_names[i]);
+		      continue;
+		  }
+		  
+		  if ( ! /^[A-Z][a-z]+$/.test(genusName) )
+		  {
+		      errors += errstr('Genus names must be capitalized', taxon_names[i]);
+		      continue;
+		  }
+	      }
+	      
+	      else if ( /[A-Z]/.test(rest) )
+	      {
+		  errors += errstr("Invalid modifier on genus", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      else
+	      {
+		  errors += errstr("Missing genus", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( match = rest.match(/^([?]|aff[.]|cf[.]|ex gr[.]|n[.] subgen[.]|sensu lato)\s+([(].*)/) )
+	      {
+		  subgenusReso = match[1];
+		  rest = match[2];
+	      }
+	      
+	      if ( match = rest.match(/^[(](["]?)([A-Za-z]+)(["]?)[)]\s*(.*)/) )
+	      {
+		  subgenusName = match[2];
+		  rest = match[4];
+		  
+		  if ( match[1] != match[3] )
+		  {
+		      errors += errstr("Unmatched &quot; on subgenus name", taxon_names[i]);
+		      continue;
+		  }
+		  
+		  if ( ! /^[A-Z][a-z]+$/.test(subgenusName) )
+		  {
+		      errors += errstr("Subgenus names must be capitalized", taxon_names[i]);
+		      continue;
+		  }
+	      }
+	      
+	      else if ( match = rest.match(/^[(](.*?)[)]\s*(.*)/) )
+	      {
+		  errors += errstr("Invalid subgenus", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      else if ( /[(]/.test(rest) )
+	      {
+		  errors += errstr("Invalid modifier on subgenus", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( subgenusName && /[(]/.test(rest) )
+	      {
+		  errors += errstr("There can only be one subgenus name", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( match = rest.match(/^([?]|aff[.]|cf[.]|ex gr[.]|n[.] sp[.]|sensu lato)\s+(.*)/) )
+	      {
+		  speciesReso = match[1];
+		  rest = match[2];
+	      }
+	      
+	      if ( match = rest.match(/^(["]?)([A-Za-z-]+[.]?)(["]?)(.*)/) )
+	      {
+		  speciesName = match[2];
+		  rest = match[4];
+		  
+		  if ( match[1] != match[3] )
+		  {
+		      errors += errstr('Unmatched &quot; on species name', taxon_names[i]);
+		      continue;
+		  }
+		  
+		  if ( /^[A-Z]/.test(speciesName) )
+		  {
+		      errors += errstr('Species names must not be capitalized', taxon_names[i]);
+		      continue;
+		  }
+		  
+		  if ( /[.]$/.test(speciesName) && ! /^(sp[.]|spp[.]|indet[.])$/.test(speciesName) )
+		  {
+		      if ( rest != "" )
+		      {
+			  errors += errstr('Invalid modifier on species', taxon_names[i]);
+			  continue;
+		      }
+		      
+		      else
+		      {
+			  errors += errstr('Invalid or badly formed species name', taxon_names[i]);
+			  continue;
+		      }
+		  }
+	      }
+	      
+	      else if ( /[a-z]/.test(rest) )
+	      {
+		  errors += errstr("Invalid modifier on species", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      else
+	      {
+		  errors += errstr("Enter sp. or indet. for indeterminate species or higher taxa",
+				   taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( match = rest.match(/^\s+([?]|aff[.]|cf[.]|ex gr[.]|n[.] subsp[.]|n[.] ssp[.]|sensu lato)(.*)/) )
+	      {
+		  subspeciesReso = match[1];
+		  rest = match[2];
+	      }
+	      
+	      if ( match = rest.match(/^\s+(["]?)([A-Za-z]+)(["]?)\s*(.*)/) )
+	      {
+		  subspeciesName = match[2];
+		  rest = match[4];
+		  
+		  if ( match[1] != match[3] )
+		  {
+		      errors += errstr('Unmatched &quot; on subspecies name', taxon_names[i]);
+		      continue;
+		  }
+		  
+		  if ( /^[A-Z]/.test(subspeciesName) )
+		  {
+		      errors += errstr('Author names must be entered in the comment field', taxon_names[i]);
+		      continue;
+		  }
+	      }
+	      
+	      else if ( /[a-z]/.test(rest) )
+	      {
+		  errors += errstr("Invalid modifier on subspecies", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      if ( rest != "" )
+	      {
+		  errors += errstr("Extra stuff at end of name", taxon_names[i]);
+		  continue;
+	      }
+	      
+	      // else if ( ( ! /\(("|)[A-Z][a-z][a-z]*("|)\)/.test( taxonName ) ) && ( /\(/.test( taxonName ) || /\)/.test( taxonName ) ) )	{
+	      // 	    errors += "* Only a subgenus name can be in parentheses";
+	      // } else if ( /[A-Z][a-z]+ .+ \(/.test( taxonName ) && ! /[A-Z][a-z]+ (\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato) \(/.test( taxonName ) )	{
+		//     errors += "* Only a qualifier can come between genus and subgenus names";
+		// } else if ( /[^A-Za-z]et[^a-z]/.test( taxonName ) )	{
+		//     errors += "* Et tu, Brute?";
+		// } else if ( /(\?|aff\.|cf\.|ex gr\.|n\. gen\.|n\. sp\.|sensu lato)( )(\?|aff\.|cf\.|ex gr\.|n\. gen\.|n\. sp\.|sensu lato)/.test( taxonName ) && ! /n\. gen\. n\. sp\./.test( taxonName ) )	{
+		//     errors += "* A genus or species name can only have one qualifier";
+		// else if ( /\. /.test( taxonName ) && ! /(\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.)( )/.test( taxonName ) && ! /\bn\. sp\./.test( taxonName ) )	{
+		//     errors += "* Only qualifiers can end with periods";
+		// } else if ( /\. (\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.|\bn\. sp\.)( )/.test( taxonName ) && ! /n\. gen\. n\. sp\./.test( taxonName ) )	{
+		//     errors += "* Only qualifiers can end with periods";
+		// } else if ( /(\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.|\bn\. sp\.)( [A-Za-z]+\.)/.test( taxonName ) && ! /(\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.|\bn\. sp\.)( )(n\. sp\.|indet\.|sp\.|spp\.)/.test( taxonName ) )	{
+		//     errors += "* Only qualifiers can end with periods";
+                // } else if ( /n\. gen\. n\. sp\. /.test( taxonName ) )	{
+                //     errors += "* Put n. gen. n. sp. at the end";
+                // } else if ( /n\. gen\. n\. sp\./.test( taxonName ) && ! / [a-z]+ n\. gen\. n\. sp\./.test( taxonName ) )	{
+                //     errors += "* There appears to be no species name";
+		// } else if ( /^[a-z]/.test( taxonName ) && ! /^(\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato)/.test( taxonName ) )	{
+		//     errors += "* You must capitalize genus names";
+		// } else if ( /^(\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato)( [a-z])/.test( taxonName ) )	{
+		//     errors += "* You must capitalize genus names";
+		// } else if ( /(^" )|( " )/.test( taxonName ) )	{
+		//     errors += "* Quotation marks should not be separated from taxon names";
+		// } else if ( / (\(|)[A-Za-z]+"(\)|)|"[A-Za-z]+(\)|) |^[A-Za-z]+"|"[A-Za-z]+$/.test( taxonName ) )	{
+		//     errors += "* Quotation marks must be matched";
+		// } else if ( /(n\. sp\. [^a-z])/.test( taxonName ) )	{
+		//     errors += "* Put n. sp. between the genus and species names";
+		// } else if ( /[A-Z][a-z]* [A-Z][a-z]*/.test( taxonName ) )	{
+		//     errors += "* Subgenus names should be in parentheses";
+		// } else if ( / ("|)[a-z]+("|) ("|)[a-z][a-z]+/.test( taxonName ) && ! / (sensu lato|ex gr\.) (\(("|)[A-Z]|)[a-z]+/.test( taxonName ) && ! / [a-z]+ sensu lato$/.test( taxonName )  )	{
+		//     errors += "* Enter subspecies names in the comments field only";
+		// else if ( /"$/.test( taxonName ) )	{
+		//     errors += "* You can't end a name with a quote";
+		// } else if ( /(indet\. |([a-mo-z]\.|[a-z]) sp\. |spp\. )/.test( taxonName ) )	{
+		//     errors += "* Nothing can come after indet., sp., or spp.";
+		// } else if ( ! /^(([A-Z][a-z][a-z]*)|("[A-Z][a-z][a-z]*")|((\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato) [A-Z][a-z][a-z]*))( |" )/.test( taxonName ) )	{
+		//     errors += "* The genus name is missing or ill-formed";
+		// } else if ( ! /( |")([a-z][a-z]*)("|)$/.test( taxonName ) && ! /( )(indet\.|sp\.|spp\.)$/.test( taxonName ) )	{
+		//     errors += "* The species name is missing or ill-formed";
+		// }
+		
+	      if ( frm.abund_value && frm.abund_unit )
+	      {
+		  if ( /[A-Za-z0-9]/.test( abund_values[i] ) && ! /[a-z]/.test( abund_units[i] ) )
+		  {
+		      errors += errstr("Don't forget the abundance unit", taxon_names[i]);
+		  }
+		  
+		  else if ( ! /[A-Za-z0-9]/.test( abund_values[i] ) && /[a-z]/.test( abund_units[i] ) )
+		  {
+		      errors += errstr("Don't forget the abundance value", taxon_names[i]);
+		  }
+	      }
+	      
+	      if ( ref_nos[i] == "" )
+	      {
+		  errors += errstr("Don't leave out the reference number", taxon_names[i]);
+	      }
+	      
+	      else if ( ! /^[1-9][0-9]*$/.test( ref_nos[i] ) )
+	      {
+		  errors += errstr("The reference number must be a positive integer", taxon_names[i]);
+	      }
+	  }
+      }
+	  
+      if ( errors == "" )
+      {
+	  if ( ! confirm("All good. Submit?") ) 
+	      return false;
+      }
+	  
+      else
+      {
+	  alert ( errors );
+	  return false;
+      }
+      
+      frm.check_status.value = "done";
+      return true;
+      }
+      
+      catch (err) {
+	  alert("An error occurred during validation, so the form cannot be submitted: " + err);
+	  return false;
+      }
+  }
+  
+  function simplify_name( name )
+  {
+      // treat subgenera as genera
+      // assumes authors use or don't use subgenus names consistently
+      if ( /\(/.test( name ) )
+      {
+	  name = name.replace(/^\s*[A-Z][a-z]* /,'');
+	  name = name.replace(/\(/,'');
+	  name = name.replace(/\)/,'');
+      }
+      
+      name = name.replace(/\s*n\. gen\.\s*/,' ');
+      name = name.replace(/\s*n\. sp\.\s*/,' ');
+      name = name.replace(/^\s+/,'');
+      name = name.replace(/\s+$/,'');
+      name = name.replace(/</g, '&lt;');
+      name = name.replace(/>/g, '&gt;');
+      return name;
+  }
+  
+  function errstr( message, name )
+  {
+      if ( name )
+      {
+	  name = name.replace('<', '&lt;');
+	  name = name.replace('>', '&gt;');
+      }
+      
+      return "* " + message + "\n   (" + name + ")\n";
+  }
 
-function checkForm()	{
-// informal formatting
-	var frm = document.forms[1];
-	var taxon_names = new Array();
-	var rows = 0;
-	var occurrence_nos = new Array();
-	var reid_nos = new Array();
-	var ref_nos = new Array();
-	var errors = "";
 
-	if ( typeof( frm.row_token) != "undefined" )	{
-		rows = frm.row_token.length;
-	} else	{
-		if ( /[^A-Za-z0-9 <>\.\"\?\(\)\*#\/]/.test( frm.taxon_list.value ) )	{
-			var lines = new Array();
-			lines = frm.taxon_list.value.split(/[^A-Za-z0-9 <>\.\"\?\(\)\*#\/]/);
-			for ( var i=0; i < lines.length; i++ )	{
-				if ( /^[^\*#\/]/.test( lines[i] ) )	{
-					taxon_names[rows] = lines[i];
-					rows = rows + 1;
-				} else if ( rows == 0 )	{
-					errors += '';
-					errors += "* Don't start the list with a comment\n";
-				}
-			}
-		} else	{
-			taxon_names[0] = frm.taxon_list.value;
-			rows = 1;
-		}
-		for ( var i=0; i < rows; i++ )	{
-			occurrence_nos[i] = -1;
-			reid_nos[i] = -1;
-			ref_nos[i] = frm.reference_no;
-		}
-	}
-	if ( typeof( frm.row_token) != "undefined" )	{
-		for ( var i=0; i < frm.taxon_name.length; i++ )	{
-			taxon_names[i] = frm.taxon_name[i].value;
-		}
-		occurrence_nos = frm.occurrence_no;
-		reid_nos = frm.reid_no;
-		ref_nos = frm.reference_no;
-	}
+  function addLink(link_id,link_action,taxon_name)
+  {
+      if ( ! /href/.test( document.getElementById(link_id).innerHTML ) )
+      {
+	  document.getElementById(link_id).innerHTML = '<a href="?a=basicTaxonInfo' + 
+	      link_action + '&amp;is_real_user=1">' + taxon_name + '</a>';
+      }
+  }
 
-	var lasterrors = "";
-	var lastocc = 0;
-	var hasreid = new Array();
-
-	// need to know which occurrences are reidentified
-	// some strong assumptions: the reid is of the last occurrence
-	for ( var i=0; i < rows; i++ )	{
-		if ( taxon_names[i] != "" && reid_nos[i].value > 0 && lastocc > 0 && lastocc == occurrence_nos[i].value )	{
-			hasreid[lastocc] = hasreid[lastocc] + 1;
-		} else if ( taxon_names[i] != "" && reid_nos[i].value == 0 )	{
-			lastocc = occurrence_nos[i].value;
-			hasreid[lastocc] = 0;
-		}
-	}
-
-	// main pass
-	for ( var i=0; i < rows; i++ )	{
-	    if ( taxon_names[i] != "" )	{
-		var taxonName = taxon_names[i];
-		// replace informals with dummy values for checking
-		//  purposes
-		taxonName = taxonName.replace(/^<.*> /,'Genus ');
-		taxonName = taxonName.replace(/ <.*> /,' (Subgenus) ');
-		taxonName = taxonName.replace(/ <.*>$/,' species');
-		
-		// checks for duplicates will need to ignore subgenera,
-		//  n. gen., and n. sp.
-		var simpleName = taxon_names[i];
-		simpleName = simplify( simpleName );
-		
-		// need this workaround because hasreid[0] is undefined
-		var has = 0;
-		if ( occurrence_nos[i].value > 0 )	{
-		    has = hasreid[occurrence_nos[i].value];
-		}
-		
-		// check for dupes
-		// revised 20.2.08 so only current IDs are matched,
-		//  as opposed to occurrences since reIDed
-		for ( var j=0; j < i; j++ )
-		{
-		    var simpleName2 = taxon_names[j];
-		    simpleName2 = simplify( simpleName2 );
-		    if ( taxon_names[j] != "" && simpleName == simpleName2 )
-		    {
-			var has2 = 0;
-			if ( occurrence_nos[j].value > 0 )
-			{
-			    has2 = hasreid[occurrence_nos[j].value];
-			}
-			
-			// case 1: identical occurrence and its own reID
-			// if ( occurrence_nos[i].value == occurrence_nos[j].value && has > 0 )
-			// {
-			//     errors += "* " + simpleName + " and its reID have the same name\n";
-			// }
-			
-			// case 2: identical occurrences with no reIDs
-			if ( has < 1 && has2 < 1 )
-			{
-			    errors += "* " + simpleName + " is listed twice\n";
-			}
-			
-			// case 3: identical reIDs
-			if ( reid_nos[i].value > 0 && reid_nos[j].value > 0 && 
-			     occurrence_nos[i].value == occurrence_nos[j].value )
-			{
-			    errors += "* " + simpleName + " is listed twice\n";
-			}
-			
-			// case 4: first is a reID and second has no reID
-			// only complain if the refs are identical
-			// Update: MM commented this out at Mark Uhen's request
-			//if ( reid_nos[i].value > 0 && has2 < 1 && ref_nos[i].value == ref_nos[j].value )	{
-			//	errors += "* " + simpleName + " is listed twice\n";
-			//}
-			
-			// case 5: first has no reID and second is a reID
-			if ( has < 1 && reid_nos[j].value > 0 && 
-			     ref_nos[i].value == ref_nos[j].value )
-			{
-			    errors += "* " + simpleName + " is listed twice\n";
-			}
-		    }
-		}
-		
-		lasterrors = errors;
-		if ( /^(((\?|aff\.|cf\.|ex gr\.|n\. gen\.|n\. sp\.|sensu lato)( ))|)[A-Z][a-z]+$/.test( taxonName ) )	{
-		    errors += "* Enter sp. or indet. for indeterminate species or higher taxa";
-		} else if ( ! / /.test( taxonName ) )	{
-		    errors += "* Taxon names must include at least two words";
-		} else if ( /^ /.test( taxonName ) )	{
-		    errors += "* You can't start a name with a space";
-		} else if ( / $/.test( taxonName ) )	{
-		    errors += "* You can't end a name with a space";
-		} else if ( /  /.test( taxonName ) )	{
-		    errors += "* Enter one space at a time";
-		} else if ( /[0-9]/.test( taxonName ) )	{
-		    errors += "* Taxon names can never include numbers";
-		} else if ( /[A-Za-z][A-Z]/.test( taxonName ) )	{
-		    errors += "* Capital letters can't go within a word";
-		} else if ( /(\?|aff\.|cf\.|ex gr\.|n\. gen\.|n\. sp\.|sensu lato)[A-Za-z]/.test( taxonName ) )	{
-		    errors += "* Enter a space after a qualifier like cf.";
-		} else if ( /[A-Za-z]+[^a-z ][a-z]/.test( taxonName ) )	{
-		    errors += "* Only small letters can go inside a word";
-		} else if ( /\.[^ ]/.test( taxonName ) )	{
-		    errors += "* You can't put a period before anything but a space";
-		} else if ( /<|>/.test( taxonName ) )	{
-		    errors += "* Informal names must be set off on both sides";
-		} else if ( /[^A-Za-z "\.\?\(\)]/.test( taxonName ) )	{
-		    errors += "* There are some weird characters hanging around";
-		} else if ( /( [A-Za-z\.] )|(^[A-Za-z\.] )|( [A-Za-z\.]$)/.test( taxonName ) )	{
-		    errors += "* Watch out for stray characters";
-		} else if ( /[A-Z]\./.test( taxonName ) )	{
-		    errors += "* Genus and subgenus names must be written out";
-		} else if ( /[A-Za-z "\.\?]n\. gen/.test( taxonName ) && ! /n\. gen\. n\. sp\./.test( taxonName ) )	{
-		    errors += "* n. gen. can only appear before the name";
-		} else if ( /gen\. nov\.|nov\. gen\.|n\. g\.|n\.g\./.test( taxonName ) )	{
-		    errors += "* Use n. gen. for a new genus";
-		} else if ( /sp\. nov\.|nov\. sp\.|n\.sp\./.test( taxonName ) )	{
-		    errors += "* Use n. sp. for a new species";
-		} else if ( / [a-z]\./.test( taxonName ) && ( taxonName.search(/ [a-z]\./) != taxonName.search(/ n\. (gen|sp)\./) ) )	{
-		    errors += "* Species names must be written out";
-		} else if ( /\( /.test( taxonName ) )	{
-		    errors += "* Open parentheses have to come right before subgenus names";
-		} else if ( / \)/.test( taxonName ) )	{
-		    errors += "* Close parentheses have to come right after subgenus names";
-		} else if ( /[^ ]\(/.test( taxonName ) )	{
-		    errors += "* There must be a space before an open parenthesis";
-		} else if ( /\)[^ ]/.test( taxonName ) )	{
-		    errors += "* There must be a space after a close parenthesis";
-		} else if ( ( ! /\(("|)[A-Z][a-z][a-z]*("|)\)/.test( taxonName ) ) && ( /\(/.test( taxonName ) || /\)/.test( taxonName ) ) )	{
-		    errors += "* Only a subgenus name can be in parentheses";
-		} else if ( /\).*(\(|\))/.test( taxonName ) || /\(.*\(/.test( taxonName ) )	{
-		    errors += "* There can only be one subgenus name";
-		} else if ( /[A-Z][a-z]+ .+ \(/.test( taxonName ) && ! /[A-Z][a-z]+ (\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato) \(/.test( taxonName ) )	{
-		    errors += "* Only a qualifier can come between genus and subgenus names";
-		} else if ( /[^A-Za-z]et[^a-z]/.test( taxonName ) )	{
-		    errors += "* Et tu, Brute?";
-		} else if ( /(\?|aff\.|cf\.|ex gr\.|n\. gen\.|n\. sp\.|sensu lato)( )(\?|aff\.|cf\.|ex gr\.|n\. gen\.|n\. sp\.|sensu lato)/.test( taxonName ) && ! /n\. gen\. n\. sp\./.test( taxonName ) )	{
-		    errors += "* A genus or species name can only have one qualifier";
-		} else if ( /sp\. indet\./.test( taxonName ) )	{
-		    errors += "* Enter sp. instead of sp. indet.";
-		} else if ( /\. /.test( taxonName ) && ! /(\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.)( )/.test( taxonName ) && ! /\bn\. sp\./.test( taxonName ) )	{
-		    errors += "* Only qualifiers can end with periods";
-		} else if ( /\. (\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.|\bn\. sp\.)( )/.test( taxonName ) && ! /n\. gen\. n\. sp\./.test( taxonName ) )	{
-		    errors += "* Only qualifiers can end with periods";
-		} else if ( /(\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.|\bn\. sp\.)( [A-Za-z]+\.)/.test( taxonName ) && ! /(\baff\.|\bcf\.|\bex gr\.|\bn\. gen\.|\bn\. sp\.)( )(n\. sp\.|indet\.|sp\.|spp\.)/.test( taxonName ) )	{
-		    errors += "* Only qualifiers can end with periods";
-                } else if ( /n\. gen\. n\. sp\. /.test( taxonName ) )	{
-                    errors += "* Put n. gen. n. sp. at the end";
-                } else if ( /n\. gen\. n\. sp\./.test( taxonName ) && ! / [a-z]+ n\. gen\. n\. sp\./.test( taxonName ) )	{
-                    errors += "* There appears to be no species name";
-		} else if ( /^[a-z]/.test( taxonName ) && ! /^(\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato)/.test( taxonName ) )	{
-		    errors += "* You must capitalize genus names";
-		} else if ( /^(\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato)( [a-z])/.test( taxonName ) )	{
-		    errors += "* You must capitalize genus names";
-		} else if ( /(^" )|( " )/.test( taxonName ) )	{
-		    errors += "* Quotation marks should not be separated from taxon names";
-		} else if ( / (\(|)[A-Za-z]+"(\)|)|"[A-Za-z]+(\)|) |^[A-Za-z]+"|"[A-Za-z]+$/.test( taxonName ) )	{
-		    errors += "* Quotation marks must be matched";
-		} else if ( /(n\. sp\. [^a-z])/.test( taxonName ) )	{
-		    errors += "* Put n. sp. between the genus and species names";
-		} else if ( /[A-Z][a-z]* [A-Z][a-z]*/.test( taxonName ) )	{
-		    errors += "* Subgenus names should be in parentheses";
-		} else if ( / ("|)[a-z]+("|) ("|)[a-z][a-z]+/.test( taxonName ) && ! / (sensu lato|ex gr\.) (\(("|)[A-Z]|)[a-z]+/.test( taxonName ) && ! / [a-z]+ sensu lato$/.test( taxonName )  )	{
-		    errors += "* Enter subspecies names in the comments field only";
-		} else if ( /var\./.test( taxonName ) )	{
-		    errors += "* Enter variety names in the comments field only";
-		} else if ( / [a-z][a-z]* [A-Z][a-z]/.test( taxonName ) && ! /sensu lato [A-Z][a-z]/.test( taxonName ) )	{
-		    errors += "* Enter author names in the comments field only";
-		} else if ( /\?$/.test( taxonName ) )	{
-		    errors += "* You can't end a name with a question mark";
-		} else if ( /"$/.test( taxonName ) )	{
-		    errors += "* You can't end a name with a quote";
-		} else if ( /(indet|sp|spp)$/.test( taxonName ) )	{
-		    errors += "* You need a period after indet, sp, or spp";
-		} else if ( /(indet\. |([a-mo-z]\.|[a-z]) sp\. |spp\. )/.test( taxonName ) )	{
-		    errors += "* Nothing can come after indet., sp., or spp.";
-		} else if ( ! /^(([A-Z][a-z][a-z]*)|("[A-Z][a-z][a-z]*")|((\?|aff\.|cf\.|ex gr\.|n\. gen\.|sensu lato) [A-Z][a-z][a-z]*))( |" )/.test( taxonName ) )	{
-		    errors += "* The genus name is missing or ill-formed";
-		} else if ( ! /( |")([a-z][a-z]*)("|)$/.test( taxonName ) && ! /( )(indet\.|sp\.|spp\.)$/.test( taxonName ) )	{
-		    errors += "* The species name is missing or ill-formed";
-		}
-		
-		if ( typeof( frm.abund_value ) != "undefined" || typeof( frm.abund_unit ) != "undefined" )	{
-		    if ( /[A-Za-z0-9]/.test( frm.abund_value[i].value ) && ! /[a-z]/.test( frm.abund_unit[i].value ) )	{
-			errors += "* Don't forget the abundance unit";
-		    } else if ( ! /[A-Za-z0-9]/.test( frm.abund_value[i].value ) && /[a-z]/.test( frm.abund_unit[i].value ) )	{
-			errors += "* Don't forget the abundance value";
-		    } else if ( /[^0-9\.]/.test( frm.abund_value[i].value ) && ! /category/.test( frm.abund_unit[i].value ) )	{
-			errors += "* Enter a number if the abundance unit is '" + frm.abund_unit[i].value + "'";
-		    } else if ( /^\./.test( frm.abund_value[i].value ) && ! /category/.test( frm.abund_unit[i].value ) )	{
-			errors += "* Start the abundance with a digit if the unit is '" + frm.abund_unit[i].value + "'";
-		    } else if ( /\.$/.test( frm.abund_value[i].value ) && ! /category/.test( frm.abund_unit[i].value ) )	{
-			errors += "* End the abundance with a digit if the unit is '" + frm.abund_unit[i].value + "'";
-		    } else if ( /\..*\./.test( frm.abund_value[i].value ) && ! /category/.test( frm.abund_unit[i].value ) )	{
-			errors += "* Enter only one period if the abundance unit is '" + frm.abund_unit[i].value + "'";
-		    }
-		}
-		
-		if ( ref_nos[i].value == "" )	{
-		    errors += "* Don't leave out the reference number";
-		} else if ( /[^0-9]/.test( ref_nos[i].value ) )	{
-		    errors += "* The reference number must be an integer";
-		} else if ( /^[^1-9]/.test( ref_nos[i].value ) )	{
-		    errors += "* The reference number must be greater than one";
-		}
-		
-		if ( errors != lasterrors )	{
-		    errors += "\n    (" + taxon_names[i] + ")\n";
-		}
-	    }
-	}
-    
-	if ( errors != "" )	{
-		alert ( errors );
-		return false;
-	}
-	frm.check_status.value = "done";
-	return true;
-}
-
-//  End -->
 </script>
 

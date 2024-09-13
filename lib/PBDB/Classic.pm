@@ -32,21 +32,19 @@ use PBDB::PBDBUtil;
 use PBDB::Permissions;
 use PBDB::Reclassify;
 use PBDB::Reference;
-use PBDB::ReferenceEntry;  # slated for removal
+use PBDB::ReferenceEntry;
 
 use PBDB::Collection;
-use PBDB::CollectionEntry;  # slated for removal
+use PBDB::CollectionEntry;
+use PBDB::OccurrenceEntry;
 use PBDB::TaxonInfo;
 use PBDB::TimeLookup;
 use PBDB::Ecology;
 use PBDB::EcologyEntry;
-#use Images;
 use PBDB::Measurement;
-use PBDB::MeasurementEntry;  # slated for removal
+use PBDB::MeasurementEntry;
 use PBDB::TaxaCache;
 use PBDB::TypoChecker;
-#use PBDB::FossilRecord;
-#use PBDB::Cladogram;
 use PBDB::Review;
 use PBDB::NexusfileWeb;  # slated for removal
 use PBDB::PrintHierarchy;
@@ -62,7 +60,7 @@ use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request log_request log_step profile_request profile_end_request);
 use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LOG_REQUESTS
-		       $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO 
+		       $COLLECTIONS $OCCURRENCES 
 		       makeAnchor);
 
 use IntervalBase;
@@ -503,6 +501,37 @@ sub freshParams {
 sub testException {
 
     die "Test Exception\n";
+}
+
+
+# Set or clear one of the debugging cookies.
+
+sub setcookie {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $classic_debug = $q->param('classic');
+    my $api_debug = $q->param('api');
+    
+    if ( $classic_debug eq '1' || $classic_debug eq '0' )
+    {
+	cookie "classicdebug" => $classic_debug, expires => "60 days";
+    }
+    
+    if ( $api_debug eq '1' || $api_debug eq '0' )
+    {
+	cookie "apidebug" => $api_debug, expires => "60 days";
+    }
+    
+    my $classic_new = cookie("classicdebug") || '<i>none</i>';
+    my $api_new = cookie("apidebug") || '<i>none</i>';
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= "<p>classicdebug = $classic_new</p>\n";
+    $output .= "<p>apidebug = $api_new</p>\n";
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
+    return $output;
 }
 
 
@@ -1586,7 +1615,7 @@ sub displayCollResults {
     
     if ( $type eq 'occurrence_table' && @dataRows)
     {
-	my @colls = map {$_->{$COLLECTION_NO}} @dataRows;
+	my @colls = map {$_->{collection_no}} @dataRows;
 	return displayOccurrenceTable($q, $s, $dbt, $hbo, \@colls);
     }
     
@@ -1611,7 +1640,7 @@ sub displayCollResults {
 	    
 	    foreach my $row (@dataRows)
 	    {
-		push(@colls , $row->{$COLLECTION_NO});
+		push(@colls , $row->{collection_no});
 	    }
 	    
 	    if ($q->param('type') eq 'reid')
@@ -1784,12 +1813,12 @@ sub displayCollResults {
                 # This needs re-coding to make the html anchor work - jpjenk
                 if ( $q->param('basic') =~ /yes/i && $type eq "view" || $q->param('view') =~ /standard/ )
 		{
-                    $output .= "<td align=center valign=top><a href=\"$exec_url?a=basicCollectionSearch&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
+                    $output .= "<td align=center valign=top><a href=\"$exec_url?a=basicCollectionSearch&amp;collection_no=$dataRow->{collection_no}";
                 }
 		
 		else
 		{
-                    $output .= "<td align=center valign=top><a href=\"$exec_url?a=$action&amp;$COLLECTION_NO=$dataRow->{$COLLECTION_NO}";
+                    $output .= "<td align=center valign=top><a href=\"$exec_url?a=$action&amp;collection_no=$dataRow->{collection_no}";
                 }
 		
                 # for collection edit:
@@ -1816,14 +1845,14 @@ sub displayCollResults {
                     $output .= "&occurrences_authorizer_no=".$q->numeric_param('occurrences_authorizer_no');
                 }
                 
-		$output .= "\">$dataRow->{$COLLECTION_NO}</a></td>";
+		$output .= "\">$dataRow->{collection_no}</a></td>";
 		
             }
 	    
 	    else
 	    {	
                 # Don't link it if if we're in edit mode and we don't have permission
-                $output .= "<td align=center valign=top>$dataRow->{$COLLECTION_NO}</td>";
+                $output .= "<td align=center valign=top>$dataRow->{collection_no}</td>";
             }
 	    
             my $collection_names = $dataRow->{'collection_name'};
@@ -1897,7 +1926,7 @@ sub displayCollResults {
     
     elsif ( $displayRows == 1 )
     { 
-	$q->param($COLLECTION_NO=>$dataRows[0]->{$COLLECTION_NO});
+	$q->param(collection_no=>$dataRows[0]->{collection_no});
 	
 	if ( $q->param('basic') =~ /yes/i && $type eq "view" || $q->param('view') =~ /standard/ )
 	{
@@ -3439,44 +3468,17 @@ sub startProcessSanityCheck	{
 ## END SanityCheck stuff
 ##############
 
-##############
-## PAST stuff
-# sub PASTQueryForm {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     require PAST;
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     PAST::queryForm($dbt,$q,$hbo,$s);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-# sub PASTQuerySubmit {
-    
-#     my ($q, $s, $dbt, $hbo) = @_;
-    
-#     require PAST;
-#     print $hbo->stdIncludes($PAGE_TOP);
-#     PAST::querySubmit($dbt,$q,$hbo,$s);
-#     print $hbo->stdIncludes($PAGE_BOTTOM);
-# }
-## End PAST stuff
-##############
-
-
 sub displayOccurrenceAddEdit {
     
     my ($q, $s, $dbt, $hbo) = @_;
     
-    my $dbh = $dbt->dbh;
-    my $output = '';
+    # Have to be logged in
     
-	# 1. Need to ensure they have a ref
-	# 2. Need to get a collection
-	
-	# Have to be logged in
-	if (!$s->isDBMember()) {
-	    return login( "Please log in first.",'displayOccurrenceAddEdit');
-	}
+    if (!$s->isDBMember()) {
+	return login( "Please log in first.",'displayOccurrenceAddEdit');
+    }
+    
+    # A selected reference is required
     
     if (! $s->get('reference_no')) {
 	$s->enqueue_action('displayOccurrenceAddEdit', $q);
@@ -3484,535 +3486,27 @@ sub displayOccurrenceAddEdit {
 	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
     } 
     
-    my $collection_no = $q->param($COLLECTION_NO);
-    # No collection no is passed in, search for one
-    if ( ! $collection_no ) { 
+    # Unless a collection no is passed in, search for one
+    
+    unless ( $q->param("collection_no") )
+    { 
 	$q->param('type'=>'edit_occurrence');
 	return displaySearchColls($q, $s, $dbt, $hbo);
     }
     
-    # Grab the collection name for display purposes JA 1.10.02
-	my $sql;
-	$sql = "SELECT collection_name FROM collections WHERE collection_no=$collection_no";
-	my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
-	$sth->execute();
-	my ($collection_name) = $sth->fetchrow_array();
-	$sth->finish();
-
-	$output .= $hbo->stdIncludes( $PAGE_TOP );
-
-	# get the occurrences right away because we need to make sure there
-	#  aren't too many to be displayed
-	$sql = "SELECT * FROM occurrences WHERE collection_no=$collection_no ORDER BY occurrence_no ASC";
-	$sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
-	$sth->execute();
-
-	my $p = PBDB::Permissions->new($s,$dbt);
-	my @all_data = $p->getReadWriteRowsForEdit($sth);
-
-	# first check to see if there are too many rows to display, in which
-	#  case display links going to different batches of occurrences and
-	#  then bomb out JA 26.7.04
-	# don't do this if the user already has gone through one of those
-	#  links, so rows_to_display has a useable value
-	if ( $#all_data > 49 && $q->param("rows_to_display") !~ / to / )	{
-		$output .= "<center><p class=\"pageTitle\">Please select the rows you wish to edit</p></center>\n\n";
-		$output .= "<center>\n";
-		$output .= "<table><tr><td>\n";
-		$output .= "<ul>\n";
-        my ($startofblock,$endofblock);
-		for my $rowset ( 1..100 )	{
-			$endofblock = $rowset * 50;
-			$startofblock = $endofblock - 49;
-			if ( $#all_data >= $endofblock )	{
-				$output .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no&rows_to_display=$startofblock+to+$endofblock", "Rows <b>$startofblock</b> to <b>$endofblock</b>");
-			}
-			if ( $#all_data < $endofblock + 50 )	{
-				$startofblock = $endofblock + 1;
-				$endofblock = $#all_data + 1;
-				$output .= "<li>" . makeAnchor("displayOccurrenceAddEdit", "collection_no=$collection_no&rows_to_display=$startofblock+to+$endofblock", "Rows <b>$startofblock</b> to <b>$endofblock</b>");
-				last;
-			}
-		}
-		$output .= "</ul>\n\n";
-		$output .= "</td></tr></table>\n";
-		$output .= "</center>\n";
-		$output .= $hbo->stdIncludes( $PAGE_BOTTOM );
-		return $output;
-	}
-
-	# which rows should be displayed?
-	my $firstrow = 0;
-	my $lastrow = $#all_data;
-	if ( $q->param("rows_to_display") =~ / to / )	{
-		($firstrow,$lastrow) = split / to /,$q->param("rows_to_display");
-		$firstrow--;
-		$lastrow--;
-	}
-
-	my %pref = $s->getPreferences();
-	$output .= $hbo->populateHTML('js_occurrence_checkform');
-
-	$output .= qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
-	$output .= qq|<input name="action" value="processEditOccurrences" type=hidden>\n|;
-	$output .= qq|<input name="list_collection_no" value="$collection_no" type=hidden>\n|;
-	$output .= qq|<input name="check_status" type="hidden">\n|;
-	
-	my @optional = ('subgenera','genus_and_species_only','abundances','plant_organs');
-	my $header_vars = {
-		'collection_no'=>$collection_no,
-		'collection_name'=>$collection_name
-	};
-	$header_vars->{$_} = $pref{$_} for (@optional);
-	$header_vars->{collection_number} = '[' . makeAnchor("displayCollectionForm", "collection_no=$collection_no", $collection_no) . ']';
-	$output .= $hbo->populateHTML('occurrence_header_row', $header_vars);
-
-    # main loop
-    # each record is represented as a hash
-    my $gray_counter = 0;
-    foreach my $all_data_index ($firstrow..$lastrow){
-    	my $occ_row = $all_data[$all_data_index];
-		# This essentially empty reid_no is necessary as 'padding' so that
-		# any actual reid number (see while loop below) will line up with 
-		# its row in the form, and ALL rows (reids or not) will be processed
-		# properly by processEditOccurrences(), below.
-        $occ_row->{'reid_no'} = '0';
-        formatTaxonNameInput($occ_row);
-	
-        # Copy over optional fields;
-        $occ_row->{$_} = $pref{$_} for (@optional);
-
-        # Read Only
-        my $occ_read_only = ($occ_row->{'writeable'} == 0) ? "all" : ""; 
-        $occ_row->{'darkList'} = ($occ_read_only eq 'all' && $gray_counter%2 == 0) ? "darkList" : "";
-        #    $output .= qq|<input type=hidden name="row_token" value="row_token">\n|;
-	    $occ_row->{reference_link} = makeAnchor("displayReference", "type=view&reference_no=$occ_row->{reference_no}", "view")
-	    if $occ_row->{reference_no};
-        $output .= $hbo->populateHTML("occurrence_edit_row", $occ_row, [$occ_read_only]);
-        my @reid_rows;
-        my $sql = "SELECT * FROM reidentifications WHERE occurrence_no=" .  $occ_row->{'occurrence_no'};
-        @reid_rows = @{$dbt->getData($sql)};
-        foreach my $re_row (@reid_rows) {
-            formatTaxonNameInput($re_row);
-            # Copy over optional fields;
-            $re_row->{$_} = $pref{$_} for (@optional);
-
-            # Read Only
-            my $re_read_only = $occ_read_only;
-            $re_row->{'darkList'} = $occ_row->{'darkList'};
-	    $re_row->{reference_link} = makeAnchor("displayReference", "type=view&reference_no=$re_row->{reference_no}", "view")
-	    if $re_row->{reference_no};
-            
-            my $reidHTML = $hbo->populateHTML("reid_edit_row", $re_row, [$re_read_only]);
-            # Strip away abundance widgets (crucial because reIDs never may
-            #  have abundances) JA 30.7.02
-#            $reidHTML =~ s/<td><input id="abund_value"(.*?)><\/td>/<td><input type=hidden name="abund_value"><\/td>/;
-#            $reidHTML =~ s/<td><select id="abund_unit"(.*?)>(.*?)<\/select><\/td>/<td><input type=hidden name="abund_unit"><\/td>/;
-#            $reidHTML =~ s/<td align=right><select name="genus_reso">/<td align=right><nobr><b>reID<\/b><select name="genus_reso">/;
-#            $reidHTML =~ s/<td /<td class=tiny /g;
-            # The first one needs to be " = (species ..."
-#            $reidHTML =~ s/<div id="genus_reso">/<div class=tiny>= /;
-#            $reidHTML =~ s//<input class=tiny /g;
-#            $reidHTML =~ s/<select /<select class=tiny /g;
-            $output .= $reidHTML;
-        }
-        $gray_counter++;
-    }
-
-	# Extra rows for adding
-	my $blank;
-	$blank = {
-		'collection_no'=>$collection_no,
-		'reference_no'=>$s->get('reference_no'),
-		'occurrence_no'=>-1,
-		'taxon_name'=>$pref{'species_name'}
-	};
-	if ( $blank->{'species_name'} eq " " )	{
-		$blank->{'species_name'} = "";
-	}
-    
-
-	# Copy over optional fields;
-	$blank->{$_} = $pref{$_} for (@optional,'species_name');
-        
-	# Figure out the number of blanks to print
-	my $blanks = $pref{'blanks'} || 10;
-
-	for ( my $i = 0; $i<$blanks ; $i++) {
-#		$output .= qq|<input type=hidden name="row_token" value="row_token">\n|;
-		$output .= $hbo->populateHTML("occurrence_entry_row", $blank);
-	}
-
-	$output .= "</table><br>\n";
-	$output .= "<p>Delete entries by erasing the taxon name.</p>\n";
-	$output .= qq|<center><p><input type=submit value="Save changes">|;
-	$output .= " to collection ${collection_no}'s taxonomic list</p></center>\n";
-	$output .= "</div>\n\n</form>\n\n";
-
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::OccurrenceEntry::displayOccurrenceAddEdit($q, $s, $dbt, $hbo);    
     $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
     
-    $hbo->pageTitleDefault('PBDB Enter Occurrence');
+    $hbo->pageTitleDefault('PBDB Enter Occurrences');
     
     return $output;
-} 
-
-# JA 5.7.07
-sub formatTaxonNameInput	{
-    
-    my ($occ_row) = @_;
-    
-    if ( $occ_row->{'genus_reso'} )	{
-        if ( $occ_row->{'genus_reso'} =~ /"/ )	{
-            $occ_row->{'taxon_name'} = '"';
-        } elsif ( $occ_row->{'genus_reso'} =~ /informal/ )	{
-            $occ_row->{'taxon_name'} = '<';
-        } else	{
-            $occ_row->{'taxon_name'} = $occ_row->{'genus_reso'} . " ";
-        }
-    }
-    $occ_row->{'taxon_name'} .=  $occ_row->{'genus_name'};
-    if ( $occ_row->{'genus_reso'} =~ /"/ )	{
-        $occ_row->{'taxon_name'} .= '"';
-    } elsif ( $occ_row->{'genus_reso'} =~ /informal/ )	{
-        $occ_row->{'taxon_name'} .= '>';
-    }
-    if ( $occ_row->{'subgenus_name'} )	{
-        $occ_row->{'taxon_name'} .=  " ";
-        if ( $occ_row->{'subgenus_reso'} )	{
-            if ( $occ_row->{'subgenus_reso'} =~ /"/ )	{
-                $occ_row->{'subgenus_name'} = '"' . $occ_row->{'subgenus_name'} . '"';
-            } elsif ( $occ_row->{'subgenus_reso'} =~ /informal/ )	{
-                $occ_row->{'subgenus_name'} = '<' . $occ_row->{'subgenus_name'} . '>';
-            } else	{
-                $occ_row->{'taxon_name'} .= $occ_row->{'subgenus_reso'} . " ";
-            }
-        }
-        $occ_row->{'taxon_name'} .=  "(" . $occ_row->{'subgenus_name'} . ")";
-    }
-    $occ_row->{'taxon_name'} .=  " ";
-    if ( $occ_row->{'species_reso'} )	{
-        if ( $occ_row->{'species_reso'} =~ /"/ )	{
-            $occ_row->{'species_name'} = '"' . $occ_row->{'species_name'};
-        } elsif ( $occ_row->{'species_reso'} =~ /informal/ )	{
-            $occ_row->{'species_name'} = '<' . $occ_row->{'species_name'};
-        } else	{
-            $occ_row->{'taxon_name'} .= $occ_row->{'species_reso'} . " ";
-        }
-    }
-    $occ_row->{'taxon_name'} .=  $occ_row->{'species_name'};
-    if ( $occ_row->{'species_reso'} =~ /"/ )	{
-        $occ_row->{'taxon_name'} .= '"';
-    } elsif ( $occ_row->{'species_reso'} =~ /informal/ )	{
-        $occ_row->{'taxon_name'} .= '>';
-    }
-
-    return ($occ_row);
 }
 
-#
-# Sanity checks/error checks?
-# Hit enter, capture and do addrow
-#
-sub displayOccurrenceTable {
-    
-    my ($q, $s, $dbt, $hbo, $colls_ref) = @_;
 
-    my $output = '';
-    
-    my @all_collections; @all_collections = @$colls_ref if ref $colls_ref eq 'ARRAY';
-    # my @all_collections = @{$_[0]};
-	# Have to be logged in
-	if (!$s->isDBMember()) {
-	    return login( "Please log in first.",'displayOccurrenceTable' );
-	}
-	# Have to have a reference #
-	my $reference_no = $s->get("reference_no");
-	if ( ! $reference_no ) {
-	    $s->enqueue_action('displayOccurrenceTable');
-	    $q->param('type' => 'select');
-	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-	}	
-
-    # Get modifier as well
-    # my $p = new PBDB::Permissions($s,$dbt);
-    # my $can_modify = $p->getModifierList();
-    # $can_modify->{$s->get('authorizer_no')} = 1;
-
-    my $lower_limit = int($q->param("offset")) || 0;
-    my $limit = int($q->param("limit")) || 20;
-    my $upper_limit = ($lower_limit + $limit);
-    if ($upper_limit > @all_collections) {
-        $upper_limit = @all_collections;
-    }
-
-    my @collections = map {int} @all_collections[$lower_limit .. ($upper_limit-1)];
-    my @other_colls = ();
-    if (0 < $lower_limit) {
-        @other_colls = map {int} @all_collections[0 .. $lower_limit-1];
-    }
-
-    my %taxon_names = ();
-    my %taxon_nos = ();
-
-    my $sql = "SELECT 0 reid_no, o.occurrence_no, o.collection_no, o.reference_no, o.authorizer_no, p1.name authorizer, o.taxon_no, o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name, o.abund_value, o.abund_unit FROM occurrences o LEFT JOIN person p1 ON p1.person_no=o.authorizer_no WHERE collection_no IN (".join(",",@collections).")";
-    my @occs = @{$dbt->getData($sql)};
-
-    if (@occs < @collections && @other_colls) {
-        my $sql = "SELECT 0 reid_no, o.occurrence_no, o.collection_no, o.reference_no, o.authorizer_no, p1.name authorizer, o.taxon_no, o.genus_reso,o.genus_name,o.subgenus_reso,o.subgenus_name,o.species_reso,o.species_name, o.abund_value, o.abund_unit FROM occurrences o LEFT JOIN person p1 ON p1.person_no=o.authorizer_no WHERE collection_no IN (".join(",",@other_colls).")";
-        push @occs, @{$dbt->getData($sql)};
-
-    }    
-
-    my %count_by_abund_unit;
-    my %min_occ_no;
-    foreach my $row (@occs) {
-        my %hash = %$row;
-        # Make sure the resos come last since we don't want that to affect hte sort below
-        # DON'T change the ordering of taxon_key, this ordering has to match up with the javascript and split functions
-        # throughout this whoel process
-        my $taxon_key = join("-_",@hash{"genus_name","subgenus_name","species_name","genus_reso","subgenus_reso","species_reso"});
-        $taxon_names{$taxon_key}{$row->{'collection_no'}} = $row;
-        if (!$min_occ_no{$taxon_key} || $row->{occurrence_no} < $min_occ_no{$taxon_key}) {
-            $min_occ_no{$taxon_key} = $row->{occurrence_no};
-        }
-        
-        $taxon_nos{$taxon_key}{$row->{'taxon_no'}} = 1 if ($row->{'taxon_no'} > 0);
-        $count_by_abund_unit{$row->{'abund_unit'}}++ if ($row->{'abund_unit'});
-   }
-
-    # This takes advantage of a bug in IE 6 in which absolutely positioned elements get treated
-    # as fixed position elements when height:100% and overflow-y:auto are added to the body
-    # Note that the browser can't be rendering in "quirks" mode so the doctype must be XHTML
-    # (use a different header)
-    my $extra_header = <<EOF;
-<script src="/JavaScripts/occurrence_table.js" type="text/javascript" language="JavaScript"></script>
-<style type="text/css">
-body {
-    margin:10px; 
-    top:0px; 
-    left:10px; 
-    padding:0 0 0 0; 
-    border:0; 
-    height:100%; 
-    overflow-y:auto; 
-}
-#occurrencesTableHeader {
-    display:block; 
-    top:0px; 
-    left:10px; 
-    position:fixed; 
-    border-bottom:2px solid gray; 
-    padding:0px; 
-    text-align:center; 
-    background-color:#FFFFFF;
-    z-index: 9;
-}
-#occurrencesTableHeader th,#occurrencesTableHeader td {
-    border-right: 1px solid gray;
-    border-bottom: 1px solid gray; 
-}
-* html #occurrencesTableHeader {position:absolute;}
-</style>
-<!--[if lte IE 6]>
-   <style type="text/css">
-   /*<![CDATA[*/ 
-html {overflow-x:auto; overflow-y:hidden;}
-   /*]]>*/
-   </style>
-<![endif]-->
-EOF
-    $output .= $hbo->populateHTML('blank_page_top',{'extra_header'=>$extra_header});
-    $output .= qq|<form method="post" action="$WRITE_URL" onSubmit="return handleSubmit();">|;
-    $output .= '<input type="hidden" name="action" value="processOccurrenceTable" />';
-    # this field is read by the javascript but not used otherwise
-    $output .= qq|<input type="hidden" name="reference_no" value="$reference_no" />|;
-
-    foreach my $collection_no (@collections) {
-        $output .= qq|<input type="hidden" name="collection_nos" value="$collection_no" />\n|;
-    }
-
-    # Fixed position header
-    # We're make an assumption here, that there will generally only be one abundance unit for the page
-    # and everything gets synced to that one -- we prepopulate the form with that abundance unit, or if
-    # where no abundance unit (a new sheet or only presences and not abundances records), then we
-    # default to specimens
-    my $selected_abund_unit = 'specimens';
-    my $max_count = 1;
-    while(my ($abund_unit,$count) = each %count_by_abund_unit) {
-        if ($count > $max_count && $abund_unit) {
-            $max_count = $count;
-            $selected_abund_unit = $abund_unit;
-        }
-    }
-    my $abund_select = $hbo->htmlSelect('abund_unit',$hbo->getKeysValues('abund_unit'),$selected_abund_unit,'class="small"');
-    my $reference = "$reference_no (".PBDB::Reference::formatShortRef($dbt,$reference_no).")";
-    $output .= '<div id="occurrencesTableHeader">';
-    $output .= '<table border=0 cellpadding=0 cellspacing=0>'."\n";
-    $output .= '<tr>';
-    $output .= '<td valign="bottom"><div class="fixedLabel">'.
-          qq|<div class="small" align="left">Please see the <a href="#" onClick="tipsPopup('/public/tips/occurrence_table_tips.html');">tip sheet</a></div><br />|.
-          '<div align="left" style="height: 160px; overflow: hidden;" class="small">'.
-          '<b>New cells:</b><br />'.
-          '&nbsp;Reference: '.$reference."<br />".
-          '&nbsp;Abund. unit: '.$abund_select."<br />".
-          '<b>Current cell: </b><br />'.
-          '<div id="cell_info"></div>'.
-          '</div>'.
-          '<input type="submit" name="submit" value="Submit table" /><br /><br />'.
-          '</div></td>';
-    foreach my $collection_no (@collections) {
-        my $collection_name = encode_entities(generateCollectionLabel($dbt, $collection_no));
-        $output .= '<td class="addBorders"><div class="fixedColumn">' . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "$collection_name") . "</div></td>";
-            # qq|<a target="_blank" href="?a=basicCollectionSearch&amp;collection_no=$collection_no"><img border="0" src="/public/collection_labels/$collection_no.png" alt="$collection_name"/></a>|.
-    }
-    $output .= "</tr>\n";
-    $output .= "</table></div>";
-
- 
-    $output .= '<div style="height: 236px">&nbsp;</div>';
-    $output .= '<table border=0 cellpadding=0 cellspacing=0 id="occurrencesTable">'."\n";
-    my @sorted_names;
-    if ($q->param('taxa_order') eq 'alphabetical') {
-        @sorted_names = sort keys %taxon_names;
-    } else {
-        @sorted_names = sort {$min_occ_no{$a} <=> $min_occ_no{$b}} keys %taxon_names;
-    }
-    for(my $i=0;$i<@sorted_names;$i++) {
-        my $taxon_key = $sorted_names[$i];
-        my @taxon_nos = (); 
-        if (exists ($taxon_nos{$taxon_key})) {
-            @taxon_nos = keys %{$taxon_nos{$taxon_key}} ;
-        }
-        my %hash = ();
-        @hash{"genus_name","subgenus_name","species_name","genus_reso","subgenus_reso","species_reso"} = split("-_",$taxon_key);
-        my $show_name = PBDB::CollectionEntry::formatOccurrenceTaxonName(\%hash);
-        $show_name =~ s/<a href/<a target="_blank" href/;
-        my $class = ($i % 2 == 0) ? 'class="darkList"' : '';
-        $output .= '<tr '.$class.'><td class="fixedLabel"><div class="fixedLabel">'.
-            $show_name.
-            qq|<input type="hidden" name="row_num" value="$i" />|.
-            qq|<input type="hidden" name="taxon_key_$i" value="|.encode_entities($taxon_key).qq|" />|;
-        foreach my $taxon_no (@taxon_nos) {
-           $output .= qq|<input type="hidden" name="taxon_no_$i" value="$taxon_no" />|; 
-        }
-        $output .= "</div></td>";
-        $class = ($i % 2 == 0) ? 'fixedInputDark' : 'fixedInput';
-        for (my $j=0;$j<@collections;$j++) {
-            my $collection_no = $collections[$j];
-            my $occ = $taxon_names{$taxon_key}{$collections[$j]};
-            my ($abund_value,$abund_unit,$key_type,$key_value,$occ_reference_no,$readonly,$authorizer);
-            $readonly = 0;
-            if ($occ) {
-                if ($occ->{'abund_value'}) {
-                    $abund_value = $occ->{'abund_value'};
-                } else {
-                    $abund_value = "x";
-                }
-                if ($occ->{'reid_no'}) {
-                    $key_type = "reid_no";
-                    $key_value = "$occ->{reid_no}";
-                } else {
-                    $key_type = "occurrence_no";
-                    $key_value = "$occ->{occurrence_no}";
-                }
-#                $abund_unit = $occ->{'abund_unit'};
-                $occ_reference_no = $occ->{'reference_no'};
-                # if (!$can_modify->{$occ->{'authorizer_no'}}) {
-                #     $readonly = 1;
-                # }
-                $authorizer=$occ->{'authorizer'}
-            } else {
-#                $abund_unit = "DEFAULT";
-                $key_type = "occurrence_no";
-                $key_value = "-1";
-                $occ_reference_no = $reference_no;
-            }
-          
-            my $style="";
-            my $editCellJS = "editCell($i,$collection_no); ";
-            if ($readonly) {
-                $style = 'style="color: red;"';
-                $editCellJS = "";
-            }
-            my $esc_show_name = encode_entities($show_name);
-            # The span is necessary to act as a container and prevent wrapping
-            # The &nbsp; fixes a Safari bug where the onClick doesn't trigger unless the TD has somethiing in it
-
-            $output .= qq|<td class="fixedColumn" onClick="cellInfo($i,$collection_no,$occ_reference_no,$readonly,'$authorizer');$editCellJS"><div class="fixedColumn"><span class="fixedSpan" id="dummy_${i}_${collection_no}" $style>$abund_value &nbsp;|;
-            $output .= qq|<input type="hidden" id="abund_value_${i}_${collection_no}" name="abund_value_${i}_${collection_no}" size="4" value="$abund_value" class="$class" $style /></span>|;
-            $output .= qq|<input type="hidden" id="${key_type}_${i}_${collection_no}" name="${key_type}_${i}_${collection_no}" value="$key_value"/>|;
-            $output .= qq|</div></td>\n|;
-                  
-        }
-        $output .= "</tr>\n";
-    }
-    $output .= "</table>";
-
-    my %prefs = $s->getPreferences();
-    # Can dynamically add rows using javascript that modified the DOM -- see occurrence_table.js
-    $output .= "<table>";
-    $output .= '<tr><th></th><th class="small">Genus</th>';
-    if ($prefs{'subgenera'} || $prefs{'genus_and_species_only'}) {
-        $output .= '<th></th><th class="small">Subgenus</th>';
-    }
-    $output .= '<th></th><th class="small">Species</th></tr>';
-    $output .= "<tr>".
-        '<td>'.$hbo->htmlSelect("genus_reso",$hbo->getKeysValues('genus_reso'),'','class="small"').'</td>'.
-        '<td><input name="genus_name" class="small" /></td>';
-    if ($prefs{'subgenera'} || $prefs{'genus_and_species_only'}) {
-        $output .= '<td>'.$hbo->htmlSelect("subgenus_reso",$hbo->getKeysValues('subgenus_reso'),'','class="small"').'</td>'.
-        '<td><input name="subgenus_name" class="small" /></td>';
-    }
-    $output .= '<td>'.$hbo->htmlSelect("species_reso",$hbo->getKeysValues('species_reso'),'','class="small"').'</td>'.
-        '<td><input name="species_name" class="small" value="'.$prefs{species_name}.'" /></td>'.
-        '</tr><tr>'.
-        '<td colspan=6 align=right><input type="button" name="addRow" value="Add row" onClick="insertOccurrenceRow();" /></td>'.
-        '</tr>';
-    $output .= "</table>";
-
-    $output .= "<br /><br />";
-
-    $output .= '<div align="center"><div style="width: 640px">';
-    if (@all_collections > @collections) {
-        $output .= "<b>";
-        $output .= "Showing collections ".($lower_limit + 1)." to $upper_limit of ".scalar(@all_collections).".";
-        if (@all_collections > $upper_limit) {
-            my $query = "offset=".($upper_limit);
-            foreach my $p ($q->param()) {
-                if ($p ne 'offset' &&  $p ne 'next_page_link') {
-                    $query .= "&amp;$p=".$q->param($p);
-                }
-            }
-            my $remaining = ($limit + $upper_limit >= @all_collections) ? (@all_collections - $upper_limit) : $limit;
-            my $verb = ($limit + $upper_limit >= @all_collections) ? "last" : "next";
-            if ($remaining > 1) {
-                $remaining= "$remaining collections";
-            } else {
-                $remaining = "collection";
-            }
-            $output .= qq|<a href="$WRITE_URL?$query"> Get $verb $remaining</a>.|;
-
-            # We save this so we can go to the next page easily on form submission
-            my $next_page_link = uri_escape_utf8(qq|<b><a href="$WRITE_URL?$query"> Edit $verb $remaining</a></b>|);
-            $output .= qq|<input type="hidden" name="next_page_link" value="$next_page_link">|;
-        }
-        $output .= "</b>";
-    }
-    $output .= '</div></div>';
-    $output .= "</form>";
-    $output .= "<br /><br />";
-
-    $output .= $hbo->stdIncludes('blank_page_bottom');
-    return $output;
-}
-
-# JA 19-20.5.09
 sub displayOccurrenceListForm	{
     
     my ($q, $s, $dbt, $hbo) = @_;
-    
-    my $dbh = $dbt->dbh;
-    my $output = '';
     
     if (!$s->isDBMember()) {
 	return login( "Please log in first." );
@@ -4024,1002 +3518,14 @@ sub displayOccurrenceListForm	{
 	return displaySearchRefs($q, $s, $dbt, $hbo,"<center>Please select a reference first</center>"); 
     }
     
-	my %vars;
-	my $collection_no = $q->param($COLLECTION_NO);
-	my $sql = "(SELECT o.genus_reso,o.genus_name,o.species_reso,o.species_name FROM occurrences o LEFT JOIN reidentifications r ON o.occurrence_no=r.occurrence_no WHERE o.$COLLECTION_NO=$collection_no AND r.reid_no IS NULL) UNION (SELECT r.genus_reso,r.genus_name,r.species_reso,r.species_name FROM occurrences o LEFT JOIN reidentifications r ON o.occurrence_no=r.occurrence_no WHERE o.$COLLECTION_NO=$collection_no AND r.most_recent='YES') ORDER BY genus_name,species_name";
-	my @occs = @{$dbt->getData($sql)};
-
-	if ( @occs )	{
-		$vars{'old_occurrences'} = "You can only add occurrences with this form. The existing ones are: ";
-		my @ids;
-		for my $o ( @occs )	{
-			$o->{'genus_reso'} =~ s/informal|"//;
-			$o->{'species_reso'} =~ s/informal|"//;
-			my ($gr,$gn,$sr,$sn) = ($o->{'genus_reso'},$o->{'genus_name'},$o->{'species_reso'},$o->{'species_name'});
-
-			my $id = $gn;
-			if ( $gr )	{
-				$id = $gr." ".$id;
-			}
-			if ( $sr )	{
-				$id .= " ".$sr;
-			}
-			$id .= " ".$sn;
-			if ( $sn !~ /indet\./ )	{
-				$id = "<i>".$id."</i>";
-			}
-			push @ids , $id;
-		}
-		$vars{'old_occurrences'} .= join(', ',@ids);
-	}
-
-	$sql = "SELECT collection_name FROM $COLLECTIONS WHERE $COLLECTION_NO=$collection_no";
-	$vars{'collection_name'} = ${$dbt->getData($sql)}[0]->{'collection_name'};
-
-	$output .= $hbo->stdIncludes($PAGE_TOP);
-	$output .= $hbo->populateHTML('js_occurrence_checkform');
-
-	$output .= qq|<form method=post action="$WRITE_URL" onSubmit='return checkForm();'>\n|;
-	$vars{$COLLECTION_NO} = $collection_no;
-	$vars{'collection_no_field'} = $COLLECTION_NO;
-	$vars{'collection_no_field2'} = $COLLECTION_NO;
-	$vars{'list_collection_no'} = $collection_no;
-	$vars{'reference_no'} = $s->get('reference_no');
-	$output .= $hbo->populateHTML('occurrence_list_form',\%vars);
-	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= PBDB::OccurrenceEntry::displayOccurrenceListForm($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
     $hbo->pageTitle('PBDB Enter Occurrence List');
     
     return $output;
 }
-
-sub processOccurrenceTable {
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-    
-    my $output = '';
-    
-    if (!$s->isDBMember()) {
-        return login( "Please log in first." );
-    }
-   
-    my @row_tokens = $q->param('row_num');
-    my @collections = $q->param('collection_nos');
-    my $collection_list = join(",",@collections);
-    my $global_abund_unit = $q->param("abund_unit");
-    my $session_ref = $s->get('reference_no');
-    
-    if (!$global_abund_unit) {
-        print STDERR "ERROR: no abund_unit specified"; # $$$ FIX!!!
-        die;
-    }
-    if (!$session_ref) {
-        print STDERR "ERROR: no session reference";	# $$$ FIX!!!
-        die;
-    }
-    
-    # my $p = new PBDB::Permissions($s,$dbt);
-    # my $can_modify = $p->getModifierList();
-    # $can_modify->{$s->get('authorizer_no')} = 1;
-
-    $output .= $hbo->stdIncludes($PAGE_TOP);
-    $output .= '<div align="center"><p class="pageTitle">Occurrence table entry results</p></div>';
-    $output .= qq|<form method="post" action="$WRITE_URL">|;
-    $output .= '<input type="hidden" name="action" value="startProcessReclassifyForm">';
-    $output .= '<div align="center"><table cellpadding=3 cellspacing=0 border=0>';
-    my $changed_rows = 0;
-    my $seen_homonyms = 0;
-    foreach my $i (@row_tokens) {
-        my $taxon_key = $q->param("taxon_key_$i");
-        my @taxon_nos = $q->param("taxon_no_$i");
-        my ($genus_name,$subgenus_name,$species_name,$genus_reso,$subgenus_reso,$species_reso) = split("-_",$taxon_key);
-        my (@deleted,@updated,@inserted,@uneditable);
-        my $total_occs = 0;
-        
-        my $taxon_no;
-        my @homonyms = ();
-        my $manual_resolve_homonyms = 0;
-        if (@taxon_nos == 1) {
-            # If taxon_nos == 1: good to go. Note that taxon_nos is derived from what actually exists already in the DB,
-            #  so if theres a homonym but only one version of the name is used it'll just reuse that name.  Likewise
-            $taxon_no = $taxon_nos[0];
-        } elsif (@taxon_nos > 1) {
-            # If taxon_nos > 1: then there are multiple versions of the same
-            # name in the sheet. It would be bad to overwrite any taxons classification arbitrarily
-            # so we have a link for the user to manually classify that taxon by setting $manual_resolve_homonyms
-            #  non-homonyms may have no taxon_no set if its a new entry - do a lookup in that case.
-            @homonyms= @taxon_nos;
-            $manual_resolve_homonyms = 1;
-        } elsif (@taxon_nos == 0) {
-            # If taxon_nos < 1: This can be because the taxon is new or because there are multiple versions of the
-            # name, none of which have been classified.  Give an option to classify if homonyms exist
-            $taxon_no = PBDB::Taxon::getBestClassification($dbt,$genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
-            if (!$taxon_no) {
-                my @matches = PBDB::Taxon::getBestClassification($dbt,$genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
-                if (@matches) {
-                    @homonyms = map {$_->{'taxon_no'}} @matches;
-                    $seen_homonyms++;
-                } # Else doesn't exist in the DB
-            }
-        }
-        my @occurrences = ();
-        foreach my $collection_no (@collections) {
-            my $abund_value = $q->param("abund_value_${i}_${collection_no}");
-            my $abund_unit = $global_abund_unit;
-            my $primary_key_value = $q->param("occurrence_no_${i}_${collection_no}");
-            my $primary_key = "occurrence_no";
-            my $table = 'occurrences';
-            if ($primary_key !~ /^occurrence_no$|^reid_no$/) {
-                $output .= "ERROR: invalid primary key type";
-                next;
-            }
-
-            my $in_form = ($abund_value !~ /^\s*$/) ? 1 : 0;
-            my $in_db = ($primary_key_value > 0) ? 1 : 0;
-
-            if (lc($abund_value) eq 'x') {
-                $abund_value = '';
-                $abund_unit = '';
-            } 
-            
-            my $db_row;
-            if ($in_db) {
-                my $sql = "SELECT * FROM $table WHERE $primary_key=$primary_key_value";
-                $db_row = ${$dbt->getData($sql)}[0];
-                if (!$db_row) {
-                    die "Can't find db row $table.$primary_key=$primary_key_value";
-                }
-            }
-
-            my %record = (
-                'collection_no'=>$collection_no,
-                'abund_value'=>$abund_value,
-                'abund_unit'=>$abund_unit,
-                'genus_reso'=>$genus_reso,
-                'genus_name'=>$genus_name,
-                'subgenus_reso'=>$subgenus_reso,
-                'subgenus_name'=>$subgenus_name,
-                'species_reso'=>$species_reso,
-                'species_name'=>$species_name
-            );
-            if ($taxon_no) {
-                $record{'taxon_no'} = $taxon_no;
-            }
-
-            if (!$in_db) {
-                $record{'reference_no'} = $session_ref;
-            }
-
-            if ($in_db) {
-                my $authorizer_no = $db_row->{'authorizer_no'};
-                # unless ($can_modify->{$authorizer_no}) {
-                #     push @uneditable,$collection_no;
-                #     $total_occs++;
-                #     next;
-                # }
-            }
-        
-            if ($in_form && $in_db) {
-                # Do an update
-                my $result = $dbt->updateRecord($s,$table,$primary_key,$primary_key_value,\%record);
-                if ($result > 0) { 
-                    push @updated,$collection_no; 
-                }
-                push @occurrences, $primary_key_value;
-                $total_occs++;
-            } elsif ($in_form && !$in_db) {
-                # Do an insert
-                my ($result,$occurrence_no) = $dbt->insertRecord($s,$table,\%record);
-                push @inserted,$collection_no; 
-                if ($result) {
-                    push @occurrences, $occurrence_no;
-                }
-                $total_occs++;
-                # Add secondary ref
-                PBDB::CollectionEntry::setSecondaryRef($dbt,$collection_no,$session_ref);
-            } elsif (!$in_form && $in_db) {
-                # Do a delete
-                $dbt->deleteRecord($s,$table,$primary_key,$primary_key_value);
-                push @deleted,$collection_no; 
-            } 
-        }
-
-        my $taxon_name = PBDB::CollectionEntry::formatOccurrenceTaxonName({
-            'genus_name'=>$genus_name,
-            'genus_reso'=>$genus_reso,
-            'subgenus_name'=>$subgenus_reso,
-            'subgenus_reso'=>$subgenus_name,
-            'species_reso'=>$species_reso,
-            'species_name'=>$species_name
-        });
-        
-        my $classification_select = "";
-        if ( @homonyms) {
-            if ($manual_resolve_homonyms) {
-            } else {
-                my @taxon_nos = ("0+unclassified");
-                my @descriptions = ("leave unclassified");
-                foreach my $taxon_no (@homonyms) {
-                    my $t = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$taxon_no},['taxon_no','taxon_rank','taxon_name','author1last','author2last','otherauthors','pubyr']);
-                    my $authority = PBDB::Taxon::formatTaxon($dbt,$t);
-                    push @descriptions, $authority; 
-                    push @taxon_nos, $taxon_no."+".$authority;
-                }
-                $classification_select .= qq|<input type="hidden" name="occurrence_list" value="|.join(",",@occurrences).qq|">|;
-                $classification_select .= qq|<input type="hidden" name="old_taxon_no" value="0">|;
-                $classification_select .= qq|<input type="hidden" name="occurrence_description" value="|.encode_entities($taxon_name).qq|">|;
-                $classification_select .= $hbo->htmlSelect('taxon_no',\@descriptions,\@taxon_nos);
-            }
-        }
-        if (@inserted || @updated || @deleted || !$total_occs || $classification_select || $manual_resolve_homonyms) {
-            my $row = "<tr><td>$taxon_name</td><td>$classification_select</td><td>";
-            if (@inserted) {
-                my $s = (@inserted == 1) ? "" : "s";
-                $row .= "Added to ".scalar(@inserted)." collection$s. "; 
-            }
-            if (@updated) {
-                my $s = (@updated == 1) ? "" : "s";
-                $row .= "Updated in ".scalar(@updated)." collection$s. ";
-            }
-            if (@deleted) {
-                my $s = (@deleted == 1) ? "" : "s";
-                $row .= "Removed from ".scalar(@deleted)." collection$s. ";
-            }
-            if (!$total_occs) {
-                if (@deleted) {
-                    $row .= "All occurrences of this taxon were removed. ";
-                } else {
-                    $row .= "No occurrences of this taxon were entered. ";
-                }
-            } 
-            if ($manual_resolve_homonyms) {
-                my $simple_taxon_name = $genus_name;
-                $simple_taxon_name .= " ($subgenus_name)" if ($subgenus_name);
-                $simple_taxon_name .= " ".$species_name;
-                $row .= "Multiple versions of this name exist and must be " . makeAnchor("startDisplayOccurrenceReclassify", "collection_list=$collection_list&taxon_name=$simple_taxon_name", "manually classified");
-            }
-            $row .= "</td></tr>";
-            $output .= $row;
-            $changed_rows++;
-        }
-    }
-    if (!$changed_rows) {
-        $output .= "<tr><td>No rows were changed</td></tr>";
-    }
-    if ($seen_homonyms) {
-        $output .= qq|<tr><td colspan="3" align="center"><br><input type="submit" name="submit" value="Classify taxa"></td></tr>|;
-        $output .= qq|<tr><td colspan="3">|.PBDB::Debug::printWarnings(['Multiple versions of some names exist in the database.  Please select the version wanted and choose "Classify taxa"']).qq|</td></tr>|;
-    }
-    $output .= "</table>";
-    $output .= "</div>";
-    $output .= "</form>";
-    $output .= '<div align="center"><p>';
-    $output .= makeAnchor("displaySearchColls", "type=occurrence_table", "Edit more occurrences");
-    if ($q->param('next_page_link')) {
-        $output .= " - ".uri_unescape($q->param("next_page_link"));
-    }
-    $output .= '</p></div>';
-    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
-    
-    $hbo->pageTitle('PBDB Occurrences Saved');
-    
-    return $output;
-}
-
-sub generateCollectionLabel {
-    
-    my ($dbt, $collection_no) = @_; #jpjenk (q s dbt hbo) here?
-    
-    $collection_no = int($collection_no); 
-    return unless $collection_no;
-
-    # require GD;
-    my $sql = "SELECT collection_name FROM collections WHERE collection_no=".int($collection_no);
-    my $collection_name = ${$dbt->getData($sql)}[0]->{'collection_name'};
-    # PBDB::PBDBUtil::autoCreateDir("$HTML_DIR/public/collection_labels");
-    # my $file = $HTML_DIR."/public/collection_labels/$collection_no.png";
-    # my $txt = "#$collection_no: $collection_name";
-
-    # my $font= "$DATA_DIR/fonts/sapirsan.ttf";
-    # my $font_size = 10;
-    # my $x = $font_size+2;
-    # my $height = 240;
-    # my $y = $height-3;
-    # my $num_lines = 3;
-    # my $angle = 1.57079633;# Specified in radians = .5*pi
-
-    # my $width = ($font_size+1)*$num_lines+3;
-    # my $im = new GD::Image($width,$height,1);
-    # my $white = $im->colorAllocate(255,255,255); # Allocate background color first
-    # my $black = $im->colorAllocate(0,0,0);
-    # $im->transparent($white);
-    # $im->filledRectangle(0,0,$width-1,$height-1,$white);
-
-#     my @words = split(/[\s-]+/,$txt);
-#     my $line_count = 1;
-#     foreach my $word (@words) {
-#         # This first call to stringFT is to GD::Image - this doesn't draw anything
-#         # but instead gets the @bounds back quickly so we know whether or now to 
-#         # wrap to the next line
-#         my @bounds = GD::Image->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
-# #        print "Bounds are: ".join(",",@bounds)." for $word<BR>";
-#         if ($bounds[3] < 0) {
-#             #bounds[3] is the top left y coordinate or some such. if its < 0, then this
-#             # strin gis running off the image so break to next line
-#             $x += $font_size + 1;
-#             last if ($line_count > $num_lines);
-#             $y = $height - 3;
-#             my @bounds = $im->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
-#             $y = $bounds[3] - int($font_size/3);
-#         } else {
-#             my @bounds = $im->stringFT($black,$font,$font_size,$angle,$x,$y,$word);
-#             $y = $bounds[3] - int($font_size);
-#         }
-#     }
-
-#     open IMG,">$file";
-#     print IMG $im->png; 
-#     close IMG;
-    return $collection_name;
-}
-
-
-# This function now handles inserting/updating occurrences, as well as inserting/updating reids
-# Rewritten PS to be a bit clearer, handle deletions of occurrences, and use DBTransationManager
-# for consistency/simplicity.
-sub processEditOccurrences {
-    
-    my ($q, $s, $dbt, $hbo) = @_;
-    
-    my $dbh = $dbt->dbh;
-    my $output = '';
-    
-	if (!$s->isDBMember()) {
-	    return login( "Please log in first." );
-	}
-    
-    unless ( $q->param('check_status') eq 'done' )
-    {
-	my $output = $hbo->$hbo->stdIncludes($PAGE_TOP);
-	$output .= "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
-	$output .= $hbo->$hbo->stdIncludes($PAGE_BOTTOM);
-	return $output;
-    }
-	
-	# list of the number of rows to possibly update.
-	my @rowTokens;
-
-	# parse freeform all-in-one-textarea lists passed in by
-	#  displayOccurrenceListForm JA 19-20.5.09
-	my $collection_no = $q->numeric_param('collection_no');
-    my $reference_no = $q->numeric_param('reference_no');
-    
-    if ( ref $collection_no eq 'ARRAY' )
-    {
-	$collection_no = $collection_no->[0];
-    }
-    
-    if ( ref $reference_no eq 'ARRAY' )
-    {
-	$reference_no = $reference_no->[0];
-    }
-    
-	if ( $q->param('row_token') )	{
-		@rowTokens = $q->param('row_token');
-	} elsif ( $q->param('taxon_list') )	{
-		my $taxon_list = $q->param('taxon_list');
-		# collapse down multiple delimiters, if any
-		$taxon_list =~ s/[^A-Za-z0-9 <>\.\"\?\*#\/][^A-Za-z0-9 <>\.\"\?\(\)\*#\/]/=/g;
-		my @lines = split /[^A-Za-z0-9 <>\.\"\?\(\)\*#\/]/,$taxon_list;
-		my (@names,@comments,@colls,@refs,@occs,@reids);
-		for my $l ( 0..$#lines )	{
-			if ( $lines[$l] !~ /[A-Za-z0-9]/ )	{
-				next;
-			}
-			if ( $lines[$l] =~ /^[\*#\/]/ && $#names == $#comments + 1 )	{
-				$lines[$l] =~ s/^[\*#\/]//g;
-				push @comments , $lines[$l];
-			} elsif ( $lines[$l] =~ /^[\*#\/]/ )	{
-				$lines[$l] =~ s/^[\*#\/]//;
-				$comments[$#comments] .= "\n".$lines[$l];
-			} else	{
-				push @names , $lines[$l];
-				while ( $#names > $#comments + 1 )	{
-					push @comments , "";
-				}
-			}
-		}
-		push @colls , $collection_no foreach @names;
-		push @refs , $reference_no foreach @names;
-		push @rowTokens , "row_token" foreach @names;
-		push @occs , -1 foreach @names;
-		push @reids , -1 foreach @names;
-		$q->param('taxon_name' => @names);
-		$q->param('comments' => @comments);
-		$q->param($COLLECTION_NO => @colls);
-		$q->param('reference_no' => @refs);
-		$q->param($OCCURRENCE_NO => @occs);
-		$q->param('reid_no' => @reids);
-	} else	{
-	    $collection_no = $q->param($COLLECTION_NO);
-        }
-
-	# Get the names of all the fields coming in from the form.
-	my @param_names = $q->param();
-
-	# list of required fields
-	my @required_fields = ($COLLECTION_NO, "taxon_name", "reference_no");
-	my @warnings = ();
-	my @occurrences = ();
-	my @occurrences_to_delete = ();
-
-        my @genera = ();
-        my @subgenera = ();
-        my @species = ();
-        my @latin_names = ();
-        my @resos = ("\?","aff\.","cf\.","ex gr\.","n\. gen\.","n\. subgen\.","n\. sp\.","sensu lato");
-
-	my @matrix;
-
-	# loop over all rows submitted from the form
-
-	for (my $i = 0;$i < @rowTokens; $i++)	{
-
-        # Flatten the table into a single row, for easy manipulation
-        my %fields = ();
-        foreach my $param (@param_names) {
-            my @vars = $q->param($param);
-            if (scalar(@vars) == 1) {
-                $fields{$param} = $vars[0];
-            } else {
-                $fields{$param} = $vars[$i];
-            }
-        }
-
-        my $rowno = $i + 1;
-
-        # extract the genus, subgenus, and species names and resos
-        #  JA 5.7.07
-        if ( $fields{'taxon_name'} )	{
-            my $name = $fields{'taxon_name'};
-
-        # first some free passes for breaking the rules by putting stuff
-        #  at the end
-        # n. gen. n. sp. at the end
-            if ( $name =~ /n\. gen\. n\. sp\.$/ )	{
-                $name =~ s/n\. gen\. n\. sp\.$//;
-                $fields{'genus_reso'} = "n. gen.";
-                $fields{'species_reso'} = "n. sp.";
-            }
-        # n. sp. or sensu lato after a species name at the end
-            elsif ( $name =~ / [a-z]+ (n\. sp\.|sensu lato)$/ )	{
-                if ( $name =~ /sensu lato$/ )	{
-                    $fields{'species_reso'} = "sensu lato";
-                } else	{
-                    $fields{'species_reso'} = "n. sp.";
-                }
-                $name =~ s/ (n\. sp\.|sensu lato)$//;
-            }
-        # a bad idea, but some users may put n. sp. before the species name
-            elsif ( $name =~ / n\. sp\./ )	{
-                $fields{'species_reso'} = "n. sp.";
-                $name =~ s/ n\. sp\.//;
-            }
-        # users may want to enter n. sp. as a qualifier for a sp., in which
-        #  case they will probably write out n. sp. followed by nothing
-        # this tests for a genus or subgenus name immediately beforehand
-            $name =~ s/([A-Z][a-z]+("|\)|"\)|))( n\. sp\.)$/$1 n. sp. sp./;
-
-        # hack: stash the informals and replace them with dummy values
-            my %informal;
-            my $foo;
-            if ( $name =~ /^</ )	{
-                ($informal{'genus'},$foo) = split />/,$name;
-                $informal{'genus'} =~ s/<//;
-                $name =~ s/^<[^>]*> /Genus /;
-            }
-            if ( $name =~ / <.*> / )	{
-                ($informal{'subgenus'},$foo) = split />/,$name;
-                ($foo,$informal{'subgenus'}) = split /</,$informal{'subgenus'};
-                $name =~ s/ <.*> / \(Subgenus\) /;
-            }
-            if ( $name =~ />$/ )	{
-                ($foo,$informal{'species'}) = split /</,$name;
-                $informal{'species'} =~ s/>//;
-                $name =~ s/ <.*>/ species/;
-            }
-            $name =~ s/^ //;
-            $name =~ s/ $//;
-            my @words = split / /,$name;
-            for my $reso ( @resos )	{
-                if ( $words[0]." ".$words[1] eq $reso )	{
-                    $fields{'genus_reso'} = $reso;
-                    splice @words , 0 , 2;
-                } elsif ( $words[0] eq $reso )	{
-                    $fields{'genus_reso'} = shift @words;
-                    last;
-                }
-            }
-            $fields{'genus_name'} = shift @words;
-            $fields{'species_name'} = pop @words;
-            for my $reso ( @resos )	{
-                if ( $words[$#words-1]." ".$words[$#words] eq $reso )	{
-                    $fields{'species_reso'} = $reso;
-                    splice @words , 0 , 2;
-                }  elsif ( $words[$#words] eq $reso )	{
-                    $fields{'species_reso'} = pop @words;
-                    last;
-                }
-            }
-            # there is either nothing left, or a subgenus
-            if ( $#words > -1 )	{
-                $fields{'subgenus_name'} = pop @words;
-            }
-            if ( $#words > -1 )	{
-                for my $reso ( @resos )	{
-                    if ( $words[0]." ".$words[1] eq $reso )	{
-                        $fields{'subgenus_reso'} = $reso;
-                        # shift @words , 2;
-			shift @words;
-                    } elsif ( $words[0] eq $reso )	{
-                        $fields{'subgenus_reso'} = shift @words;
-                        last;
-                    }
-                }
-            }
-            $fields{'subgenus_name'} =~ s/\(//;
-            $fields{'subgenus_name'} =~ s/\)//;
-            for my $f ( "genus","subgenus","species" )	{
-                if ( $fields{$f.'_name'} =~ /"/ )	{
-                    $fields{$f.'_reso'} = '"';
-                    $fields{$f.'_name'} =~ s/"//g;
-                }
-                if ( $informal{$f} )	{
-                    $fields{$f.'_name'} = $informal{$f};
-                    $fields{$f.'_reso'} = 'informal';
-                }
-                $fields{$f.'_reso'} =~ s/\\//;
-            }
-            push @genera , $fields{'genus_name'};
-            push @subgenera , $fields{'subgenus_name'};
-            push @species , $fields{'species_name'};
-            if ( $fields{'species_name'} =~ /^[a-z]*$/ )	{
-                if ( $fields{'subgenus_name'} =~ /^[A-Z][a-z]*$/ )	{
-                    push @latin_names , $fields{'genus_name'} ." (". $fields{'subgenus_name'} .") ". $fields{'species_name'};
-                } else	{
-                    push @latin_names , $fields{'genus_name'} ." ". $fields{'species_name'};
-                }
-            } else	{
-                if ( $fields{'subgenus_name'} =~ /^[A-Z][a-z]*$/ )	{
-                    push @latin_names , $fields{'genus_name'} ." (". $fields{'subgenus_name'} . ")";
-                } else	{
-                    push @latin_names , $fields{'genus_name'};
-                }
-            }
-            $fields{'latin_name'} = $latin_names[$#latin_names];
-        }
-
-	
-        if ( $fields{$COLLECTION_NO} > 0 )	{
-            $collection_no = $fields{$COLLECTION_NO}
-        }
-
-	%{$matrix[$i]} = %fields;
-
-	# end of first pass
-	}
-
-	# check for duplicates JA 2.4.08
-	# this section replaces the old occurrence-by-occurrence check that
-	#  used checkDuplicates; it's much faster and uses more lenient
-	#  criteria because isolated duplicates are handled by the JavaScript
-	my $sql ="SELECT genus_reso,genus_name,subgenus_reso,subgenus_name,species_reso,species_name,taxon_no FROM $OCCURRENCES WHERE $COLLECTION_NO=" . $collection_no;
-	my @occrefs = @{$dbt->getData($sql)};
-	my %taxon_no;
-	if ( $#occrefs > 0 )	{
-		my $newrows;
-		my %newrow;
-		for (my $i = 0;$i < @rowTokens; $i++)	{
-			if ( $matrix[$i]{'genus_name'} =~ /^[A-Z][a-z]*$/ && $matrix[$i]{$OCCURRENCE_NO} == -1 )	{
-				$newrow{ $matrix[$i]{'genus_reso'} ." ". $matrix[$i]{'genus_name'} ." ". $matrix[$i]{'subgenus_reso'} ." ". $matrix[$i]{'subgenus_name'} ." ". $matrix[$i]{'species_reso'} ." ". $matrix[$i]{'species_name'} }++;
-				$newrows++;
-			}
-		}
-		if ( $newrows > 0 )	{
-			my $dupes;
-			for my $or ( @occrefs )	{
-				if ( $newrow{ $or->{'genus_reso'} ." ". $or->{'genus_name'} ." ". $or->{'subgenus_reso'} ." ". $or->{'subgenus_name'} ." ". $or->{'species_reso'} ." ". $or->{'species_name'} } > 0 )	{
-					$dupes++;
-				}
-			}
-			if ( $newrows == $dupes && $newrows == 1 )	{
-				push @warnings , "Nothing was entered or updated because the new occurrence was a duplicate";
-				@rowTokens = ();
-			} elsif ( $newrows == $dupes )	{
-				push @warnings , "Nothing was entered or updated because all the new records were duplicates";
-				@rowTokens = ();
-			} elsif ( $dupes >= 3 )	{
-				push @warnings , "Nothing was entered or updated because there were too many duplicate entries";
-				@rowTokens = ();
-			}
-		}
-		# while we're at it, store the taxon_no JA 20.7.08
-		# do this here and not earlier because taxon_no is not
-		#  stored in the entry form
-		for my $or ( @occrefs )	{
-			if ( $or->{'taxon_no'} > 0 && $or->{'genus_reso'} !~ /informal/ )	{
-				my $latin_name;
-				if ( $or->{'species_name'} =~ /^[a-z]*$/ && $or->{'species_reso'} !~ /informal/ )	{
-					if ( $or->{'subgenus_name'} =~ /^[A-Z][a-z]*$/ && $or->{'subgenus_reso'} !~ /informal/ )	{
-						$latin_name = $or->{'genus_name'} ." (". $or->{'subgenus_name'} .") ". $or->{'species_name'};
-					} else	{
-						$latin_name = $or->{'genus_name'} ." ". $or->{'species_name'};
-					}
-				} else	{
-					if ( $or->{'subgenus_name'} =~ /^[A-Z][a-z]*$/ && $or->{'subgenus_reso'} !~ /informal/ )	{
-						$latin_name = $or->{'genus_name'} ." (". $or->{'subgenus_name'} . ")";
-					} else	{
-						$latin_name = $or->{'genus_name'};
-					}
-				}
-				$taxon_no{$latin_name} = $or->{'taxon_no'};
-			}
-		}
-	}
-
-	# get as many taxon numbers as possible at once JA 2.4.08
-	# this greatly speeds things up because we now only need to use
-	#  getBestClassification as a last resort
-	$sql = "SELECT taxon_name,taxon_no,count(*) c FROM authorities WHERE taxon_name IN ('" . join('\',\'',@latin_names) . "') GROUP BY taxon_name";
-	my @taxonrefs = @{$dbt->getData($sql)};
-	for my $tr ( @taxonrefs )	{
-		if ( $tr->{'c'} == 1 )	{
-			$taxon_no{$tr->{'taxon_name'}} = $tr->{'taxon_no'};
-		} elsif ( $tr->{'c'} > 1 )	{
-			$taxon_no{$tr->{'taxon_name'}} = -1;
-		}
-	}
-
-	# finally, check for n. sp. resos that appear to be duplicates and
-	#  insert a type_locality number if there's no problem JA 14-15.12.08
-	# this is not 100% because it will miss cases where a species was
-	#  entered with "n. sp." using two different combinations
-	# a couple of (fast harmless) checks in the section section are
-	#  repeated here for simplicity
-	my (@to_check,%dupe_colls);
-	for (my $i = 0;$i < @rowTokens; $i++)	{
-		my %fields = %{$matrix[$i]};
-		if ( $fields{'genus_name'} eq "" && $fields{$OCCURRENCE_NO} < 1 )	{
-			next;
-		}
-        	if ( $fields{'reference_no'} !~ /^\d+$/ && $fields{'genus'} =~ /[A-Za-z]/ )	{
-            		next; 
-        	}
-        	if ( $fields{$COLLECTION_NO} !~ /^\d+$/ )	{
-            		next; 
-        	}
-	# guess the taxon no by trying to find a single match for the name
-	#  in the authorities table JA 1.4.04
-	# see Reclassify.pm for a similar operation
-	# only do this for non-informal taxa
-	# done here and not in the last pass because we need the taxon_nos
-		if ( $taxon_no{$fields{'latin_name'}} > 0 )	{
-			$fields{'taxon_no'} = $taxon_no{$fields{'latin_name'}};
-		} elsif ( $taxon_no{$fields{'latin_name'}} eq "" )	{
-			$fields{'taxon_no'} = PBDB::Taxon::getBestClassification($dbt,\%fields);
-		} else	{
-			$fields{'taxon_no'} = 0;
-		}
-		if ( $fields{'taxon_no'} > 0 && $fields{'species_reso'} eq "n. sp." )	{
-			push @to_check , $fields{'taxon_no'};
-		}
-		%{$matrix[$i]} = %fields;
-	}
-	if ( @to_check )	{
-		# pre-processing is faster than a join
-		$sql = "SELECT taxon_no,taxon_name,type_locality FROM authorities WHERE taxon_no IN (".join(',',@to_check).") AND taxon_rank='species'";
-		my @species = @{$dbt->getData($sql)};
-		if ( @species )	{
-			@to_check = ();
-			push @to_check , $_->{'taxon_no'} foreach @species;
-			$sql = "(SELECT taxon_no,collection_no FROM occurrences WHERE collection_no!=$collection_no AND taxon_no in (".join(',',@to_check).") AND species_reso='n. sp.') UNION (SELECT taxon_no,collection_no FROM reidentifications WHERE collection_no!=$collection_no AND taxon_no in (".join(',',@to_check).") AND species_reso='n. sp.')";
-			my @dupe_refs = @{$dbt->getData($sql)};
-			if ( @dupe_refs )	{
-				$dupe_colls{$_->{'taxon_no'}} .= ", ".$_->{$COLLECTION_NO} foreach @dupe_refs;
-				for (my $i = 0;$i < @rowTokens; $i++)	{
-					my %fields = %{$matrix[$i]};
-					if ( ! $dupe_colls{$fields{'taxon_no'}} || ! $fields{'taxon_no'} )	{
-						next;
-					}
-					$dupe_colls{$fields{'taxon_no'}} =~ s/^, //;
-					if ( $dupe_colls{$fields{'taxon_no'}} =~ /^[0-9]+$/ )	{
-                        # jpjenk-question
-						push @warnings, "<a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$fields{'taxon_no'}\"><i>$fields{'genus_name'} $fields{'species_name'}</i></a> has already been marked as new in collection $dupe_colls{$fields{'taxon_no'}}, so it won't be recorded as such in this one";
-					} elsif ( $dupe_colls{$fields{'taxon_no'}} =~ /, [0-9]/ )	{
-						$dupe_colls{$fields{'taxon_no'}} =~ s/(, )([0-9]*)$/ and $2/;
-						push @warnings, "<i>$fields{'genus_name'} $fields{'species_name'}</i> has already been marked as new in collections $dupe_colls{$fields{'taxon_no'}}, so it won't be recorded as such in this one";
-					}
-				}
-			}
-			my @to_update;
-			for my $s ( @species )	{
-				if ( ! $dupe_colls{$s->{'taxon_no'}} && $s->{'type_locality'} < 1 )	{
-					push @to_update , $s->{'taxon_no'};
-				} elsif ( ! $dupe_colls{$s->{'taxon_no'}} && $s->{'type_locality'} > 0 && $s->{'type_locality'} != $collection_no )	{
-                    # jpjenk-question
-					push @warnings, "The type locality of <a href=\"$WRITE_URL?a=displayAuthorityForm&amp;taxon_no=$s->{'taxon_no'}\"><i>$s->{'taxon_name'}</i></a> has already been marked as new in collection $s->{'type_locality'}, which seems incorrect";
-				}
-			}
-			if ( @to_update )	{
-				$sql = "UPDATE authorities SET type_locality=$collection_no,modified=modified WHERE taxon_no IN (".join(',',@to_update).")";
-				$dbh->do($sql);
-				PBDB::Taxon::propagateAuthorityInfo($dbt,$_) foreach @to_update;
-			}
-		}
-
-	}
-
-	# last pass, update/insert loop
-	for (my $i = 0;$i < @rowTokens; $i++)	{
-
-	my %fields = %{$matrix[$i]};
-	my $rowno = $i + 1;
-
-	if ( $fields{'genus_name'} eq "" && $fields{$OCCURRENCE_NO} < 1 )	{
-		next;
-	}
-
-		# check that all required fields have a non empty value
-        if ( $fields{'reference_no'} !~ /^\d+$/ && $fields{'genus'} =~ /[A-Za-z]/ )	{
-            push @warnings, "There is no reference number for row $rowno, so it was skipped";
-            next; 
-        }
-        if ( $fields{$COLLECTION_NO} !~ /^\d+$/ )	{
-            push @warnings, "There is no collection number for row $rowno, so it was skipped";
-            next; 
-        }
-	my $taxon_name = PBDB::CollectionEntry::formatOccurrenceTaxonName(\%fields);
-
-        if ($fields{'genus_name'} =~ /^\s*$/) {
-            if ($fields{$OCCURRENCE_NO} =~ /^\d+$/ && $fields{'reid_no'} != -1) {
-                # THIS IS AN UPDATE: CASE 1 or CASE 3. We will be deleting this record, 
-                # Do nothing for now since this is handled below;
-            } else {
-                # THIS IS AN INSERT: CASE 2 or CASE 4. Just do nothing, this is a empty row
-                next;  
-            }
-        } else {
-            if (!PBDB::Validation::validOccurrenceGenus($fields{'genus_reso'},$fields{'genus_name'})) {
-                push @warnings, "The genus ($fields{'genus_name'}) in row $rowno is blank or improperly formatted, so it was skipped";
-                next; 
-            }
-            if ($fields{'subgenus_name'} !~ /^\s*$/ && !PBDB::Validation::validOccurrenceGenus($fields{'subgenus_reso'},$fields{'subgenus_name'})) {
-                push @warnings, "The subgenus ($fields{'subgenus_name'}) in row $rowno is improperly formatted, so it was skipped";
-                next; 
-            }
-            if ($fields{'species_name'} =~ /^\s*$/ || !PBDB::Validation::validOccurrenceSpecies($fields{'species_reso'},$fields{'species_name'})) {
-                push @warnings, "The species ($fields{'species_name'}) in row $rowno is blank or improperly formatted, so it was skipped";
-                next; 
-            }
-        }
-
-        if ($fields{$OCCURRENCE_NO} =~ /^\d+$/ && $fields{$OCCURRENCE_NO} > 0 &&
-            (($fields{'reid_no'} =~ /^\d+$/ && $fields{'reid_no'} > 0) || ($fields{'reid_no'} == -1))) {
-            # We're either updating or inserting a reidentification
-            my $sql = "SELECT reference_no FROM $OCCURRENCES WHERE $OCCURRENCE_NO=$fields{$OCCURRENCE_NO}";
-            my $occurrence_reference_no = ${$dbt->getData($sql)}[0]->{'reference_no'};
-            if ($fields{'reference_no'} == $occurrence_reference_no) {
-                push @warnings, "The occurrence of taxon $taxon_name in row $rowno and its reidentification have the same reference number";
-                next;
-            }
-            # don't insert a new reID using a ref already used to reID
-            #   this occurrence
-            if ( $fields{'reid_no'} == -1 )	{
-                my $sql = "SELECT reference_no FROM reidentifications WHERE occurrence_no=$fields{'occurrence_no'}";
-                my @reidrows = @{$dbt->getData($sql)};
-                my $isduplicate;
-                for my $reidrow ( @reidrows )	{
-                    if ($fields{'reference_no'} == $reidrow->{reference_no}) {
-                        push @warnings, "This reference already has been used to reidentify the occurrence of taxon $taxon_name in row $rowno";
-                       $isduplicate++;
-                       next;
-                    }
-                }
-                if ( $isduplicate > 0 )	{
-                   next;
-                }
-            }
-        }
-        
-		# CASE 1: UPDATE REID
-        if ($fields{'reid_no'} =~ /^\d+$/ && $fields{'reid_no'} > 0 &&
-            $fields{$OCCURRENCE_NO} =~ /^\d+$/ && $fields{$OCCURRENCE_NO} > 0) {
-
-            # CASE 1a: Delete record
-            if ($fields{'genus_name'} =~ /^\s*$/) {
-                $dbt->deleteRecord($s,'reidentifications','reid_no',$fields{'reid_no'});
-            } 
-            # CASE 1b: Update record
-            else {
-                # ugly hack: make sure taxon_no doesn't change unless
-                #  genus_name or species_name did JA 1.4.04
-                my $old_row = ${$dbt->getData("SELECT * FROM reidentifications WHERE reid_no=$fields{'reid_no'}")}[0];
-                die ("no reid for $fields{reid_no}") if (!$old_row);
-                if ($old_row->{'genus_name'} eq $fields{'genus_name'} &&
-                    $old_row->{'subgenus_name'} eq $fields{'subgenus_name'} &&
-                    $old_row->{'species_name'} eq $fields{'species_name'}) {
-                    delete $fields{'taxon_no'};
-                }
-
-                $dbt->updateRecord($s,'reidentifications','reid_no',$fields{'reid_no'},\%fields);
-
-                if($old_row->{'reference_no'} != $fields{'reference_no'}) {
-                    dbg("calling setSecondaryRef (updating ReID)<br>");
-                    unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{$COLLECTION_NO}, $fields{'reference_no'})){
-                           PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{$COLLECTION_NO},$fields{'reference_no'});
-                    }
-                }
-            }
-            setMostRecentReID($q, $s, $dbt, $hbo, $fields{$OCCURRENCE_NO});
-            push @occurrences, $fields{$OCCURRENCE_NO};
-        }
-		# CASE 2: NEW REID
-		elsif ($fields{$OCCURRENCE_NO} =~ /^\d+$/ && $fields{$OCCURRENCE_NO} > 0 && 
-               $fields{'reid_no'} == -1) {
-            # Check for duplicates
-            my @keys = ("genus_reso","genus_name","subgenus_reso","subgenus_name","species_reso","species_name",$OCCURRENCE_NO);
-            my %vars = map{$_,$dbh->quote($_)} @fields{@keys};
-
-            my $dupe_id = $dbt->checkDuplicates("reidentifications", \%vars);
-
-            if ( $dupe_id ) {
-                push @warnings, "Row ". ($i + 1) ." may be a duplicate";
-            }
-#            } elsif ( $return ) {
-            $dbt->insertRecord($s,'reidentifications',\%fields);
-
-            unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{$COLLECTION_NO}, $fields{'reference_no'}))	{
-               PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{$COLLECTION_NO}, $fields{'reference_no'});
-            }
-#            }
-            setMostRecentReID($q, $s, $dbt, $hbo, $fields{$OCCURRENCE_NO});
-            push @occurrences, $fields{$OCCURRENCE_NO};
-        }
-		
-		# CASE 3: UPDATE OCCURRENCE
-		elsif($fields{$OCCURRENCE_NO} =~ /^\d+$/ && $fields{$OCCURRENCE_NO} > 0) {
-            # CASE 3a: Delete record
-            if ($fields{'genus_name'} =~ /^\s*$/) {
-                # We push this onto an array for later processing because we can't delete an occurrence
-                # With reids attached to it, so we want to let any reids be deleted first
-                my $old_row = ${$dbt->getData("SELECT * FROM $OCCURRENCES WHERE $OCCURRENCE_NO=$fields{$OCCURRENCE_NO}")}[0];
-                push @occurrences_to_delete, [$fields{$OCCURRENCE_NO},PBDB::CollectionEntry::formatOccurrenceTaxonName($old_row),$i];
-            } 
-            # CASE 3b: Update record
-            else {
-                # ugly hack: make sure taxon_no doesn't change unless
-                #  genus_name or species_name did JA 1.4.04
-                my $old_row = ${$dbt->getData("SELECT * FROM $OCCURRENCES WHERE $OCCURRENCE_NO=$fields{$OCCURRENCE_NO}")}[0];
-                die ("no reid for $fields{reid_no}") if (!$old_row);
-                if ($old_row->{'genus_name'} eq $fields{'genus_name'} &&
-                    $old_row->{'subgenus_name'} eq $fields{'subgenus_name'} &&
-                    $old_row->{'species_name'} eq $fields{'species_name'}) {
-                    delete $fields{'taxon_no'};
-                }
-
-                $dbt->updateRecord($s,$OCCURRENCES,$OCCURRENCE_NO,$fields{$OCCURRENCE_NO},\%fields);
-
-                if($old_row->{'reference_no'} != $fields{'reference_no'}) {
-                    dbg("calling setSecondaryRef (updating occurrence)<br>");
-                    unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{$COLLECTION_NO}, $fields{'reference_no'}))	{
-                           PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{$COLLECTION_NO}, $fields{'reference_no'});
-                    }
-                }
-            }
-            push @occurrences, $fields{$OCCURRENCE_NO};
-		} 
-        # CASE 4: NEW OCCURRENCE
-        elsif ($fields{$OCCURRENCE_NO} == -1) {
-            # previously, a check here for duplicates generated error
-            #  messages but (1) was incredibly slow and (2) apparently
-            #  didn't work, so there is now a batch check above instead
-	    delete $fields{$OCCURRENCE_NO}; delete $fields{reid_no};
-            my ($result, $occurrence_no) = $dbt->insertRecord($s,$OCCURRENCES,\%fields);
-            if ($result && $occurrence_no =~ /^\d+$/) {
-                push @occurrences, $occurrence_no;
-            }
-
-            unless(PBDB::CollectionEntry::isRefPrimaryOrSecondary($dbt, $fields{$COLLECTION_NO}, $fields{'reference_no'}))	{
-                   PBDB::CollectionEntry::setSecondaryRef($dbt,$fields{$COLLECTION_NO}, $fields{'reference_no'});
-            }
-        }
-    }
-
-    # Now handle the actual deletion
-    foreach my $o (@occurrences_to_delete) {
-        my ($occurrence_no,$taxon_name,$line_no) = @{$o};
-        my $sql = "SELECT COUNT(*) c FROM reidentifications WHERE occurrence_no=$occurrence_no";
-        my $reid_cnt = ${$dbt->getData($sql)}[0]->{'c'};
-        $sql = "SELECT COUNT(*) c FROM specimens WHERE occurrence_no=$occurrence_no";
-        my $measure_cnt = ${$dbt->getData($sql)}[0]->{'c'};
-        if ($reid_cnt) {
-            push @warnings, "'$taxon_name' on line $line_no can't be deleted because there are reidentifications based on it";
-        }
-        if ($measure_cnt) {
-            push @warnings, "'$taxon_name' on line $line_no can't be deleted because there are measurements based on it";
-        }
-        if ($reid_cnt == 0 && $measure_cnt == 0) {
-            $dbt->deleteRecord($s,$OCCURRENCES,$OCCURRENCE_NO,$occurrence_no);
-        }
-    }
-
-	$output .= $hbo->stdIncludes( $PAGE_TOP );
-
-	$output .= qq|<div align="center"><p class="large" style="margin-bottom: 1.5em;">|;
-	$sql = "SELECT collection_name AS coll FROM collections WHERE collection_no=$collection_no";
-	$output .= ${$dbt->getData($sql)}[0]->{'coll'};
-	$output .= "</p></div>\n\n";
-
-	# Links to re-edit, etc
-	my $links = "<div align=\"center\" style=\"padding-top: 1em;\">";
-	if ($q->param('form_source') eq 'new_reids_form') {
-        # suppress link if there is clearly nothing more to reidentify
-        #  JA 3.8.07
-        # this won't work if exactly ten occurrences have been displayed
-        if ( $#rowTokens < 9 )	{
-            my $localtaxon_name = uri_escape_utf8($q->param('search_taxon_name') // '');
-            my $localcoll_no = uri_escape_utf8($q->numeric_param("list_collection_no") // '');
-            my $localpage_no = uri_escape_utf8($q->param('page_no') // '');
-            $links .= makeAnchor("displayCollResults", "type=reid&taxon_name=$localtaxon_name&collection_no=$localcoll_no&page_no=$localpage_no") . "<nobr>Reidentify next 10 occurrences</nobr> - ";
-        }
-        $links .= makeAnchor("displayReIDCollsAndOccsSearchForm", "", "<nobr>Reidentify different occurrences</nobr>");
-    } else {
-        if ($q->param('list_collection_no')) {
-            my $collection_no = $q->numeric_param("list_collection_no");
-            $links .= makeAnchor("displayOccurrenceAddEdit", "$COLLECTION_NO=$collection_no", "<nobr>Edit this taxonomic list</nobr>") . " - ";
-            $links .= makeAnchor("displayOccurrenceListForm", "$COLLECTION_NO=$collection_no", "Paste in more names") . " - ";
-            $links .= makeAnchor("startStartReclassifyOccurrences", "$COLLECTION_NO=$collection_no", "<nobr>Reclassify these IDs</nobr>") . " - ";
-            $links .= makeAnchor("displayCollectionForm", "$COLLECTION_NO=$collection_no", "<nobr>Edit the collection record</nobr>") . "<br>";
-        }
-        $links .= makeAnchor("displaySearchCollsForAdd", "type=add", "Add") . " or ";
-        $links .= makeAnchor("displaySearchColls", "type=edit", "edit another collection") . " - </nobr>";
-        $links .= makeAnchor("displaySearchColls", "type=edit_occurrence", "Add/edit");
-        $links .= makeAnchor("displaySearchColls", "type=occurrence_list", "paste in") . ", or ";
-        $links .= makeAnchor("displayReIDCollsAndOccsSearchForm", "", "reidentify IDs for a different collection") . "</nobr>";
-    }
-    $links .= "</div><br>";
-
-	# for identifying unrecognized (new to the db) genus/species names.
-	# these are the new taxon names that the user is trying to enter, do this before insert
-	my @new_genera = PBDB::TypoChecker::newTaxonNames($dbt,\@genera,'genus_name');
-	my @new_subgenera =  PBDB::TypoChecker::newTaxonNames($dbt,\@subgenera,'subgenus_name');
-	my @new_species =  PBDB::TypoChecker::newTaxonNames($dbt,\@species,'species_name');
-
-	$output .= qq|<div style="padding-left: 1em; padding-right: 1em;>"|;
-
-    my $return;
-    if ($q->param('list_collection_no')) {
-        my $collection_no = $q->numeric_param("list_collection_no");
-        my $coll = ${$dbt->getData("SELECT $COLLECTION_NO,reference_no FROM $COLLECTIONS WHERE $COLLECTION_NO=$collection_no")}[0];
-    	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,{$COLLECTION_NO=>$collection_no, 'hide_reference_no'=>$coll->{'reference_no'},'new_genera'=>\@new_genera, 'new_subgenera'=>\@new_subgenera, 'new_species'=>\@new_species, 'do_reclassify'=>1, 'warnings'=>\@warnings, 'save_links'=>$links });
-    } else {
-    	$return = PBDB::CollectionEntry::buildTaxonomicList($dbt,$hbo,$s,{'occurrence_list'=>\@occurrences, 'new_genera'=>\@new_genera, 'new_subgenera'=>\@new_subgenera, 'new_species'=>\@new_species, 'do_reclassify'=>1, 'warnings'=>\@warnings, 'save_links'=>$links });
-    }
-    if ( ! $return )	{
-        $output .= $links;
-    } else	{
-        $output .= $return;
-    }
-
-    $output .= "\n</div>\n<br>\n";
-
-    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
-    
-    $hbo->pageTitle('PBDB Occurrences Saved');
-    
-    return $output;
-}
-
 
 
  #  3.* System processes new reference if user entered one.  System
@@ -5028,6 +3534,7 @@ sub processEditOccurrences {
 #       occurrences from that collection
 #     OR
 #     * User searches for genus names of occurrences to work with
+
 sub displayReIDCollsAndOccsSearchForm {
     
     my ($q, $s, $dbt, $hbo) = @_;
@@ -5039,15 +3546,14 @@ sub displayReIDCollsAndOccsSearchForm {
 	# return;
     }
     
-        # Have to have a reference #
-	my $reference_no = $s->get("reference_no");
-	if ( ! $reference_no ) {
-	    $s->enqueue_action('displayReIDCollsAndOccsSearchForm');
-	    $q->param('type' => 'select');
-	    return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
-	}	
-
-
+    # Have to have a reference #
+    my $reference_no = $s->get("reference_no");
+    if ( ! $reference_no ) {
+	$s->enqueue_action('displayReIDCollsAndOccsSearchForm');
+	$q->param('type' => 'select');
+	return displaySearchRefs($q, $s, $dbt, $hbo, "<center>Please choose a reference first</center>" );
+    }	
+    
     my %vars = $q->Vars();
     $vars{'enterer_me'} = $s->get('enterer_reversed');
     $vars{'submit'} = "Search for reidentifications";
@@ -5068,219 +3574,24 @@ sub displayReIDCollsAndOccsSearchForm {
     return $output;
 }
 
+
 sub displayOccsForReID {
     
     my ($q, $s, $dbt, $hbo, $collNos) = @_;
     
-    my $output = '';
-    my $dbh = $dbt->dbh;
-    my $collection_no = $q->numeric_param('collection_no');
-    my $taxon_name = $q->param('taxon_name');
-    my $where = "";
+    # make sure they've selected a reference
+    # (the only way to get here without a reference is by doing 
+    # a coll search right after logging in).
     
-	#dbg("genus_name: $genus_name, subgenus_name: $subgenus_name, species_name: $species_name");
-
-	my $current_session_ref = $s->get("reference_no");
-	# make sure they've selected a reference
-	# (the only way to get here without a reference is by doing 
-	# a coll search right after logging in).
-	unless($current_session_ref){
-	    $s->enqueue_action('displayOccsForReID', $q);
-	    $q->param('type' => 'select');
-	    return displaySearchRefs($q, $s, $dbt, $hbo);	
-	}
-
-    # my $collNos = shift;
-	my @colls;
-	if($collNos){
-		@colls = @{$collNos};
-	}
-
-	my $printCollDetails = 0;
-
-	$output .= $hbo->stdIncludes( $PAGE_TOP );
-	$output .= $hbo->populateHTML('js_occurrence_checkform');
-    
-	my $pageNo = $q->param('page_no');
-	if ( ! $pageNo ) { 
-		$pageNo = 1;
-	}
-
-
-	my $reference_no = $current_session_ref;
-	my $ref = PBDB::Reference::getReference($dbt,$reference_no);
-	my $formatted_primary = PBDB::Reference::formatLongRef($ref);
-	my $refString = "<b>" . makeAnchor("displayReference", "reference_no=$reference_no", "$reference_no") . "</b> $formatted_primary<br>";
-
-	# Build the SQL
-	my @where = ();
-	my $printCollectionDetails = 0;
-	# Don't build it directly from the genus_name or species_name, let dispalyCollResults
-	# DO that for us and pass in a set of collection_nos, for consistency, then filter at the end
-
-	if (! @colls && $q->numeric_param('collection_no')) {
-		push @colls , $q->numeric_param('collection_no');
-	}
-
-	if (@colls) {
-		$printCollectionDetails = 1;
-		push @where, "collection_no IN (".join(',',@colls).")";
-		my ($genus,$subgenus,$species) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
-		if ( $genus )	{
-			my $names = $dbh->quote($genus);
-			if ($subgenus) {
-				$names .= ", ".$dbh->quote($subgenus);
-			}
-			push @where, "(genus_name IN ($names) OR subgenus_name IN ($names))";
-		}
-		push @where, "species_name LIKE ".$dbh->quote($species) if ($species);
-	} elsif ($collection_no) {
-		push @where, "collection_no=$collection_no";
-	} else {
-		push @where, "0=1";
-	}
-
-	# some occs are out of primary key order, so order them JA 26.6.04
-	my $sql = "SELECT * FROM occurrences WHERE ".join(" AND ",@where);
-        my $sortby = $q->param('sort_occs_by');
-	if ( $sortby && $sortby =~ /^\w+$/ )	{
-		$sql .= " ORDER BY $sortby";
-		if ( $q->param('sort_occs_order') eq "desc" )	{
-			$sql .= " DESC";
-		}
-	}
-	my $limit = 1 + 10 * $pageNo;
-	$sql .= " LIMIT $limit";
-
-	dbg("$sql<br>");
-	my @results = @{$dbt->getData($sql)};
-
-	my $rowCount = 0;
-	my %pref = $s->getPreferences();
-	my @optional = ('subgenera','genus_and_species_only','abundances','plant_organs','species_name');
-    if (@results) {
-        my $header_vars = {
-            'ref_string'=>$refString,
-            'search_taxon_name'=>$taxon_name,
-            'list_collection_no'=>$collection_no
-        };
-        $header_vars->{$_} = $pref{$_} for (@optional);
-		$output .= $hbo->populateHTML('reid_header_row', $header_vars);
-
-	splice @results , 0 , ( $pageNo - 1 ) * 10;
-        foreach my $row (@results) {
-            my $html = "";
-            # If we have 11 rows, skip the last one; and we need a next button
-            $rowCount++;
-            last if $rowCount > 10;
-
-            # Print occurrence row and reid input row
-            $html .= "<tr>\n";
-            $html .= "    <td align=\"left\" style=\"padding-top: 0.5em;\">".$row->{"genus_reso"};
-            $html .= " ".$row->{"genus_name"};
-            if ($pref{'subgenera'} eq "yes")	{
-                $html .= " ".$row->{"subgenus_reso"};
-                $html .= " ".$row->{"subgenus_name"};
-            }
-            $html .= " " . $row->{"species_reso"};
-            $html .= " " . $row->{"species_name"} . "</td>\n";
-            $html .= " <td>". $row->{"comments"} . "</td>\n";
-            if ($pref{'plant_organs'} eq "yes")	{
-                $html .= "    <td>" . $row->{"plant_organ"} . "</td>\n";
-                $html .= "    <td>" . $row->{"plant_organ2"} . "</td>\n";
-            }
-            $html .= "</tr>";
-            if ($current_session_ref == $row->{'reference_no'}) {
-                $html .= "<tr><td colspan=20><i>The current reference is the same as the original reference, so this taxon may not be reidentified.</i></td></tr>";
-            } else {
-                my $vars = {
-                    'collection_no'=>$row->{'collection_no'},
-                    'occurrence_no'=>$row->{'occurrence_no'},
-                    'reference_no'=>$current_session_ref
-                };
-                $vars->{$_} = $pref{$_} for (@optional);
-                $html .= $hbo->populateHTML('reid_entry_row',$vars);
-            }
-
-            # print other reids for the same occurrence
-
-            $html .= "<tr><td colspan=100>";
-            my ($table,$classification) = PBDB::CollectionEntry::getReidHTMLTableByOccNum($dbt,$hbo,$s,$row->{'occurrence_no'}, 0);
-            $html .= "<table>".$table."</table>";
-            $html .= "</td></tr>\n";
-            #$sth2->finish();
-            
-            my $ref = PBDB::Reference::getReference($dbt,$row->{'reference_no'});
-            my $formatted_primary = PBDB::Reference::formatShortRef($ref);
-            my $refString = '<b>' . makeAnchor("displayReference", "reference_no=$row->{reference_no}", "$row->{reference_no}") . "</b>&nbsp;$formatted_primary";
-
-            $html .= "<tr><td colspan=20 class=\"verysmall\" style=\"padding-bottom: 0.75em;\">Original reference: $refString<br>\n";
-            # Print the collections details
-            if ( $printCollectionDetails) {
-                my $sql = "SELECT collection_name,state,country,formation,period_max FROM collections WHERE collection_no=" . $row->{'collection_no'};
-                my $sth = $dbh->prepare( $sql ) || die ( "$sql<hr>$!" );
-                $sth->execute();
-                my %collRow = %{$sth->fetchrow_hashref()};
-                $html .= "Collection:";
-                my $details = makeAnchor("basicCollectionSearch", "collection_no=$row->{'collection_no'}", "$row->{'collection_no'}") . " " . $collRow{'collection_name'};
-                if ($collRow{'state'} && $collRow{'country'} eq "United States")	{
-                     $details .= " - " . $collRow{'state'};
-                }
-                if ($collRow{'country'})	{
-                    $details .= " - " . $collRow{'country'};
-                }
-                if ($collRow{'formation'})	{
-                    $details .= " - " . $collRow{'formation'} . " Formation";
-                }
-                if ($collRow{'period_max'})	{
-                    $details .= " - " . $collRow{'period_max'};
-                }
-                $html .= "$details </td>";
-                $html .= "</tr>";
-                $sth->finish();
-            }
-        
-            #$html .= "<tr><td colspan=100><hr width=100%></td></tr>";
-            if ($rowCount % 2 == 1) {
-                $html =~ s/<tr/<tr class=\"darkList\"/g;
-            } else	{
-                $html =~ s/<tr/<tr class=\"lightList\"/g;
-            }
-            $output .= $html;
-
-        }
+    unless( $s->get("reference_no") )
+    {
+	$s->enqueue_action('displayOccsForReID', $q);
+	$q->param('type' => 'select');
+	return displaySearchRefs($q, $s, $dbt, $hbo);	
     }
-
-	$output .= "</table>\n";
-	$pageNo++;
-	if ($rowCount > 0)	{
-		$output .= qq|<center><p><input type=submit value="Save reidentifications"></center></p>\n|;
-		$output .= qq|<input type="hidden" name="page_no" value="$pageNo">\n|;
-		$output .= qq|<input type="hidden" name="sort_occs_by" value="|;
-		$output .= $q->param('sort_occs_by') . "\">\n";
-		$output .= qq|<input type="hidden" name="sort_occs_order" value="|;
-		$output .= $q->param('sort_occs_order') . "\">\n";
-	} else	{
-		$output .= "<center><p class=\"pageTitle\">Sorry! No matches were found</p></center>\n";
-		$output .= "<p align=center>Please " . makeAnchor("displayReIDCollsAndOccsSearchForm", "", "try again") . " with different search terms</p>\n";
-	}
-	$output .= "</form>\n";
-	$output .= "\n<table border=0 width=100%>\n<tr>\n";
-
-	# Print prev and next  links as appropriate
-
-	# Next link
-	if ( $rowCount > 10 ) {
-        my $localsort_occs_by=$q->param('sort_occs_by');
-        my $localsort_occs_order=$q->param('sort_occs_order');
-		$output .= "<td align=center>";
-		$output .= "<b>" . makeAnchor("displayCollResults", "type=reid&taxon_name=$taxon_name&collection_no=$collection_no&sort_occs_by=$localsort_occs_by&sort_occs_order=$localsort_occs_order&page_no=$pageNo", "Skip to the next 10 occurrences") . "</b>";
-		$output .= "</td></tr>\n";
-		$output .= "<tr><td class=small align=center><i>Warning: if you go to the next page without saving, your changes will be lost</i></td>\n";
-	}
-
-	$output .= "</tr>\n</table><p>\n";
-
+    
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::OccurrenceEntry::displayOccsForReID($q, $s, $dbt, $hbo, $collNos);
     $output .= $hbo->stdIncludes($PAGE_BOTTOM);
     
     $hbo->pageTitle('PBDB Occurrences For Reidentification');
@@ -5289,46 +3600,38 @@ sub displayOccsForReID {
 }
 
 
-# Marks the most_recent field in the reidentifications table to YES for the most recent reid for
-# an occurrence, and marks all not-most-recent to NO.  Needed for collections search for Map and such
-# PS 8/15/2005
-sub setMostRecentReID {
-    
-    my ($q, $s, $dbt, $hbo, $occurrence_no) = @_;
-    
-    # my $dbt = shift;
-    my $dbh = $dbt->dbh;
-    # my $occurrence_no = shift;
+# This action is called as the submit action from three different forms:
+# - the OccurrenceAddEdit form
+# - the OccurrenceListForm
+# - the OccsForReID form
 
-    if ($occurrence_no =~ /^\d+$/) {
-        my $sql = "SELECT re.* FROM reidentifications re, refs r WHERE r.reference_no=re.reference_no AND re.occurrence_no=".$occurrence_no." ORDER BY r.pubyr DESC, re.reid_no DESC";
-        my @results = @{$dbt->getData($sql)};
-        if ($results[0]->{'reid_no'}>0) {
-            $sql = "UPDATE reidentifications SET modified=modified, most_recent='YES' WHERE reid_no=".$results[0]->{'reid_no'};
-            my $result = $dbh->do($sql);
-            dbg("set most recent: $sql");
-            if (!$result) {
-                carp "Error setting most recent reid to YES for reid_no=$results[0]->{reid_no}";
-            } else	{
-                $sql = "UPDATE occurrences SET modified=modified, reid_no=".$results[0]->{'reid_no'}." WHERE occurrence_no=".$occurrence_no;
-                my $result = $dbh->do($sql);
-            }
-                
-            my @older_reids;
-            for(my $i=1;$i<scalar(@results);$i++) {
-                push @older_reids, $results[$i]->{'reid_no'};
-            }
-            if (@older_reids) {
-                $sql = "UPDATE reidentifications SET modified=modified, most_recent='NO' WHERE reid_no IN (".join(",",@older_reids).")";
-                $result = $dbh->do($sql);
-                dbg("set not most recent: $sql");
-                if (!$result) {
-                    carp "Error setting most recent reid to NO for reid_no IN (".join(",",@older_reids).")"; 
-                }
-            }
-        }
+sub processEditOccurrences {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    if (!$s->isDBMember()) {
+	return login( "Please log in first." );
     }
+    
+    unless ( $q->param('check_status') eq 'done' )
+    {
+	my $output = $hbo->stdIncludes($PAGE_TOP);
+	$output .= "<center><p>Something went wrong, and the database could not be updated.  Please notify the database administrator.</p></center>\n<br>\n";
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+	return $output;
+    }
+    
+    my $output = $hbo->stdIncludes( $PAGE_TOP );
+    $output .= PBDB::OccurrenceEntry::processEditOccurrences($q, $s, $dbt, $hbo);
+    $output .= $hbo->stdIncludes( $PAGE_BOTTOM );
+    
+    $hbo->pageTitle('PBDB Occurrences Saved');
+    
+    return $output;
 }
+
 
 # ------------------------ #
 # Person pages

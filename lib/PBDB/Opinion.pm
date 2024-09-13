@@ -1674,7 +1674,7 @@ sub displayOpinionChoiceForm {
         foreach my $row (@results) {
             my $o = PBDB::Opinion->new($dbt,$row->{'opinion_no'});
             my ($opinion,$relation,$authority) = $o->formatAsHTML('return_array'=>1);
-            $authority = $relation . makeAnchor("displayReference", "reference_no=$o->{reference_no}", $authority);
+            $authority = $relation . makeAnchor("app/refs", "#display=$o->{reference_no}", $authority);
             if ( $row->{'opinion_no'} == $row->{'current_opinion'} )	{
                 $opinion = "<b>$opinion</b>";
             }
@@ -1951,7 +1951,7 @@ sub badNames	{
 			$by = $e->{'auth1'}." and ".$e->{'auth2'}." ".$e->{'yr'};
 		}
 		$by =~ s/, jr.//gi;
-		$by = makeATag('displayReference', "reference_no=$e->{'refno'}") . $by;
+		$by = makeATag('app/refs', "#display=$e->{'refno'}") . $by;
 		$output .= '<div class="small" style="margin-top: 1em; margin-left: 1em; text-indent: -1em;">&bull; '.$e->{'taxon_rank'}." ".$e->{'taxon_name'}."</div>\n\n";
 		$output .= "<div class=\"verysmall\" style=\"margin-left: 1em; text-indent: -1em; padding-left: 1em;\">currently assigned to ".$e->{'parent'}." based on $by</a></div>";
 		if ( $parent_problem{$e->{'taxon_no'}} )	{

@@ -20,7 +20,7 @@ sub startReclassifyOccurrences	{
 	if ( $q->numeric_param("collection_no") )	{
         # if they have the collection number, they'll immediately go to the
         #  reclassify page
-		displayOccurrenceReclassify($q,$s,$dbt,$hbo);
+		$output = displayOccurrenceReclassify($q,$s,$dbt,$hbo);
 	} else	{
         my %vars = $q->Vars();
         $vars{'enterer_me'} = $s->get('enterer_reversed');
@@ -43,56 +43,94 @@ sub startReclassifyOccurrences	{
 # print a list of the taxa in the collection with pulldowns indicating
 #  alternative classifications
 sub displayOccurrenceReclassify	{
+    
     my ($q,$s,$dbt,$hbo,$collections_ref) = @_;
     my $dbh = $dbt->dbh;
+    
     my @collections = ();
     my $output = '';
+    
     @collections = @$collections_ref if ($collections_ref);
-    if ($q->param("collection_list")) {
+    
+    if ($q->param("collection_list"))
+    {
         @collections = split(/\s*,\s*/,$q->param('collection_list'));
     }
-
-	$output .= $hbo->stdIncludes("std_page_top");
-
+    
+    $output .= $hbo->stdIncludes("std_page_top");
+    
     my @occrefs;
-    if (@collections) {
-	    $output .= "<center><p class=\"pageTitle\">Classification of \"".$q->param('taxon_name')."\" occurrences</p>";
+    
+    if (@collections)
+    {
+	$output .= "<center><p class=\"pageTitle\">Classification of \"".$q->param('taxon_name')."\" occurrences</p>";
         my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($q->param('taxon_name'));
         my @names = ($dbh->quote($genus));
         if ($subgenus) {
             push @names, $dbh->quote($subgenus);
         }
         my $names = join(", ",@names);
-        my $sql = "(SELECT 0 reid_no, o.authorizer_no, o.occurrence_no,o.taxon_no, o.genus_reso, o.genus_name, o.subgenus_reso, o.subgenus_name, o.species_reso, o.species_name, c.collection_no, c.collection_name, c.country, c.state, c.max_interval_no, c.min_interval_no FROM occurrences o, collections c WHERE o.collection_no=c.collection_no AND c.collection_no IN (".join(", ",@collections).") AND (o.genus_name IN ($names) OR o.subgenus_name IN ($names))";
-        if ($species) {
-            $sql .= " AND o.species_name LIKE ".$dbh->quote($species);
+	
+        my $sql = "(SELECT 0 as reid_no, o.authorizer_no, o.occurrence_no, o.taxon_no, o.genus_reso, o.genus_name, o.subgenus_reso, o.subgenus_name, o.species_reso, o.species_name, o.subspecies_reso, o.subspecies_name, c.collection_no, c.collection_name, c.country, c.state, c.max_interval_no, c.min_interval_no FROM occurrences o, collections c WHERE o.collection_no=c.collection_no AND c.collection_no IN (".join(", ",@collections).") AND (o.genus_name IN ($names) OR o.subgenus_name IN ($names))";
+        
+	if ( $species )
+	{
+            $sql .= " AND o.species_name LIKE " . $dbh->quote($species);
         }
-        if ($q->param('authorizer_only') =~ /yes/i) {
+	
+	if ( $subspecies ) 
+	{
+	    $sql .= " AND o.subspecies_name LIKE " . $dbh->quote($subspecies);
+	}
+	
+        if ($q->param('authorizer_only') =~ /yes/i)
+	{
             $sql .= " AND o.authorizer_no=".$s->get('authorizer_no');
         }
-        if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
+	
+        if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/)
+	{
             $sql .= " AND o.authorizer_no IN (".$q->param('occurrences_authorizer_no').")";
         }
+	
         $sql .= ")";
         $sql .= " UNION ";
-        $sql .= "( SELECT re.reid_no, re.authorizer_no,re.occurrence_no,re.taxon_no, re.genus_reso, re.genus_name, re.subgenus_reso, re.subgenus_name, re.species_reso, re.species_name, c.collection_no, c.collection_name, c.country, c.state, c.max_interval_no, c.min_interval_no FROM reidentifications re, occurrences o, collections c WHERE re.occurrence_no=o.occurrence_no AND o.collection_no=c.collection_no AND c.collection_no IN (".join(", ",@collections).") AND (re.genus_name IN ($names) OR re.subgenus_name IN ($names))";
-        if ($species) {
-            $sql .= " AND re.species_name LIKE ".$dbh->quote($species);
+	
+        $sql .= "( SELECT re.reid_no, re.authorizer_no, re.occurrence_no, re.taxon_no, re.genus_reso, re.genus_name, re.subgenus_reso, re.subgenus_name, re.species_reso, re.species_name, re.subspecies_reso, re.subspecies_name, c.collection_no, c.collection_name, c.country, c.state, c.max_interval_no, c.min_interval_no FROM reidentifications re, occurrences o, collections c WHERE re.occurrence_no=o.occurrence_no AND o.collection_no=c.collection_no AND c.collection_no IN (".join(", ",@collections).") AND (re.genus_name IN ($names) OR re.subgenus_name IN ($names))";
+        
+	if ( $species )
+	{
+            $sql .= " AND re.species_name LIKE " . $dbh->quote($species);
         }
-        if ($q->param('authorizer_only') =~ /yes/i) {
+	
+	if ( $subspecies )
+	{
+	    $sql .= " AND re.subspecies_name LIKE " . $dbh->quote($subspecies);
+	}
+	
+        if ($q->param('authorizer_only') =~ /yes/i)
+	{
             $sql .= " AND re.authorizer_no=".$s->get('authorizer_no');
         }
-        if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
+	
+        if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/)
+	{
             $sql .= " AND re.authorizer_no IN (".$q->param('occurrences_authorizer_no').")";
         }
+	
         $sql .= ") ORDER BY occurrence_no ASC, reid_no ASC";
-        dbg("Reclassify sql:".$sql);
+	
+        dbg("Reclassify sql: $sql");
+	
         @occrefs = @{$dbt->getData($sql)};
-    } else {
-	    my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->numeric_param('collection_no');
-	    my $coll_name = ${$dbt->getData($sql)}[0]->{collection_name};
-	    $output .= "<center><p class=\"pageTitle\">Classification of taxa in collection ",$q->numeric_param('collection_no')," ($coll_name)</p>";
-       
+    }
+    
+    else
+    {
+	my $sql = "SELECT collection_name FROM collections WHERE collection_no=" . $q->numeric_param('collection_no');
+	my $coll_name = ${$dbt->getData($sql)}[0]->{collection_name};
+	$output .= "<center><p class=\"pageTitle\">Classification of taxa in collection ",$q->numeric_param('collection_no')," ($coll_name)</p>";
+	
         my $authorizer_where = "";
         if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
             $authorizer_where = " AND authorizer_no IN (".$q->param('occurrences_authorizer_no').")";
@@ -100,78 +138,113 @@ sub displayOccurrenceReclassify	{
 
         # get all the occurrences
         my $collection_no = $q->numeric_param('collection_no');
-        $sql = "(SELECT 0 reid_no,authorizer_no, occurrence_no,taxon_no,genus_reso,genus_name,subgenus_reso,subgenus_name,species_reso,species_name FROM occurrences WHERE collection_no=$collection_no $authorizer_where)".
+        $sql = "(SELECT 0 as reid_no, authorizer_no, occurrence_no, taxon_no, genus_reso, genus_name, subgenus_reso, subgenus_name, species_reso, species_name, subspecies_reso, subspecies_name FROM occurrences WHERE collection_no=$collection_no $authorizer_where)".
                " UNION ".
-               "(SELECT reid_no,authorizer_no, occurrence_no,taxon_no,genus_reso,genus_name,subgenus_reso,subgenus_name,species_reso,species_name FROM reidentifications WHERE collection_no=$collection_no $authorizer_where)".
+               "(SELECT reid_no, authorizer_no, occurrence_no, taxon_no, genus_reso, genus_name, subgenus_reso, subgenus_name, species_reso, species_name, subspecies_reso, subspecies_name FROM reidentifications WHERE collection_no=$collection_no $authorizer_where)".
                " ORDER BY occurrence_no ASC,reid_no ASC";
         dbg("Reclassify sql:".$sql);
         @occrefs = @{$dbt->getData($sql)};
     }
 
-	# tick through the occurrences
-	# NOTE: the list will be in data entry order, nothing fancy here
-	if ( @occrefs )	{
-		$output .= makeFormPostTag();
-		$output .= "<input id=\"action\" type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n";
-		if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
-		    $output .= "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
-		}
-        if (@collections) {
+    # tick through the occurrences
+    # NOTE: the list will be in data entry order, nothing fancy here
+    
+    if ( @occrefs )
+    {
+	$output .= makeFormPostTag();
+	$output .= "<input id=\"action\" type=\"hidden\" name=\"action\" value=\"startProcessReclassifyForm\">\n";
+	
+	if ($q->param('occurrences_authorizer_no') =~ /^[\d,]+$/) {
+	    $output .= "<input name=\"occurrences_authorizer_no\" type=\"hidden\" value=\"".$q->param('occurrences_authorizer_no')."\">\n";
+	}
+	
+        if (@collections)
+	{
             $output .= "<input type=\"hidden\" name=\"taxon_name\" value=\"".$q->param('taxon_name')."\">";
-		    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+	    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
             $output .= "<tr><th class=\"large\" colspan=2>Collection</th><th class=\"large\" colspan=2 style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
-        } else {
+        }
+	
+	else
+	{
             $output .= "<input type=\"hidden\" name=\"collection_no\" value=\"".$q->numeric_param('collection_no')."\">";
-		    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+	    $output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
             $output .= "<tr><th class=\"large\">Taxon name</th><th colspan=2 class=\"large\" style=\"text-align: left; padding-left: 2em;\">Classification based on</th></tr>";
         }
-	}
-
+    }
+    
+    else
+    {
+	$output .= "<p>Nothing to reclassify</p>\n\n";
+    }
+    
     # Make non-editable links not changeable
-# knocked this out 28.2.08 because it's unclear why anyone would care if
-#  someone else fixed the classification of their occurrence JA
-#    my $p = PBDB::Permissions->new($s,$dbt);
-#    my %is_modifier_for = %{$p->getModifierList()};
-
-	my $rowcolor = 0;
+    # knocked this out 28.2.08 because it's unclear why anyone would care if
+    #  someone else fixed the classification of their occurrence JA
+    #    my $p = PBDB::Permissions->new($s,$dbt);
+    #    my %is_modifier_for = %{$p->getModifierList()};
+    
+    my $rowcolor = 0;
     my $nonEditableCount = 0;
     my @badoccrefs;
     my $nonExact = 0;
-	for my $o ( @occrefs )	{
-#        my $editable = ($s->get("superuser") || $is_modifier_for{$o->{'authorizer_no'}} || $o->{'authorizer_no'} == $s->get('authorizer_no')) ? 1 : 0;
-my $editable = 1;
-        my $authorizer = ($editable) ? '' : '(Authorizer: '.PBDB::Person::getPersonName($dbt,$o->{'authorizer_no'}).')';
+    
+    for my $o ( @occrefs )
+    {
+	# my $editable = ($s->get("superuser") || $is_modifier_for{$o->{'authorizer_no'}} || $o->{'authorizer_no'} == $s->get('authorizer_no')) ? 1 : 0;
+	my $editable = 1;
+	my $authorizer = ($editable) ? '' : '(Authorizer: '.PBDB::Person::getPersonName($dbt,$o->{'authorizer_no'}).')';
         $nonEditableCount++ if (!$editable);
-
-		# if the name is informal, add it to the list of
-		#  unclassifiable names
-		if ( $o->{genus_reso} =~ /informal/ )	{
-			push @badoccrefs , $o;
-		}
-		# otherwise print it
-		else	{
-			# compose the taxon name
-			my $taxon_name = $o->{genus_name};
-			if ( $o->{species_reso} !~ /informal/ && $o->{species_name} !~ /^sp\./ && $o->{species_name} !~ /^indet\./)	{
-				$taxon_name .= " " . $o->{species_name};
-			}
+	
+	# if the name is informal, add it to the list of
+	#  unclassifiable names
+	if ( $o->{genus_reso} =~ /informal/ )	{
+	    push @badoccrefs , $o;
+	}
+	# otherwise print it
+	else
+	{
+	    # compose the taxon name
+	    my $taxon_name = $o->{genus_name};
+	    
+	    if ( $o->{species_reso} !~ /informal/ && $o->{species_name} !~ /\.$/ )
+	    {
+		$taxon_name .= " " . $o->{species_name};
+	    }
+	    
+	    if ( $o->{subspecies_reso} !~ /informal/ && $o->{subspecies_name} !~ /\.$/ )
+	    {
+		$taxon_name .= " " . $o->{subspecies_name};
+	    }
+	    
             my @all_matches = PBDB::Taxon::getBestClassification($dbt,$o);
-
-			# now print the name and the pulldown of authorities
-			if ( @all_matches )	{
-                foreach my $m (@all_matches) {
-                    if ($m->{'match_level'} < 30)	{
+	    
+	    # now print the name and the pulldown of authorities
+	    
+	    if ( @all_matches )
+	    {
+                foreach my $m (@all_matches)
+		{
+                    if ($m->{'match_level'} < 30)
+		    {
                         $nonExact++;
                     }
                 }
-				if ( $rowcolor % 2 )	{
-					$output .= "<tr>";
-				} else	{
-					$output .= "<tr class='darkList'>";
-				}
-
+		
+		if ( $rowcolor % 2 )
+		{
+		    $output .= "<tr>";
+		}
+		
+		else
+		{
+		    $output .= "<tr class='darkList'>";
+		}
+		
                 my $collection_string = "";
-                if ($o->{'collection_no'}) {
+		
+                if ($o->{'collection_no'})
+		{
                     my $tsql = "SELECT interval_name FROM intervals WHERE interval_no=" . $o->{max_interval_no};
                     my $maxintname = @{$dbt->getData($tsql)}[0];
                     $collection_string = $o->{'collection_name'}." ";
@@ -194,111 +267,166 @@ my $editable = 1;
 
                     $output .= "<td style=\"padding-right: 1.5em; padding-left: 1.5em;\">" . makeAnchor("displayCollectionDetails", "collection_no=$o->{collection_no}", "$o->{collection_no}") . "</td><td>$collection_string</td>";
                 }
-				$output .= "<td><span style=\"white-space:nowrap;\">&nbsp;&nbsp;\n";
+		
+		$output .= "<td><span style=\"white-space:nowrap;\">&nbsp;&nbsp;\n";
 
-				# here's the name
-				my $formatted = "";
-				if ( $o->{'species_name'} !~ /^indet\./ )	{
-					$formatted .= "<i>";
-				}
-				$formatted .= "$o->{genus_reso} $o->{genus_name}";
-                if ($o->{'subgenus_name'}) {
+		# here's the name
+		
+		my $formatted = "";
+		
+		if ( $o->{'species_name'} !~ /\.$/ )
+		{
+		    $formatted .= "<i>";
+		}
+		
+		$formatted .= "$o->{genus_reso} $o->{genus_name}";
+		
+                if ( $o->{'subgenus_name'} )
+		{
                     $formatted .= " $o->{subgenus_reso} ($o->{subgenus_name})";
                 }
+		
                 $formatted .= " $o->{species_reso} $o->{species_name}";
-				if ( $o->{'species_name'} !~ /^indet\./ )	{
-					$formatted .= "</i>";
-				}
+		
+		if ( $o->{subspecies_name} )
+		{
+		    $formatted .= " $o->{subspecies_reso} $o->{subspecies_name}";
+		}
+		
+		if ( $o->{'species_name'} !~ /\.$/ )
+		{
+		    $formatted .= "</i>";
+		}
+		
                 $formatted .= " </span>";
-                if (!$collection_string) {
+		
+                if (!$collection_string)
+		{
                     $formatted .= " <span class=\"tiny\" style=\"white-space: nowrap;\">$authorizer</span>";
                 }
 
-				# need a hidden recording the old taxon number
+		# need a hidden recording the old taxon number
                 $collection_string .= ": " if ($collection_string);
-                 
-				if ( $o->{reid_no} )	{
-					$output .= "&nbsp;&nbsp;<span class='small'>reID: </span>&nbsp;";
+		
+		if ( $o->{reid_no} )
+		{
+		    $output .= "&nbsp;&nbsp;<span class='small'>reID: </span>&nbsp;";
                 }
 
                 my $description = "$collection_string $formatted";
-
-				$output .= $formatted;
-				$output .= "</td>\n";
-
-				# start the select list
-				# the name depends on whether this is
-				#  an occurrence or reID
-				$output .= "<td>&nbsp;&nbsp;\n";
-                if ($o->{reid_no}) {
+		
+		$output .= $formatted;
+		$output .= "</td>\n";
+		
+		# start the select list
+		# the name depends on whether this is
+		#  an occurrence or reID
+		
+		$output .= "<td>&nbsp;&nbsp;\n";
+		
+                if ($o->{reid_no})
+		{
                     $output .= classificationSelect($dbt,$o->{reid_no},1,$editable,\@all_matches,$o->{taxon_no},$description);
-                } else {
+                }
+		
+		else
+		{
                     $output .= classificationSelect($dbt,$o->{$OCCURRENCE_NO},0,$editable,\@all_matches,$o->{taxon_no},$description);
                 }
+		
                 $output .= "</td>\n";
-				$output .= "</tr>\n";
-				$rowcolor++;
-			} else	{
-				push @badoccrefs , $o;
-			}
-		}
+		$output .= "</tr>\n";
+		$rowcolor++;
+	    }
+	    
+	    else
+	    {
+		push @badoccrefs , $o;
+	    }
 	}
-	if ( @occrefs )	{
-		$output .= "</table>\n";
-		$output .= "<p><input type=submit value='Reclassify'></p>\n";
-		$output .= "</form>\n";
-	}
-	$output .= "<p>\n";
+    }
+    
+    if ( @occrefs )
+    {
+	$output .= "</table>\n";
+	$output .= "<p><input type=submit value='Reclassify'></p>\n";
+	$output .= "</form>\n";
+    }
+    $output .= "<p>\n";
+    
     my @warnings;
-	if ( $nonExact)	{
-		push @warnings, "Exact formal classifications for some taxa could not be found, so approximate matches were used.  For example, a species might not be formally classified but its genus is.";
-	}
-    if ( $nonEditableCount) {
+    
+    if ( $nonExact)
+    {
+	push @warnings, "Exact formal classifications for some taxa could not be found, so approximate matches were used.  For example, a species might not be formally classified but its genus is.";
+    }
+    
+    if ( $nonEditableCount)
+    {
         push @warnings, "Some occurrences can't be reclassified because they have a different authorizer.";
     }
-    if (@warnings) {
+    
+    if (@warnings)
+    {
         $output .= PBDB::Debug::printWarnings(\@warnings);
     }
-
-	# $output .= the informal and otherwise unclassifiable names
-	if ( @badoccrefs )	{
-		$output .= "<hr>\n";
-		$output .= "<p class=\"large\">Occurrences that cannot be classified</p>";
-		$output .= "<p><i>Check these names for typos and/or create new taxonomic authority records for them</i></p>\n";
-		$output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+    
+    # $output .= the informal and otherwise unclassifiable names
+    
+    if ( @badoccrefs )
+    {
+	$output .= "<hr>\n";
+	$output .= "<p class=\"large\">Occurrences that cannot be classified</p>";
+	$output .= "<p><i>Check these names for typos and/or create new taxonomic authority records for them</i></p>\n";
+	$output .= "<table border=0 cellpadding=0 cellspacing=0 class=\"small\">\n";
+    }
+    
+    $rowcolor = 0;
+    
+    for my $b ( @badoccrefs )
+    {
+	if ( $rowcolor % 2 )	{
+	    $output .= "<tr>";
+	} else	{
+	    $output .= "<tr class='darkList'>";
 	}
-	$rowcolor = 0;
-	for my $b ( @badoccrefs )	{
-		if ( $rowcolor % 2 )	{
-			$output .= "<tr>";
-		} else	{
-			$output .= "<tr class='darkList'>";
-		}
-		$output .= "<td align='left'>&nbsp;&nbsp;";
-		if ( $b->{'species_name'} !~ /^indet\./)	{
-			$output .= "<i>";
-		}
-		$output .= "$b->{genus_reso} $b->{genus_name}";
-        if ($b->{'subgenus_name'}) {
+	
+	$output .= "<td align='left'>&nbsp;&nbsp;";
+	
+	if ( $b->{'species_name'} !~ /^indet\./)
+	{
+	    $output .= "<i>";
+	}
+	
+	$output .= "$b->{genus_reso} $b->{genus_name}";
+        
+	if ($b->{'subgenus_name'})
+	{
             $output .= " $b->{subgenus_reso} ($b->{subgenus_name})";
         }
-        $output .= " $b->{species_reso} $b->{species_name}\n";
-		if ( $b->{'species_name'} !~ /^indet\./)	{
-			$output .= "</i>";
-		}
-		$output .= "&nbsp;&nbsp;</td></tr>\n";
-		$rowcolor++;
+        
+	$output .= " $b->{species_reso} $b->{species_name}\n";
+	
+	if ( $b->{'species_name'} !~ /^indet\./)
+	{
+	    $output .= "</i>";
 	}
-	if ( @badoccrefs )	{
-		$output .= "</table>\n";
-	}
-
-	$output .= "<p>\n";
-	$output .= "</center>\n";
-
-	$output .= $hbo->stdIncludes("std_page_bottom");
-
-        return $output;
+	
+	$output .= "&nbsp;&nbsp;</td></tr>\n";
+	$rowcolor++;
+    }
+    
+    if ( @badoccrefs )
+    {
+	$output .= "</table>\n";
+    }
+    
+    $output .= "<p>\n";
+    $output .= "</center>\n";
+    
+    $output .= $hbo->stdIncludes("std_page_bottom");
+    
+    return $output;
 }
 
 sub processReclassifyForm	{

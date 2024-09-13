@@ -446,7 +446,9 @@ sub showFeaturedAuthorizers	{
         my $longref = PBDB::Reference::formatLongRef($refdata{$row->{'max_ref'}});
         # authorizer/enterer not needed
         $longref =~ s/ \[.*//;
-        $html .= "<div class=\"verysmall\" style=\"padding-top: 0.3em;\"><i>" . makeAnchor("displayReference", "reference_no=$row->{'max_ref'}", "Latest reference:</i> ") . $longref. "</div>";
+        $html .= "<div class=\"verysmall\" style=\"padding-top: 0.3em;\"><i>" . 
+	    makeAnchor("app/refs", "#display=$row->{'max_ref'}", "Latest reference:</i> ") . 
+	    $longref. "</div>";
         $html .= "<div style=\"clear: both;\"></div></div>\n";
         if ( $i == int( $#results / 2 ) )	{
             $html .= "</td><td width=\"50%\" valign=\"top\">\n";

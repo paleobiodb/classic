@@ -1,10 +1,14 @@
 
+<script src="/public/classic_js/check_occurrences.js"></script>
+
 <div align="center"><p class="large" style="margin-bottom: 1.5em;">%%collection_name%%<p></div>
 
 <p class="verysmall" style="margin-left: 8em; margin-right: 8em;">
 %%old_occurrences%%
 You can always use the <a href="%%write_url%%?action=displayOccurrenceAddEdit">regular form</a> instead.
 </p>
+
+<form name="occurrenceList" method="post" action="$WRITE_URL" onSubmit='return checkForm();'>
 
 <input name="action" value="processEditOccurrences" type="hidden">
 <input type="hidden" name="collection_no" value="">

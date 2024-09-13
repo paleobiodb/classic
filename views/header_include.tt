@@ -27,6 +27,11 @@
           window.open( 
               doclink, "_blank"); 
       }     </script>
+        <style>
+    .navbar-brand img {
+        margin-top: -12px;
+    }
+    </style>
   </head>
 [% IF pbdb_site == 'dev' -%]
 [%   nb_color = 'background-color: #7b4070' -%]
