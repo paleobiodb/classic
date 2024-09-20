@@ -82,7 +82,7 @@
               <ul class="dropdown-menu">
                 <li><a href="/classic/displaySearchColls?type=view">Fossil collection records</a></li>
                 <li><a href="/classic/beginTaxonInfo">Fossil organisms</a></li>
-                <li><a href="/classic/displaySearchRefs?type=view">Published references</a></li>
+                <li><a href="/classic/app/refs">Published references</a></li>
                 <li><a href="/classic/classificationForm">Classifications of taxa in groups</a></li>
                 <li><a href="/classic/displaySearchStrataForm">Stratigraphic units</a></li>
                 <li><a href="/classic/app/archive/list">Data archives</a></li>
@@ -92,10 +92,9 @@
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Actions<b class="caret"></b></a>
               <ul class="dropdown-menu">
-                <li><a href="/classic?a=displaySearchRefs&amp;type=select">Select reference</a></li>
+                <li><a href="/classic/app/refs">Select reference</a></li>
                 <li><a href="/classic?a=clearRef&amp;type=select">Clear reference</a></li>
-                <li><a href="/classic?a=displaySearchRefs&amp;type=add">Add reference</a></li>
-                <li><a href="/classic?a=editCurrentRef">Edit reference</a></li>
+                <li><a href="/classic/app/refs?type=new">Add reference</a></li>
                 <li><a href="/classic?a=displaySearchCollsForAdd">Add collection</a></li>
                 <li><a href="/classic?a=displaySearchColls&amp;type=edit">Edit collection</a></li>
                 <li><a href="/classic?a=displayOccurrenceAddEdit">Add/Edit occurrences</a></li>
@@ -113,7 +112,7 @@
 	    [% IF pbdb_site == 'training' %]
 	      <li><a name="sitetype">TRAINING SITE</a></li>
 	    [% ELSIF pbdb_site == 'dev' %]
-	      <li><a name="sitetype">DEVELOPMENT SITE</a></li>
+	      <li><a name="sitetype">DEV SITE</a></li>
 	    [% ELSIF pbdb_site != 'main' %]
 	      <li><a name="sitetype">LOCAL SITE</a></li>
 	    [% END %]
