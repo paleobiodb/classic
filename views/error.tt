@@ -6,7 +6,12 @@
     [% INCLUDE account/authenticate_include.tt redirect_after=params.redirect_after || request.path %]
 [% ELSIF code == 500 %]
     <h1>Server Error</h1>
+    [% IF pbdb_site == 'dev' %]
+    <p>[% exception %]</p>
+    [% ELSE %]
     <p><b>Please contact the <a href="[% INCLUDE error_report.tt %]">database administrator</a></b></p>
+    [% END %]
+    <p>You may <a href="javascript:history.go(-1);">go back from whence you came</a>.</p>
 [% ELSE %]
     <h1>[% title %]</h1>
     <p>You may <a href="javascript:history.go(-1);">go back from whence you came</a>.</p>

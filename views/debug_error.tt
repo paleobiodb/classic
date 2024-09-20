@@ -7,6 +7,10 @@
 [% ELSIF code == 500 %]
     <h1>Server Error</h1>
     <p>[% message %]</p>
+    [% IF pbdb_site == 'dev' %]
+    <p>[% exception %]</p>
+    [% END %]
+    <p>You may <a href="javascript:history.go(-1);">go back from whence you came</a>.</p>
 [% ELSE %]
     <h1>[% title %]</h1>
     <p>You may <a href="javascript:history.go(-1);">go back from whence you came</a>.</p>
