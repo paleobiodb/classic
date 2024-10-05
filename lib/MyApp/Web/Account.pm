@@ -65,11 +65,8 @@ post '/login' => sub {
     
     my $persistent = params->{persistent};
     
-    # check for a valid authorizer and make sure that the account is not disabled.
+    # Check that the account is not disabled.
     
-    my $authorizer_no = $user->get_column('authorizer_no');
-    my $person_no = $user->get_column('person_no');
-    my $role = $user->get_column('role');
     my $status = $user->get_column('contributor_status');
     
     if ( $status ne 'active' )
@@ -77,62 +74,68 @@ post '/login' => sub {
 	ouch(403, "This account is disabled.");
     }
     
-    if ( $authorizer_no && $person_no )
-    {
-	if ( $authorizer_no ne $person_no )
-	{
-	    my $dbh = $schema->storage->dbh;
-	    
-	    my ($check_no) = $dbh->selectrow_array("
-		SELECT authorizer_no FROM authents WHERE authorizer_no = $authorizer_no
-			and enterer_no = $person_no");
-	    
-	    if ( $check_no )
-	    {
-		$user->login_role('enterer');
-		$user->login_authorizer_no($authorizer_no);
-		return login($user, $persistent);
-	    }
-	}
-	
-	elsif ( $role eq 'authorizer' )
-	{
-	    $user->login_role('authorizer');
-	    $user->login_authorizer_no($authorizer_no);
-	    return login($user, $persistent);
-	}
-    }
-
-    elsif ( $role eq 'authorizer' )
-    {
-	$user->set_column('authorizer_no', $person_no);
-	$user->login_role('authorizer');
-	$user->login_authorizer_no($person_no);
-	return login($user, $persistent);
-    }
+    # Check that the user role and authorizer_no are consistent.
     
-    elsif ( ($role eq 'enterer' || $role eq 'student') && $person_no )
-    {
-	my $dbh = $schema->storage->dbh;
-	
-	my ($authorizer_no) = $dbh->selectrow_array("SELECT authorizer_no FROM authents WHERE enterer_no = $person_no LIMIT 1");
-	
-	if ( $authorizer_no )
-	{
-	    $user->set_column('authorizer_no', $authorizer_no);
-	    $user->login_role($role);
-	    $user->login_authorizer_no($authorizer_no);
-	    return login($user, $persistent);
-	}
-	
-	else
-	{
-	    ouch(403, "You must be assigned to an authorizer before you can log in.");
-	}
-    }
+    # my $authorizer_no = $user->get_column('authorizer_no');
+    # my $person_no = $user->get_column('person_no');
+    # my $role = $user->get_column('role');
     
-    $user->login_role('guest');
-    $user->login_authorizer_no(0);
+    # if ( $authorizer_no && $person_no )
+    # {
+    # 	if ( $authorizer_no ne $person_no )
+    # 	{
+    # 	    my $dbh = $schema->storage->dbh;
+	    
+    # 	    my ($check_no) = $dbh->selectrow_array("
+    # 		SELECT authorizer_no FROM authents WHERE authorizer_no = $authorizer_no
+    # 			and enterer_no = $person_no");
+	    
+    # 	    if ( $check_no )
+    # 	    {
+    # 		# $user->login_role('enterer');
+    # 		# $user->login_authorizer_no($authorizer_no);
+    # 		return login($user, $persistent);
+    # 	    }
+    # 	}
+	
+    # 	elsif ( $role eq 'authorizer' )
+    # 	{
+    # 	    # $user->login_role('authorizer');
+    # 	    # $user->login_authorizer_no($authorizer_no);
+    # 	    return login($user, $persistent);
+    # 	}
+    # }
+    
+    # elsif ( $role eq 'authorizer' )
+    # {
+    # 	# $user->set_column('authorizer_no', $person_no);
+    # 	# $user->login_role('authorizer');
+    # 	# $user->login_authorizer_no($person_no);
+    # 	return login($user, $persistent);
+    # }
+    
+    # elsif ( ($role eq 'enterer' || $role eq 'student') && $person_no )
+    # {
+    # 	my $dbh = $schema->storage->dbh;
+	
+    # 	my ($authorizer_no) = $dbh->selectrow_array("SELECT authorizer_no FROM authents WHERE enterer_no = $person_no LIMIT 1");
+	
+    # 	if ( $authorizer_no )
+    # 	{
+    # 	    # $user->set_column('authorizer_no', $authorizer_no);
+    # 	    # $user->login_role($role);
+    # 	    # $user->login_authorizer_no($authorizer_no);
+    # 	    return login($user, $persistent);
+    # 	}
+	
+    # 	else
+    # 	{
+    # 	    ouch(403, "You must be assigned to an authorizer before you can log in.");
+    # 	}
+    # }
+    
+    # $user->login_role('guest');
+    # $user->login_authorizer_no(0);
     return login($user, $persistent);
 };
 
@@ -285,11 +288,43 @@ sub login {
     
     # print STDERR "Logging in with expire_days = $expire_days\n";
     
-    my $session = $user->start_session({ api_key_id => Wing->config->get('default_api_key'), ip_address => request->remote_address, expire_days =>  $expire_days });
+    my $session = $user->start_session({ api_key_id => Wing->config->get('default_api_key'), 
+					 ip_address => request->remote_address, 
+					 expire_days =>  $expire_days });
+    
     set_cookie session_id   => $session->id,
                 expires     => '+5y',
                 http_only   => 0,
                 path        => '/';
+    
+    my $dbh = Wing->db->storage->dbh;
+    
+    my $session_id = $session->id;
+    my $user_id = $user->get_column('id');
+    my $password_hash = $user->get_column('password');
+    my $role = $user->get_column('role');
+    my $enterer_no = $user->get_column('person_no') || 0;
+    my $authorizer_no = $user->get_column('authorizer_no') || 0;
+    my $superuser = $user->get_column('admin') || 0;
+    
+    my $quoted_id = $dbh->quote($session_id);
+    my $quoted_user = $dbh->quote($user_id);
+    my $quoted_pw = $dbh->quote($password_hash);
+    my $quoted_ip = $dbh->quote(request->remote_address || '0.0.0.0');
+    my $quoted_role = $dbh->quote($role);
+    my $quoted_exp = $dbh->quote($expire_days);
+    my $quoted_ent = $dbh->quote($enterer_no);
+    my $quoted_auth = $dbh->quote($authorizer_no);
+    my $quoted_sup = $dbh->quote($superuser);
+    
+    my $db = Wing->config->get('content_db') || 'pbdb';
+    
+    my $sql = "INSERT INTO $db.session_data (session_id, user_id, password_hash, ip_address,
+		    role, expire_days, superuser, enterer_no, authorizer_no)
+		VALUES ($quoted_id, $quoted_user, $quoted_pw, $quoted_ip, $quoted_role,
+		    $quoted_exp, $quoted_sup, $quoted_ent, $quoted_auth)";
+    
+    $dbh->do($sql);
     
     if ( params->{redirect_after} )
     {

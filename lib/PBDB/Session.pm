@@ -36,7 +36,8 @@ sub new {
     
     my $dbh = $dbt->dbh;
     my $quoted_id = $dbh->quote($session_id);
-    my $sql = "	SELECT s.*, timestampdiff(day,s.record_date,now()) as days_old, a.real_name as authorizer_name
+    my $sql = "	SELECT s.*, timestampdiff(day,s.record_date,now()) as days_old,
+		    a.real_name as authorizer_name
 		FROM session_data as s left join pbdb_wing.users as a on a.person_no = s.authorizer_no
 		WHERE session_id = $quoted_id";
     
@@ -88,6 +89,19 @@ sub new {
 	    return error_session($dbt, 'admin');
 	}
 	
+	# If the remote address in the session record is different from the remote address
+	# for the current request, update the session record. This could be due to a
+	# session ID being stolen, but more likely is due to the client machine using a
+	# non-fixed IP address.
+	
+	if ( $session_record->{ip_address} ne $remote_addr )
+	{
+	    my $quoted_ip = $dbh->quote($remote_addr);
+	    
+	    $sql = "UPDATE session_data SET ip_address = $quoted_ip
+			WHERE session_id = $quoted_id";
+	}
+	
 	# If the authorizer_no does not match, update the session_data entry. This may happen if
 	# the user switched from one to another of their available authorizers.
 	
@@ -97,12 +111,11 @@ sub new {
 	{
 	    my $quoted_authorizer = $dbh->quote($authorizer_no);
 	    
-	    $sql = "
-		UPDATE session_data SET authorizer_no = $quoted_authorizer
-		WHERE session_id = $quoted_id";
+	    $sql = "UPDATE session_data SET authorizer_no = $quoted_authorizer
+			WHERE session_id = $quoted_id";
 	    
 	    my $result = $dbh->do($sql);
-
+	    
 	    my $a = 1; # we can stop here when debugging
 	}
 	
