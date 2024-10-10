@@ -470,62 +470,139 @@ sub getCollections {
 	
 	elsif ( ! @errors )
 	{
-	    my $t = new PBDB::TimeLookup($dbt);
-	    my ($intervals,$errors,$warnings);
+	    my ($max_age, $min_age, $dummy);
 	    
-	    if ($options{'max_interval_no'} =~ /^\d+$/)
+	    if ( $max =~ /[a-zA-Z]/ )
 	    {
-		($intervals,$errors,$warnings) = $t->getRangeByInterval('',$options{'max_interval_no'},'',
-									$options{'min_interval_no'});
-	    } else {
-		($intervals,$errors,$warnings) = $t->getRange($eml_max,$max,$eml_min,$min);
+		($max_age, $min_age) = int_bounds($max_name);
 	    }
 	    
-	    push @errors, @$errors if ref $errors eq 'ARRAY';
-	    push @warnings, @$warnings if ref $warnings eq 'ARRAY';
-	    
-	    my $val = join(",",@$intervals);
-	    if ( ! $val )	{
-		$val = "-1";
-		if ( $options{'max_interval'} =~ /[^0-9.]/ || $options{'min_interval'} =~ /[^0-9.]/ ) {
-		    push @errors, "Please enter a valid time term or broader time range";
-		}
-		# otherwise they must have entered numerical values, so there
-		#  are no worries
+	    elsif ( $max =~ /^[0-9.]+$/ )
+	    {
+		$max_age = $max;
 	    }
 	    
-	    # need to know the boundaries of the interval to make use of the
-	    #  direct estimates JA 5.4.07
-	    my ($ub,$lb) = $t->getBoundaries();
-	    my $upper = 999999;
-	    my $lower;
-	    my %lowerbounds = %{$lb};
-	    my %upperbounds = %{$ub};
-	    for my $intvno ( @$intervals )  {
-		if ( $upperbounds{$intvno} < $upper )   {                                                                  
-		    $upper = $upperbounds{$intvno};
-		}
-		if ( $lowerbounds{$intvno} > $lower )   {
-		    $lower = $lowerbounds{$intvno};
+	    elsif ( $options{max_interval_no} )
+	    {
+		($max_age, $min_age) = int_bounds($options{max_interval_no});
+		
+		unless ( defined $max_age )
+		{
+		    push @errors, "invalid value '$options{max_interval_no}' for 'max_interval_no'";
 		}
 	    }
-	    # if the search terms were Ma values, you don't care what the
-	    #  boundaries of what are for purposes of getting collections with
-	    #  direct age estimates JA 15.5.07
-	    if ( $options{'max_interval'} =~ /^[0-9.]+$/ || $options{'min_interval'} =~ /^[0-9.]+$/ )	{
-		$lower = $options{'max_interval'};
-		$upper = $options{'min_interval'};
-	    }
-	    # added 1600 yr fudge factor to prevent uncalibrated 14C dates from
-	    #  putting Pleistocene collections in the Holocene; there is only a
-	    #  tiny chance that it might mess up a numerical Holocene search
-	    #  JA 24.1.10
-	    $lower -= 0.0016;
-	    $upper -= 0.0016;
 	    
-	    # only use the interval names if there is no direct estimate
-	    # added ma_unit and direct_ma support (egads!) 24.1.10
-	    push @where , "((c.max_interval_no IN ($val) AND c.min_interval_no IN (0,$val) AND c.direct_ma IS NULL AND c.max_ma IS NULL AND c.min_ma IS NULL) OR (c.max_ma_unit='YBP' AND c.max_ma IS NOT NULL AND c.max_ma/1000000<=$lower AND c.min_ma/1000000>=$upper) OR (c.max_ma_unit='Ka' AND c.max_ma IS NOT NULL AND c.max_ma/1000<=$lower AND c.min_ma/1000>=$upper) OR (c.max_ma_unit='Ma' AND c.max_ma IS NOT NULL AND c.max_ma<=$lower AND c.min_ma>=$upper) OR (c.direct_ma_unit='YBP' AND c.direct_ma/1000000<=$lower AND c.direct_ma/1000000>=$upper) OR (c.direct_ma_unit='Ka' AND c.direct_ma/1000<=$lower AND c.direct_ma/1000>=$upper AND c.direct_ma) OR (c.direct_ma_unit='Ma' AND c.direct_ma<=$lower AND c.direct_ma>=$upper))";
+	    elsif ( $max ne '' )
+	    {
+		push @errors, "invalid interval '$max_name'";
+	    }
+	    
+	    else
+	    {
+		push @errors, "you must enter both a maximum and minimum interval or age";
+	    }
+	    
+	    if ( $min =~ /[a-zA-Z]/ )
+	    {
+		($dummy, $min_age) = int_bounds($min_name);
+	    }
+	      
+	    elsif ( $min =~ /^[0-9.]+$/ )
+	    {
+		$min_age = $min;
+	    }
+	    
+	    elsif ( $options{min_interval_no} )
+	    {
+		($dummy, $min_age) = int_bounds($options{min_interval_no});
+		
+		unless ( defined $min_age )
+		{
+		    push @errors, "invalid value '$options{min_interval_no}' for 'min_interval_no'";
+		}
+	    }
+	    
+	    elsif ( $min ne '' )
+	    {
+		push @errors, "invalid interval '$min_name'";
+	    }
+	    
+	    elsif ( ! defined $min_age )
+	    {
+		push @errors, "you must enter both a maximum and minimum interval or age";
+	    }
+	    
+	    unless ( defined $min_age && defined $max_age && $max_age > $min_age )
+	    {
+		push @errors, "you must enter a non-empty age range";
+	    }
+	    
+	    unless ( @errors )
+	    {
+		my $qearly = $dbh->quote($max_age);
+		my $qlate = $dbh->quote($min_age);
+		
+		push @tables, "$TABLE{COLLECTION_MATRIX} as cm";
+		push @where, "cm.collection_no = c.collection_no";
+		push @where, "cm.early_age <= $qearly and cm.late_age >= $qlate";
+	    }
+	    
+	    # my $t = new PBDB::TimeLookup($dbt);
+	    # my ($intervals,$errors,$warnings);
+	    
+	    # if ($options{'max_interval_no'} =~ /^\d+$/)
+	    # {
+	    # 	($intervals,$errors,$warnings) = $t->getRangeByInterval('',$options{'max_interval_no'},'',
+	    # 								$options{'min_interval_no'});
+	    # } else {
+	    # 	($intervals,$errors,$warnings) = $t->getRange($eml_max,$max,$eml_min,$min);
+	    # }
+	    
+	    # push @errors, @$errors if ref $errors eq 'ARRAY';
+	    # push @warnings, @$warnings if ref $warnings eq 'ARRAY';
+	    
+	    # my $val = join(",",@$intervals);
+	    # if ( ! $val )	{
+	    # 	$val = "-1";
+	    # 	if ( $options{'max_interval'} =~ /[^0-9.]/ || $options{'min_interval'} =~ /[^0-9.]/ ) {
+	    # 	    push @errors, "Please enter a valid time term or broader time range";
+	    # 	}
+	    # 	# otherwise they must have entered numerical values, so there
+	    # 	#  are no worries
+	    # }
+	    
+	    # # need to know the boundaries of the interval to make use of the
+	    # #  direct estimates JA 5.4.07
+	    # my ($ub,$lb) = $t->getBoundaries();
+	    # my $upper = 999999;
+	    # my $lower;
+	    # my %lowerbounds = %{$lb};
+	    # my %upperbounds = %{$ub};
+	    # for my $intvno ( @$intervals )  {
+	    # 	if ( $upperbounds{$intvno} < $upper )   {                                                                  
+	    # 	    $upper = $upperbounds{$intvno};
+	    # 	}
+	    # 	if ( $lowerbounds{$intvno} > $lower )   {
+	    # 	    $lower = $lowerbounds{$intvno};
+	    # 	}
+	    # }
+	    # # if the search terms were Ma values, you don't care what the
+	    # #  boundaries of what are for purposes of getting collections with
+	    # #  direct age estimates JA 15.5.07
+	    # if ( $options{'max_interval'} =~ /^[0-9.]+$/ || $options{'min_interval'} =~ /^[0-9.]+$/ )	{
+	    # 	$lower = $options{'max_interval'};
+	    # 	$upper = $options{'min_interval'};
+	    # }
+	    # # added 1600 yr fudge factor to prevent uncalibrated 14C dates from
+	    # #  putting Pleistocene collections in the Holocene; there is only a
+	    # #  tiny chance that it might mess up a numerical Holocene search
+	    # #  JA 24.1.10
+	    # $lower -= 0.0016;
+	    # $upper -= 0.0016;
+	    
+	    # # only use the interval names if there is no direct estimate
+	    # # added ma_unit and direct_ma support (egads!) 24.1.10
+	    # push @where , "((c.max_interval_no IN ($val) AND c.min_interval_no IN (0,$val) AND c.direct_ma IS NULL AND c.max_ma IS NULL AND c.min_ma IS NULL) OR (c.max_ma_unit='YBP' AND c.max_ma IS NOT NULL AND c.max_ma/1000000<=$lower AND c.min_ma/1000000>=$upper) OR (c.max_ma_unit='Ka' AND c.max_ma IS NOT NULL AND c.max_ma/1000<=$lower AND c.min_ma/1000>=$upper) OR (c.max_ma_unit='Ma' AND c.max_ma IS NOT NULL AND c.max_ma<=$lower AND c.min_ma>=$upper) OR (c.direct_ma_unit='YBP' AND c.direct_ma/1000000<=$lower AND c.direct_ma/1000000>=$upper) OR (c.direct_ma_unit='Ka' AND c.direct_ma/1000<=$lower AND c.direct_ma/1000>=$upper AND c.direct_ma) OR (c.direct_ma_unit='Ma' AND c.direct_ma<=$lower AND c.direct_ma>=$upper))";
 	}
     }
     

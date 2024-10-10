@@ -24,6 +24,8 @@ use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS makeAnchor ma
 use IntervalBase qw(int_defined int_name int_bounds int_correlation interval_nos_by_age);
 use POSIX qw(floor);
 
+use TableDefs qw($COLL_MATRIX $COUNTRY_MAP $COLL_LOC $INTERVAL_DATA);
+
 # this is a shell function that will have to be replaced with something new
 #  because PBDB::Collection::getCollections is going with Fossilworks JA 4.6.13
 sub getCollections	{
@@ -437,6 +439,48 @@ sub processCollectionForm {
             } else {
                 my $status = $dbt->updateRecord($s,$COLLECTIONS,'collection_no',$collection_no,\%vars);
             }
+	    
+	    # After we insert or update, we need to copy this information to the
+	    # coll_matrix (collection matrix) table.
+	    
+	    my $dbh = $dbt->dbh;
+	    my $qno = $dbh->quote($collection_no);
+	    my $sql = "REPLACE INTO $COLL_MATRIX
+		       (collection_no, lng, lat, loc, cc,
+			protected, early_age, late_age,
+			early_int_no, late_int_no, environment,
+			reference_no, access_level)
+		SELECT c.collection_no, c.lng, c.lat,
+			if(c.lng is null or c.lat is null, point(1000.0, 1000.0), point(c.lng, c.lat)), 
+			map.cc, cl.protected,
+			if(ei.early_age > li.late_age, ei.early_age, li.late_age),
+			if(ei.early_age > li.late_age, li.late_age, ei.early_age),
+			c.max_interval_no, if(c.min_interval_no > 0, c.min_interval_no, 
+									c.max_interval_no),
+			c.environment,
+			c.reference_no,
+			case c.access_level
+				when 'database members' then if(c.release_date < now(), 0, 1)
+				when 'research group' then if(c.release_date < now(), 0, 2)
+				when 'authorizer only' then if(c.release_date < now(), 0, 2)
+				else 0
+			end
+		FROM collections as c
+			LEFT JOIN $COLL_LOC as cl using (collection_no)
+			LEFT JOIN $COUNTRY_MAP as map on map.name = c.country
+			LEFT JOIN $INTERVAL_DATA as ei on ei.interval_no = c.max_interval_no
+			LEFT JOIN $INTERVAL_DATA as li on li.interval_no = 
+				if(c.min_interval_no > 0, c.min_interval_no, c.max_interval_no)
+		WHERE collection_no = $qno";
+	    
+	    $dbh->do($sql);
+	    
+	    $sql = "UPDATE $COLL_MATRIX as m JOIN
+			(SELECT collection_no, count(*) as n_occs
+			FROM occurrences GROUP BY collection_no) as sum using (collection_no)
+		    SET m.n_occs = sum.n_occs WHERE collection_no = $qno";
+	    
+	    $dbh->do($sql);
         }
 
 	# if numerical dates were entered, set the best-matching interval no
