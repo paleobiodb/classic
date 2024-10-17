@@ -761,28 +761,27 @@ sub submitOpinionForm {
         $fields{'old_pubyr'} = $o->get('pubyr');
     } else {	
         $fields{'child_no'} = PBDB::TaxonInfo::getOriginalCombination($dbt,$q->numeric_param('child_no')); 
-		$fields{'reference_no'} = $s->get('reference_no');
-		
-		if (! $fields{'reference_no'} ) {
-			$errors->add("You must set your current reference before submitting a new opinion");	
-		}
-	} 
-
-    # Get the child name and rank
-	my $childTaxon = PBDB::Taxon->new($dbt,$fields{'child_no'});
-	my $childName = $childTaxon->get('taxon_name');
-	my $childRank = $childTaxon->get('taxon_rank');
-	my $lookup_reference = "";
-	if ( $q->param('ref_has_opinion') eq 'CURRENT' )	{
-		$lookup_reference = $s->get('reference_no');
-	} elsif ( $q->param('ref_has_opinion') > 0 )	{
-		$lookup_reference = $q->param('ref_has_opinion');
-	} else	{
-		$lookup_reference = $fields{'reference_no'};
+	$fields{'reference_no'} = $s->get('reference_no');
+	
+	if (! $fields{'reference_no'} ) {
+	    $errors->add("You must set your current reference before submitting a new opinion");	
 	}
-	my $ref = PBDB::Reference->new($dbt,$lookup_reference);
-
-
+    } 
+    
+    # Get the child name and rank
+    my $childTaxon = PBDB::Taxon->new($dbt,$fields{'child_no'});
+    my $childName = $childTaxon->get('taxon_name');
+    my $childRank = $childTaxon->get('taxon_rank');
+    my $lookup_reference = "";
+    if ( $q->param('ref_has_opinion') eq 'CURRENT' )	{
+	$lookup_reference = $s->get('reference_no');
+    } elsif ( $q->param('ref_has_opinion') > 0 )	{
+	$lookup_reference = $q->param('ref_has_opinion');
+    } else	{
+	$lookup_reference = $fields{'reference_no'};
+    }
+    my $ref = PBDB::Reference->new($dbt,$lookup_reference);
+    
     ############################
     # Validate the form, top section
     ############################
@@ -1340,49 +1339,56 @@ sub submitOpinionForm {
         $fields{'reference_no'} = $q->numeric_param('ref_has_opinion');
     }
 
-	# now we'll actually insert or update into the database.
-
-	# first step is to create the parent taxon if a species is being
-	#  recombined and the new combination doesn't exist JA 14.4.04
-	# WARNING: this is very dangerous; typos in parent names will
-	# create bogus combinations, and likewise if the opinion create/update
-	#  code below bombs
-	if ($createSpelling) {
+    # now we'll actually insert or update into the database.
+    
+    # first step is to create the parent taxon if a species is being
+    #  recombined and the new combination doesn't exist JA 14.4.04
+    # WARNING: this is very dangerous; typos in parent names will
+    # create bogus combinations, and likewise if the opinion create/update
+    #  code below bombs
+    
+    if ($createSpelling)
+    {
         my ($new_taxon_no,$set_warnings) = PBDB::Taxon::addSpellingAuthority($dbt,$s,$fields{'child_no'},$childSpellingName,$childSpellingRank,$fields{'reference_no'});
            
-
         $fields{'child_spelling_no'} = $new_taxon_no;
         if (ref($set_warnings) eq 'ARRAY') {
             push @warnings, @{$set_warnings};
         }
-	}
-
-	my $resultOpinionNumber;
+    }
+    
+    my $resultOpinionNumber;
     my $resultReferenceNumber = $fields{'reference_no'};
-
+    
     dbg("submitOpinionForm, fields are: <pre>".Dumper(\%fields)."</pre>");
-	if ($isNewEntry) {
-		my $code;	# result code from dbh->do.
-
-		# make sure we have a taxon_no for this entry...
-		if (!$fields{'child_no'} ) {
-                        print STDERR "PBDB::Opinion::submitOpinionForm, tried to insert a record without knowing its child_no (original taxon)";
-			return;	
-		}
-		
-		($code, $resultOpinionNumber) = $dbt->insertRecord($s,'opinions', \%fields);
-
-	} else {
-		# if it's an old entry, then we'll update.
+    
+    if ($isNewEntry)
+    {
+	my $code;	# result code from dbh->do.
+	
+	# make sure we have a taxon_no for this entry...
+	if (!$fields{'child_no'} ) {
+	    print STDERR "PBDB::Opinion::submitOpinionForm, tried to insert a record without knowing its child_no (original taxon)";
+	    return;	
+	}
+	
+	# If no basis was specified, use 'stated without evidence'.
+	$fields{basis} ||= 'stated without evidence';
+	
+	($code, $resultOpinionNumber) = $dbt->insertRecord($s,'opinions', \%fields);
+    } 
+    
+    else
+    {
+	# if it's an old entry, then we'll update.
         unless ($q->param('ref_has_opinion') =~ /CURRENT/ || $q->param('ref_has_opinion') > 0) {
             # Delete this field so its never updated unless we're switching to current ref
             delete $fields{'reference_no'};
         }
-
-		$resultOpinionNumber = $o->get('opinion_no');
-		$dbt->updateRecord($s,'opinions', 'opinion_no',$resultOpinionNumber, \%fields);
-
-	}
+	
+	$resultOpinionNumber = $o->get('opinion_no');
+	$dbt->updateRecord($s,'opinions', 'opinion_no',$resultOpinionNumber, \%fields);
+    }
     
     if ( @opinions_to_migrate1 || @opinions_to_migrate2 || @parents_to_migrate1 || @parents_to_migrate2 )	{
         dbg("Migrating ".(scalar(@opinions_to_migrate1)+scalar(@opinions_to_migrate2))." opinions");
