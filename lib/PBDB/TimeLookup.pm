@@ -558,6 +558,52 @@ sub getScaleMapping {
 }
 
 
+# old Schroeter function dramatically simplified by switching it to use
+#  base_age and top_age values JA 18.10.11
+# previously allowed interval objects to be passed in and out; now only
+#  allows interval_nos and bin names to be passed in and always passes out
+#  interval_nos
+sub mapIntervals {
+    my $self = shift;
+
+    my @intervals = @_;
+    return unless (@intervals);
+
+    if ($isBin{$intervals[0]} || $isFR2Bin{$intervals[0]}) {
+        # We gotta convert the bins into an array of regular intervals
+        my %binmap;
+        if ($isBin{$intervals[0]})	{
+            while (my ($interval_no,$binname) = each %TimeLookup::binning) {
+                push @{$binmap{$binname}},$interval_no;
+            }
+        } else	{
+            while (my ($interval_no,$binname) = each %TimeLookup::FR2_binning) {
+                push @{$binmap{$binname}},$interval_no;
+            }
+        }
+        my @bins = @intervals;
+        @intervals = ();
+        foreach my $bin (@bins) {
+            push @intervals, @{$binmap{$bin}};
+        }
+    # matches simple interval_no
+    } elsif ($intervals[0] !~ /^\d+$/) {
+        die("mapIntervals called with unknown input: ".join(",",@intervals));
+    }
+
+    # new code starts here
+    # first find the age range of the submitted interval_nos
+    my $sql = "SELECT max(base_age) base,min(top_age) top FROM interval_lookup WHERE interval_no IN(".join(',',@intervals).")";
+    my $range = ${$self->{dbt}->getData($sql)}[0];
+
+    # now this is trivial
+    $sql = "SELECT interval_no,base_age,top_age FROM interval_lookup WHERE base_age<=".$range->{'base'}." AND top_age>=".$range->{'top'};
+    my @no_refs = @{$self->{dbt}->getData($sql)};
+
+    return map { $_->{'interval_no'} } @no_refs;
+}
+
+
 sub getBoundaries {
     my $self = shift;
     my $dbt = $self->{dbt};
