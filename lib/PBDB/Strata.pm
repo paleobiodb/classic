@@ -10,6 +10,8 @@ use PBDB::Person;
 use PBDB::PBDBUtil;
 use PBDB::Constants qw(makeAnchor makeATag);
 
+use IntervalBase qw(classic_scale_order classic_scale_map);
+
 # written by PS  12/01/2004
 
 # print out info for a geological group, formation, or member, including:
@@ -504,11 +506,14 @@ sub displaySearchStrataResults {
     # get the enterer's preferences (needed to determine the number
     # of displayed blanks) JA 1.8.02
 
-    my $t = new PBDB::TimeLookup($dbt);
-    my @period_order = $t->getScaleOrder('69');
-    # Convert max_interval_no to a period like 'Quaternary'
-    my $int2period = $t->getScaleMapping('69','names');
-
+    # my $t = new PBDB::TimeLookup($dbt);
+    # my @period_order = $t->getScaleOrder('69');
+    # # Convert max_interval_no to a period like 'Quaternary'
+    # my $int2period = $t->getScaleMapping('69','names');
+    
+    my @period_order = classic_scale_order('periods');
+    my $int2period = classic_scale_map('periods', 'names');
+    
     # We need to group the collections here in the code rather than SQL so that
     # we can get a list of max_interval_nos.  There should generaly be only 1 country.
     my @tableRows = ();

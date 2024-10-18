@@ -611,11 +611,11 @@ sub getBoundaries {
     my %ub = ();
     my %lb = ();
 
-    my $sql = "SELECT interval_no,top_age,base_age FROM interval_lookup";
+    my $sql = "SELECT interval_no, early_age, late_age FROM interval_data";
     my @results = @{$dbt->getData($sql)};
     foreach my $row (@results) {
-        $ub{$row->{interval_no}} = $row->{top_age};
-        $lb{$row->{interval_no}} = $row->{base_age};
+        $ub{$row->{interval_no}} = $row->{late_age};
+        $lb{$row->{interval_no}} = $row->{early_age};
     }
 
     return (\%ub,\%lb);

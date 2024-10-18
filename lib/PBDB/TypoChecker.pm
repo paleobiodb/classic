@@ -7,6 +7,8 @@ use PBDB::Person;
 use PBDB::PBDBUtil;
 use PBDB::Permissions;
 use PBDB::Constants qw(makeAnchor makeAnchorWithAttrs makeFormPostTag);
+use IntervalBase qw(classic_scale_order classic_scale_map);
+
 use strict;
 
 $TypoChecker::edit_distance = 3;
@@ -183,9 +185,11 @@ sub occurrenceMisspellingForm {
     dbg("FOUND ".scalar(@names).' unique names');
 
     # Some static lookup tables are generated first
-    my $t = new PBDB::TimeLookup($dbt);
-    my @period_order = $t->getScaleOrder('69','names');
-    my $period_lookup= $t->getScaleMapping('69','names');
+    # my $t = new PBDB::TimeLookup($dbt);
+    # my @period_order = $t->getScaleOrder('69','names');
+    # my $period_lookup= $t->getScaleMapping('69','names');
+    my @period_order = classic_scale_order('periods', 'names');
+    my $period_lookup = classic_scale_map('periods', 'names');
     my $p = PBDB::Permissions->new($s,$dbt);
     my $can_modify = $p->getModifierList();
     my $authorizer_no = $s->get('authorizer_no');

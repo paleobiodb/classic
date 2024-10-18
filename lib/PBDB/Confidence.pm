@@ -15,6 +15,7 @@ use Memoize;
 use PBDB::Reference;
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($HTML_DIR makeAnchor makeFormPostTag);
+use IntervalBase qw(classic_scale_order classic_scale_map);
 
 memoize('chiSquaredDensity');
 memoize('factorial');
@@ -115,11 +116,13 @@ sub displaySearchSectionResults{
     # get the enterer's preferences (needed to determine the number
     # of displayed blanks) JA 1.8.02
 
-    my $t = new PBDB::TimeLookup($dbt);
-    my @period_order = $t->getScaleOrder($dbt,'69');
-    # Convert max_interval_no to a period like 'Quaternary'
-    my $int2period = $t->getScaleMapping('69','names');
-
+    # my $t = new PBDB::TimeLookup($dbt);
+    # my @period_order = $t->getScaleOrder($dbt,'69');
+    # # Convert max_interval_no to a period like 'Quaternary'
+    # my $int2period = $t->getScaleMapping('69','names');
+    my @period_order = classic_scale_order('periods');
+    my $int2period = classic_scale_map('periods', 'names');
+    
     my $lastsection = '';
     my $lastregion  = '';
     my $found_localbed = 0;
@@ -747,23 +750,25 @@ sub calculateTaxaInterval {
     my @intervalnumber;
     my @not_in_scale;
 
-    my $t = new PBDB::TimeLookup($dbt);
-    my $mapping  = $t->getScaleMapping($scale);
-    my ($top_age,$base_age) = $t->getBoundaries;
+    # my $t = new PBDB::TimeLookup($dbt);
+    # my $mapping  = $t->getScaleMapping($scale);
+    # my ($top_age,$base_age) = $t->getBoundaries;
 
-    # Returns ordered array of interval_nos, ordered from youngest to oldest
-    my @scale = $t->getScaleOrder($scale,'number');
+    # # Returns ordered array of interval_nos, ordered from youngest to oldest
+    # my @scale = $t->getScaleOrder($scale,'number');
 
-    if ($scale == 6 || $scale == 73) {
-        foreach my $interval_no (32,33) { # Holocene Pleistocene tackd onto gradstein and hardland stages
-            foreach my $sub_itv ($t->mapIntervals($interval_no)) {
-                $mapping->{$sub_itv} = $interval_no;
-            }
-        }
-        unshift @scale,33;
-        unshift @scale,32;
-    }
+    # if ($scale == 6 || $scale == 73) {
+    #     foreach my $interval_no (32,33) { # Holocene Pleistocene tackd onto gradstein and hardland stages
+    #         foreach my $sub_itv ($t->mapIntervals($interval_no)) {
+    #             $mapping->{$sub_itv} = $interval_no;
+    #         }
+    #     }
+    #     unshift @scale,33;
+    #     unshift @scale,32;
+    # }
     
+    my $mapping = classic_scale_map($scale);
+    my @scale = classic_scale_order($scale);
 
     my $interval_names;
     my %intervals = PBDB::TimeLookup::allIntervals($dbt);
