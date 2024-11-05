@@ -35,7 +35,7 @@ __PACKAGE__->wing_fields(
       first_name => {
         dbic            => { data_type => 'varchar(80)', is_nullable => 0 },
         view            => 'public',
-        edit            => 'required',
+        edit            => 'postable',
       },
       middle_name => {
 	dbic		=> { data_type => 'varchar(80)', is_nullable => 0 },
@@ -452,8 +452,12 @@ around update => sub {
 		SET person.first_name = u.first_name,
 		    person.middle = u.middle_name,
 		    person.last_name = u.last_name,
-		    person.name = concat(left(u.first_name,1), '. ', u.last_name),
-		    person.reversed_name = concat(u.last_name, ', ', left(u.first_name, 1), '.')
+		    person.name = 
+			if(u.first_name<>'', concat(left(u.first_name,1),'. ',u.last_name),
+					     u.last_name),
+		    person.reversed_name = 
+			if(u.first_name<>'', concat(u.last_name,', ',left(u.first_name, 1),'.'),
+					     u.last_name)
 		WHERE person_no = $person_no";
 	
 	$dbh->do($sql);
