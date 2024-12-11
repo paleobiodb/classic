@@ -45,6 +45,7 @@ COPY wing /data/Wing
 COPY wing/bin/wing /usr/local/bin/
 COPY pbapi/lib /data/MyApp/lib/PBData
 COPY pbdb-app/ /data/MyApp/resources
+RUN ln -s /data/Wing/lib/Wing /data/MyApp/lib/Wing
 
 RUN mkdir -p /data/MyApp/captcha/temp
 
