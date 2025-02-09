@@ -146,16 +146,20 @@ sub getCollections {
                 $options{'taxon_name'} = ${$dbt->getData($sql)}[0]->{'taxon_name'};
                 @taxon_nos = (int($options{'taxon_no'}))
             } else {
+		if ( $options{taxon_name} =~ /['=]/ )
+		{
+		    return ([], 0, ["Bad character in Taxon name"]);
+		}
                 if (! $options{'no_authority_lookup'}) {
                 # get all variants of a name and current status but not
                 #  related synonyms JA 7.1.10
                     $options{'taxon_name'} =~ s/\./%/g;
-                    my $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE '".$options{'taxon_name'}."'";
+                    my $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE ".$dbh->quote($options{'taxon_name'});
                 # if that didn't work and the name is not a species, see if
                 #  it appears as a subgenus
                     my @taxa = @{$dbt->getData($sql)};
                     if ( ! @taxa )	{
-                        $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE '% (".$options{'taxon_name'}.")'";
+                        $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE ".$dbh->quote("% (" . $options{'taxon_name'} . ")");
                         @taxa = @{$dbt->getData($sql)};
                     }
                     if ( @taxa )	{
