@@ -2346,26 +2346,26 @@ sub propagateAuthorityInfo {
         }
     }
 
-    # Set all taxa to be equal to the reference from the best authority data we have
-    my $best;
-    if ($this_is_best) {
-        $best = $me;
-    } else {
-        $best = $spellings[0];
-    }
-    if ($best->{'ref_is_authority'} =~ /yes/i) {
-        foreach my $f (@authority_fields) {
-            push @toUpdate, "$f=''";
-        }
-        push @toUpdate, "reference_no=$best->{reference_no}";
-        push @toUpdate, "ref_is_authority='YES'";
-    } else {
-        foreach my $f (@authority_fields) {
-            push @toUpdate, "$f=".$dbh->quote($best->{$f});
-        }
-        push @toUpdate, "reference_no=$best->{reference_no}";
-        push @toUpdate, "ref_is_authority=''";
-    }
+    # # Set all taxa to be equal to the reference from the best authority data we have
+    # my $best;
+    # if ($this_is_best) {
+    #     $best = $me;
+    # } else {
+    #     $best = $spellings[0];
+    # }
+    # if ($best->{'ref_is_authority'} =~ /yes/i) {
+    #     foreach my $f (@authority_fields) {
+    #         push @toUpdate, "$f=''";
+    #     }
+    #     push @toUpdate, "reference_no=$best->{reference_no}";
+    #     push @toUpdate, "ref_is_authority='YES'";
+    # } else {
+    #     foreach my $f (@authority_fields) {
+    #         push @toUpdate, "$f=".$dbh->quote($best->{$f});
+    #     }
+    #     push @toUpdate, "reference_no=$best->{reference_no}";
+    #     push @toUpdate, "ref_is_authority=''";
+    # }
 
     if (@toUpdate) {
         foreach my $spelling_no (@spelling_nos) {
