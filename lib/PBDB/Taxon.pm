@@ -948,6 +948,8 @@ sub submitAuthorityForm {
 	        delete $fields{taxon_no} if $fields{taxon_no} eq '';
 		($status, $resultTaxonNumber) = $dbt->insertRecord($s,'authorities', \%fields);
 		PBDB::TaxaCache::addName($dbt,$resultTaxonNumber);
+		$dbt->updateRecord($s, 'authorities', 'taxon_no', $resultTaxonNumber, 
+				   { orig_no => $resultTaxonNumber });
 		
 		if ($parent_no) {
 			addImplicitChildOpinion($dbt,$s,$resultTaxonNumber,$parent_no,\%fields,$pubyr);
@@ -1464,14 +1466,15 @@ sub addImplicitChildOpinion {
     #  opinion on a name: it provides evidence, gives a new diagnosis, and
     #  uses the original spelling
     my %opinionHash = (
-        'status'=>'belongs to',
-        'spelling_reason'=>'original spelling',
-        'diagnosis_given'=>'new',
-        'child_no'=>$child_no,
-        'child_spelling_no'=>$child_no,
-        'parent_no'=>$orig_parent_no,
-        'parent_spelling_no'=>$parent_no,
-        'ref_has_opinion'=>$fields->{'ref_is_authority'}
+        status => 'belongs to',
+        spelling_reason => 'original spelling',
+        diagnosis_given => 'new',
+        child_no => $child_no,
+        child_spelling_no => $child_no,
+        parent_no => $orig_parent_no,
+        parent_spelling_no => $parent_no,
+        ref_has_opinion => $fields->{ref_is_authority},
+	reference_no => $fields->{reference_no},
     );
     # evidence can be assumed only for opinions postdating the
     #  Règles internationales de la Nomenclature zoologique of 1905 JA 13.8.8
@@ -1484,10 +1487,17 @@ sub addImplicitChildOpinion {
         $opinionHash{'diagnosis_given'} = 'new';
         $opinionHash{'basis'} = 'stated with evidence';
     }
-    my @fields = ('reference_no','author1init','author1last','author2init','author2last','otherauthors','pubyr','pages','figures');
-    $opinionHash{$_} = $fields->{$_} for @fields;
-
-    $dbt->insertRecord($s,'opinions',\%opinionHash);
+    else
+    {
+	$opinionHash{'basis'} ||= 'stated without evidence';
+    }
+    
+    $opinionHash{$_} = $fields->{$_} for qw(author1init author1last author2init author2last
+					    otherauthors pubyr pages figures);
+    
+    my ($status, $opinion_no) = $dbt->insertRecord($s,'opinions',\%opinionHash);
+    
+    PBDB::Opinion::update_opinion_cache($dbt, $s, $opinion_no);
 }
 
 sub addSpellingAuthority {
@@ -2336,26 +2346,26 @@ sub propagateAuthorityInfo {
         }
     }
 
-    # Set all taxa to be equal to the reference from the best authority data we have
-    my $best;
-    if ($this_is_best) {
-        $best = $me;
-    } else {
-        $best = $spellings[0];
-    }
-    if ($best->{'ref_is_authority'} =~ /yes/i) {
-        foreach my $f (@authority_fields) {
-            push @toUpdate, "$f=''";
-        }
-        push @toUpdate, "reference_no=$best->{reference_no}";
-        push @toUpdate, "ref_is_authority='YES'";
-    } else {
-        foreach my $f (@authority_fields) {
-            push @toUpdate, "$f=".$dbh->quote($best->{$f});
-        }
-        push @toUpdate, "reference_no=$best->{reference_no}";
-        push @toUpdate, "ref_is_authority=''";
-    }
+    # # Set all taxa to be equal to the reference from the best authority data we have
+    # my $best;
+    # if ($this_is_best) {
+    #     $best = $me;
+    # } else {
+    #     $best = $spellings[0];
+    # }
+    # if ($best->{'ref_is_authority'} =~ /yes/i) {
+    #     foreach my $f (@authority_fields) {
+    #         push @toUpdate, "$f=''";
+    #     }
+    #     push @toUpdate, "reference_no=$best->{reference_no}";
+    #     push @toUpdate, "ref_is_authority='YES'";
+    # } else {
+    #     foreach my $f (@authority_fields) {
+    #         push @toUpdate, "$f=".$dbh->quote($best->{$f});
+    #     }
+    #     push @toUpdate, "reference_no=$best->{reference_no}";
+    #     push @toUpdate, "ref_is_authority=''";
+    # }
 
     if (@toUpdate) {
         foreach my $spelling_no (@spelling_nos) {
