@@ -61,13 +61,18 @@ function PBDB_map_widget(mapElementName, options) {
   'EPSG:3857')));
     }
 
-    this.showMarker = function( center ) {
-      map.setView(new ol.View({
-        center: ol.proj.fromLonLat(ol.proj.transform(this.marker_layer.getGeometry().getCoordinates(), 'EPSG:3857', 'EPSG:4326')),
-        zoom: 10
-      }))
+    this.showMarker = function( new_zoom ) {
+	if ( ! new_zoom ) {
+	    var current_view = map.getView();
+	    if ( current_view ) new_zoom = current_view.getZoom();
+	    else new_zoom = 10;
+	}
+	map.setView(new ol.View({
+            center: ol.proj.fromLonLat(ol.proj.transform(this.marker_layer.getGeometry().getCoordinates(), 'EPSG:3857', 'EPSG:4326')),
+            zoom: new_zoom
+	}))
     }
-
+    
     this.updateSize = function() {
       map.updateSize()
     }

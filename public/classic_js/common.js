@@ -176,10 +176,8 @@ function imagePopup (URL,width,height) {
 // the full url in the javascript, search engines will still spider it, which is bad since the map 
 // generation is ultra heavyweight
 function mapPopup(collection_no) {
-    var link = 'bridge'+'.pl'+
-	       '?action=displayMapOfCollection'+
-	       '&display_header=NO'+
-	       '&collection_no='+collection_no;
+    var link = '/classic/displayMapOfCollection?'+
+	       'collection_no='+collection_no;
     window.open(link,'mapview','toolbar=0,scrollbars=1,location=0,statusbar=0,menubar=0,resizable=1,width=800,height=600');
 }
 
