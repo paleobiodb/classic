@@ -261,6 +261,17 @@ sub formatAsHTML {
         return ($output," according to ",$short_ref);
     } else {
         $output .= " according to $short_ref";
+	
+	if ( $row->{basis} eq 'stated with evidence' )
+	{
+	    $output .= "(+)";
+	}
+	
+	elsif ( $row->{basis} eq 'second hand' )
+	{
+	    $output .= "(-)";
+	}
+	
         return $output;
     }
 }

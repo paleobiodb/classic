@@ -73,7 +73,7 @@ function doCheckFieldsBasicInfo() {
     // Deleting the primary reference is not allowed.
     // Note that the length of the radio group (or checkbox group) equals
     // the number of radio buttons regardless of their checked status.
-    // Note the the length of each may be different since there's not
+    // Note the the length of each may be different since there's not '
     // necessarily a one to one correspondence.
     if(frm.secondary_reference_no && frm.delete_ref){
         var i;
@@ -512,6 +512,7 @@ function doCheckFieldsComponents() {
 
   <p>
     <span class="required">Author's main reason for describing collection:</span> <span class="verysmall"><select class="verysmall" id="collection_type"></select></span> analysis
+    <!--'-->
   </p>
 
   </div>
@@ -591,8 +592,8 @@ function doCheckFieldsComponents() {
   </tr>
 
   <tr><td colspan=2><div align="center">
-    <input type="button" name="show" value="show on map" onmouseup="adjustCoords(1)">&nbsp;&nbsp;
-    <input type="button" name="reset_coodrds" value="reset coords" onmouseup="restoreCoords()">&nbsp;&nbsp;
+    <input type="button" name="show" value="show on map" onmouseup="adjustCoords()">&nbsp;&nbsp;
+    <input type="button" name="reset_coords" value="reset coords" onmouseup="restoreCoords()">&nbsp;&nbsp;
     Set coords as:
       <select name="setcoords">
 	<option value="minsec">minutes/seconds</option>
@@ -1574,7 +1575,7 @@ function setCoords ( lat, lng )
     }
 
     mw.setMarker(lng, lat);
-    mw.showMarker;
+    mw.showMarker(10);
 }
 
 // This function is called when the value of any of the coordinate
@@ -1604,7 +1605,7 @@ function adjustCoords (center) {
   	  if ( form.lngdir.value == 'West' ) { lng = -1 * lng; }
 
   	  mw.setMarker(lng, lat);
-  	  mw.showMarker(center);
+  	  mw.showMarker();
   }
 }
 
