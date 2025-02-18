@@ -451,13 +451,22 @@ sub classic_request {
     
     else
     {
+	my $header_template = 'header_include';
+	my $footer_template = 'footer_include';
+	
+	if ( $q->param('display_header') eq 'NO' )
+	{
+	    $header_template = 'noheader_include';
+	    $footer_template = 'nofooter_include';
+	}
+	
 	$vars->{page_title} = $hbo->pageTitle || 'PBDB';
 	
-	my $output = template 'header_include', $vars;
+	my $output = template $header_template, $vars;
 	
 	$output .= $action_output;
 	
-	$output .= template 'footer_include', { };
+	$output .= template $footer_template, { };
 	
 	log_step($action, 'DONE', time, $starttime) if $CONFIG{LOG_REQUESTS};
 	profile_end_request($profile_out, $starttime, $q) if $profile_out;
@@ -2086,6 +2095,31 @@ sub displayCollectionDetails {
     $hbo->pageTitle('PBDB Collection');
     
     return $output;
+}
+
+sub displayMapOfCollection {
+    
+    my ($q, $s, $dbt, $hbo) = @_;
+    
+    my $collection_no = $q->numeric_param('collection_no');
+    
+    die "Collection not found.\n" unless $collection_no > 0;
+    
+    my $sql = "SELECT lat, latdir, latdeg, latmin, latsec, lng, lngdir, lngdeg, lngmin, lngsec
+		FROM collections WHERE collection_no=$collection_no";
+    
+    my $dbh = $dbt->dbh;
+    
+    my @data = @{$dbt->getData($sql)};
+    
+    $hbo->pageTitle('PBDB Collection Map');
+    
+    $q->param('display_header', 'NO');
+    
+    my $output = $hbo->stdIncludes($PAGE_TOP);
+    $output .= $hbo->populateHTML('collection_map', $data[0]);
+    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    
 }
 
 # sub rarefyAbundances {

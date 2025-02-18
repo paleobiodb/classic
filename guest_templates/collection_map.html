@@ -1,0 +1,91 @@
+
+<!-- include OpenLayers and our map widget, and initialize them. -->
+<link rel="stylesheet" href="/public/classic_css/ol.css" type="text/css">
+<script src="/public/classic_js/ol.js" type="text/javascript"></script>
+<script src="/public/classic_js/mapwidget.js"></script>
+
+<div style="margin-left: 20px">
+
+<form name="mapform">
+
+  <table style="margin-top: -0.5em; margin-bottom: 10px">
+    <tr>
+      <td></td>
+      <td><span class="required verysmall">Degrees</span></td>
+      <td><span class="verysmall">Minutes</span></td>
+      <td><span class="verysmall">Seconds</span></td>
+      <td><span class="verysmall">Decimal*</span></td>
+      <td><span class="required verysmall">Direction</span></td>
+    </tr>
+    <tr>
+      <td>Latitude</td>
+      <td><input id="latdeg" size=5 maxlength=3 disabled></td>
+      <td><input id="latmin" size=3 maxlength=2 disabled></td>
+      <td><input id="latsec" size=3 maxlength=2 disabled></td>
+      <td><input id="latdec" size=5 maxlength=8 disabled></td>
+      <td><span class="verysmall"><select class="verysmall" id="latdir" disabled></select></span>
+    </tr>
+    <tr>
+      <td>Longitude</td>
+      <td><input id="lngdeg" size=5 maxlength=3 disabled></td>
+      <td><input id="lngmin" size=3 maxlength=2 disabled></td>
+      <td><input id="lngsec" size=3 maxlength=2 disabled></td>
+      <td><input id="lngdec" size=5 maxlength=8 disabled></td>
+      <td><span class="verysmall"><select class="verysmall" id="lngdir" disabled></select></span></td>
+    </tr>
+  </table>
+  
+  
+  <table>
+    <tr>
+      <td><div style="width:600px; height:300px" id="map"></div></td>
+    </tr>
+    <tr><td align="center">
+	<div style="margin-top: 10px">
+	  <input type="button" name="show" value="Recenter" onmouseup="adjustCoords()">&nbsp;&nbsp;
+	</div>
+    </td></tr>
+  </table>
+	
+</form>
+	
+  </table>
+  
+</div>
+
+
+<script type="text/javascript">
+  
+  function adjustCoords (new_zoom) {
+      var form = document.forms["mapform"]
+      if ( form.latdeg.value != '' && form.lngdeg.value != '' )
+      {
+	  var lat, lng;
+	  
+  	  if ( form.latdec.value != '' ) {
+  	      lat = Number(form.latdeg.value + '.' + form.latdec.value);
+  	  } else {
+  	      lat = Number(form.latdeg.value) + Number(form.latmin.value)/60 +
+  		  Number(form.latsec.value)/3600;
+  	  }
+	  
+  	  if ( form.lngdec.value != '' ) {
+  	      lng = Number(form.lngdeg.value + '.' + form.lngdec.value);
+  	  } else {
+  	      lng = Number(form.lngdeg.value) + Number(form.lngmin.value)/60 +
+  		  Number(form.lngsec.value)/3600;
+  	  }
+	  
+  	  if ( form.latdir.value == 'South' ) { lat = -1 * lat; }
+  	  if ( form.lngdir.value == 'West' ) { lng = -1 * lng; }
+	  
+  	  mw.setMarker(lng, lat);
+  	  mw.showMarker(new_zoom);
+      }
+  }
+  
+  var mw = new PBDB_map_widget('map');
+  
+  adjustCoords(5);
+  
+</script>

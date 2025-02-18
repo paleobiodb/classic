@@ -1,0 +1,7 @@
+[% INCLUDE bootstrap_js_include.tt %]
+[% INCLUDE pnotify_js_include.tt %]
+[% section_foot_tags %]
+[% foot_tags %]
+
+</body>
+</html>
