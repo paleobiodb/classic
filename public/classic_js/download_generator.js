@@ -34,6 +34,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 
     var visible = { };
     
+    this.visible = visible;
+    
     var data_type = "occs";
     var data_op = "occs/list";
     var url_op = "occs/list";
@@ -64,6 +66,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
     // Object for holding data cached from the API
     
     var api_data = { };
+    
+    this.api_data = api_data;
     
     // Variables for handling object identifiers in the "metadata" section.
     
@@ -185,6 +189,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    api_data.pg_models = [ ];
 	    api_data.pg_menu = [ ];
 	    api_data.pg_desc = [ ];
+	    api_data.res_groups = [ ];
 	    
 	    var lith_uniq = { };
 	    
@@ -221,6 +226,10 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		    api_data.pg_desc.push(record.cod, record.dsc);
 		    api_data.pg_models.push(record.cod);
 		    api_data.pg_menu.push(record.cod, record.lbl);
+		}
+		
+		else if ( record.cfg == "rsg" ) {
+		    api_data.res_groups.push(record.rsg, record.rsg);
 		}
 	    }
 	    
@@ -347,7 +356,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    setFormat(keep_format);
 	    $('input[name="output_format"][value="' + keep_format + '"]')[0].checked = 1;
 	    setPrivate(keep_private);
-	    $('input[name="private"][value="' + keep_private + '"]')[0].checked = 1;
+	    $('input[name="pd_private"][value="' + keep_private + '"]')[0].checked = 1;
 	    setFormMode(keep_advanced);
 	    $('input[name="form_mode"][value="' + keep_advanced + '"]')[0].checked = 1;	    
 	}
@@ -458,8 +467,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	 "*collection", "coll", "The name and description of the collection in which this occurrence was found",
 	 "*coordinates", "coords", "Latitude and longitude of this occurrence",
 	 "*location", "loc", "Additional info about the geographic locality",
-	 "*paleolocation", "paleoloc", "Paleogeographic location of this occurrence, all models",
-	 "paleoloc (selected)", "paleoloc2", "Paleogeographic location using the model selected above",
+	 "*paleolocation", "paleoloc", "Paleogeographic location using the model selected above",
+	 "paleolocaction (all)", "paleoloc2", "Paleogeographic location, all models",
 	 "*protection", "prot", "Indicates whether this occurrence is on protected land, i.e. a national park",
 	 "stratigraphy", "strat", "Basic stratigraphy of the occurrence",
 	 "*stratigraphy ext.", "stratext", "Extended (detailed) stratigraphy of the occurrence",
@@ -732,6 +741,10 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	setInnerHTML("pm_taxa_authent", content);
 	setInnerHTML("pm_ops_authent", content);
 	setInnerHTML("pm_refs_authent", content);
+	
+	content = makeOptionList( [ '', '--' ].concat(api_data.res_groups) );
+	
+	setInnerHTML("pm_res_group", content);
 	
 	content = makeCheckList( "pm_lithtype", api_data.lith_types, 'dgapp.checkLith()' );
 	
@@ -3255,6 +3268,16 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		if ( param_errors.colls_cmdate || param_errors.colls_aename ) errors_found = 1;
 	    }
 	    
+	    if ( visible.meta_occs || visible.meta_colls )
+	    {
+		if ( params.res_group ) {
+		    param_list.push("research_group=" + params.res_group);
+		    has_main_param = 1;
+		}
+		
+		if ( param_errors.res_group ) errors_found = 1;
+	    }
+	    
 	    if ( visible.meta_taxa )
 	    {
 		if ( params.taxa_cmdate ) {
@@ -3589,12 +3612,12 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    
 	    if ( value == "paleoloc" )
 	    {
-		paleoloc_all = elts[i].checked;
+		paleoloc_selected = elts[i].checked;
 	    }
 	    
 	    else if ( value == "paleoloc2" )
 	    {
-		paleoloc_selected = elts[i].checked;
+		paleoloc_all = elts[i].checked;
 		value = "paleoloc";
 		
 		if ( paleoloc_all && paleoloc_selected ) continue;
