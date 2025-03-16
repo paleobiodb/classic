@@ -270,7 +270,7 @@ sub processCollectionForm {
 
 	# there are three license checkboxes so users understand what they
 	#  are doing, so combine the data JA 20.11.12
-	my $license = 'CC BY';
+	my $license = 'CC0';
 	#$license .= ( $q->param('noncommercial') ) ? '-NC' : '';
 	#$license .= ( $q->param('noderivs') ) ? '-ND' : '';
 	#$license .= ( $q->param('sharealike') ) ? '-SA' : '';
