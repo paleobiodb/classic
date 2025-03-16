@@ -35,13 +35,35 @@ function checkFields() {
     }
 
     if ( bad_info != "" ) {
-        bad_info = "WARNING!\n" +
-                      bad_info + "\n\nPlease make corrections and resubmit.";
-        alert(bad_info);
-        bad_info = "";
-        return false;
+	
+	var frm = document.forms[1];
+	var coll_no = frm.collection_no.value;
+	
+	if ( typeof coll_no != 'undefined' && coll_no > 0 )
+	{
+	    var message = "WARNING!\n" + bad_info +
+		"\n\nDo you want to save anyway?";
+	    
+	    bad_info = '';
+	    
+	    if ( ! window.confirm(message) )
+	    {
+		return false;
+	    }
+	}
+	
+	else
+	{
+            var message = "WARNING!\n" + bad_info + 
+		"\n\nPlease make corrections and resubmit.";
+	    
+            bad_info = '';
+	    
+	    window.alert(message);
+            return false;
+	}
     }
-
+    
     document.forms[1].check_status.value = "done";
     return true;
 }
@@ -102,7 +124,9 @@ function doCheckFieldsBasicInfo() {
     if ( /immediate/.test( frm.release_date.value ) && ! /public/.test( frm.access_level.value ) ) {
         bad_info += "\no The release date is immediate";
     } else if ( ! /immediate/.test( frm.release_date.value ) && /public/.test( frm.access_level.value ) ) {
-        bad_info += "\no The access level is public";
+	var coll_no = frm.collection_no.value;
+	if ( typeof(coll_no) == 'undefined' || coll_no == '' )
+            bad_info += "\no The access level is public";
     }
 
     if ( frm.collection_type.selectedIndex == 0) {
