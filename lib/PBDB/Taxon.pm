@@ -947,7 +947,7 @@ sub submitAuthorityForm {
 	if ($isNewEntry) {
 	        delete $fields{taxon_no} if $fields{taxon_no} eq '';
 		($status, $resultTaxonNumber) = $dbt->insertRecord($s,'authorities', \%fields);
-		PBDB::TaxaCache::addName($dbt,$resultTaxonNumber);
+		PBDB::TaxaCache::addName($dbt,$resultTaxonNumber,$fields{taxon_name},$fields{taxon_rank});
 		$dbt->updateRecord($s, 'authorities', 'taxon_no', $resultTaxonNumber, 
 				   { orig_no => $resultTaxonNumber });
 		
@@ -1538,7 +1538,7 @@ sub addSpellingAuthority {
     }
 
     my ($return_code, $new_taxon_no) = $dbt->insertRecord($s,'authorities', \%record);
-    PBDB::TaxaCache::addName($dbt,$new_taxon_no);
+    PBDB::TaxaCache::addName($dbt,$new_taxon_no,$record{taxon_name},$record{taxon_rank});
     dbg("create new authority record, got return code $return_code");
     if (!$return_code) {
         die("Unable to create new authority record for $record{taxon_name}. Please contact support");

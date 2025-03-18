@@ -404,7 +404,7 @@ my $min_interval_no = 0;
 # belong anywhere.  Should be called when creating a new authority (Taxon.pm) 
 # and Opinion.pm (when creating a new spelling on fly)
 sub addName {
-    my ($dbt,$taxon_no) = @_;
+    my ($dbt, $taxon_no, $taxon_name, $taxon_rank) = @_;
     my $dbh = $dbt->dbh;
    
     my $sql = "SELECT max(rgt) m FROM $TAXA_TREE_CACHE";
@@ -420,9 +420,13 @@ sub addName {
     #print "Adding name: $taxon_no: $sql<BR>\n" if ($DEBUG);
     $dbh->do($sql);
     
-    # Add the same new row to taxon_trees.
+    # Add the same new row to taxon_trees, including the name and rank.
     
-    $sql = "INSERT IGNORE INTO taxon_trees (orig_no,lft,rgt,spelling_no,synonym_no) VALUES ($taxon_no,$lft,$rgt,$taxon_no,$taxon_no)";
+    my $qname = $dbh->quote($taxon_name || '');
+    my $qrank = '';
+    if ( $taxon_rank ) { $qrank = $dbh->quote($Taxon::rankToNum{$taxon_rank} || ''); }
+    
+    $sql = "INSERT IGNORE INTO taxon_trees (orig_no,name,rank,lft,rgt,spelling_no,synonym_no) VALUES ($taxon_no,$qname,$qrank,$lft,$rgt,$taxon_no,$taxon_no)";
     $dbh->do($sql);
     
     # Retrieve the new row from taxa_tree_cache.
