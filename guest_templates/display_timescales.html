@@ -60,9 +60,14 @@ function toggleTime ( )
     }
 }
     
-function showOverlapList ( )
+function toggleOverlapList ( )
 {
-    document.getElementById('ts_ovlist').style.display = 'block';
+    let elt = document.getElementById('ts_ovlist');
+    
+    if ( elt.style.display == 'block' )
+	elt.style.display = 'none';
+    else
+	elt.style.display = 'block';
 }
 </script>
 
