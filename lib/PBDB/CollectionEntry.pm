@@ -270,7 +270,7 @@ sub processCollectionForm {
 
 	# there are three license checkboxes so users understand what they
 	#  are doing, so combine the data JA 20.11.12
-	my $license = 'CC BY';
+	my $license = 'CC0';
 	#$license .= ( $q->param('noncommercial') ) ? '-NC' : '';
 	#$license .= ( $q->param('noderivs') ) ? '-ND' : '';
 	#$license .= ( $q->param('sharealike') ) ? '-SA' : '';
@@ -900,14 +900,21 @@ sub displayCollectionDetails {
 	if (!$coll ) {
 	    return PBDB::Debug::printErrors(["No collection with collection number $collection_no"]);
 	}
-
+    
+    my $pcsql = "SELECT paleo_lat, paleo_lng FROM paleocoords WHERE
+		 collection_no=$collection_no AND model='Wright2013' AND selector='mid'";
+    
+    my $dbh = $dbt->dbh;
+    
+    ($coll->{paleo_lat}, $coll->{paleo_lng}) = $dbh->selectrow_array($pcsql);
+    
+    $coll = formatCoordinate($s,$coll);
+    
     my $page_vars = {};
     if ( $coll->{'research_group'} =~ /ETE/ && $q->param('guest') eq '' )	{
         $page_vars->{ete_banner} = "<div style=\"padding-left: 0em; padding-right: 2em; float: left;\"><a href=\"http://www.mnh.si.edu/ETE\"><img alt=\"ETE\" src=\"/public/bannerimages/ete_logo.jpg\"></a></div>";
     }
     
-    $coll = formatCoordinate($s,$coll);
-
     # Handle display of taxonomic list now
     # don't even let bots see the lists because they will index the taxon
     #  pages returned by TaxonInfo anyway JA 2.10.09
@@ -973,17 +980,27 @@ sub formatCoordinate	{
         $coll->{'latsec'} = '';
         $coll->{'geogcomments'} = '';
     }
-    $coll->{'paleolatdir'} = "North";
-    if ( $coll->{'paleolat'} < 0 )	{
-        $coll->{'paleolatdir'} = "South";
+    
+    if ( defined $coll->{paleo_lat} && defined $coll->{paleo_lng} )
+    {
+	$coll->{paleolatdir} = "North, ";
+	if ( $coll->{paleo_lat} < 0 )	{
+	    $coll->{paleolatdir} = "South, ";
+	}
+	$coll->{paleolngdir} = "East";
+	if ( $coll->{paleo_lng} < 0 )	{
+	    $coll->{paleolngdir} = "West";
+	}
+	$coll->{paleolat} = sprintf "%.1f&deg;",abs($coll->{paleo_lat});
+	$coll->{paleolng} = sprintf "%.1f&deg;",abs($coll->{paleo_lng});
     }
-    $coll->{'paleolngdir'} = "East";
-    if ( $coll->{'paleolng'} < 0 )	{
-        $coll->{'paleolngdir'} = "West";
+    
+    else
+    {
+	$coll->{paleolat} = undef;
+	$coll->{paleolng} = undef;
     }
-    $coll->{'paleolat'} = sprintf "%.1f&deg;",abs($coll->{'paleolat'});
-    $coll->{'paleolng'} = sprintf "%.1f&deg;",abs($coll->{'paleolng'});
-
+    
     return $coll;
 }
 
@@ -1396,7 +1413,12 @@ sub displayCollectionDetailsPage {
     	my $escaped = uri_escape_utf8($row->{geological_group} // '');
         $row->{'geological_group'} = makeAnchor("displayStrata", "group_formation_member=$escaped", "$row->{geological_group}");
     }
-
+    
+    if ( defined $row->{paleolat} || defined $row->{paleolng} )
+    {
+	$row->{paleolngdir} .= " (Wright 2013)";
+    }
+    
     $row->{'modified'} = date($row->{'modified'});
 
     # textarea values often have returns that need to be rendered

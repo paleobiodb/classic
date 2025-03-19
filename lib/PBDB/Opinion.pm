@@ -261,6 +261,17 @@ sub formatAsHTML {
         return ($output," according to ",$short_ref);
     } else {
         $output .= " according to $short_ref";
+	
+	if ( $row->{basis} eq 'stated with evidence' )
+	{
+	    $output .= "(+)";
+	}
+	
+	elsif ( $row->{basis} eq 'second hand' )
+	{
+	    $output .= "(-)";
+	}
+	
         return $output;
     }
 }
@@ -1376,6 +1387,8 @@ sub submitOpinionForm {
 	$fields{basis} ||= 'stated without evidence';
 	
 	($code, $resultOpinionNumber) = $dbt->insertRecord($s,'opinions', \%fields);
+	
+	update_opinion_cache($dbt, $s, $resultOpinionNumber);
     } 
     
     else
@@ -1388,6 +1401,8 @@ sub submitOpinionForm {
 	
 	$resultOpinionNumber = $o->get('opinion_no');
 	$dbt->updateRecord($s,'opinions', 'opinion_no',$resultOpinionNumber, \%fields);
+	
+	update_opinion_cache($dbt, $s, $resultOpinionNumber);
     }
     
     if ( @opinions_to_migrate1 || @opinions_to_migrate2 || @parents_to_migrate1 || @parents_to_migrate2 )	{
@@ -1524,6 +1539,61 @@ sub submitOpinionForm {
     # See PBDB::Taxon::displayTypeTaxonSelectForm for details
     return PBDB::Taxon::displayTypeTaxonSelectForm($dbt,$s,$fields{'type_taxon'},$fields{'child_no'},$childName,$childRank,$resultReferenceNumber,$end_message);
 }
+
+
+# update_opinion_cache ( dbt, s, opinion_no )
+# 
+# Insert or replace a record in the opinion cache corresponding to a recently
+# added or updated opinion. This is necessary in order for the API to properly
+# report newly added and updated opinions.
+
+sub update_opinion_cache {
+    
+    my ($dbt, $s, $opinion_no) = @_;
+    
+    my $dbh = $dbt->dbh;
+    
+    my $opinion_string;
+    
+    if ( ref $opinion_no eq 'ARRAY' )
+    {
+	$opinion_string = "'" . join("','", @$opinion_no) . "'";
+    }
+    
+    else
+    {
+	$opinion_string = $dbh->quote($opinion_no);
+    }
+    
+    my $sql = "REPLACE INTO order_opinions (opinion_no, orig_no, child_rank, child_spelling_no,
+					   parent_no, parent_spelling_no, ri, pubyr,
+					   status, spelling_reason, reference_no, author, suppress)
+		SELECT o.opinion_no, a1.orig_no, a1.taxon_rank,
+			if(o.child_spelling_no > 0, o.child_spelling_no, o.child_no), 
+			a2.orig_no,
+			if(o.parent_spelling_no > 0, o.parent_spelling_no, o.parent_no),
+			CASE o.basis
+ 			WHEN 'second hand' THEN 1
+			WHEN 'stated without evidence' THEN 2
+			WHEN 'implied' THEN 2
+			WHEN 'stated with evidence' THEN 3 END as ri,
+			if(o.pubyr IS NOT NULL AND o.pubyr != '', o.pubyr, r.pubyr) as pubyr,
+			o.status, o.spelling_reason, o.reference_no,
+			if(o.ref_has_opinion = 'YES',
+			   compute_attr(r.author1last, r.author2last, r.otherauthors),
+			   compute_attr(o.author1last, o.author2last, o.otherauthors)),
+			null
+		FROM opinions as o
+			LEFT JOIN refs as r using (reference_no)
+			JOIN authorities as a1 on a1.taxon_no = o.child_spelling_no
+			LEFT JOIN authorities as a2 on o.parent_spelling_no
+		WHERE opinion_no in ($opinion_string)";
+    
+    my $result = $dbh->do($sql);
+    
+    return $result;
+}
+
 
 # row is an opinion database row and must contain the following fields:
 #   child_no,status,child_spelling_no,parent_spelling_no,opinion_no

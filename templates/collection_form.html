@@ -35,13 +35,35 @@ function checkFields() {
     }
 
     if ( bad_info != "" ) {
-        bad_info = "WARNING!\n" +
-                      bad_info + "\n\nPlease make corrections and resubmit.";
-        alert(bad_info);
-        bad_info = "";
-        return false;
+	
+	var frm = document.forms[1];
+	var coll_no = frm.collection_no.value;
+	
+	if ( typeof coll_no != 'undefined' && coll_no > 0 )
+	{
+	    var message = "WARNING!\n" + bad_info +
+		"\n\nDo you want to save anyway?";
+	    
+	    bad_info = '';
+	    
+	    if ( ! window.confirm(message) )
+	    {
+		return false;
+	    }
+	}
+	
+	else
+	{
+            var message = "WARNING!\n" + bad_info + 
+		"\n\nPlease make corrections and resubmit.";
+	    
+            bad_info = '';
+	    
+	    window.alert(message);
+            return false;
+	}
     }
-
+    
     document.forms[1].check_status.value = "done";
     return true;
 }
@@ -73,7 +95,7 @@ function doCheckFieldsBasicInfo() {
     // Deleting the primary reference is not allowed.
     // Note that the length of the radio group (or checkbox group) equals
     // the number of radio buttons regardless of their checked status.
-    // Note the the length of each may be different since there's not
+    // Note the the length of each may be different since there's not '
     // necessarily a one to one correspondence.
     if(frm.secondary_reference_no && frm.delete_ref){
         var i;
@@ -102,7 +124,9 @@ function doCheckFieldsBasicInfo() {
     if ( /immediate/.test( frm.release_date.value ) && ! /public/.test( frm.access_level.value ) ) {
         bad_info += "\no The release date is immediate";
     } else if ( ! /immediate/.test( frm.release_date.value ) && /public/.test( frm.access_level.value ) ) {
-        bad_info += "\no The access level is public";
+	var coll_no = frm.collection_no.value;
+	if ( typeof(coll_no) == 'undefined' || coll_no == '' )
+            bad_info += "\no The access level is public";
     }
 
     if ( frm.collection_type.selectedIndex == 0) {
@@ -512,6 +536,7 @@ function doCheckFieldsComponents() {
 
   <p>
     <span class="required">Author's main reason for describing collection:</span> <span class="verysmall"><select class="verysmall" id="collection_type"></select></span> analysis
+    <!--'-->
   </p>
 
   </div>
@@ -591,8 +616,8 @@ function doCheckFieldsComponents() {
   </tr>
 
   <tr><td colspan=2><div align="center">
-    <input type="button" name="show" value="show on map" onmouseup="adjustCoords(1)">&nbsp;&nbsp;
-    <input type="button" name="reset_coodrds" value="reset coords" onmouseup="restoreCoords()">&nbsp;&nbsp;
+    <input type="button" name="show" value="show on map" onmouseup="adjustCoords()">&nbsp;&nbsp;
+    <input type="button" name="reset_coords" value="reset coords" onmouseup="restoreCoords()">&nbsp;&nbsp;
     Set coords as:
       <select name="setcoords">
 	<option value="minsec">minutes/seconds</option>
@@ -1574,7 +1599,7 @@ function setCoords ( lat, lng )
     }
 
     mw.setMarker(lng, lat);
-    mw.showMarker;
+    mw.showMarker(10);
 }
 
 // This function is called when the value of any of the coordinate
@@ -1604,7 +1629,7 @@ function adjustCoords (center) {
   	  if ( form.lngdir.value == 'West' ) { lng = -1 * lng; }
 
   	  mw.setMarker(lng, lat);
-  	  mw.showMarker(center);
+  	  mw.showMarker();
   }
 }
 

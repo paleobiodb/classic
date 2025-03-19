@@ -146,16 +146,20 @@ sub getCollections {
                 $options{'taxon_name'} = ${$dbt->getData($sql)}[0]->{'taxon_name'};
                 @taxon_nos = (int($options{'taxon_no'}))
             } else {
+		if ( $options{taxon_name} =~ /['=]/ )
+		{
+		    return ([], 0, ["Bad character in Taxon name"]);
+		}
                 if (! $options{'no_authority_lookup'}) {
                 # get all variants of a name and current status but not
                 #  related synonyms JA 7.1.10
                     $options{'taxon_name'} =~ s/\./%/g;
-                    my $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE '".$options{'taxon_name'}."'";
+                    my $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE ".$dbh->quote($options{'taxon_name'});
                 # if that didn't work and the name is not a species, see if
                 #  it appears as a subgenus
                     my @taxa = @{$dbt->getData($sql)};
                     if ( ! @taxa )	{
-                        $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE '% (".$options{'taxon_name'}.")'";
+                        $sql = "SELECT t.taxon_no,status FROM authorities a,$TAXA_TREE_CACHE t,opinions o WHERE a.taxon_no=t.taxon_no AND t.opinion_no=o.opinion_no AND taxon_name LIKE ".$dbh->quote("% (" . $options{'taxon_name'} . ")");
                         @taxa = @{$dbt->getData($sql)};
                     }
                     if ( @taxa )	{
@@ -984,7 +988,7 @@ IS NULL))";
         my $is_primary =  $row->{'mysql_is_pri_key'};
 
         # These are special cases handled above in code, so skip them
-        next if ($field =~ /^(?:environment|localbed|regionalbed|research_group|reference_no|max_interval_no|min_interval_no|country|min_lat|max_lat|min_lng|max_lng|plate)$/);
+        next if ($field =~ /^(?:environment|localbed|regionalbed|reference_no|max_interval_no|min_interval_no|country|min_lat|max_lat|min_lng|max_lng|plate)$/);
 
 		if (exists $options{$field} && $options{$field} ne '') {
 			my $value = $options{$field};
@@ -1168,17 +1172,30 @@ sub formatCoordinate	{
         $coll->{'latsec'} = '';
         $coll->{'geogcomments'} = '';
     }
-    $coll->{'paleolatdir'} = "North";
-    if ( $coll->{'paleolat'} < 0 )	{
-        $coll->{'paleolatdir'} = "South";
+    
+    if ( defined $coll->{paleo_lat} && defined $coll->{paleo_lng} )
+    {
+	$coll->{paleolatdir} = "North";
+	if ( $coll->{paleo_lat} < 0 )	{
+	    $coll->{paleolatdir} = "South";
+	}
+	$coll->{paleolngdir} = "East";
+	if ( $coll->{paleo_lng} < 0 )	{
+	    $coll->{paleolngdir} = "West";
+	}
+	if ( $coll->{paleo_lat} || $coll->{paleo_lng} )
+	{
+	    $coll->{paleolat} = sprintf "%.1f&deg;",abs($coll->{paleo_lat});
+	    $coll->{paleolng} = sprintf "%.1f&deg;",abs($coll->{paleo_lng});
+	}
     }
-    $coll->{'paleolngdir'} = "East";
-    if ( $coll->{'paleolng'} < 0 )	{
-        $coll->{'paleolngdir'} = "West";
+    
+    else
+    {
+	$coll->{paleolat} = undef;
+	$coll->{paleolng} = undef;
     }
-    $coll->{'paleolat'} = sprintf "%.1f&deg;",abs($coll->{'paleolat'});
-    $coll->{'paleolng'} = sprintf "%.1f&deg;",abs($coll->{'paleolng'});
-
+    
     return $coll;
 }
 
@@ -1582,8 +1599,17 @@ sub basicCollectionInfo	{
 	}
     }
     
-    my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=".$q->numeric_param('collection_no');
+    my $collection_no = $q->numeric_param('collection_no');
+    
+    my $sql = "SELECT c.*,DATE_FORMAT(release_date, '%Y%m%d') AS rd_short,CONCAT(p.first_name,' ',p.last_name) AS authorizer,CONCAT(p2.first_name,' ',p2.last_name) AS enterer FROM collections c,person p,person p2 WHERE authorizer_no=p.person_no AND enterer_no=p2.person_no AND collection_no=$collection_no";
+    
     my $c = ${$dbt->getData($sql)}[0];
+    
+    my $pcsql = "SELECT paleo_lat, paleo_lng FROM paleocoords WHERE model='Wright2013' and selector='mid' and collection_no=$collection_no";
+    
+    my $dbh = $dbt->dbh;
+    
+    ($c->{paleo_lat}, $c->{paleo_lng}) = $dbh->selectrow_array($pcsql);
 
     my $p = PBDB::Permissions->new($s,$dbt);
     my $okToRead = $p->readPermission($c);
@@ -1633,9 +1659,15 @@ sub basicCollectionInfo	{
 		$min = ${$dbt->getData($sql)}[0];
 		my $minName .= ( $interval{$min->{'period_no'}} =~ /Paleogene|Neogene|Quaternary/ && $min->{'epoch_no'} > 0 ) ? $interval{$min->{'epoch_no'}} : $interval{$min->{'period_no'}};
 		$header .= ( $maxName ne $minName ) ? " to ".$minName : "";
-	}
-	$c->{'country'} =~ s/^United/the United/;
-
+	    }
+    
+    $c->{'country'} =~ s/^United/the United/;
+    
+    if ( $c->{research_group} eq 'eODP' )
+    {
+	$c->{country} ||= 'the ocean floor';
+    }
+    
 	# I'm forced to do this by an iPhone bug
 	my $marginLeft = ( $ENV{'HTTP_USER_AGENT'} =~ /Mobile/i && $ENV{'HTTP_USER_AGENT'} !~ /iPad/i ) ? "-4em" : "0em";
 
@@ -1703,13 +1735,17 @@ function showAuthors()	{
 		$output .= " (".$c->{'latdeg'}.".".$c->{'latdec'}."&deg; ".$c->{'latdir'};
 		$output .= ", ".$c->{'lngdeg'}.".".$c->{'lngdec'}."&deg; ".$c->{'lngdir'};
 	}
-	if ( $c->{'paleolat'} && $c->{'paleolng'} )	{
-		$output .= ": paleocoordinates ".$c->{'paleolat'}." ".$c->{'paleolatdir'};
-		$output .= ", ".$c->{'paleolng'}." ".$c->{'paleolngdir'};
-	}
-
+    
 	$output .= ")";
 	$output .= "</p>\n\n";
+    
+	if ( $c->{'paleolat'} && $c->{'paleolng'} )	{
+		$output .= "<p $mockLI Paleocoordinates: ".$c->{paleolat}." ".$c->{paleolatdir};
+		$output .= ", ".$c->{paleolng}." ".$c->{paleolngdir};
+		$output .= " (Wright 2013)";
+		$output .= "</p>\n\n";
+	}
+    
 
 	if ( $c->{'latlng_basis'} )	{
 		$c->{'latlng_basis'} =~ s/(unpublished)/based on $1/;
@@ -2237,10 +2273,7 @@ function showAuthors()	{
     if ($s->isDBMember())
     {
 	$output .= "<div class=\"medium\" style=\"margin-top: -1em; margin-bottom: 1em;\">\n";
-	# my $p = PBDB::Permissions->new($s,$dbt);
-	# my $can_modify = $p->getModifierList();
-	# $can_modify->{$s->get('authorizer_no')} = 1;
-	# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
+	$output .= makeAnchor("displayCollectionDetails", "collection_no=$c->{collection_no}", "Full details") . " - ";
 	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser )
 	{
 	    $output .= makeAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";

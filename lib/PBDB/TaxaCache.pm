@@ -404,7 +404,7 @@ my $min_interval_no = 0;
 # belong anywhere.  Should be called when creating a new authority (Taxon.pm) 
 # and Opinion.pm (when creating a new spelling on fly)
 sub addName {
-    my ($dbt,$taxon_no) = @_;
+    my ($dbt, $taxon_no, $taxon_name, $taxon_rank) = @_;
     my $dbh = $dbt->dbh;
    
     my $sql = "SELECT max(rgt) m FROM $TAXA_TREE_CACHE";
@@ -413,10 +413,24 @@ sub addName {
     my $row = $sth->fetchrow_arrayref();
     my $lft = $row->[0] + 1; 
     my $rgt = $row->[0] + 2; 
-  
+    
+    # Add a new row to taxa_tree_cache.
+    
     $sql = "INSERT IGNORE INTO $TAXA_TREE_CACHE (taxon_no,lft,rgt,spelling_no,synonym_no,max_interval_no,min_interval_no) VALUES ($taxon_no,$lft,$rgt,$taxon_no,$taxon_no,0,0)";
     #print "Adding name: $taxon_no: $sql<BR>\n" if ($DEBUG);
-    $dbh->do($sql); 
+    $dbh->do($sql);
+    
+    # Add the same new row to taxon_trees, including the name and rank.
+    
+    my $qname = $dbh->quote($taxon_name || '');
+    my $qrank = '';
+    if ( $taxon_rank ) { $qrank = $dbh->quote($Taxon::rankToNum{$taxon_rank} || ''); }
+    
+    $sql = "INSERT IGNORE INTO taxon_trees (orig_no,name,rank,lft,rgt,spelling_no,synonym_no) VALUES ($taxon_no,$qname,$qrank,$lft,$rgt,$taxon_no,$taxon_no)";
+    $dbh->do($sql);
+    
+    # Retrieve the new row from taxa_tree_cache.
+    
     $sql = "SELECT * FROM $TAXA_TREE_CACHE WHERE taxon_no=$taxon_no";
     $row = ${$dbt->getData($sql)}[0];
     
