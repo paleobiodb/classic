@@ -551,15 +551,14 @@ sub generateIntervalDetails {
     
     my $details = "<p>$b_age - $t_age Ma</p>\n";
     
-    my $ts_anchor = "<a href=\"/classic/displayTimescale?scale=$scale_no\">$scale_name</a>";
+    my $ts_anchor = "<a onmouseover=\"setHref(this, 'displayTimescale', 'scale=$scale_no')\">$scale_name</a>";
     
     if ( $long_ref )
     {
 	$details .= "<p>The definition of this interval in the timescale $ts_anchor " .
 	    "is taken from the following source:</p>\n";
 	
-	my $anchor = "<a href=\"/classic/displayRefResults?reference_no=$reference_no\" " .
-	    "target=\"_blank\">view</a>";
+	my $anchor = "<a onmouseover=\"setHref(this, 'app/refs', '#display=$reference_no')\" target=\"_blank\">view</a>";
 	
 	$details .= "<ul>";
 	$details .= "<li>$long_ref $anchor</li>";
@@ -591,7 +590,7 @@ sub generateIntervalDetails {
     {
 	my $count = scalar(@overlaps);
 	
-	my $trigger = "onclick=\"showOverlapList()\"";
+	my $trigger = "onclick=\"toggleOverlapList()\"";
 	
 	$details .= "<p>There are intervals in $count timescales which overlap this one. ";
 	$details .= "<a $trigger>show</a></p>\n";
@@ -608,7 +607,7 @@ sub generateIntervalDetails {
     if ( $n_colls && defined $n_colls->{colls_defined} )
     {
 	my $name = $idata->{interval_name} || '?';
-	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&timerule=defined&max_interval=$name\" target=\"_blank\">$n_colls->{colls_defined} collections</a>";
+	my $anchor = "<a onmouseover=\"setHref(this, 'displayCollResults', 'view=standard&timerule=defined&max_interval=$name')\" target=\"_blank\">$n_colls->{colls_defined} collections</a>";
 	
 	$details .= "<p>This interval is used in the definition of $anchor</p>\n";
     }
@@ -616,7 +615,7 @@ sub generateIntervalDetails {
     if ( $n_colls && defined $n_colls->{colls_major} )
     {
 	my $name = $idata->{interval_name} || '?';
-	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&timerule=major&max_interval=$name\" target=\"_blank\">$n_colls->{colls_major} collections</a>";
+	my $anchor = "<a onmouseover=\"setHref(this, 'displayCollResults', 'view=standard&timerule=major&max_interval=$name')\" target=\"_blank\">$n_colls->{colls_major} collections</a>";
 	
 	$details .= "<p>A total of $anchor with $n_colls->{occs_major} occurrences lie within this time span</p>\n";
     }
@@ -636,8 +635,8 @@ sub generateRangeDetails {
     
     my $details = "<p>$b_range - $t_range Ma</p>";
     
-    my $anchor1 = "<a href=\"$INTERVAL_URL$name1\">Show $name1</a>";
-    my $anchor2 = "<a href=\"$INTERVAL_URL$name2\">Show $name2</a>";
+    my $anchor1 = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$name1')\">Show $name1</a>";
+    my $anchor2 = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$name2')\">Show $name2</a>";
     
     $details .= "<p>$anchor1</p>\n";
     $details .= "<p>$anchor2</p>\n" if $name2 ne '?';
@@ -668,7 +667,7 @@ sub generateTimescaleDetails {
 	
 	foreach my $r ( $reference_list->@* )
 	{
-	    my $anchor = "<a href=\"/classic/displayRefResults?reference_no=$r\" target=\"_blank\">view</a>";
+	    my $anchor = "<a onmouseover=\"setHref(this, 'app/refs', '#display=$r')\" target=\"_blank\">view</a>";
 	    
 	    $details .= "<li>$long_ref->{$r} $anchor</li>\n";
 	}
@@ -682,7 +681,7 @@ sub generateTimescaleDetails {
     {
 	my $count = scalar(@overlaps);
 	
-	my $trigger = "onclick=\"showOverlapList()\"";
+	my $trigger = "onclick=\"toggleOverlapList()\"";
 	
 	$details .= "<p>There are $count timescales which overlap this one. <a $trigger>show</a></p>\n";
 	$details .= "<ul class=\"ts_ovlist\" id=\"ts_ovlist\" style=\"display: none\">\n";
@@ -704,7 +703,7 @@ sub generateTimescaleDetails {
     
     if ( defined $n_colls && $main_scale )
     {
-	my $anchor = "<a href=\"/classic/displayCollResults?view=standard&uses_timescale=$main_scale\" target=\"_blank\">$n_colls collections</a>";
+	my $anchor = "<a onmouseover=\"setHref(this, 'displayCollResults', 'view=standard&uses_timescale=$main_scale')\" target=\"_blank\">$n_colls collections</a>";
 	
 	$details .= "<p>This timescale is used in the definition of $anchor</p>\n";
     }
@@ -771,7 +770,7 @@ sub expandOrShrink {
 	$word = 'more';
     }
     
-    my $ex_link = "<p><a class=\"ts_expand\" href=\"/classic/displayTimescale?$query_string\">Show $word time</a></p>\n";
+    my $ex_link = "<p><a class=\"ts_expand\" onclick=\"openLink('displayTimescale', '$query_string')\">Show $word time</a></p>\n";
     my $st_link = "<p><a class=\"ts_expand\" id=\"ts_showtime\" onclick=\"toggleTime()\">Show linear time</a></p>\n";
     
     return "<table><tr><td>$ex_link</td><td>$st_link</td></tr></table>\n";
@@ -813,7 +812,7 @@ sub getOverlapIntervals {
 	    my $name = $int->{interval_name};
 	    my $type = $int->{type};
 	    
-	    my $anchor = "<a href=\"$INTERVAL_URL$main_name,$name\">";
+	    my $anchor = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$main_name,$name')\">";
 	    push @sublist, "$anchor$name</a> $type";
 	}
 	
@@ -844,19 +843,19 @@ sub getOverlapTimescales {
 	    my $num = $ts->{scale_no};
 	    my $name = $ts->{scale_name};
 	    
-	    my $new_url = "/classic/displayTimescale?$query_string";
+	    # my $new_url = "/classic/displayTimescale?$query_string";
 	    
-	    if ( $new_url =~ /scale=\d/ )
+	    if ( $query_string =~ /scale=\d/ )
 	    {
-		$new_url =~ s/scale=([\d,]+)/scale=$main_scale,$num/;
+		$query_string =~ s/scale=([\d,]+)/scale=$main_scale,$num/;
 	    }
 	    
 	    else
 	    {
-		$new_url .= "&scale=$main_scale,$num";
+		$query_string .= "&scale=$main_scale,$num";
 	    }
 	    
-	    push @result, "<a href=\"$new_url\">$name</a>";
+	    push @result, "<a onmouseover=\"setHref(this, 'displayTimescale', '$query_string')\">$name</a>";
 	}
     }
     
@@ -909,8 +908,8 @@ sub listTimescales {
 	    $nz_heading = 1;
 	}
 	
-	my $link = "/classic/displayTimescale?scale=$snum";
-	my $anchor = "<a href=\"$link\">$name</a>";
+	# my $link = "/classic/displayTimescale?scale=$snum";
+	my $anchor = "<a onmouseover=\"setHref(this, 'displayTimescale', 'scale=$snum')\">$name</a>";
 	
 	$html .= "<li>$anchor</li>\n";
     }
@@ -965,7 +964,7 @@ sub collectionIntervalLabel {
 	my $iname1 = int_name($i1) // '?';
 	my $iname2 = int_name($i2) // '?';
 	
-	my $label = "<a href=\"$RANGE_URL$i1-$i2\" target=\"_blank\">$iname1/$iname2</a>";
+	my $label = "<a onmouseOver=\"setHref(this, 'displayTimescale','range=$i1-$i2')\" target=\"_blank\">$iname1/$iname2</a>";
 	
 	my $bin1 = int_correlation($i1, 'ten_my_bin');
 	my $bin2 = int_correlation($i2, 'ten_my_bin');
@@ -1009,7 +1008,7 @@ sub collectionIntervalLabel {
     elsif ( int_defined($i1) )
     {
 	my $interval_name = int_name($i1) // '?';
-	my $label = "<a href=\"$INTERVAL_URL$i1\" target=\"_blank\">$interval_name</a>";
+	my $label = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$i1')\" target=\"_blank\">$interval_name</a>";
 	
 	if ( my $ten_my_bin = int_correlation($i1, 'ten_my_bin') )
 	{
