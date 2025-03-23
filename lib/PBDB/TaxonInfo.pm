@@ -15,7 +15,8 @@ use PBDB::Measurement;
 use PBDB::Debug qw(dbg);
 use PBDB::PBDBUtil;
 use PBDB::Constants qw($INTERVAL_URL $RANGE_URL $GDD_URL $HTML_DIR $TAXA_TREE_CACHE 
-		       makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeURL);
+		       makeATag makeObTag makeAnchor makeObAnchor makePageAnchor 
+		       makeAnchorWithAttrs makeURL);
 
 use strict;
 
@@ -355,8 +356,8 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
 	# JA 5.9.11
 	if ( $discussion )	{
 		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeATag('basicTaxonInfo', "taxon_no=$4")/ge;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag('app\/refs', "#display=$4")/ge;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeATag('basicCollectionSearch', "collection_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeObTag('app\/refs', "#display=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeObTag('basicCollectionSearch', "collection_no=$4")/ge;
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;
 
@@ -407,17 +408,17 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
         if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
             # Entered Taxon
             if ($entered_no) {
-                $output .= makeATag("displayAuthorityForm", "taxon_no=$entered_no");
+                $output .= makeObTag("displayAuthorityForm", "taxon_no=$entered_no");
                 $output .= "<b>Edit taxonomic data for $entered_name</b></a> - ";
             } else {
-                $output .= makeATag("submitTaxonSearch", "goal=authority&amp;taxon_no=-1&amp;taxon_name=$entered_name");
+                $output .= makeObTag("submitTaxonSearch", "goal=authority&amp;taxon_no=-1&amp;taxon_name=$entered_name");
                 $output .= "<b>Enter taxonomic data for $entered_name</b></a> - ";
             }
 
             if ($entered_no) {
-                $output .= makeATag("displayOpinionChoiceForm", "taxon_no=$entered_no");
+                $output .= makeObTag("displayOpinionChoiceForm", "taxon_no=$entered_no");
 		$output .= "<b>Edit taxonomic opinions about $entered_name</b></a> -<br> ";
-                $output .= makeATag("startPopulateEcologyForm", "taxon_no=$taxon_no");
+                $output .= makeObTag("startPopulateEcologyForm", "taxon_no=$taxon_no");
 		$output .= "<b>Add/edit ecological/taphonomic data</b></a> - ";
             }
         }
@@ -975,10 +976,10 @@ sub doCollections{
 					$formatted_no =~ s/([0-9])/type locality: $1/;
 				}
 				if ( $iscrown{$no} > 0 )	{
-				    my $link = makeATag("basicCollectionSearch", "collection_no=$no&amp;is_real_user=$is_real_user");
+				    my $link = makeObTag("basicCollectionSearch", "collection_no=$no&amp;is_real_user=$is_real_user");
 				    $formatted_no =~ s/([0-9])/$link<b>$1<\/b>/;
 				} else	{
-				    my $link = makeATag("basicCollectionSearch", "collection_no=$no&amp;is_real_user=$is_real_user");
+				    my $link = makeObTag("basicCollectionSearch", "collection_no=$no&amp;is_real_user=$is_real_user");
 				    $formatted_no =~ s/([0-9])/${link}$1/;
 				}
 				$output .= $formatted_no;
@@ -1231,7 +1232,7 @@ sub displayTaxonClassification {
                 }
                 my $pub_info = PBDB::Reference::formatShortRef($authority);
                 if ($authority->{'ref_is_authority'} =~ /yes/i) {
-                    $pub_info = makeAnchor("app/refs#display=$authority->{reference_no}", $pub_info);
+                    $pub_info = makeObAnchor("app/refs#display=$authority->{reference_no}", $pub_info);
                 }
                 my $orig_no = getOriginalCombination($dbt,$taxon_no);
                 if ($orig_no != $taxon_no) {
@@ -2013,7 +2014,7 @@ sub printTypeInfo	{
                 $coll_row->{'place'} =~ s/Lao People's Democratic Republic/Laos/;
                 $coll_row->{'place'} =~ s/(United Kingdom|Russian Federation|Czech Republic|Netherlands|Dominican Republic|Bahamas|Philippines|Netherlands Antilles|United Arab Emirates|Marshall Islands|Congo|Seychelles)/the $1/;
                 $text .= "Its type locality is ";
-		$text .= makeAnchor("basicCollectionSearch", "collection_no=$taxon->{type_locality}&amp;is_real_user=$is_real_user", 
+		$text .= makeObAnchor("basicCollectionSearch", "collection_no=$taxon->{type_locality}&amp;is_real_user=$is_real_user", 
 				    $coll_row->{'collection_name'});
 		$text .= ", which is in $strat $lith $fm $coll_row->{'place'}. ";
             }
@@ -2030,7 +2031,7 @@ sub printTypeInfo	{
             if ( $preface )	{
                 $text .= "Its type is ";
             }
-            $text .= makeAnchor("$taxonInfoGoal", "taxon_no=$type_taxon->{taxon_no}&amp;is_real_user=$is_real_user", $type_taxon_name) . ". ";  
+            $text .= makeObAnchor("$taxonInfoGoal", "taxon_no=$type_taxon->{taxon_no}&amp;is_real_user=$is_real_user", $type_taxon_name) . ". ";  
         }
     }
 
@@ -2813,7 +2814,7 @@ sub displaySynonymyList	{
 				$authorstring .= " and " . $refdata->{author2last};
 			}
 			if ( $refdata->{ref_is_authority} eq "YES" || $refdata->{ref_has_opinion} eq "YES" )	{
-			    $authorstring = makeAnchor("app/refs", "#display=$refdata->{reference_no}", 
+			    $authorstring = makeObAnchor("app/refs", "#display=$refdata->{reference_no}", 
 						       $authorstring);
 			}
 			$synkey .= $authorstring;
@@ -3441,7 +3442,7 @@ sub displayFirstAppearance	{
 			}
 		}
 		$output .= "<p style=\"padding-left: 1em; text-indent: -1em;\">The collection documenting the first appearance is ";
-		$output .= makeAnchor("basicCollectionSearch", "collection_no=$firsts[0]{collection_no}", $firsts[0]{collection_name});
+		$output .= makeObAnchor("basicCollectionSearch", "collection_no=$firsts[0]{collection_no}", $firsts[0]{collection_name});
 		$output .= " ($agerange $firsts[0]{formation} of $firsts[0]{country}: includes ".join(', ',@includes).")</p>\n";
 	} else	{
 		@firsts = sort { $a->{'collection_name'} cmp $b->{'collection_name'} } @firsts;
@@ -3465,7 +3466,7 @@ sub displayFirstAppearance	{
 			$output .= "<tr valign=\"top\" class=$classes style=\"padding: 3.5em;\">\n";
 			my $collno = $coll->{'collection_no'};
 			$coll->{'collection_no'} = "&nbsp;&nbsp;" .
-			    makeAnchor("basicCollectionSearch", "collection_no=$coll->{collection_no}", $coll->{collection_no});
+			    makeObAnchor("basicCollectionSearch", "collection_no=$coll->{collection_no}", $coll->{collection_no});
 			if ( $coll->{'state'} && $coll->{'country'} eq "United States" )	{
 				$coll->{'country'} = "US (".$coll->{'state'}.")";
 			}
@@ -3490,8 +3491,8 @@ sub displayFirstAppearance	{
 	$output .= "</div>\n</div>\n";
 
 	$output .= "<div style=\"padding-left: 6em;\">";
-	$output .= makeAnchor("beginFirstAppearance", "", "Search again") . " - ";
-	$output .= makeAnchor("displayTaxonInfoResults", "taxon_no=$nos[0]{taxon_no}", "See more details about $name") . "</div>\n";
+	$output .= makeObAnchor("beginFirstAppearance", "", "Search again") . " - ";
+	$output .= makeObAnchor("displayTaxonInfoResults", "taxon_no=$nos[0]{taxon_no}", "See more details about $name") . "</div>\n";
 	$output .= "</div>\n";
 
 	return $output;
@@ -3784,7 +3785,7 @@ sub basicTaxonInfo	{
 	if ( $taxon_no )	{
 		my $author = formatShortAuthor($auth);
 		if ( $auth->{'ref_is_authority'} =~ /y/i )	{
-			$author = makeAnchor("app/refs", "#display=$auth->{'reference_no'}", $author);
+			$author = makeObAnchor("app/refs", "#display=$auth->{'reference_no'}", $author);
 		}
 		$header .= $author;
 		if ( $auth->{'common_name'} )	{
@@ -3827,9 +3828,9 @@ sub basicTaxonInfo	{
 
 	if ( $auth->{'discussion'} )	{
 		my $discussion = $auth->{'discussion'};
-		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeATag("basicTaxonInfo", "taxon_no=$4")/ge;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeATag("app\/refs", "#display=$4")/ge;
-		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeATag("basicCollectionSearch", "collection_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z ]+|)(taxon )([0-9]+)(\|)/makeObTag("basicTaxonInfo", "taxon_no=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'\. ]+|)(ref )([0-9]+)(\|)/makeObTag("app\/refs", "#display=$4")/ge;
+		$discussion =~ s/(\[\[)([A-Za-z0-9\'"\.\-\(\) ]+|)(coll )([0-9]+)(\|)/makeObTag("basicCollectionSearch", "collection_no=$4")/ge;
 		$discussion =~ s/\]\]/<\/a>/g;
 		$discussion =~ s/\n\n/<\/p>\n<p>/g;
 		$auth->{'email'} =~ s/\@/\' \+ \'\@\' \+ \'/;
@@ -4003,10 +4004,14 @@ sub basicTaxonInfo	{
 				$list =~ s/, $//;
 				$output .= $list;
 				$output .= "</span></p>\n\n";
-				$output .= qq|<p><a href=# onClick="javascript: document.doViewClassification.submit()">View classification</a></span></p>\n\n|;
-				$output .= "\n<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
-				$output .= '<input type="hidden" name="action" value="classify">';
-				$output .= '<input type="hidden" name="taxon_no" value="'.$taxon_no.'">';
+				$output .= '<p>';
+				$output .= makeObAnchor('classify', "taxon_no=$taxon_no",
+							'view classification');
+				$output .= "</p>\n\n";
+				# $output .= qq|<p><a href=# onClick="javascript: document.doViewClassification.submit()">View classification</a></span></p>\n\n|;
+				# $output .= "\n<form method=\"POST\" action=\"\" name=\"doViewClassification\">";
+				# $output .= '<input type="hidden" name="action" value="classify">';
+				# $output .= '<input type="hidden" name="taxon_no" value="'.$taxon_no.'">';
 				$output .= "</form>\n";
 			} else	{
 				$output .= "<i>none</i></span></p>\n\n";
@@ -4193,7 +4198,7 @@ sub basicTaxonInfo	{
 	    {
 		my $o = $occs[0];
 		$output .= qq| found only at |;
-		$output .= makeATag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
+		$output .= makeObTag("basicCollectionSearch", "collection_no=$o->{collection_no}") . $o->{'collection_name'};
 		if ( $typeLocality == 0 )	{
 		    my $place = ( $o->{'country'} =~ /United States|Canada/ ) ? $o->{'state'} : $o->{'country'};
 		    $place =~ s/United King/the United King/;
@@ -4270,10 +4275,10 @@ sub basicTaxonInfo	{
 			    $min_interval_where = "&amp;min_interval_no=$min_interval";
 			}
 			if ( $country !~ /United States|Canada/ || ! @states )	{
-			    $list .= makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $shortcountry) . " (".$bycountry{$i}{$c};
+			    $list .= makeObAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $shortcountry) . " (".$bycountry{$i}{$c};
 			} else	{
 			    for my $j ( 0..$#states )	{
-				$states[$j] = makeAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;state=$states[$j]&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $states[$j]);
+				$states[$j] = makeObAnchor("displayCollResults", "$taxon_param&amp;max_interval=$max_interval$min_interval_where&amp;country=$country&amp;state=$states[$j]&amp;is_real_user=$is_real_user&amp;basic=yes&amp;type=view&amp;match_subgenera=1", $states[$j]);
 			    }
 			    $list .= "$country ($bycountry{$i}{$c}";
 			    $list .= ": ".join(', ',@states);
@@ -4325,18 +4330,18 @@ sub basicTaxonInfo	{
 	{
 	    if ( $taxon_no )
 	    {
-		$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
+		$output .= "<p>" . makeObAnchor("checkTaxonInfo", "taxon_no=$taxon_no&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 	    }
 	    
 	    else
 	    {
-		$output .= "<p>" . makeAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
+		$output .= "<p>" . makeObAnchor("checkTaxonInfo", "taxon_name=$taxon_name&amp;is_real_user=1", "Show more details") . "</p>\n\n";
 	    }
 	    
 	    if ( $s->isDBMember() && $taxon_no && $s->get('role') =~ /authorizer|student|technician/ )
 	    {
-		$output .= "<p>" . makeAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
-		$output .= "<p>" . makeAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
+		$output .= "<p>" . makeObAnchor("displayAuthorityForm", "taxon_no=$taxon_no", "Edit " . italicize($auth)) . "</p>\n\n";
+		$output .= "<p>" . makeObAnchor("displayOpinionChoiceForm", "taxon_no=$taxon_no", "Add/edit taxonomic opinions about " . italicize($auth)) . "</p>\n\n";
 	    }
 	    
 	    if ( $taxon_rank eq "genus" || $taxon_rank eq "species" )

@@ -12,7 +12,7 @@ use IntervalBase qw(ts_defined ts_record ts_name ts_bounds ts_intervals ts_by_ag
 		    int_record int_correlation ints_by_age INTL_SCALE BIN_SCALE);
 use List::Util qw(min max all);
 
-use PBDB::Constants qw($INTERVAL_URL $RANGE_URL);
+use PBDB::Constants qw($INTERVAL_URL $RANGE_URL makeObTag makeObAnchor makeObAnchorWA);
 use JSON;
 
 
@@ -514,7 +514,7 @@ interval_bounds = $bounds_encoded;
 reference_data = $refs_encoded;
 
 display_interval_url = '$INTERVAL_URL';
-display_ref_url =      '/classic/displayRefResults?reference_no=';
+display_ref_url =      '/classic/app/refs#display=';
 display_colls_def =    '/classic/displayCollResults?view=standard&timerule=defined&max_interval=';
 display_colls_cont =   '/classic/displayCollResults?view=standard&timerule=major&max_interval=';
 
@@ -551,14 +551,14 @@ sub generateIntervalDetails {
     
     my $details = "<p>$b_age - $t_age Ma</p>\n";
     
-    my $ts_anchor = "<a onmouseover=\"setHref(this, 'displayTimescale', 'scale=$scale_no')\">$scale_name</a>";
+    my $ts_anchor = makeObAnchor('displayTimescale', "scale=$scale_no", $scale_name);
     
     if ( $long_ref )
     {
 	$details .= "<p>The definition of this interval in the timescale $ts_anchor " .
 	    "is taken from the following source:</p>\n";
 	
-	my $anchor = "<a onmouseover=\"setHref(this, 'app/refs', '#display=$reference_no')\" target=\"_blank\">view</a>";
+	my $anchor = makeObAnchorWA('app/refs', "#display=$reference_no", 'target="_blank"', 'view');
 	
 	$details .= "<ul>";
 	$details .= "<li>$long_ref $anchor</li>";
@@ -607,7 +607,9 @@ sub generateIntervalDetails {
     if ( $n_colls && defined $n_colls->{colls_defined} )
     {
 	my $name = $idata->{interval_name} || '?';
-	my $anchor = "<a onmouseover=\"setHref(this, 'displayCollResults', 'view=standard&timerule=defined&max_interval=$name')\" target=\"_blank\">$n_colls->{colls_defined} collections</a>";
+	my $anchor = makeObAnchorWA('displayCollResults', 
+				    "view=standard&timerule=defined&max_interval=$name",
+				    'target="_blank"', "$n_colls->{colls_defined} collections");
 	
 	$details .= "<p>This interval is used in the definition of $anchor</p>\n";
     }
@@ -615,7 +617,9 @@ sub generateIntervalDetails {
     if ( $n_colls && defined $n_colls->{colls_major} )
     {
 	my $name = $idata->{interval_name} || '?';
-	my $anchor = "<a onmouseover=\"setHref(this, 'displayCollResults', 'view=standard&timerule=major&max_interval=$name')\" target=\"_blank\">$n_colls->{colls_major} collections</a>";
+	my $anchor = makeObAnchorWA('displayCollResults', 
+				    "view=standard&timerule=major&max_interval=$name",
+				    'target="_blank"', "$n_colls->{colls_major} collections");
 	
 	$details .= "<p>A total of $anchor with $n_colls->{occs_major} occurrences lie within this time span</p>\n";
     }
@@ -635,8 +639,8 @@ sub generateRangeDetails {
     
     my $details = "<p>$b_range - $t_range Ma</p>";
     
-    my $anchor1 = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$name1')\">Show $name1</a>";
-    my $anchor2 = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$name2')\">Show $name2</a>";
+    my $anchor1 = makeObAnchor('displayTimescale', "interval=$name1", "Show $name1");
+    my $anchor2 = makeObAnchor('displayTimescale', "interval=$name2", "Show $name2");
     
     $details .= "<p>$anchor1</p>\n";
     $details .= "<p>$anchor2</p>\n" if $name2 ne '?';
@@ -667,7 +671,7 @@ sub generateTimescaleDetails {
 	
 	foreach my $r ( $reference_list->@* )
 	{
-	    my $anchor = "<a onmouseover=\"setHref(this, 'app/refs', '#display=$r')\" target=\"_blank\">view</a>";
+	    my $anchor = makeObAnchorWA('app/refs', "#display=$r", 'target="_blank"', 'view');
 	    
 	    $details .= "<li>$long_ref->{$r} $anchor</li>\n";
 	}
@@ -703,7 +707,8 @@ sub generateTimescaleDetails {
     
     if ( defined $n_colls && $main_scale )
     {
-	my $anchor = "<a onmouseover=\"setHref(this, 'displayCollResults', 'view=standard&uses_timescale=$main_scale')\" target=\"_blank\">$n_colls collections</a>";
+	my $anchor = makeObAnchorWA('displayCollResults', "view=standard&uses_timescale=$main_scale",
+				    'target="_blank"', "$n_colls collections");
 	
 	$details .= "<p>This timescale is used in the definition of $anchor</p>\n";
     }
@@ -812,7 +817,7 @@ sub getOverlapIntervals {
 	    my $name = $int->{interval_name};
 	    my $type = $int->{type};
 	    
-	    my $anchor = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$main_name,$name')\">";
+	    my $anchor = makeObTag('displayTimescale', "interval=$main_name,$name");
 	    push @sublist, "$anchor$name</a> $type";
 	}
 	
@@ -855,7 +860,7 @@ sub getOverlapTimescales {
 		$query_string .= "&scale=$main_scale,$num";
 	    }
 	    
-	    push @result, "<a onmouseover=\"setHref(this, 'displayTimescale', '$query_string')\">$name</a>";
+	    push @result, makeObAnchor('displayTimescale', $query_string, $name);
 	}
     }
     
@@ -909,7 +914,7 @@ sub listTimescales {
 	}
 	
 	# my $link = "/classic/displayTimescale?scale=$snum";
-	my $anchor = "<a onmouseover=\"setHref(this, 'displayTimescale', 'scale=$snum')\">$name</a>";
+	my $anchor = makeObAnchor('displayTimescale', "scale=$snum", $name);
 	
 	$html .= "<li>$anchor</li>\n";
     }
@@ -964,7 +969,8 @@ sub collectionIntervalLabel {
 	my $iname1 = int_name($i1) // '?';
 	my $iname2 = int_name($i2) // '?';
 	
-	my $label = "<a onmouseOver=\"setHref(this, 'displayTimescale','range=$i1-$i2')\" target=\"_blank\">$iname1/$iname2</a>";
+	my $label = makeObAnchorWA('displayTimescale', "range=$i1-$i2", 
+				   'target="_blank"', "$iname1/$iname2");
 	
 	my $bin1 = int_correlation($i1, 'ten_my_bin');
 	my $bin2 = int_correlation($i2, 'ten_my_bin');
@@ -1008,7 +1014,8 @@ sub collectionIntervalLabel {
     elsif ( int_defined($i1) )
     {
 	my $interval_name = int_name($i1) // '?';
-	my $label = "<a onmouseover=\"setHref(this, 'displayTimescale', 'interval=$i1')\" target=\"_blank\">$interval_name</a>";
+	my $label = makeObAnchorWA('displayTimescale', "interval=$i1", 'target="_blank"',
+				   $interval_name);
 	
 	if ( my $ten_my_bin = int_correlation($i1, 'ten_my_bin') )
 	{

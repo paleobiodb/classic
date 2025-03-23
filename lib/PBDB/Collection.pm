@@ -29,7 +29,8 @@ use PBDB::Debug qw(dbg);
 use URI::Escape;
 use Encode;
 use PBDB::Debug;
-use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCES makeAnchor);
+use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTIONS $COLLECTION_NO $OCCURRENCES 
+		       makeAnchor makeObAnchor);
 
 use TableDefs qw(%TABLE);
 use CoreTableDefs;
@@ -1926,7 +1927,7 @@ function showAuthors()	{
 
 	$sql = "SELECT * FROM refs WHERE reference_no=".$c->{'reference_no'};
 	my $ref = ${$dbt->getData($sql)}[0];
-	$output .= "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeAnchor("app/refs", "#display=$c->{reference_no}", "more details");
+	$output .= "<p $indent>Primary reference: ".PBDB::Reference::formatLongRef($ref,'link_id'=>1).makeObAnchor("app/refs", "#display=$c->{reference_no}", "more details");
 	$output .= "</p>\n\n";
 
 	$c->{'collection_type'} ? $output .= "<p $indent>Purpose of describing collection: $c->{'collection_type'} analysis<p>\n\n" : "";
@@ -1990,7 +1991,7 @@ function showAuthors()	{
 		if ( $s->{'taxon_rank'} =~ /genus|species/ )	{
 		    $s->{'good'} = "<i>".$s->{'good'}."</i>";
 		}
-		$s->{'good'} = makeAnchor("basicTaxonInfo", "taxon_no=$s->{synonym_no}", $s->{good});
+		$s->{'good'} = makeObAnchor("basicTaxonInfo", "taxon_no=$s->{synonym_no}", $s->{good});
 		$lookup{$s->{'synonym_no'}} = $s->{'good'};
 		push @need_authors , $s->{'synonym_no'};
 	    }
@@ -2115,7 +2116,7 @@ function showAuthors()	{
 	    
 	if ( ! $lookup{$o->{synonym_no}} && $o->{taxon_no} )
 	{
-	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_no=$o->{taxon_no}", $o->{formatted});
+	    $o->{'formatted'} = makeObAnchor("basicTaxonInfo", "taxon_no=$o->{taxon_no}", $o->{formatted});
 	}
 	
 	elsif ( ! $o->{taxon_no} )
@@ -2129,7 +2130,7 @@ function showAuthors()	{
 	    {
 		$name .= " $o->{subspecies_name}";
 	    }
-	    $o->{'formatted'} = makeAnchor("basicTaxonInfo", "taxon_name=$name", $o->{formatted});
+	    $o->{'formatted'} = makeObAnchor("basicTaxonInfo", "taxon_name=$name", $o->{formatted});
 	}
 	
 	if ( $postfix )
@@ -2273,20 +2274,20 @@ function showAuthors()	{
     if ($s->isDBMember())
     {
 	$output .= "<div class=\"medium\" style=\"margin-top: -1em; margin-bottom: 1em;\">\n";
-	$output .= makeAnchor("displayCollectionDetails", "collection_no=$c->{collection_no}", "Full details") . " - ";
+	$output .= makeObAnchor("displayCollectionDetails", "collection_no=$c->{collection_no}", "Full details") . " - ";
 	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser )
 	{
-	    $output .= makeAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";
+	    $output .= makeObAnchor("displayCollectionForm", "collection_no=$c->{'collection_no'}", "Edit collection") . " - ";
 	}
-	$output .= makeAnchor("displayCollectionForm", "prefill_collection_no=$c->{'collection_no'}", "Add a collection copied from this one") . " - ";
+	$output .= makeObAnchor("displayCollectionForm", "prefill_collection_no=$c->{'collection_no'}", "Add a collection copied from this one") . " - ";
 	# if ($can_modify->{$c->{'authorizer_no'}} || $s->isSuperUser) {  
 	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser )
 	{
-	    $output .= makeAnchor("displayOccurrenceAddEdit", "collection_no=$c->{'collection_no'}", "Edit taxonomic list");
+	    $output .= makeObAnchor("displayOccurrenceAddEdit", "collection_no=$c->{'collection_no'}", "Edit taxonomic list");
 	}
 	if ( $s->get('role') =~ /authorizer|enterer|student|technician/ )
 	{
-	    $output .= " - " . makeAnchor("displayOccsForReID", "collection_no=$c->{'collection_no'}", "Reidentify taxa");
+	    $output .= " - " . makeObAnchor("displayOccsForReID", "collection_no=$c->{'collection_no'}", "Reidentify taxa");
 	}
 	$output .= "\n</div>\n\n";
     }
@@ -2455,7 +2456,7 @@ sub displayCollectionEcology	{
 	if (!%$ecology) {
 		$output .= "<center><p>Sorry, there are no ecological data for any of the taxa</p></center>\n\n";
         my $collection_no = $q->numeric_param('collection_no');
-		$output .= "<center><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b></p></center>\n\n";
+		$output .= "<center><p><b>" . makeObAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b></p></center>\n\n";
 		return $output;
 	} 
 
@@ -2620,8 +2621,8 @@ sub displayCollectionEcology	{
     $output .= "</div>";
 
     my $collection_no = $q->numeric_param('collection_no');
-	$output .= "<div align=\"center\"><p><b>" . makeAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b> - ";
-	$output .= "<b>" . makeAnchor("displaySearchColls", "type=view", "Search for other collections") . "</b></p></div>\n\n";
+	$output .= "<div align=\"center\"><p><b>" . makeObAnchor("basicCollectionSearch", "collection_no=$collection_no", "Return to the collection record") . "</b> - ";
+	$output .= "<b>" . makeObAnchor("displaySearchColls", "type=view", "Search for other collections") . "</b></p></div>\n\n";
     
     return $output;
 }

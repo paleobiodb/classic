@@ -11,7 +11,8 @@ our @EXPORT_OK = qw(%CONFIG $WRITE_URL $APP_DIR $DATA_URL $TEST_DATA_URL $GDD_UR
 		    $CGI_DEBUG %DEBUG_USERID $LOG_REQUESTS
 		    $MAIN_DATABASE $WING_DATABASE $TAXA_TREE_CACHE $TAXON_TREES
 		    $COLLECTIONS $COLLECTION_NO $OCCURRENCES $OCCURRENCE_NO
-		    makeURL makeATag makeAnchor makePageAnchor makeAnchorWithAttrs makeFormPostTag);
+		    makeURL makeATag makeObTag makeAnchor makeObAnchor makePageAnchor 
+		    makeAnchorWithAttrs makeObAnchorWA makeFormPostTag);
 
 # Configuration settings
 
@@ -104,6 +105,8 @@ sub makeURL {
 }
 
 
+# Generate a standard HTML 'a' tag.
+
 sub makeATag {
 
     my ($action, $params) = @_;
@@ -112,6 +115,18 @@ sub makeATag {
     return qq{<a href="$url">};
 }
 
+
+# Generate an obfuscated tag that crawler bots can't recognize
+
+sub makeObTag {
+    
+    my ($action, $params) = @_;
+    
+    return qq{<a onmouseover="setHref(this, '$action', '$params')" class="mockLink">};
+}
+
+
+# Generate a standard HTML hyperlink.
 
 sub makeAnchor {
     
@@ -123,6 +138,19 @@ sub makeAnchor {
 }
 
 
+# Generate an obfuscated hyperlink that crawler bots can't recognize
+
+sub makeObAnchor {
+    
+    my ($action, $params, $content) = @_;
+    
+    $content //= "";
+    return qq{<a onmouseover="setHref(this, '$action', '$params')" class="mockLink">$content</a>};
+}
+
+
+# Generate a standard HTML hyperlink to a specified page on this site.
+
 sub makePageAnchor {
 
     my ($page, $content) = @_;
@@ -133,6 +161,8 @@ sub makePageAnchor {
 }
 
 
+# Generate a standard HTML hyperlink with attributes.
+
 sub makeAnchorWithAttrs {
 
     my ($action, $params, $attrs, $content) = @_;
@@ -142,6 +172,20 @@ sub makeAnchorWithAttrs {
     return qq{<a href="$url" $attrs>$content</a>};
 }
 
+
+# Generate an obfuscated hyperlink (with attributes) that crawler bots can't
+# recognize. 
+
+sub makeObAnchorWA {
+
+    my ($action, $params, $attrs, $content) = @_;
+    
+    $content //= "";
+    return qq{<a onmouseover="setHref(this, '$action', '$params')" $attrs class="mockLink">$content</a>};
+}
+
+
+# Make a form tag with the 'post' method.
 
 sub makeFormPostTag {
 
