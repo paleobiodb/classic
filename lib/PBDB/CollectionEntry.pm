@@ -19,7 +19,8 @@ use PBDB::Reclassify;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use URI::Escape;    
-use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS makeAnchor makeFormPostTag);
+use PBDB::Constants qw($INTERVAL_URL $TAXA_TREE_CACHE $COLLECTIONS 
+		       makeAnchor makeObAnchor makeFormPostTag);
 
 use IntervalBase qw(int_defined int_name int_bounds int_correlation interval_nos_by_age);
 use POSIX qw(floor);
@@ -931,9 +932,9 @@ sub displayCollectionDetails {
 
         # if ($can_modify->{$coll->{'authorizer_no'}} || $s->isSuperUser) {  
 	if ( $s->get('role') =~ /^auth|^ent|^stud/ || $s->isSuperUser ) {
-            $links .= makeAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit collection") . " - ";
+            $links .= makeObAnchor("displayCollectionForm", "collection_no=$collection_no", "Edit collection") . " - ";
         }
-        $links .=  makeAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one");
+        $links .=  makeObAnchor("displayCollectionForm", "prefill_collection_no=$collection_no", "Add a collection copied from this one");
         $links .= "</div></p>";
     }
     $links .= "</div>\n";
@@ -1049,7 +1050,7 @@ sub displayCollectionDetailsPage {
         my $ref = PBDB::Reference::getReference($dbt,$row->{'reference_no'});
         my $formatted_primary = PBDB::Reference::formatLongRef($ref);
         $row->{'reference_string'} = '<table cellspacing="0" cellpadding="2" width="100%"><tr>'.
-            "<td valign=\"top\">" . makeAnchor("app/refs", "#display=$row->{reference_no}", "$row->{'reference_no'}") . ".</a></td>".
+            "<td valign=\"top\">" . makeObAnchor("app/refs", "#display=$row->{reference_no}", "$row->{'reference_no'}") . ".</a></td>".
             "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
             "<td>$formatted_primary</td>".
             "</tr></table>";
@@ -1065,7 +1066,7 @@ sub displayCollectionDetailsPage {
                 my $formatted_secondary = PBDB::Reference::formatLongRef($ref);
                 my $class = ($i % 2 == 0) ? 'class="darkList"' : '';
                 $table .= "<tr $class>".
-                    "<td valign=\"top\">" . makeAnchor("app/refs", "#display=$sr", "$sr") . "</a></td>".
+                    "<td valign=\"top\">" . makeObAnchor("app/refs", "#display=$sr", "$sr") . "</a></td>".
                     "<td valign=\"top\"><span class=red>$ref->{project_name} $ref->{project_ref_no}</span></td>".
                     "<td>$formatted_secondary</td>".
                     "</tr>";
@@ -1086,7 +1087,7 @@ sub displayCollectionDetailsPage {
     $sth->finish();
     my @links = ();
     foreach my $ref (@subrowrefs)	{
-      push @links, makeAnchor("displayCollectionDetails", "collection_no=$ref->[0]", "$ref->[0]");
+      push @links, makeObAnchor("displayCollectionDetails", "collection_no=$ref->[0]", "$ref->[0]");
     }
     my $subString = join(", ",@links);
     $row->{'subset_string'} = $subString;
@@ -1128,9 +1129,11 @@ sub displayCollectionDetailsPage {
 	
 	if ( my $max_name = int_name($row->{max_interval_no}) )
 	{
-	    $row->{interval} = qq|<a target="_blank" href="$INTERVAL_URL$row->{max_interval_no}">|;
-	    $row->{interval} .= $max_name;
-	    $row->{interval} .= "</a>";
+	    $row->{interval} = makeObAnchor('displayTimescale', "interval=$row->{max_interval_no}",
+					    $max_name);
+	    # $row->{interval} = qq|<a target="_blank" href="$INTERVAL_URL$row->{max_interval_no}">|;
+	    # $row->{interval} .= $max_name;
+	    # $row->{interval} .= "</a>";
 	}
 	
 	$row->{period} = int_name(int_correlation($row->{max_interval_no}, 'period_no'));
@@ -1145,9 +1148,11 @@ sub displayCollectionDetailsPage {
 	    if ( my $min_name = int_name($row->{min_interval_no}) )
 	    {
 		$row->{interval} .= ' - ';
-		$row->{interval} .= qq|<a target="_blank" href="$INTERVAL_URL$row->{min_interval_no}">|;
-		$row->{interval} .= $min_name;
-		$row->{interval} .= "</a>";
+		$row->{interval} .= makeObAnchor('displayTimescale', 
+						 "interval=$row->{min_interval_no}", $min_name);
+		# $row->{interval} .= qq|<a target="_blank" href="$INTERVAL_URL$row->{min_interval_no}">|;
+		# $row->{interval} .= $min_name;
+		# $row->{interval} .= "</a>";
 	    }
 	    
 	    my $min_period = int_name(int_correlation($row->{min_interval_no}, 'period_no'));
@@ -1382,35 +1387,35 @@ sub displayCollectionDetailsPage {
 
 
     if ($row->{'collection_subset'}) {
-        $row->{'collection_subset'} =  makeAnchor("displayCollectionDetails", "collection_no=$row->{collection_subset}", "$row->{collection_subset}");
+        $row->{'collection_subset'} =  makeObAnchor("displayCollectionDetails", "collection_no=$row->{collection_subset}", "$row->{collection_subset}");
     }
 
     if ($row->{'regionalsection'}) {
     	my $escaped = uri_escape_utf8($row->{regionalsection} // '');
-        $row->{'regionalsection'} = makeAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=regional&input=$escaped", $row->{regionalsection});
+        $row->{'regionalsection'} = makeObAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=regional&input=$escaped", $row->{regionalsection});
     }
 
     if ($row->{'localsection'}) {
     	my $escaped = uri_escape_utf8($row->{localsection} // '');
-        $row->{'localsection'} = makeAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=local&input=$escaped", "$row->{localsection}");
+        $row->{'localsection'} = makeObAnchor("displayStratTaxaForm", "taxon_resolution=species&skip_taxon_list=YES&input_type=local&input=$escaped", "$row->{localsection}");
     }
 
     if ($row->{'member'}) {
     	my $escaped = uri_escape_utf8($row->{geological_group} // '');
     	my $escaped2 = uri_escape_utf8($row->{formation} // '');
     	my $escaped3 = uri_escape_utf8($row->{member} // '');
-        $row->{'member'} = makeAnchor("displayStrata", "group_hint=$escaped&formation_hint=$escaped2&group_formation_member=$escaped3", "$row->{member}");
+        $row->{'member'} = makeObAnchor("displayStrata", "group_hint=$escaped&formation_hint=$escaped2&group_formation_member=$escaped3", "$row->{member}");
     }
 
     if ($row->{'formation'}) {
     	my $escaped = uri_escape_utf8($row->{geological_group} // '');
     	my $escaped2 = uri_escape_utf8($row->{formation} // '');
-        $row->{'formation'} = makeAnchor("displayStrata", "group_hint=$escaped&group_formation_member=$escaped2", "$row->{formation}");
+        $row->{'formation'} = makeObAnchor("displayStrata", "group_hint=$escaped&group_formation_member=$escaped2", "$row->{formation}");
     }
 
     if ($row->{'geological_group'}) {
     	my $escaped = uri_escape_utf8($row->{geological_group} // '');
-        $row->{'geological_group'} = makeAnchor("displayStrata", "group_formation_member=$escaped", "$row->{geological_group}");
+        $row->{'geological_group'} = makeObAnchor("displayStrata", "group_formation_member=$escaped", "$row->{geological_group}");
     }
     
     if ( defined $row->{paleolat} || defined $row->{paleolng} )
@@ -1536,7 +1541,7 @@ sub buildTaxonomicList {
 		if ($specimens_measured)
 		{
 		    my $s = ($specimens_measured > 1) ? 's' : '';
-		    $rowref->{comments} .= " (" . makeAnchor("displaySpecimenList", "occurrence_no=$rowref->{occurrence_no}", "$specimens_measured measurement$s") . ")";
+		    $rowref->{comments} .= " (" . makeObAnchor("displaySpecimenList", "occurrence_no=$rowref->{occurrence_no}", "$specimens_measured measurement$s") . ")";
 		}
 	    }
 	    
@@ -2136,9 +2141,9 @@ function showName()	{
 	    
 	    if ($s->isDBMember())
 	    {
-		$return .= makeAnchor("displayOccurrenceAddEdit", "collection_no=$options{'collection_no'}", "Edit taxonomic list");
+		$return .= makeObAnchor("displayOccurrenceAddEdit", "collection_no=$options{'collection_no'}", "Edit taxonomic list");
 		if ( $s->get('role') =~ /authorizer|student|technician/ )	{
-		    $return .= " - " . makeAnchor("displayOccsForReID", "collection_no=$options{'collection_no'}", "Reidentify taxa");
+		    $return .= " - " . makeObAnchor("displayOccsForReID", "collection_no=$options{'collection_no'}", "Reidentify taxa");
 		}
 	    }
 	}
