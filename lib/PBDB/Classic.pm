@@ -61,7 +61,7 @@ use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request log_request log_step profile_request profile_end_request);
 use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LOG_REQUESTS
 		       $COLLECTIONS $OCCURRENCES 
-		       makeAnchor);
+		       makeAnchor makeObAnchor);
 
 use IntervalBase;
 use ExternalIdent;
@@ -2006,9 +2006,9 @@ sub displayCollResults {
     } 
 
 	if ( $type eq "add" )	{
-		$output .= makeAnchor("displaySearchCollsForAdd", "type=add", "Do another search");
+		$output .= makeObAnchor("displaySearchCollsForAdd", "type=add", "Do another search");
 	} else	{
-		$output .= makeAnchor("displaySearchColls", "type=$type", "Do another search");
+		$output .= makeObAnchor("displaySearchColls", "type=$type", "Do another search");
 	}
 
     $output .= "</center></p>";
@@ -2374,19 +2374,19 @@ sub processTaxonSearch {
                         if (@full_rows) {
                             foreach my $full_row (@full_rows) {
                                 my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt,$full_row,'return_array'=>1);
-                                $output .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_no=$full_row->{taxon_no}", "$name") . " $authority</li>";
+                                $output .= "<li>" . makeObAnchor("displayAuthorityForm", "taxon_no=$full_row->{taxon_no}", "$name") . " $authority</li>";
                             }
                         } else {
-                            $output .= "<li>" . makeAnchor("displayAuthorityForm", "taxon_name=$name", "$name") . "</li>";
+                            $output .= "<li>" . makeObAnchor("displayAuthorityForm", "taxon_name=$name", "$name") . "</li>";
                         }
                     }
                     # route them to a genus form instead if the genus doesn't
                     #   exist JA 24.10.11
                     if ( $oldg == 0 && $sp )	{
-                        $output .= "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$g&amp;skip_typo_check=1", "$none") . " - create a new record for this genus";
+                        $output .= "<li>" . makeObAnchor("submitTaxonSearch", "goal=authority&taxon_name=$g&amp;skip_typo_check=1", "$none") . " - create a new record for this genus";
                     } else	{
                         my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                        $output .= "<li>" . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name&amp;skip_typo_check=1", "$none") . " - create a new taxon record";
+                        $output .= "<li>" . makeObAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name&amp;skip_typo_check=1", "$none") . " - create a new taxon record";
                     }
                     $output .= "</ul>";
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
@@ -2424,17 +2424,17 @@ sub processTaxonSearch {
                     my $full_row = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_no'=>$row->{'taxon_no'}},['*']);
                     my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt,$full_row,'return_array'=>1);
 		            my $localtaxon_name = uri_escape_utf8($full_row->{taxon_name} // '');
-                    $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$localtaxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . "$authority</li>";
+                    $output .= "<li>" . makeObAnchor("$next_action", "goal=$goal&amp;taxon_name=$localtaxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . "$authority</li>";
                 }
                 $output .= "</ul>";
 
                 $output .= qq|<div align=left class="small">\n<p>|;
                 if ( $#typoResults > 0 )	{
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    $output .= "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of them are what you're looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
+                    $output .= "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, some approximate matches were found and are listed above.  If none of them are what you're looking for, please " . makeObAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
                 } else	{
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    $output .= "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, an approximate match was found and is listed above.  If it is not what you are looking for, please " . makeAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
+                    $output .= "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.  However, an approximate match was found and is listed above.  If it is not what you are looking for, please " . makeObAnchor("displayAuthorityForm", "taxon_no=-1&taxon_name=$localtaxon_name", "enter a new authority record") . " first.";
                 }
                 $output .= "</div></p>";
                 $output .= "</div>";
@@ -2442,7 +2442,7 @@ sub processTaxonSearch {
             } else {
                 if ($q->param('taxon_name')) {
                     my $localtaxon_name=uri_escape_utf8($q->param('taxon_name') // '');
-                    push my @errormessages , "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.<br>Please " . makeAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name", "<b>enter</b>") . " an authority record for this taxon first.";
+                    push my @errormessages , "The taxon '" . $q->param('taxon_name') . "' doesn't exist in the database.<br>Please " . makeObAnchor("submitTaxonSearch", "goal=authority&taxon_name=$localtaxon_name", "<b>enter</b>") . " an authority record for this taxon first.";
                     $output .= "<div align=\"center\" class=\"large\">".PBDB::Debug::printWarnings(\@errormessages)."</div>";
                 } else {
                     $output .= "<div align=\"center\" class=\"large\">No taxonomic names were found that match the search criteria.</div>";
@@ -2497,7 +2497,7 @@ sub processTaxonSearch {
             #  users who want to create new taxa to check another button
             my ($name,$authority) = PBDB::Taxon::formatTaxon($dbt, $row,'return_array'=>1);
             if ( $s->isDBMember() )	{
-                $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . " $authority</li>\n";
+                $output .= "<li>" . makeObAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=$row->{taxon_no}", "$name") . " $authority</li>\n";
             } else	{
                 $output .= "<li>$name$authority</li>\n";
             }
@@ -2511,7 +2511,7 @@ sub processTaxonSearch {
             } else	{
                 $localtext = "None of the above ";
             }
-            $output .= "<li>" . makeAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=-1", "$localtext") . " - create a new taxon record</li>\n";
+            $output .= "<li>" . makeObAnchor("$next_action", "goal=$goal&amp;taxon_name=$taxon_name&amp;taxon_no=-1", "$localtext") . " - create a new taxon record</li>\n";
         }
         
 		$output .= "</ul></div>";
@@ -4090,13 +4090,13 @@ sub listCollections {
         if ($page == $i) {
             $output .= "$i ";
         } else {
-            $output .= makeAnchor("listCollections", "page=$i", "$i");
+            $output .= makeObAnchor("listCollections", "page=$i", "$i");
         }
     }
     $output .= "<BR><BR>";
     my $start = $page*200;
     for (my $i=$start; $i<$start+200 && $i <= $max_id;$i++) {
-        $output .= makeAnchor("basicCollectionSearch", "collection_no=$i", "$i");
+        $output .= makeObAnchor("basicCollectionSearch", "collection_no=$i", "$i");
     }
 
     $output .= $hbo->stdIncludes ($PAGE_BOTTOM);
@@ -4118,13 +4118,13 @@ sub listTaxa {
         if ($page == $i) {
             $output .= "$i ";
         } else {
-            $output .= makeAnchor("listCollections", "page=$i", "$i");
+            $output .= makeObAnchor("listCollections", "page=$i", "$i");
         }
     }
     $output .= "<BR><BR>";
     my $start = $page*200;
     for (my $i=$start; $i<$start+200 && $i <= $max_id;$i++) {
-        $output .= makeAnchor("basicTaxonInfo", "taxon_no=$i", "$i");
+        $output .= makeObAnchor("basicTaxonInfo", "taxon_no=$i", "$i");
     }
 
     $output .= $hbo->stdIncludes ($PAGE_BOTTOM);

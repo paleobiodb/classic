@@ -2200,7 +2200,7 @@ sub formatOccurrenceTaxonName {
     if ( $row->{'taxon_no'} > 0 )
     {
         $link_action = $row->{'taxon_no'};
-        $link_action = "&amp;taxon_no=" . uri_escape_utf8($link_action // '');
+        $link_action = "taxon_no=" . uri_escape_utf8($link_action // '');
     }
     
     elsif ( $row->{'genus_name'} && $row->{'genus_reso'} ne 'informal' )
@@ -2224,7 +2224,7 @@ sub formatOccurrenceTaxonName {
 	    $link_action .= " $row->{subspecies_name}";
 	}
 	
-        $link_action = "&amp;taxon_name=" . uri_escape_utf8($link_action // '');
+        $link_action = "taxon_name=" . uri_escape_utf8($link_action // '');
     }
     
     # Genus
@@ -2358,7 +2358,7 @@ sub formatOccurrenceTaxonName {
     if ($link_id)
     {
         $taxon_name =~ s/"/&quot;/g;
-        $taxon_name = qq|<span class="mockLink" id="$link_id" onMouseOver="addLink('$link_id','$link_action','$taxon_name')">$taxon_name</span>|;
+        $taxon_name = qq|<a class="mockLink" onMouseOver="setHref(this, 'basicTaxonInfo', '$link_action')">$taxon_name</a>|;
     }
     
     if ( $row->{genus_reso} eq 'sensu lato' || $row->{species_reso} eq 'sensu lato' ||
@@ -2435,9 +2435,9 @@ sub getSynonymName {
         }
         $synonym_name =~ s/"/&quot;/g;
         if ($is_synonym) {
-            $synonym_name = "synonym of <span class=\"mockLink\" id=\"syn$ss_taxon_no\" onMouseOver=\"addLink('syn$ss_taxon_no','&amp;taxon_no=$ss_taxon_no','$synonym_name')\">$synonym_name</span>";
+            $synonym_name = "synonym of <a class=\"mockLink\" onMouseOver=\"setHref(this,'basicTaxonInfo','taxon_no=$ss_taxon_no')\">$synonym_name</a>";
         } else {
-            $synonym_name = "$spelling_reason <span class=\"mockLink\" id=\"syn$ss_taxon_no\" onMouseOver=\"addLink('syn$ss_taxon_no','&amp;taxon_no=$ss_taxon_no','$synonym_name')\">$synonym_name</span>";
+            $synonym_name = "$spelling_reason <a class=\"mockLink\" onMouseOver=\"setHref(this,'basicTaxonInfo','taxon_no=$ss_taxon_no')\">$synonym_name</a>";
         }
     }
     return $synonym_name;
