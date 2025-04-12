@@ -4,8 +4,10 @@
 //created by rjp, 1/2004.
 
 
-// The following two functions can be used on hyperlinks to make them
-// difficult for crawler bots to traverse:
+// The following three functions can be used with hyperlinks to make
+// them difficult for crawler bots to traverse. Either of the first
+// two should be used in an "onclick" handler, and the third in
+// "onmouseover".
 
 function openLink ( action, params ) {
     
@@ -29,7 +31,7 @@ function openWindow ( action, params ) {
     
     else
     {
-	window.location.asign("/classic/" + action);
+	window.open("/classic/" + action);
     }
 }
 

@@ -11,8 +11,8 @@ use strict;
 use PBDB::AuthorNames;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
-use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTION_NO makeAnchor
-		       makeAnchorWithAttrs makeATag makeFormPostTag);
+use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTION_NO makeAnchor makeObAnchor
+		       makeAnchorWithAttrs makeObAnchorWA makeATag makeFormPostTag);
 use PBDB::Download;
 use PBDB::Person;
 # calls to these two modules need to be removed eventually
@@ -205,7 +205,7 @@ sub formatShortRef  {
 
     if ($options{'link_id'}) {
         if ($refData->{'reference_no'}) {
-            $shortRef = makeAnchor("app/refs", "#display=$refData->{reference_no}", $shortRef);
+            $shortRef = makeObAnchor("app/refs", "#display=$refData->{reference_no}", $shortRef);
         }
     }
     if ($options{'show_comments'}) {
@@ -457,24 +457,24 @@ sub displayRefResults {
 	    {
 		if ($type eq 'add')
 		{
-		    $output .= makeAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no});
+		    $output .= makeObAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no});
 		}
 		elsif ($type eq 'edit')
 		{
-		    $output .= makeAnchor("app/refs", "#display=$row->{reference_no}&type=edit", $row->{reference_no});
+		    $output .= makeObAnchor("app/refs", "#display=$row->{reference_no}&type=edit", $row->{reference_no});
 		}
 		elsif ($type eq 'view')
 		{
-		    $output .= makeAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no}) . "</br>";
+		    $output .= makeObAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no}) . "</br>";
 		}
 		else
 		{
-		    $output .= makeAnchor("selectReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "<br>";
+		    $output .= makeObAnchor("selectReference", "reference_no=$row->{reference_no}", $row->{reference_no}) . "<br>";
 		}
 	    }
 	    else
 	    {
-		$output .= makeAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no});
+		$output .= makeObAnchor("app/refs", "#display=$row->{reference_no}", $row->{reference_no});
 	    }
 	    $output .= "</td>";
 	    my $formatted_reference = formatLongRef($row);
@@ -662,7 +662,7 @@ sub displayReference {
                 @{$dbt->getData($sql)};
             $html = join(", ",@results);
         } else {
-            $html .= makeATag("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=authorities");
+            $html .= makeObTag("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=authorities");
             my $plural = ($authority_count == 1) ? "" : "s";
             $html .= "view taxonomic name$plural";
             $html .= qq|</a> |;
@@ -691,7 +691,7 @@ sub displayReference {
                 @{$dbt->getData($sql)};
             $html = join("<br>",@results);
         } else {
-            $html .= makeATag("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=opinions");
+            $html .= makeObTag("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=opinions");
             if ($opinion_count) {
                 my $plural = ($opinion_count == 1) ? "" : "s";
                 $html .= "view taxonomic opinion$plural";
@@ -700,7 +700,7 @@ sub displayReference {
         }
 
 	my $class_link; 
-	$class_link = " - <small>" . makeAnchor("classify", "reference_no=$reference_no", "view classification") . "</small>";
+	$class_link = " - <small>" . makeObAnchor("classify", "reference_no=$reference_no", "view classification") . "</small>";
 	$output .= $box->(qq'Taxonomic opinions ($opinion_count) $class_link',$html);
     }
 
@@ -708,7 +708,7 @@ sub displayReference {
 	my @taxon_refs = getMeasuredTaxa($dbt,$reference_no);
 	if ( @taxon_refs )	{
 		my @taxa;
-		push @taxa , makeAnchor("basicTaxonInfo", "taxon_no=$_->{'taxon_no'}", $_->{'taxon_name'}) foreach @taxon_refs;
+		push @taxa , makeObAnchor("basicTaxonInfo", "taxon_no=$_->{'taxon_no'}", $_->{'taxon_name'}) foreach @taxon_refs;
 		$output .= $box->("Measurements",join('<br>',@taxa));
 	}
     
@@ -730,8 +730,8 @@ sub displayReference {
 	    
 	    next unless $nexusfile_no and $filename;
 	    
-	    my $line = makeAnchor("${verb}NexusFile", "nexusfile_no=$nexusfile_no", $filename);
-	    $line .= " (" . makeAnchor("basicTaxonInfo", "taxon_no=$taxon_no", $taxon_name) . ")"if $taxon_name;
+	    my $line = makeObAnchor("${verb}NexusFile", "nexusfile_no=$nexusfile_no", $filename);
+	    $line .= " (" . makeObAnchor("basicTaxonInfo", "taxon_no=$taxon_no", $taxon_name) . ")"if $taxon_name;
 	    push @nexus_lines, $line;
 	}
     }
@@ -792,7 +792,7 @@ sub displayReference {
                 if (! $row->{'is_primary'}) {
                     $style = " class=\"boring\"";
                 }
-                my $coll_link = makeAnchorWithAttrs("basicCollectionSearch", "collection_no=$row->{collection_no}", $style, $row->{collection_no});
+                my $coll_link = makeObAnchorWA("basicCollectionSearch", "collection_no=$row->{collection_no}", $style, $row->{collection_no});
                 $html .= $coll_link . ", ";
             }
             $html =~ s/, $//;
@@ -803,10 +803,10 @@ sub displayReference {
 		}
         } else {
             my $plural = ($collection_count == 1) ? "" : "s";
-            $html .= makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "view collection$plural");
+            $html .= makeObAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "view collection$plural");
         }
         if ($html) {
-            $output .= $box->("Collections (" . makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count") . ")", $html);
+            $output .= $box->("Collections (" . makeObAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count") . ")", $html);
         }
     }
 
@@ -876,7 +876,7 @@ sub getReferenceLinkSummary	{
 
 	if ($authority_count) {
 		my $plural = ($authority_count == 1) ? "" : "s";
-		push @chunks , makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no", "$authority_count taxonomic name$plural");
+		push @chunks , makeObAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no", "$authority_count taxonomic name$plural");
 	}
 	
 	# Handle Opinions
@@ -892,9 +892,9 @@ sub getReferenceLinkSummary	{
 
 	if ( $opinion_total ) {
 		my $plural = ($opinion_total == 1) ? "" : "s";
-		push @chunks , makeAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=opinions", "$opinion_total taxonomic opinion$plural");
+		push @chunks , makeObAnchor("displayTaxonomicNamesAndOpinions", "reference_no=$reference_no&display=opinions", "$opinion_total taxonomic opinion$plural");
 		if ( $has_opinion > 0 )	{
- 			$chunks[$#chunks] .= " (" . makeAnchor("classify", "reference_no=$reference_no", "show classification") . ")";
+ 			$chunks[$#chunks] .= " (" . makeObAnchor("classify", "reference_no=$reference_no", "show classification") . ")";
 		}
 	}      
 
@@ -902,7 +902,7 @@ sub getReferenceLinkSummary	{
 	my @taxon_refs = getMeasuredTaxa($dbt,$reference_no);
 	if ( @taxon_refs )	{
 		my @taxa;
-		push @taxa , makeAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", $_->{'taxon_name'}) foreach @taxon_refs;
+		push @taxa , makeObAnchor("basicTaxonInfo", "taxon_no=$_->{taxon_no}", $_->{'taxon_name'}) foreach @taxon_refs;
 		push @chunks , "measurements of ".join(', ',@taxa);
 	}
 
@@ -951,10 +951,10 @@ sub getReferenceLinkSummary	{
 			if (! $row->{'is_primary'}) {
 				$style = " class=\"boring\"";
 			}
-			push @coll_links , makeAnchorWithAttrs($action, "$COLLECTION_NO=$row->{$COLLECTION_NO}", $style, $row->{$COLLECTION_NO});
+			push @coll_links , makeObAnchorWA($action, "$COLLECTION_NO=$row->{$COLLECTION_NO}", $style, $row->{$COLLECTION_NO});
 		}
 		$thing1 = ( $protected_count > 0 ) ? "released ".$thing1 : $thing1;
-		push @chunks , makeAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count $thing1") . '  ('.join(' ',@coll_links).")";
+		push @chunks , makeObAnchor("displayCollResults", "type=view&wild=N&reference_no=$reference_no", "$collection_count $thing1") . '  ('.join(' ',@coll_links).")";
 	}
 	if ($protected_count > 0)	{
 		$thing2 = ($protected_count == 1) ? "collection" : "collections";
@@ -1128,12 +1128,12 @@ sub getReferences {
 		my @links;
 		for my $l ( @likes )	{
 			if ( $l->{'c'} == 1 )	{
-				push @links , makeAnchor("app/refs", "#display=$l->{'reference_no'}", $l->{'name'});
+				push @links , makeObAnchor("app/refs", "#display=$l->{'reference_no'}", $l->{'name'});
 			} else	{
 			    my $params = "name=$l->{'name'}";
 			    $params .= "&year=$options{'year'}&year_relation=$options{'year_relation'}" if $options{year};
 			    $params .= "&variants=no";
-			    push @links, makeAnchor("displayRefResults", $params, $l->{'name'});
+			    push @links, makeObAnchor("displayRefResults", $params, $l->{'name'});
 			}
 		}
 		if ( @likes )	{
