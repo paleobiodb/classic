@@ -43,6 +43,8 @@ sub connect {
 
     $connection->{mysql_enable_utf8} = 1 if $DB_DRIVER eq "mysql";
     
+    $connection->do("set sql_mode='ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'");
+    
     return $connection;
 }
 
