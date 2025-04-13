@@ -10,20 +10,28 @@
   <div style="margin-bottom: 2em;"><i>%%message%%</i></div>
 <div>
 <br>
-<table border="0 align="center">
+<table border="0" align="center">
         <tr>
           <td valign="top" class="medium">
           <!-- <td valign="top" class="small"> -->
           <div style="margin-left: 0em;">
             <p class="large">Search</p>
             <ul>
-              <li><a href="/classic/app/refs">Search for a reference</a></li>
-              <li><a href="/classic/displaySearchColls?type=view">Search for collections</a></li>
-              <li><a href="/classic/nexusFileSearch">Search for nexus files</a></li>
-              <li><a href="/classic/displaySearchStrataForm?type=view">Search for a stratigraphic unit</a></li>
-              <li><a href="/classic/beginTaxonInfo">Search for a taxon</a></li>
-	      <li><a href="/classic/displayTimescale?type=list">Browse time scales</a></li>
-              <li><a href="/classic/classificationForm">Print a taxonomic hierarchy</a></li>
+              <li><a onmouseover="setHref(this, 'app/refs')" class="mockLink">
+		  Search for a reference</a></li>
+              <li><a onmouseover="setHref(this, 'displaySearchColls', 'type=view')" class="mockLink">
+		  Search for collections</a></li>
+              <li><a onmouseover="setHref(this, 'nexusFileSearch')" class="mockLink">
+		  Search for nexus files</a></li>
+              <li><a onmouseover="setHref(this, 'displaySearchStrataForm', 'type=view')" 
+		     class="mockLink">
+		  Search for a stratigraphic unit</a></li>
+              <li><a onmouseover="setHref(this, 'beginTaxonInfo')" class="mockLink">
+		  Search for a taxon</a></li>
+	      <li><a onmouseover="setHref(this, 'displayTimescale', 'type=list')" class="mockLink">
+		  Browse time scales</a></li>
+              <li><a onmouseover="setHref(this, 'classificationForm')" class="mockLink">
+		  Print a taxonomic hierarchy</a></li>
             </ul>
           </div>
           </td>
@@ -33,12 +41,15 @@
 
             <p class="large">Download</p>
             <ul>
-              <li><a href="?a=displayDownloadGenerator">Download records of all types</a></li>
-              <li><a href="?page=OSA">Download data archives</a></li>
+              <li><a onmouseover="setHref(this, 'displayDownloadGenerator')" class="mockLink">
+		  Download records of all types</a></li>
+              <li><a onmouseover="setHref(this, '', 'page=OSA')" class="mockLink">
+		  Download data archives</a></li>
             </ul>
             <p class="large">Entry functions</p>
             <ul>
-              <li><a href="/classic/app/resource-sub">External resource submission</a></li>
+              <li><a onmouseover="setHref(this, 'app/resource-sub')" class="mockLink">
+		  External resource submission</a></li>
             </ul>
           </td>
           </div>
