@@ -449,7 +449,7 @@ sub processCollectionForm {
 	    my $sql = "REPLACE INTO $COLL_MATRIX
 		       (collection_no, lng, lat, loc, cc,
 			protected, early_age, late_age,
-			early_int_no, late_int_no, environment,
+			early_int_no, late_int_no, 
 			reference_no, access_level)
 		SELECT c.collection_no, c.lng, c.lat,
 			if(c.lng is null or c.lat is null, point(1000.0, 1000.0), point(c.lng, c.lat)), 
@@ -458,7 +458,6 @@ sub processCollectionForm {
 			if(ei.early_age > li.late_age, li.late_age, ei.early_age),
 			c.max_interval_no, if(c.min_interval_no > 0, c.min_interval_no, 
 									c.max_interval_no),
-			c.environment,
 			c.reference_no,
 			case c.access_level
 				when 'database members' then if(c.release_date < now(), 0, 1)

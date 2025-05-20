@@ -58,8 +58,8 @@ function checkForm ( ) {
           </tr>
         </div>
         <tr>
-          <td>Collection name or number(s): </td><td><input name=collection_names class="small" size="20"></td>
-          <td style="padding-left: 1em;">Taxon name:</td><td><input name=taxon_name class="small" size="20"></td>
+          <td>Collection name or number(s): </td><td><input name=collection_names class="small" size="25"><span style="padding-left: 3em">Reference #: </span><input name=reference_no class="small" size="6"></td>
+          <td>Taxon name:</td><td><input name=taxon_name class="small" size="20"></td>
         </tr>
       </div>
       <div show="action=displaySearchSectionResults">
@@ -68,12 +68,12 @@ function checkForm ( ) {
         </tr>
       </div>
       <tr>
-        <td>Country/continent: </td><td><input name=country class="small" size="20"></td>
-        <td style="padding-left: 1em;">State/province: </td><td><input name=state class="small"></td>
+        <td>Country: </td><td><select id="country" name="country" class="small"></select></td>
+        <td>Continent: </td><td><select id="_continent" name="continent" class="small"></select></td>
       </tr>
       <tr>
+	<td>State/province: </td><td><input name=state class="small"></td>
         <td>County/parish: </td><td><input name=county class="small" size="20"></td>
-        <td style="padding-left: 1em;">Reference #: </td><td><input name=reference_no class="small" size="6"></td>
       </tr>
       <tr>
         <td>Time interval (or age in Ma): </td>

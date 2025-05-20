@@ -915,34 +915,43 @@ IS NULL))";
     # This can be country or continent. If its country just treat it like normal, else
     # do a lookup of all the countries in the continent
     if ($options{"country"}) {
-        if ($options{"country"} =~ /^(North America|South America|Europe|Africa|Antarctica|Asia|Australia)/) {
-            if ( ! open ( REGIONS, "./data/PBDB.regions" ) ) {
-                my $error_message = $!;
-                die($error_message);
-            }
+        # if ($options{"country"} =~ /^(North America|South America|Europe|Africa|Antarctica|Asia|Australia)/) {
+        #     if ( ! open ( REGIONS, "./data/PBDB.regions" ) ) {
+        #         my $error_message = $!;
+        #         die($error_message);
+        #     }
 
-            my %REGIONS;
-            while (<REGIONS>)
-            {
-                chomp();
-                my ($region, $countries) = split(/:/, $_, 2);
-                $countries =~ s/'/\\'/g;
-                $REGIONS{$region} = $countries;
-            }
-            my @countries;
-            for my $r ( split(/[^A-Za-z ]/,$options{"country"}) )	{
-                push @countries , split(/\t/,$REGIONS{$r});
-            }
-            foreach my $country (@countries) {
-                $country = "'".$country."'";
-            }
-            my $in_str = join(",", @countries);
-            push @where, "c.country IN ($in_str)";
-        } else {
+        #     my %REGIONS;
+        #     while (<REGIONS>)
+        #     {
+        #         chomp();
+        #         my ($region, $countries) = split(/:/, $_, 2);
+        #         $countries =~ s/'/\\'/g;
+        #         $REGIONS{$region} = $countries;
+        #     }
+        #     my @countries;
+        #     for my $r ( split(/[^A-Za-z ]/,$options{"country"}) )	{
+        #         push @countries , split(/\t/,$REGIONS{$r});
+        #     }
+        #     foreach my $country (@countries) {
+        #         $country = "'".$country."'";
+        #     }
+        #     my $in_str = join(",", @countries);
+        #     push @where, "c.country IN ($in_str)";
+        # } else {
             push @where, "c.country LIKE ".$dbh->quote($options{'country'});
-        }
+        # }
     }
-
+    
+    if ( $options{_continent} ) {
+	my $quoted = $dbh->quote($options{_continent});
+	push @tables, "country_map as ccm";
+	push @tables, "continent_data as cnd";
+	push @where, "c.country = ccm.name";
+	push @where, "ccm.continent = cnd.continent";
+	push @where, "cnd.name = $quoted";
+    }
+    
     # JA 27.9.11
     if ( $options{'min_lat'} && $options{'min_lat'} !~ /[^\-0-9]/ && $options{'min_lat'} > -90 && $options{'min_lat'} < 90 ) {
         if ( $options{'min_lat'} > $options{'max_lat'} )	{
