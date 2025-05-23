@@ -750,22 +750,24 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	setInnerHTML("pd_lithtype", content);
 	
-	var envtype_options = [ 'terr', 'terrestrial',
+	var envtype_options = [ 'terrestrial', 'any terrestrial',
 				'marine', 'any marine',
-				'carbonate', 'carbonate',
-				'silicic', 'siliciclastic',
+				'carbonate', 'carbonate marine',
+				'silicic', 'siliciclastic marine',
 				'unknown', 'unknown' ];
 	
 	content = makeCheckList( "pm_envtype", envtype_options, 'dgapp.checkEnv()' );
 	
 	setInnerHTML("pd_envtype", content);
 	
-	var envzone_options = [ 'lacust', 'lacustrine', 'fluvial', 'fluvial',
-				'karst', 'karst', 'terrother', 'terrestrial other',
+	var envzone_options = [ 'lacustrine', 'lacustrine', 'fluvial', 'fluvial',
+				'karst', 'karst', 'glacial', 'glacial',
+				'terrother', 'terrestrial other',
+				'terrindet', 'terrestrial indet',
 				'marginal', 'marginal marine', 'reef', 'reef',
 				'stshallow', 'shallow subtidal', 'stdeep', 'deep subtidal',
-				'offshore', 'offshore', 'slope', 'slope/basin',
-				'marindet', 'marine indet.' ];
+				'offshore', 'offshore', 'slope', 'slope', 'basin', 'basin',
+				'marindet', 'marine indet.', 'unknown', 'not recorded' ];
 	
 	content = makeCheckList( "pm_envzone", envzone_options, 'dgapp.checkEnv()' );
 	
@@ -3169,11 +3171,13 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    if ( visible.advanced && params.lithtype && params.lithtype != "" ) {
 		param_list.push("lithology=" + params.lithtype);
 		occs_required = 1;
+		has_main_param = 1;
 	    }
 	    
 	    if ( visible.advanced && params.envtype && params.envtype != "" ) {
 		param_list.push("envtype=" + params.envtype);
 		occs_required = 1;
+		has_main_param = 1;
 	    }
 	}
 	
