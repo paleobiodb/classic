@@ -215,7 +215,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		
 		else if ( record.cfg == "lth" ) {
 		    api_data.lithologies.push( record.lth, record.lth );
-		    if ( ! lith_uniq[record.ltp] )
+		    if ( record.ltp && ! lith_uniq[record.ltp] )
 		    {
 			api_data.lith_types.push( record.ltp, record.ltp );
 			lith_uniq[record.ltp] = 1;
