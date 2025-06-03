@@ -143,10 +143,55 @@ sub verify_creation_params {
     $self->authorizer_no($authorizer_no);
     $self->enterer_no($enterer_person_no);
     
-    $self->can_edit($current_user);
+    print STDERR "ADDED AUTHENT: $enterer_person_no => $authorizer_no\n";
+    
+    if ( $self->can_edit($current_user) )
+    {
+	print STDERR "CAN EDIT\n";
+	
+	unless ( $enterer->authorizer_no )
+	{
+	    my $dbh = Wing::db->storage->dbh;
+	    my $qent = $dbh->quote($enterer_person_no);
+	    my $qauth = $dbh->quote($authorizer_no);
+	    $dbh->do("UPDATE users SET authorizer_no = $qauth WHERE person_no = $qent");
+	    print STDERR "SET AUTHORIZER_NO TO $authorizer_no\n";
+	}
+
+	return 1;
+    }
+    
+    else
+    {
+	return '';
+    }
 };
 
+
+after delete => sub {
     
+    my $self = shift;
+    my $enterer_no = $self->enterer_no;
+    my $authorizer_no = $self->authorizer_no;
+    my $users = Wing->db->resultset('User');
+
+    print STDERR "DELETED AUTHENT: $enterer_no => $authorizer_no\n";
+
+    if ( my $enterer = $users->search( { person_no => $enterer_no } )->single )
+    {
+	print STDERR "FOUND ENTERER: " . $enterer->id . "\n";
+	
+	if ( $enterer->authorizer_no eq $authorizer_no )
+	{
+	    my $dbh = Wing::db->storage->dbh;
+	    my $qent = $dbh->quote($enterer_no);
+	    $dbh->do("UPDATE users SET authorizer_no = 0 WHERE person_no = $qent");
+	    print STDERR "SET AUTHORIZER_NO TO 0\n";
+	}
+    }
+};
+
+
 # around verify_creation_params => sub {
 #     my ($orig, $self, $params, $current_user) = @_;
     
