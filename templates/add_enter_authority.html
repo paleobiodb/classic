@@ -79,7 +79,7 @@ function checkForm()	{
     }
     if ( /[^0-9]/.test(frm.pubyr.value) )	{
 	error += "* The publication year is misformatted\n";
-    } else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1758 || frm.pubyr.value > 2030 ) )	{
+    } else if ( frm.pubyr.value != "" && ( frm.pubyr.value < 1700 || frm.pubyr.value > 2030 ) )	{
 	error += "* The publication year is wrong\n";
     }
     if ( typeof(frm.type_specimen) != "undefined" && frm.type_specimen.value != "" && frm.extant.selectedIndex == 0 )	{
