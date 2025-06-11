@@ -645,29 +645,51 @@ sub isLoggedIn {
 sub displayPreferencesPage {
     my ($dbt,$q,$s,$hbo) = @_;
     my $dbh = $dbt->dbh;
-	my $select = "";
-	my $destination = $q->param("destination");
-
-	$s->enqueue_action($destination);
-
-	my %pref = $s->getPreferences();
-
-	my ($setFieldNames,$cleanSetFieldNames,$shownFormParts) = $s->getPrefFields();
-	# Populate the form
-	my @rowData;
-	my @fieldNames = @{$setFieldNames};
-	push @fieldNames , @{$shownFormParts};
-	for my $f (@fieldNames)	{
-		if ($pref{$f} ne "")	{
-			push @rowData,$pref{$f};
-		}
-		else	{
-			push @rowData,"";
-		}
+    my $select = "";
+    my $destination = $q->param("destination");
+    
+    $s->enqueue_action($destination);
+    
+    my %pref = $s->getPreferences();
+    my %prefData;
+        
+    # Populate the form
+    
+    my ($setFieldNames,$cleanSetFieldNames,$shownFormParts) = $s->getPrefFields();
+    
+    my @fieldNames = @{$setFieldNames};
+    push @fieldNames , @{$shownFormParts};
+    
+    for my $f (@fieldNames)
+    {
+	if ($pref{$f} ne "")
+	{
+	    $prefData{$f} = $pref{$f};
 	}
+	
+	else
+	{
+	    $prefData{$f} = "";
+	}
+	
+	delete $pref{$f};
+    }
 
+    # If we have any extra preferences that do not correspond to fields on the
+    # form, collect them into a single string and assign them to 'extra_preferences'.
+    
+    my @extra_prefs;
+    
+    foreach my $k ( sort keys %pref )
+    {
+	push @extra_prefs, "$k=$pref{$k}";
+    }
+
+    $prefData{extra_preferences} = join(' -:- ', @extra_prefs);
+    
     # Show the preferences entry page
-    return $hbo->populateHTML('preferences', \@rowData, \@fieldNames);
+    
+    return $hbo->populateHTML('preferences', \%prefData);
 }
 
 # Get the current preferences JA 25.6.02
@@ -745,98 +767,125 @@ sub getPrefFields	{
 }
 
 # Set new preferences JA 25.6.02
-sub setPreferences	{
+sub setPreferences
+{
     my ($dbt,$q,$s,$hbo) = @_;
-    my $dbh_r = $dbt->dbh;
-
+    my $dbh = $dbt->dbh;
+    
     my $output = qq|<center><p class="large">Your current preferences</center>
 <table align=center cellpadding=4 width="80%">
 <tr><td>Displayed sections</td><td>Prefilled values</td></tr>
 |;
 
-	# assembl_comps: separate with commas
-	my @formVals = $q->param('assembl_comps');
-	# Zorch first cell (always a null value for some reason)
-	shift @formVals;
-	my $numSetValues = @formVals;
-	if ( $numSetValues ) {
-		$q->param(assembl_comps => join(',', @formVals) );
-	}
-
-	my ($setFieldNames,$cleanSetFieldNames,$shownFormParts) = $s->getPrefFields();
+    # assembl_comps: separate with commas
+    my @formVals = $q->param('assembl_comps');
+    # Zorch first cell (always a null value for some reason)
+    shift @formVals;
+    my $numSetValues = @formVals;
+    if ( $numSetValues ) {
+	$q->param(assembl_comps => join(',', @formVals) );
+    }
+    
+    my ($setFieldNames,$cleanSetFieldNames,$shownFormParts) = $s->getPrefFields();
     my $pref_sql = "";
-	for my $i (0..$#{$setFieldNames})	{
-		my $f = ${$setFieldNames}[$i];
- 		if ( $q->param($f))	{
-			my $val = $q->param($f);
- 			$pref_sql .= " -:- $f=".$val;
-		}
+    
+    for my $i (0..$#{$setFieldNames})
+    {
+	my $f = ${$setFieldNames}[$i];
+	if ( $q->param($f))
+	{
+	    my $val = $q->param($f);
+	    $pref_sql .= " -:- $f=".$val;
 	}
+    }
 
-	if ($q->param("latdir"))	{
-		$q->param(latdeg => $q->param("latdeg") . " " . $q->param("latdir") );
+    if ($q->param("latdir"))
+    {
+	$q->param(latdeg => $q->param("latdeg") . " " . $q->param("latdir") );
+    }
+    
+    if ($q->param("lngdir"))
+    {
+	$q->param(lngdeg => $q->param("lngdeg") . " " . $q->param("lngdir") );
+    }
+    
+    $output .= "<tr><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
+    
+    for my $f (@{$shownFormParts})
+    {
+	my $cleanName = $f;
+	$cleanName =~ s/_/ /g;
+	if ( $q->param($f) )	{
+	    $pref_sql .= " -:- " . $f;
+	    $output .= "<i>Show</i> $cleanName<br>\n";
+	} else	{
+	    $output .= "<i>Do not show</i> $cleanName<br>\n";
 	}
-	if ($q->param("lngdir"))	{
-		$q->param(lngdeg => $q->param("lngdeg") . " " . $q->param("lngdir") );
+    }
+    
+    # Are there any extra preferences that don't correspond to fields on this
+    # form? If so, add them to the data to be saved to the 'preferences'
+    # database column.
+    
+    if ( $q->param('extra_preferences') )
+    {
+	$pref_sql .= ' -:- ' . $q->param('extra_preferences');
+    }
+    
+    # Are any comments stored?
+    
+    my $commentsStored;
+    for my $i (0..$#{$setFieldNames})	{
+	my $f = ${$setFieldNames}[$i];
+	if ($q->param($f) && $f =~ /comm/)	{
+	    $commentsStored = 1;
 	}
-
-	$output .= "<tr><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
-	for my $f (@{$shownFormParts})	{
-		my $cleanName = $f;
-		$cleanName =~ s/_/ /g;
- 		if ( $q->param($f) )	{
- 			$pref_sql .= " -:- " . $f;
-			$output .= "<i>Show</i> $cleanName<br>\n";
- 		} else	{
-			$output .= "<i>Do not show</i> $cleanName<br>\n";
-		}
+    }
+    
+    $output .= "</td>\n<td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
+    
+    for my $i (0..$#{$setFieldNames})	{
+	my $f = ${$setFieldNames}[$i];
+	if ($f =~ /^geogcomments$/)	{
+	    $output .= "</td></tr>\n<tr><td align=\"left\" colspan=3>\n";
+	    if ($commentsStored)	{
+		$output .= "<p class='medium'>Comment fields</p>\n";
+	    }
 	}
-	# Are any comments stored?
-	my $commentsStored;
-	for my $i (0..$#{$setFieldNames})	{
-		my $f = ${$setFieldNames}[$i];
-		if ($q->param($f) && $f =~ /comm/)	{
-			$commentsStored = 1;
-		}
-	}
-
-	$output .= "</td>\n<td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
-	for my $i (0..$#{$setFieldNames})	{
-		my $f = ${$setFieldNames}[$i];
-		if ($f =~ /^geogcomments$/)	{
-			$output .= "</td></tr>\n<tr><td align=\"left\" colspan=3>\n";
-			if ($commentsStored)	{
-				$output .= "<p class='medium'>Comment fields</p>\n";
- 			}
- 		}
-		elsif ($f =~ /mapsize/)	{
-			$output .= qq|</td></tr>
+	elsif ($f =~ /mapsize/)	{
+	    $output .= qq|</td></tr>
 <tr><td valign="top">Map view</td></tr>
 <tr><td valign="top" class="verysmall">
 |;
-		}
-		elsif ($f =~ /(formation)|(coastlinecolor)/)	{
-			$output .= "</td><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
-		}
- 		if ( $q->param($f) && $f !~ /^eml/ && $f !~ /^l..dir$/)	{
-			my @letts = split //,${$cleanSetFieldNames}{$f};
-			$letts[0] =~ tr/[a-z]/[A-Z]/;
-			$output .= join '',@letts , " = <i>" . $q->param($f) . "</i><br>\n";
- 		}
 	}
-	$output .= "</td></tr></table>\n";
-	$pref_sql =~ s/^ -:- //;
-
+	elsif ($f =~ /(formation)|(coastlinecolor)/)	{
+	    $output .= "</td><td valign=\"top\" width=\"33%\" class=\"verysmall\">\n";
+	}
+	if ( $q->param($f) && $f !~ /^eml/ && $f !~ /^l..dir$/)	{
+	    my @letts = split //,${$cleanSetFieldNames}{$f};
+	    $letts[0] =~ tr/[a-z]/[A-Z]/;
+	    $output .= join '',@letts , " = <i>" . $q->param($f) . "</i><br>\n";
+	}
+    }
+    
+    $output .= "</td></tr></table>\n";
+    
+    $pref_sql =~ s/^ -:- //;
+    
     my $enterer_no = $s->get('enterer_no');
-    if ($enterer_no) {
-     	my $sql = "UPDATE person SET preferences=".$dbh_r->quote($pref_sql)." WHERE person_no=$enterer_no";
-        my $result = $dbh_r->do($sql);
-
-	    $output .= "<p>\n<center>" . makeAnchor("displayPreferencesPage", "", "Edit these preferences") . "</center>\n";
+    
+    if ($enterer_no)
+    {
+	my $quoted = $dbh->quote($pref_sql);
+     	my $sql = "UPDATE person SET preferences=$quoted WHERE person_no=$enterer_no";
+	
+        my $result = $dbh->do($sql);
+	
+	$output .= "<p>\n<center>" . makeAnchor("displayPreferencesPage", "", "Edit these preferences") . "</center>\n";
     	my %continue = $s->dequeue();
-	    if($continue{action}){
-		    $output .= "<center><p>\n" . makeAnchor("$continue{action}", "", "<b>Continue</b>") . "<p></center>\n";
-	    }
+	if($continue{action}){
+	    $output .= "<center><p>\n" . makeAnchor("$continue{action}", "", "<b>Continue</b>") . "<p></center>\n";
+	}
     }
     
     return $output;
