@@ -27,6 +27,9 @@ use PBDB::Session;
 # use PBDB::Report;
 
 # Autoloaded libs
+use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LOG_REQUESTS
+		       $COLLECTIONS $OCCURRENCES 
+		       makeAnchor makeObAnchor);
 use PBDB::Person;
 use PBDB::PBDBUtil;
 use PBDB::Permissions;
@@ -59,9 +62,6 @@ use PBDB::Taxon;  # slated for removal
 use PBDB::Opinion;  # slated for removal
 use PBDB::Validation;
 use PBDB::Debug qw(dbg save_request log_request log_step profile_request profile_end_request);
-use PBDB::Constants qw($WRITE_URL $DATA_URL $CGI_DEBUG %DEBUG_USERID %CONFIG $LOG_REQUESTS
-		       $COLLECTIONS $OCCURRENCES 
-		       makeAnchor makeObAnchor);
 
 use IntervalBase;
 use ExternalIdent;

@@ -8,6 +8,8 @@ use URI::Escape;
 use Carp qw(carp croak);
 use PBDB::Constants qw($COLLECTIONS $OCCURRENCES $WRITE_URL makeAnchor makeFormPostTag);
 
+use MatrixBase qw(updateOccurrenceMatrix deleteFromOccurrenceMatrix
+		  deleteReidsFromOccurrenceMatrix updateOccurrenceCounts);
 
 sub displayOccurrenceAddEdit {
     
@@ -729,6 +731,7 @@ sub processEditOccurrences {
     my @warnings;
     my @occurrences;
     my @occurrences_to_delete;
+    my @deleted_reids;
     my @matrix;
     
     my (@genera, @subgenera, @species, @subspecies, @latin_names);
@@ -1716,6 +1719,7 @@ sub processEditOccurrences {
             if ($fields{genus_name} =~ /^\s*$/)
 	    {
                 $dbt->deleteRecord($s,'reidentifications','reid_no',$fields{reid_no});
+		push @deleted_reids, $fields{reid_no};
             }
             
 	    # CASE 1b: Update record
@@ -1884,6 +1888,8 @@ sub processEditOccurrences {
     }
     
     # Now handle the actual deletion
+
+    my @deleted_occurrences;
     
     foreach my $o (@occurrences_to_delete)
     {
@@ -1910,8 +1916,30 @@ sub processEditOccurrences {
         if ($reid_cnt == 0 && $measure_cnt == 0)
 	{
             $dbt->deleteRecord($s,$OCCURRENCES,"occurrence_no",$occurrence_no);
+	    push @deleted_occurrences, $occurrence_no;
         }
     }
+    
+    # Update the occurrence matrix
+    
+    if ( @deleted_reids )
+    {
+	deleteReidsFromOccurrenceMatrix($dbh, \@deleted_reids);
+    }
+    
+    if ( @deleted_occurrences )
+    {
+	deleteFromOccurrenceMatrix($dbh, \@deleted_occurrences);
+    }
+    
+    if ( @occurrences )
+    {
+	updateOccurrenceMatrix($dbh, \@occurrences);
+    }
+    
+    updateOccurrenceCounts($dbh, $collection_no);
+    
+    # Generate the page footer
     
     $output .= qq|<div align="center"><p class="large" style="margin-bottom: 1.5em;">|;
     $sql = "SELECT collection_name AS coll FROM collections WHERE collection_no=$collection_no";

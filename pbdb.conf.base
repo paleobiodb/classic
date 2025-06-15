@@ -10,3 +10,4 @@ DB_PASSWD = pbdbpwd # put database password here
 DB_CONNECTION = mariadb
 PBDB_SITE = 
 MESSAGE_FILE = pbdb-main/alert.txt
+BIN_RESO = 6.0,2.0,0.5
