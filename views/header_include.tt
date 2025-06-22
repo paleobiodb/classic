@@ -108,7 +108,7 @@
             </li>
             [% END -%]
             [%- IF reference_name %]
-              <li><a href="/app/refs#display=[% reference_no %]">Ref: [% reference_name %]</a></li>
+              <li id="pbdb_selected_ref"><a href="/app/refs#display=[% reference_no %]">Ref: [% reference_name %]</a></li>
             [% END -%]
 	    [% IF pbdb_site == 'training' %]
 	      <li><a name="sitetype">TRAINING SITE</a></li>
