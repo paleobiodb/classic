@@ -426,7 +426,7 @@ sub addName {
     my $qrank = '';
     if ( $taxon_rank ) { $qrank = $dbh->quote($Taxon::rankToNum{$taxon_rank} || ''); }
     
-    $sql = "INSERT IGNORE INTO taxon_trees (orig_no,name,rank,lft,rgt,spelling_no,synonym_no) VALUES ($taxon_no,$qname,$qrank,$lft,$rgt,$taxon_no,$taxon_no)";
+    $sql = "INSERT IGNORE INTO taxon_trees (orig_no,name,rank,lft,rgt,spelling_no,synonym_no,accepted_no) VALUES ($taxon_no,$qname,$qrank,$lft,$rgt,$taxon_no,$taxon_no,$taxon_no)";
     $dbh->do($sql);
     
     # Retrieve the new row from taxa_tree_cache.

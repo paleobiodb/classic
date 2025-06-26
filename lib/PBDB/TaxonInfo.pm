@@ -1118,7 +1118,8 @@ sub displayTaxonClassification {
         #  The exact taxa isn't in the authorities, but something close is (i.e. the Genus+species matches 
         #  The Subgenus+species of some taxon
         my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($taxon_name);
-        $classification_no = PBDB::Taxon::getBestClassification($dbt,'',$genus,'',$subgenus,'',$species);
+        $classification_no = PBDB::Taxon::getBestClassification($dbt,'',$genus,'',$subgenus,
+								'',$species,'',$subspecies);
         if ($classification_no) {
             my $taxon = getTaxa($dbt,{'taxon_no'=>$classification_no});
             $classification_name = $taxon->{'taxon_name'};
@@ -1394,22 +1395,22 @@ sub displayRelatedTaxa {
             #$reid_genus_no_sql = " OR a.taxon_no=$parents[0]->{taxon_no}" if (@parents);
             # Note that the table aliased to "a" and "b" is switched up.  The table we want to dislay names for and do matches
             # against is "a" and the non-important table is "b"
-            my $sql  = "(SELECT a.genus_name,a.subgenus_name,a.species_name,c.taxon_name FROM occurrences a LEFT JOIN reidentifications b ON a.occurrence_no=b.occurrence_no LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE b.reid_no IS NULL AND $genus_sql AND (a.species_reso IS NOT NULL AND a.species_reso NOT LIKE '%informal%'))";
+            my $sql  = "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences a LEFT JOIN reidentifications b ON a.occurrence_no=b.occurrence_no LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE b.reid_no IS NULL AND $genus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal')";
             $sql .= " UNION ";
-            $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,c.taxon_name FROM occurrences b, reidentifications a LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE a.occurrence_no=b.occurrence_no AND a.most_recent='YES' AND $genus_sql AND (a.species_reso IS NOT NULL AND a.species_reso NOT LIKE '%informal%'))";
+            $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences b, reidentifications a LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE a.occurrence_no=b.occurrence_no AND a.most_recent='YES' AND $genus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal'))";
             $sql .= " UNION ";
-            $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,c.taxon_name FROM occurrences a LEFT JOIN reidentifications b ON a.occurrence_no=b.occurrence_no LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE b.reid_no IS NULL AND $subgenus_sql AND (a.species_reso IS NOT NULL AND a.species_reso NOT LIKE '%informal%'))";
+            $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences a LEFT JOIN reidentifications b ON a.occurrence_no=b.occurrence_no LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE b.reid_no IS NULL AND $subgenus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal'))";
             $sql .= " UNION ";
-            $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,c.taxon_name FROM occurrences b, reidentifications a LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE a.occurrence_no=b.occurrence_no AND a.most_recent='YES' AND $subgenus_sql AND (a.species_reso IS NOT NULL AND a.species_reso NOT LIKE '%informal%'))";
-            $sql .= " ORDER BY genus_name,subgenus_name,species_name";
+            $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences b, reidentifications a LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE a.occurrence_no=b.occurrence_no AND a.most_recent='YES' AND $subgenus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal'))";
+            $sql .= " ORDER BY genus_name,subgenus_name,species_name,subspecies_name";
             dbg("Get from occ table: $sql");
             @results = @{$dbt->getData($sql)};
             foreach my $row (@results) {
                 next if ($row->{'species_name'} =~ /^sp(p)*\.|^indet\.|s\.\s*l\./);
-                my ($g,$sg,$sp) = PBDB::Taxon::splitTaxon($row->{'taxon_name'});
+                my ($g,$sg,$sp,$ssp) = PBDB::Taxon::splitTaxon($row->{'taxon_name'});
                 my $match_level = 0;
                 if ($row->{'taxon_name'}) {
-                    $match_level = PBDB::Taxon::computeMatchLevel($row->{'genus_name'},$row->{'subgenus_name'},$row->{'species_name'},$g,$sg,$sp);
+                    $match_level = PBDB::Taxon::computeMatchLevel($row->{'genus_name'},$row->{'subgenus_name'},$row->{'species_name'},$row->{'subspecies_name'},$g,$sg,$sp,$ssp);
                 }
                 if ($match_level < 20) { # For occs with only a genus level match, or worse
                     my $occ_name = $row->{'genus_name'};
@@ -1463,7 +1464,8 @@ $output .= qq|<div class="displayPanel" align="left" style="margin-bottom: 2em; 
     }
 
     if (@sister_taxa_links) {
-        my $rank = ($focal_taxon_rank eq 'species') ? 'species' :
+        my $rank = ($focal_taxon_rank eq 'subspecies') ? 'subspecies' :
+	           ($focal_taxon_rank eq 'species') ? 'species' :
                    ($focal_taxon_rank eq 'genus') ? 'genera' :
                                                     'taxa';
 $output .= qq|<div class="displayPanel" align="left" style="margin-bottom: 2em; padding-left: 1em; padding-bottom: 1em;">
@@ -2262,9 +2264,38 @@ sub getMostRecentClassification {
                     $synonym_no = $spelling_no;
                 }
             }
-            $sql = "UPDATE $cache SET spelling_no=$spelling_no,synonym_no=$synonym_no,opinion_no=" . $rows[0]->{'opinion_no'} . " WHERE taxon_no IN (" . join(',',@spellings) . ")";
+	    
             my $dbh = $dbt->dbh;
+	    my $opinion_no = $rows[0]{opinion_no} || 0;
+	    my $parent_no = $rows[0]{parent_spelling_no} || 0;
+	    my $ints_no;
+	    my $taxon_no_list = join(',',@spellings) || 0;
+	    
+	    # The following is a crucial line of code, because it is the *only* place
+	    # that the opinion_no for a newly entered taxon is set. This function is
+	    # called from TaxaCache::updateCache whenever a new opinion is added.
+	    # MM 2025-06-26.
+	    
+            $sql = "UPDATE $cache SET spelling_no=$spelling_no,synonym_no=$synonym_no,opinion_no=$opinion_no WHERE taxon_no IN ($taxon_no_list)";
             $dbh->do($sql);
+	    
+	    # Update the 'taxon_trees' table to set the opinion_no field, the
+	    # parent fields, and the ints_no if the opinion_no is empty. This allows
+	    # newly added taxa to be visible to the API. Added by MM 2025-06-26.
+	    
+	    if ( $parent_no )
+	    {
+		$sql = "SELECT t.ints_no
+			FROM taxon_trees as t join authorities as a using (orig_no)
+			WHERE a.taxon_no = $parent_no";
+		($ints_no) = $dbh->selectrow_array($sql);
+		$ints_no ||= 0;
+	    }
+	    
+	    $sql = "UPDATE taxon_trees SET opinion_no=$opinion_no, immpar_no=$parent_no,
+			senpar_no=$parent_no, ints_no = $ints_no
+		WHERE orig_no in ($taxon_no_list) and opinion_no = 0";
+	    $dbh->do($sql);
         }
         if ( wantarray ) {
             return @rows;
@@ -2504,7 +2535,8 @@ sub displayMeasurements {
         @specimens = PBDB::Measurement::getMeasurements($dbt,{'taxon_name'=>$taxon_name,'get_global_specimens'=>1});
         my ($genus,$subgenus,$species,$subspecies) = PBDB::Taxon::splitTaxon($taxon_name);
         my $is_species = ($species) ? 1 : 0;
-        my $classification_no = PBDB::Taxon::getBestClassification($dbt,'',$genus,'',$subgenus,'',$species);
+        my $classification_no = PBDB::Taxon::getBestClassification($dbt,'',$genus,'',$subgenus,
+								   '',$species,'',$subspecies);
         if ($classification_no)	{
             my $taxon = getTaxa($dbt,{'taxon_no'=>$classification_no});
             $taxon_no = $taxon->{'taxon_no'};
