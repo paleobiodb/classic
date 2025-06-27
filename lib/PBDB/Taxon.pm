@@ -27,6 +27,9 @@ use PBDB::Constants qw($TAXA_TREE_CACHE makeAnchor makeAnchorWithAttrs makeFormP
 
 use PBDB::Opinion;
 use PBDB::Reference;
+
+use MatrixBase qw(updateOccurrenceMatrix updateOccurrenceMatrixReids);
+
 use Carp qw(carp);
 
 use fields qw(dbt DBrow);
@@ -939,7 +942,20 @@ sub submitAuthorityForm {
 		$fields{'reference_no'} = $s->get('reference_no');
 	}
 
-	# now we'll actually insert or update into the database.
+        # If the name contains a subgenus name, put that into the extra
+        # subgenus_name field. This allows us to index by subgenus.
+        
+        if ( $fields{taxon_name} =~ /[(]([A-Za-z]+)[)]/ )
+	{
+	    $fields{subgenus_index} = $1;
+	}
+        
+	else
+	{
+	    $fields{subgenus_index} = undef;
+	}
+        
+        # now we'll actually insert or update into the database.
 	my $resultTaxonNumber;
 	my $resultReferenceNumber = $fields{'reference_no'};
 	my $status;
@@ -1537,6 +1553,11 @@ sub addSpellingAuthority {
         }
     }
 
+    if ( $record{taxon_name} =~ /[(]([A-Za-z]+)[)]/ )
+    {
+	$record{subgenus_index} = $1;
+    }
+    
     my ($return_code, $new_taxon_no) = $dbt->insertRecord($s,'authorities', \%record);
     PBDB::TaxaCache::addName($dbt,$new_taxon_no,$record{taxon_name},$record{taxon_rank});
     dbg("create new authority record, got return code $return_code");
@@ -1567,12 +1588,12 @@ sub setOccurrencesTaxonNoByTaxon {
     $species = "" if (!$species);
     $subspecies = "" if (!$subspecies);
 
-    # Don't support resolutioin at the subspecies level, so don't set it for subspecies.
-    # If they set a species the taxon_no will equal the species taxon_no already since
-    # they have to enter the species first, so this should be ok
-    if ($subspecies) {
-        return ();
-    }
+    # # Don't support resolutioin at the subspecies level, so don't set it for subspecies.
+    # # If they set a species the taxon_no will equal the species taxon_no already since
+    # # they have to enter the species first, so this should be ok
+    # if ($subspecies) {
+    #     return ();
+    # }
 
     # start with a test for uniqueness
     my @taxa = PBDB::TaxonInfo::getTaxa($dbt,{'taxon_name'=>$taxon_name,'ignore_common_name'=>"YES"},['taxon_no','taxon_rank','taxon_name','author1last','author2last','pubyr']);
@@ -1622,22 +1643,24 @@ sub setOccurrencesTaxonNoByTaxon {
         if ($subgenus) {
             push @higher_names, $dbh->quote($subgenus);
         }
-        # Algorithm is as follows:
-        # First get all potential matches.  Potential matches means where the species matches, if there is a species
-        # and the genus or subgenus of the occurrence/reid matches the genus or subgenus of the authorities table
-        # record.  Note a genus can match a subgenus and vice versa as well, so this is pretty fuzzy.  If the new
-        # authorities table match is BETTER than the old authorities table match, then replace the taxon_no.  
-        # See computeMatchLevel to see how matches are ranked. PS 4/21/2006
-        my $sql1 = "SELECT occurrence_no,o.taxon_no,genus_name,subgenus_name,species_name,taxon_name,taxon_rank FROM occurrences o "
+        # Algorithm is as follows: First get all potential matches. Potential
+        # matches means where the species matches, if there is a species and the
+        # genus or subgenus of the occurrence/reid matches the genus or subgenus
+        # of the authorities table record. Note a genus can match a subgenus and
+        # vice versa as well, so this is pretty fuzzy. If the new authorities
+        # table match is BETTER than the old authorities table match, then
+        # replace the taxon_no. See computeMatchLevel to see how matches are
+        # ranked. PS 4/21/2006
+        my $sql1 = "SELECT occurrence_no,o.taxon_no,genus_name,subgenus_name,species_name,subspecies_name,taxon_name,taxon_rank FROM occurrences o "
                 . " LEFT JOIN authorities a ON o.taxon_no=a.taxon_no"
                 . " WHERE genus_name IN (".join(", ",@higher_names).")";
-        my $sql2 = "SELECT reid_no,re.taxon_no,genus_name,subgenus_name,species_name,taxon_name,taxon_rank FROM reidentifications re "
+        my $sql2 = "SELECT reid_no,re.taxon_no,genus_name,subgenus_name,species_name,subspecies_name,taxon_name,taxon_rank FROM reidentifications re "
                 . " LEFT JOIN authorities a ON re.taxon_no=a.taxon_no"
                 . " WHERE genus_name IN (".join(", ",@higher_names).")";
-        my $sql3 = "SELECT occurrence_no,o.taxon_no,genus_name,subgenus_name,species_name,taxon_name,taxon_rank FROM occurrences o "
+        my $sql3 = "SELECT occurrence_no,o.taxon_no,genus_name,subgenus_name,species_name,subspecies_name,taxon_name,taxon_rank FROM occurrences o "
                 . " LEFT JOIN authorities a ON o.taxon_no=a.taxon_no"
                 . " WHERE subgenus_name IN (".join(", ",@higher_names).")";
-        my $sql4 = "SELECT reid_no,re.taxon_no,genus_name,subgenus_name,species_name,taxon_name,taxon_rank FROM reidentifications re "
+        my $sql4 = "SELECT reid_no,re.taxon_no,genus_name,subgenus_name,species_name,subspecies_name,taxon_name,taxon_rank FROM reidentifications re "
                 . " LEFT JOIN authorities a ON re.taxon_no=a.taxon_no"
                 . " WHERE subgenus_name IN (".join(", ",@higher_names).")";
         if ($species) {
@@ -1646,6 +1669,13 @@ sub setOccurrencesTaxonNoByTaxon {
             $sql3 .= " AND species_name LIKE ".$dbh->quote($species);
             $sql4 .= " AND species_name LIKE ".$dbh->quote($species);
         }
+	if ($subspecies) {
+            $sql1 .= " AND subspecies_name LIKE ".$dbh->quote($subspecies);
+            $sql2 .= " AND subspecies_name LIKE ".$dbh->quote($subspecies);
+            $sql3 .= " AND subspecies_name LIKE ".$dbh->quote($subspecies);
+            $sql4 .= " AND subspecies_name LIKE ".$dbh->quote($subspecies);
+        }
+	
         my @results1 = @{$dbt->getData($sql1)};
         my @results2 = @{$dbt->getData($sql2)};
         my @results3 = @{$dbt->getData($sql3)};
@@ -1657,23 +1687,27 @@ sub setOccurrencesTaxonNoByTaxon {
 
             # Maybe not necessary to cast these again as variables, but do just
             # to be safe.  PERL subs screw up if you try to pass in an undef var.
-            my $occ_genus = $row->{'genus_name'};
-            my $occ_subgenus = $row->{'subgenus_name'};
-            my $occ_species = $row->{'species_name'};
-            $occ_genus = "" if (!$occ_genus);
-            $occ_subgenus = "" if (!$occ_subgenus);
-            $occ_species = "" if (!$occ_species);
+            my $occ_genus = $row->{'genus_name'} || '';
+            my $occ_subgenus = $row->{'subgenus_name'} || '';
+            my $occ_species = $row->{'species_name'} || '';
+	    my $occ_subspecies = $row->{'subspecies_name'} || '';
             if ($row->{'taxon_no'}) {
                 # The "tied" variables refer to the taxonomic name to which the the occurrence is currently
                 # set.  I.E. the taxon_name associated with the taxon_no.
-                my ($tied_genus,$tied_subgenus,$tied_species) = splitTaxon($row->{'taxon_name'});
-                $tied_genus = "" if (!$tied_genus);
-                $tied_subgenus = "" if (!$tied_subgenus);
-                $tied_species = "" if (!$tied_species);
-
-                $old_match_level = computeMatchLevel($occ_genus,$occ_subgenus,$occ_species,$tied_genus,$tied_subgenus,$tied_species);
+                my ($tied_genus,$tied_subgenus,$tied_species,$tied_subspecies) =
+		    splitTaxon($row->{'taxon_name'});
+                $tied_genus ||= "";
+                $tied_subgenus ||= "";
+                $tied_species ||= ""; 
+		$tied_subspecies ||= "";
+		
+                $old_match_level =
+		    computeMatchLevel($occ_genus, $occ_subgenus, $occ_species, $occ_subspecies,
+				      $tied_genus, $tied_subgenus, $tied_species, $tied_subspecies);
             }
-            $new_match_level = computeMatchLevel($occ_genus,$occ_subgenus,$occ_species,$genus,$subgenus,$species);
+            $new_match_level =
+		computeMatchLevel($occ_genus, $occ_subgenus, $occ_species, $occ_subspecies,
+				  $genus, $subgenus, $species, $subspecies);
             if ($new_match_level > $old_match_level) {
                 if ($row->{'reid_no'}) { 
                     push @matchedReids, $row->{'reid_no'};
@@ -1688,11 +1722,13 @@ sub setOccurrencesTaxonNoByTaxon {
             my $sql = "UPDATE occurrences SET modified=modified,taxon_no=$taxon_no WHERE occurrence_no IN (".join(",",@matchedOccs).")";
             dbg("Updating matched occs:".$sql);
             $dbh->do($sql);
+	    updateOccurrenceMatrix($dbh, \@matchedOccs);
         }
         if (@matchedReids) {
             my $sql = "UPDATE reidentifications SET modified=modified,taxon_no=$taxon_no WHERE reid_no IN (".join(",",@matchedReids).")";
             dbg("Updating matched reids:".$sql);
             $dbh->do($sql);
+	    updateOccurrenceMatrixReids($dbh, \@matchedReids);
         }
     }
     return @warnings;
@@ -2060,52 +2096,146 @@ sub validTaxonName {
 # do this for entries from the authorities table) and compares
 # How closely they match up.  The higher the number, the better the
 # match.
-# 
-# < 30 but > 20 = species level match
-# < 20 but > 10 = genus/subgenus level match
+#
+# 40             = exact match
+# < 40 but >= 30 = subspecies level match
+# < 30 but >= 20 = species level match
+# < 20 but >= 10 = genus/subgenus level match
 # 0 = no match
+
 sub computeMatchLevel {
-    my ($occ_g,$occ_sg,$occ_sp,$taxon_g,$taxon_sg,$taxon_sp) = @_;
+    
+    my ($occ_g,$occ_sg,$occ_sp,$occ_ssp,$taxon_g,$taxon_sg,$taxon_sp,$taxon_ssp) = @_;
 
     my $match_level = 0;
     return 0 if ($occ_g eq '' || $taxon_g eq '');
 
-    if ($taxon_sp) {
-        if ($occ_g eq $taxon_g && 
-            $occ_sg eq $taxon_sg && 
-            $occ_sp eq $taxon_sp) {
-            $match_level = 30; # Exact match
-        } elsif ($occ_g eq $taxon_g && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
-            $match_level = 28; # Genus and species match, next best thing
-        } elsif ($occ_g eq $taxon_sg && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
+    if ( $taxon_ssp )
+    {
+        if ( $occ_g eq $taxon_g && $occ_sg eq $taxon_sg && 
+	     $occ_sp eq $taxon_sp && $occ_ssp eq $taxon_ssp )
+	{
+            $match_level = 40; # Exact match
+        }
+	
+	elsif ( $occ_g eq $taxon_g && $occ_sp && $occ_sp && $occ_sp eq $taxon_sp &&
+	        $occ_ssp && $occ_ssp eq $taxon_ssp )
+	{
+            $match_level = 38; # Genus and species and subspecies match, next best
+        }
+	
+	elsif ( $occ_g eq $taxon_sg && $occ_sp && $occ_sp eq $taxon_sp &&
+		$occ_ssp && $occ_ssp eq $taxon_ssp )
+	{
+            $match_level = 37; # The authorities subgenus being used a genus
+        }
+	
+	elsif ( $occ_sg eq $taxon_g && $occ_sp && $occ_sp eq $taxon_sp &&
+	        $occ_ssp && $occ_ssp eq $taxon_ssp )
+	{
+            $match_level = 36; # The authorities genus being used as a subgenus
+        }
+	
+	elsif ( $occ_sg && $taxon_sg && $occ_sg eq $taxon_sg && 
+		$occ_sp && $occ_sp eq $taxon_sp &&
+	        $occ_ssp && $occ_ssp eq $taxon_ssp )
+	{
+            $match_level = 35; # Genus don't match, but subgenus/species/subspecies does, pretty weak
+        }
+	
+	elsif ( $occ_g eq $taxon_g && $occ_sg eq $taxon_sg && 
+		$occ_sp eq $taxon_sp )
+	{
+	    $match_level = 30; # Exact match to species level
+	}
+	
+	elsif ( $occ_g eq $taxon_g && $occ_sp && $occ_sp && $occ_sp eq $taxon_sp  )
+	{
+            $match_level = 28; # Genus and species match, next best
+        }
+	
+	elsif ( $occ_g eq $taxon_sg && $occ_sp && $occ_sp eq $taxon_sp )
+	{
             $match_level = 27; # The authorities subgenus being used a genus
-        } elsif ($occ_sg eq $taxon_g && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
+        }
+	
+	elsif ( $occ_sg eq $taxon_g && $occ_sp && $occ_sp eq $taxon_sp )
+	{
             $match_level = 26; # The authorities genus being used as a subgenus
-        } elsif ($occ_sg && $taxon_sg && $occ_sg eq $taxon_sg && 
-                 $occ_sp && $taxon_sp && $occ_sp eq $taxon_sp) {
+        }
+	
+	elsif ( $occ_sg && $taxon_sg && $occ_sg eq $taxon_sg && 
+		$occ_sp && $occ_sp eq $taxon_sp )
+	{
             $match_level = 25; # Genus don't match, but subgenus/species does, pretty weak
-        } 
-    } elsif ($taxon_sg) {
-        if ($occ_g eq $taxon_g  &&
-            $occ_sg eq $taxon_sg) {
+        }
+    }
+    
+    elsif ( $taxon_sp )
+    {
+        if ( $occ_g eq $taxon_g && $occ_sg eq $taxon_sg && $occ_sp eq $taxon_sp)
+	{
+            $match_level = 30; # Exact match
+        }
+	
+	elsif ( $occ_g eq $taxon_g && $occ_sp && $occ_sp eq $taxon_sp )
+	{
+            $match_level = 28; # Genus and species match, next best thing
+        }
+	
+	elsif ( $occ_g eq $taxon_sg && $occ_sp && $occ_sp eq $taxon_sp )
+	{
+            $match_level = 27; # The authorities subgenus being used a genus
+        }
+	
+	elsif ( $occ_sg eq $taxon_g && $occ_sp && $occ_sp eq $taxon_sp )
+	{
+            $match_level = 26; # The authorities genus being used as a subgenus
+        }
+	
+	elsif ( $occ_sg && $taxon_sg && $occ_sg eq $taxon_sg && 
+		$occ_sp && $occ_sp eq $taxon_sp)
+	{
+            $match_level = 25; # Genus don't match, but subgenus/species does, pretty weak
+        }
+    }
+    
+    elsif ( $taxon_sg )
+    {
+        if ( $occ_g eq $taxon_g && $occ_sg eq $taxon_sg )
+	{
             $match_level = 19; # Genus and subgenus match
-        } elsif ($occ_g eq $taxon_sg) {
+        }
+	
+	elsif ( $occ_g eq $taxon_sg )
+	{
             $match_level = 17; # The authorities subgenus being used a genus
-        } elsif ($occ_sg eq $taxon_g) {
+        }
+	
+	elsif ( $occ_sg eq $taxon_g )
+	{
             $match_level = 16; # The authorities genus being used as a subgenus
-        } elsif ($occ_sg eq $taxon_sg) {
+        }
+
+	elsif ( $occ_sg eq $taxon_sg )
+	{
             $match_level = 14; # Subgenera match up but genera don't, very junky
         }
-    } else {
-        if ($occ_g eq $taxon_g) {
+    }
+    
+    else
+    {
+        if ( $occ_g eq $taxon_g )
+	{
             $match_level = 18; # Genus matches at least
-        } elsif ($occ_sg eq $taxon_g) {
+        }
+	
+	elsif ( $occ_sg eq $taxon_g )
+	{
             $match_level = 15; # The authorities genus being used as a subgenus
         }
     }
+    
     return $match_level;
 }
 
@@ -2114,7 +2244,8 @@ sub computeMatchLevel {
 
 sub getBestClassification{
     my $dbt = shift;
-    my ($genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name);
+    my ($genus_reso, $genus_name, $subgenus_reso, $subgenus_name,
+	$species_reso, $species_name, $subspecies_reso, $subspecies_name);
     if (scalar(@_) == 1) {
         $genus_reso    = $_[0]->{'genus_reso'} || "";
         $genus_name    = $_[0]->{'genus_name'} || "";
@@ -2122,8 +2253,11 @@ sub getBestClassification{
         $subgenus_name = $_[0]->{'subgenus_name'} || "";
         $species_reso  = $_[0]->{'species_reso'} || "";
         $species_name  = $_[0]->{'species_name'} || "";
+	$subspecies_reso = $_[0]->{subspecies_reso} || "";
+	$subspecies_name = $_[0]->{subspecies_name} || "";
     } else {
-        ($genus_reso,$genus_name,$subgenus_reso,$subgenus_name,$species_reso,$species_name) = @_;
+        ($genus_reso, $genus_name, $subgenus_reso, $subgenus_name,
+	 $species_reso, $species_name, $subspecies_reso, $subspecies_name) = @_;
     }
     my $dbh = $dbt->dbh;
     my @matches = ();
@@ -2155,7 +2289,8 @@ sub getBestClassification{
         my @more_results = ();
         # Do this query separetly cause it needs to do a full table scan and is SLOW
         foreach my $row (@results) {
-            my ($taxon_genus,$taxon_subgenus,$taxon_species) = splitTaxon($row->{'taxon_name'});
+            my ($taxon_genus, $taxon_subgenus, $taxon_species, $taxon_subspecies) =
+		splitTaxon($row->{'taxon_name'});
             if ($taxon_subgenus && $genus_name eq $taxon_subgenus && $genus_name ne $taxon_genus) {
                 my $last_sql = "SELECT taxon_no,taxon_name,taxon_rank FROM authorities WHERE taxon_name LIKE '% ($taxon_subgenus) %' AND taxon_rank='species'";
 #                print "Querying for more results because only genus didn't match but subgenus (w/g) did matched up with $row->{taxon_name}\n";
@@ -2175,7 +2310,10 @@ sub getBestClassification{
         foreach my $row (@results,@more_results) {
             my ($taxon_genus,$taxon_subgenus,$taxon_species,$taxon_subspecies) = splitTaxon($row->{'taxon_name'});
             if (!$taxon_subspecies) {
-                my $match_level = PBDB::Taxon::computeMatchLevel($genus_name,$subgenus_name,$species_name,$taxon_genus,$taxon_subgenus,$taxon_species);
+                my $match_level = PBDB::Taxon::computeMatchLevel($genus_name, $subgenus_name,
+								 $species_name, $subspecies_name,
+								 $taxon_genus, $taxon_subgenus,
+								 $taxon_species, $taxon_subspecies);
                 if ($match_level > 0) {
                     $row->{'match_level'} = $match_level;
                     push @matches, $row;
@@ -2188,8 +2326,10 @@ sub getBestClassification{
     @matches = sort {$b->{'match_level'} <=> $a->{'match_level'}} @matches;
 
     if (wantarray) {
-        # If the user requests a array, then return all matches that are in the same class.  The classes are
-        #  30: exact match, no need to return any others
+        # If the user requests a array, then return all matches that are in the
+        # same class. The classes are:
+        #  40: exact match, no need to return any others
+	#  30-39: subspecies level match
         #  20-29: species level match
         #  10-19: genus level match
         if (@matches) {

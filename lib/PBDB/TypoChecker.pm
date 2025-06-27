@@ -442,8 +442,10 @@ sub submitOccurrenceMisspelling {
                 $count++;
                 my ($g1,$sg1,$sp1,$ssp1) = PBDB::Taxon::splitTaxon($old_name);
                 my ($g2,$sg2,$sp2,$ssp2) = PBDB::Taxon::splitTaxon($new_name);
-                my ($g1_q,$sg1_q,$sp1_q) = ($dbh->quote($g1),$dbh->quote($sg1),$dbh->quote($sp1));
-                my ($g2_q,$sg2_q,$sp2_q) = ($dbh->quote($g2),$dbh->quote($sg2),$dbh->quote($sp2));
+                my ($g1_q,$sg1_q,$sp1_q,$ssp1_q) = ($dbh->quote($g1),$dbh->quote($sg1),
+						    $dbh->quote($sp1),$dbh->quote($ssp1));
+                my ($g2_q,$sg2_q,$sp2_q,$ssp2_q) = ($dbh->quote($g2),$dbh->quote($sg2),
+						    $dbh->quote($sp2),$dbh->quote($ssp2));
 
                 my @set_fields = ();
 
@@ -464,17 +466,24 @@ sub submitOccurrenceMisspelling {
                     push @set_fields, "species_name=IF(species_name IS NULL,$sp2_q,REPLACE(species_name,$sp1_q,$sp2_q))";
                     $new_actual_name .= " $sp2";
                 }
-                my $best_taxon_no = PBDB::Taxon::getBestClassification($dbt,'',$g2,'',$sg2,'',$sp2);
+                if ($ssp1 && $ssp2) {
+                    push @set_fields, "subspecies_name=IF(subspecies_name IS NULL,$sp2_q,REPLACE(subspecies_name,$sp1_q,$sp2_q))";
+                    $new_actual_name .= " $ssp2";
+                }
+                my $best_taxon_no = PBDB::Taxon::getBestClassification($dbt,'',$g2,'',$sg2,
+								       '',$sp2,'',$ssp2);
                 push @set_fields,"modifier_no=$enterer_no","modifier=".$dbh->quote($s->get("enterer")),"taxon_no=$best_taxon_no";
                 my $mod_count = 0;
                 if ($occ_list) {
                     my @occs = split(/\s*,\s*/,$occ_list);
                     foreach my $occurrence_no (@occs) {
-                        my $occ_sql = "SELECT comments,genus_name,subgenus_name,species_name FROM occurrences WHERE occurrence_no=$occurrence_no";
+                        my $occ_sql = "SELECT comments,genus_name,subgenus_name,species_name,subspecies_name FROM occurrences WHERE occurrence_no=$occurrence_no";
                         my $occ = ${$dbt->getData($occ_sql)}[0];
                         my $old_name_note = '[entered as '.$occ->{'genus_name'};
                         $old_name_note .= " ($occ->{subgenus_name})" if ($occ->{'subgenus_name'}); 
-                        $old_name_note .= " $occ->{species_name}".']';
+                        $old_name_note .= " $occ->{species_name}";
+			$old_name_note .= " $occ->{subspecies_name}" if $occ->{subspecies_name};
+			$old_name_note .= ']';
                         $old_name_note = $dbh->quote($old_name_note);
                         my $comment = "comments=IF(comments IS NULL,$old_name_note,concat(comments,' ',$old_name_note)),";
                         if ($occ->{'comments'} =~ (/\[entered as/)) {

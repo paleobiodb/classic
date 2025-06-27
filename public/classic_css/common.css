@@ -915,7 +915,7 @@ td.PASTcell,.simpleTableCell{
 }
 
 .mytip .mytiptext {
-    visibility: hidden;
+    display: none;
     width: 200px;
     font-style: italic;
     font-size: 0.9em;
@@ -930,7 +930,7 @@ td.PASTcell,.simpleTableCell{
 }
 
 .mytip .mytipleft {
-    visibility: hidden;
+    display: none;
     width: 200px;
     font-style: italic;
     font-size: 0.9em;
@@ -945,11 +945,11 @@ td.PASTcell,.simpleTableCell{
 }
 
 .mytip:hover .mytiptext {
-    visibility: visible;
+    display: block;
 }
 
 .mytip:hover .mytipleft {
-    visibility: visible;
+    display: block;
 }
 
 
