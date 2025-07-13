@@ -177,8 +177,9 @@ sub generateBasePage {
 		 app_components => $app->{app_path},
 		 common_components => $app->{common_path} );
     
-    $app->{txt} =~ s/ %% ( [ \w \[ \] ]+ ) %% / $app->substitute_value(\%vars, $1) /xge;
-    
+    $app->{txt} =~ s/ (%%|\$\$) ( [ \w \[ \] ]+ ) (?:%%|\$\$) /
+	$app->substitute_value(\%vars, $2, $1) /xge;
+
     # If one of the substitutions was %%errors%%, then substitute it now after everything else has
     # been done.
 
@@ -217,7 +218,7 @@ my %key_map = ( user_name => 'real_name',
 
 sub substitute_value {
 
-    my ($app, $vars, $key) = @_;
+    my ($app, $vars, $key, $sigil) = @_;
     
     # We preserve '%%errors%%' so that it can be substituted at the very end.
     
@@ -231,7 +232,10 @@ sub substitute_value {
     
     elsif ( defined $vars->{$key} )
     {
-	return $vars->{$key};
+	my $value = $vars->{$key};
+	$value =~ s/"/\\"/g if $sigil eq '$$';
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
     
     # Otherwise, call the appropriate method to obtain it.
@@ -241,38 +245,60 @@ sub substitute_value {
     
     if ( $key eq 'app_resources' )
     {
-	return $vars->{app_components};
+	my $value = $vars->{app_components};
+	$value =~ s/"/\\"/g if $sigil eq '$$';
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
-
+    
     elsif ( $key eq 'common_resources' )
     {
-	return $vars->{common_components};
+	my $value = $vars->{common_components};
+	$value =! s/"/\\"/g if $sigil eq '$$';
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
     
     elsif ( $key eq 'is_contributor' || $key eq 'is_member' )
     {
-	return $s->isDBMember() ? 1 : '';
+	if ( $sigil eq '$$' ) {
+	    return $s->isDBMember() ? 'true' : 'false';
+	} else {
+	    return $s->isDBMember() ? 1 : '';
+	}
     }
     
     elsif ( $key eq 'is_loggedin' )
     {
-	return $s->isLoggedIn() ? 1 : '';
+	if ( $sigil eq '$$' ) {
+	    return $s->isLoggedIn() ? 'true' : 'false';
+	} else {
+	    return $s->isLoggedIn() ? 1 : '';
+	}
     }
     
     elsif ( $key eq 'is_admin' )
     {
-	return $s->isSuperUser() ? 1 : '';
+	if ( $sigil eq '$$' ) {
+	    return $s->isSuperUser() ? 'true' : 'false';
+	} else {
+	    return $s->isSuperUser() ? 1 : '';
+	}
     }
     
     elsif ( $key eq 'user_role' )
     {
-	return $s->get('role');
+	my $value = $s->get('role');
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
     
     elsif ( $key eq 'enterer_name' || $key eq 'enterer_reversed' ||
 	    $key eq 'authorizer_name' || $key eq 'authorizer_reversed' )
     {
-	return $s->get($key);
+	my $value = $s->get($key);
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
     
     elsif ( $key eq 'user_name' || $key eq 'user_email' ||
@@ -280,41 +306,44 @@ sub substitute_value {
 	    $key eq 'user_institution' || $key eq 'user_orcid' )
     {
 	$app->{user_info} ||= $s->user_info;
-	
-	return $app->{user_info}{$key_map{$key}} || '';
+	my $value = $app->{user_info}{$key_map{$key}} || '';
+	$value =~ s/"/\\"/g if $sigil eq '$$';
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
     
     elsif ( $key eq 'authorizer_id' || $key eq 'enterer_id' )
     {
 	my $session_field = $key; $session_field =~ s/_id/_no/;
 	my $person_no = $s->get($session_field);
-	
-	if ( $person_no )
-	{
-	    $vars->{$key} = generate_identifier('PRS', $person_no);
-	}
-	
-	else
-	{
-	    $vars->{$key} = '';
-	}
-	
-	return $vars->{$key};
+	my $value = $person_no ? generate_identifier('PRS', $person_no) : '';
+	$value = "\"$value\"" if $sigil eq '$$';
+	return $value;
     }
 
+    elsif ( $key eq 'preferences' )
+    {
+	my %prefs = $s->getPreferences();
+	
+	my $prefstring = '{ ';
+	my $sep = '';
+	
+	foreach $key ( keys %prefs )
+	{
+	    my $value = $prefs{$key};
+	    $value =~ s/"/\\"/g;
+	    $prefstring .= "$sep\"$key\": \"$value\"";
+	    $sep = ', ';
+	}
+	
+	return $prefstring . ' }';
+    }
+    
     elsif ( $key =~ qr{ ^ param \[ (\w+) \] }xs )
     {
 	my $value = $q->param($1);
-
-	if ( defined $value )
-	{
-	    return "'$value'";
-	}
-
-	else
-	{
-	    return "undefined";
-	}
+	$value =~ s/"/\\"/g if $sigil eq '$$';
+	return defined $value ? "\"$value\"" : 'undefined';
     }
 
     elsif ( $key eq 'params' )
@@ -327,20 +356,24 @@ sub substitute_value {
 	    foreach $key ( keys %{$q->{params}} )
 	    {
 		my $value = $q->param($key);
-		$paramstring .= "$sep'$key': '$value'";
+		$value =~ s/"/\\"/g;
+		$paramstring .= "$sep\"$key\": \"$value\"";
 		$sep = ', ';
 	    }
 	}
 
-	$paramstring .= ' }';
-
-	return $paramstring;
+	return $paramstring . ' }';
     }
     
     # If we get here, then the variable does not exist.
     
     push @{$app->{error_list}}, "Bad variable '$key'";
-    return '%%' . $key . '%%';
+    
+    if ( $sigil eq '$$' ) {
+	return 'undefined';
+    } else {
+	return '%%' . $key . '%%';
+    }
 }
 
 

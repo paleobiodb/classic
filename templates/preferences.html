@@ -1,4 +1,4 @@
-<form method="POST" action="%%write_url%%" onSubmit="return checkPassword();">
+<form method="POST" action="%%write_url%%">
 
 <input type=hidden name="action" value="setPreferences">
 
@@ -13,7 +13,6 @@
   <div class="displayPanelContent small">
 
 <table border=0 cellpadding=8>
-<table border=0 cellpadding=4>
 	<tr><td valign="top"><table border=0>
 		<tr><td><input id="collection_search" type=checkbox value="yes"> Full collection search form</td></tr>
 		<tr><td><input id="taphonomy" type=checkbox value="yes"> Full taphonomy section in main form</td></tr>
@@ -24,7 +23,6 @@
 		<tr><td>Blank occurrence rows: <input id="blanks" size=5></td></tr>
 	</table>
 </table>
-</table>
 </div>
 </div>
 
@@ -32,7 +30,6 @@
   <span class="displayPanelHeader">Prefilled checkboxes, pulldowns, and text fields</span>
   <div class="displayPanelContent small">
 <table border=0 cellpadding=8>
-<table border=0 cellpadding=4>
 	<tr><td valign="top">
 	<table border=0>
 		<tr><td>Research group: <select id="research_group"></select></td></tr>
@@ -60,7 +57,7 @@
 		Field collection? <input id="coll_meth" type=checkbox value="field collection"></td></tr>
 		<tr><td>Species name: <select id="species_name"></select></td></tr>
 	</table>
-</table>
+	</td></tr>
 </table>
 </div>
 </div>

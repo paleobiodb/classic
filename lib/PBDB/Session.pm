@@ -886,6 +886,38 @@ sub setPreferences
 	if($continue{action}){
 	    $output .= "<center><p>\n" . makeAnchor("$continue{action}", "", "<b>Continue</b>") . "<p></center>\n";
 	}
+	
+	# Now generate Javascript code to communicate the preferences to any
+	# open application windows.
+	
+	my @prefs = split / -:- /, $pref_sql;
+	my $prefs_out = '{ ';
+	my $sep = '';
+	
+	foreach my $p ( @prefs )
+	{
+	    if ( $p =~ /(.*?)=(.*)/ )
+	    {
+		my $key = $1;
+		my $value = $2;
+		$value =~ s/"/\\\\\\"/g;
+		$value =~ s/'/\\'/g;
+		$prefs_out .= "$sep\"$key\": \"$value\"";
+		$sep = ', ';
+	    }
+	    
+	    else
+	    {
+		$prefs_out .= "$sep\"$p\": \"yes\"";
+		$sep = ', ';
+	    }
+	}
+	
+	$prefs_out .= ' }';
+	
+	$output .= "<script language=\"Javascript\" type=\"text/javascript\">\n";
+	$output .= "localStorage.setItem(\"pbdb_user_preferences\", '$prefs_out');\n";
+	$output .= "</script>\n";
     }
     
     return $output;

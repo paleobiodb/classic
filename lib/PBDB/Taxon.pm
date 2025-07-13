@@ -2240,7 +2240,7 @@ sub computeMatchLevel {
 }
 
 # This function will determine get the best taxon_no for a taxon.  Can pass in either 
-# 6 arguments, or 1 argument thats a hashref to an occurrence or reid database row 
+# 8 arguments, or 1 argument thats a hashref to an occurrence or reid database row 
 
 sub getBestClassification{
     my $dbt = shift;

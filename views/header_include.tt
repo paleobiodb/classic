@@ -81,7 +81,7 @@
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Search<b class="caret"></b></a>
               <ul class="dropdown-menu">
-                <li><a href="/classic/displaySearchColls?type=view">Fossil collection records</a></li>
+                <li><a href="/app/collections#">Fossil collection records</a></li>
                 <li><a href="/classic/beginTaxonInfo">Fossil organisms</a></li>
                 <li><a href="/classic/app/refs">Published references</a></li>
                 <li><a href="/classic/classificationForm">Classifications of taxa in groups</a></li>
@@ -93,12 +93,13 @@
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">Actions<b class="caret"></b></a>
               <ul class="dropdown-menu">
-                <li><a href="/classic/app/refs">Select reference</a></li>
-                <li><a href="/classic?a=clearRef&amp;type=select">Clear reference</a></li>
-                <li><a href="/classic/app/refs?type=new">Add reference</a></li>
-                <li><a href="/classic?a=displaySearchCollsForAdd">Add collection</a></li>
-                <li><a href="/classic?a=displaySearchColls&amp;type=edit">Edit collection</a></li>
-                <li><a href="/classic?a=displayOccurrenceAddEdit">Add/Edit occurrences</a></li>
+                <li><a href="/app/refs?type=select" target="_blank">Select reference</a></li>
+                <li id="pbdb_clear_ref">
+		  <a href="/classic?a=clearRef&amp;type=select">Clear reference</a></li>
+                <li><a href="/app/refs?type=new">Add reference</a></li>
+                <li><a href="/app/collections#add">Add collection</a></li>
+                <li><a href="/app/collections#edit">Edit collection</a></li>
+                <li><a href="/app/collections#occs">Add/Edit occurrences</a></li>
                 <li><a href="/classic?a=displaySpecimenSearchForm">Add/Edit measurements</a></li>
                 [% IF current_user.role != "student" %]
                     <li><a href="/classic?a=displayAuthorityTaxonSearchForm">Add/Edit names</a></li>
@@ -107,9 +108,11 @@
               </ul>
             </li>
             [% END -%]
+	    <li id="pbdb_selected_ref">
             [%- IF reference_name %]
-              <li id="pbdb_selected_ref"><a href="/app/refs#display=[% reference_no %]">Ref: [% reference_name %]</a></li>
+            <a href="/app/refs#display=[% reference_no %]">Ref: [% reference_name %]</a>
             [% END -%]
+	    </li>
 	    [% IF pbdb_site == 'training' %]
 	      <li><a name="sitetype">TRAINING SITE</a></li>
 	    [% ELSIF pbdb_site == 'dev' %]
