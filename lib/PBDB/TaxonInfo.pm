@@ -1395,7 +1395,7 @@ sub displayRelatedTaxa {
             #$reid_genus_no_sql = " OR a.taxon_no=$parents[0]->{taxon_no}" if (@parents);
             # Note that the table aliased to "a" and "b" is switched up.  The table we want to dislay names for and do matches
             # against is "a" and the non-important table is "b"
-            my $sql  = "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences a LEFT JOIN reidentifications b ON a.occurrence_no=b.occurrence_no LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE b.reid_no IS NULL AND $genus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal')";
+            my $sql  = "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences a LEFT JOIN reidentifications b ON a.occurrence_no=b.occurrence_no LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE b.reid_no IS NULL AND $genus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal'))";
             $sql .= " UNION ";
             $sql .= "(SELECT a.genus_name,a.subgenus_name,a.species_name,a.subspecies_name,c.taxon_name FROM occurrences b, reidentifications a LEFT JOIN authorities c ON a.taxon_no=c.taxon_no WHERE a.occurrence_no=b.occurrence_no AND a.most_recent='YES' AND $genus_sql AND (a.species_reso IS NULL OR a.species_reso <> 'informal') AND (a.subspecies_reso IS NULL OR a.subspecies_reso <> 'informal'))";
             $sql .= " UNION ";
