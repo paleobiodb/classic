@@ -127,12 +127,11 @@
     </div>
 </div>
 <div class="form-group">
-    <label class="col-sm-4 control-label" for="permission_TIMESCALE_DATA">Timescales</label>
+    <label class="col-sm-4 control-label" for="permission_COLLECTION_DATA">Collections</label>
     <div class="col-sm-8">
-      <select class="form-control autosave" name="permission[TIMESCALE_DATA]" id="permission_TIMESCALE_DATA">
-     	<option value="default"[% IF ! user.permission.TIMESCALE_DATA %] selected[% END %]>none</option>
-     	<option value="post"[% IF user.permission.TIMESCALE_DATA == 'post' %] selected[% END %]>post</option>
-     	<option value="admin"[% IF user.permission.TIMESCALE_DATA == 'admin' %] selected[% END %]>admin</option>        </select>
+      <select class="form-control autosave" name="permission[COLLECTION_DATA]" id="permission_COLLECTION_DATA">
+     	<option value="default"[% IF ! user.permission.COLLECTION_DATA %] selected[% END %]>none</option>
+     	<option value="admin"[% IF user.permission.COLLECTION_DATA == 'admin' %] selected[% END %]>admin</option>        </select>
     </div>
 </div>
 </fieldset>

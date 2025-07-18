@@ -488,13 +488,27 @@ around update => sub {
 		next unless $params->{$k};
 		my $table = $1;
 		my $perm = $params->{$k} eq 'default' ? '' : $params->{$k};
-		# ouch(400, "Error: Permission test");
 		my $quoted_table = $dbh->quote($table);
-		my $quoted_perm = $dbh->quote($params->{$k});
-		my $sql = "
-		INSERT INTO `pbdb`.`table_permissions` (person_no, table_name, permission)
-		VALUES ($person_no, $quoted_table, $quoted_perm)
-		ON DUPLICATE KEY UPDATE permission=$quoted_perm";
+		my $quoted_perm = $dbh->quote($perm);
+		
+		my $sql = "SELECT permission_no FROM `pbdb`.`table_permissions`
+			WHERE person_no = '$person_no' AND table_name = $quoted_table";
+		
+		my ($permission_no) = $dbh->selectrow_array($sql);
+		
+		if ( $permission_no )
+		{
+		    $sql = "REPLACE INTO `pbdb`.`table_permissions`
+			(permission_no, person_no, table_name, permission)
+			VALUES ($permission_no, $person_no, $quoted_table, $quoted_perm)";
+		}
+		
+		else
+		{
+		    $sql = "INSERT INTO `pbdb`.`table_permissions`
+				(person_no, table_name, permission)
+				VALUES ($person_no, $quoted_table, $quoted_perm)";
+		}
 		
 		$dbh->do($sql);
 	    }
