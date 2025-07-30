@@ -1207,8 +1207,15 @@ sub deleteSpecimen {
     
     my $authorizer_no = $s->{authorizer_no};
     my $enterer_no = $s->{enterer_no};
+    my $is_superuser = $s->{superuser};
+
+    $sql = "SELECT permission FROM table_permissions
+	WHERE person_no = $enterer_no and table_name = 'COLLECTION_DATA'";
+
+    my ($permission) = $dbh->selectrow_array($sql);
     
-    unless ( $specimen_enterer_no == $enterer_no || $specimen_authorizer_no == $authorizer_no )
+    unless ( $specimen_enterer_no == $enterer_no || $specimen_authorizer_no == $authorizer_no ||
+	     $is_superuser || ($permission && $permission eq 'admin') )
     {
 	return "You do not have permission to delete the specimen '$specimen_id'.";
     }
