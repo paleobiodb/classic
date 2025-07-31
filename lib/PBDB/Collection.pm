@@ -65,16 +65,20 @@ sub getCollections {
     
     # Now add on any requested fields
     foreach my $field (@fields) {
-        if ($field eq 'enterer') {
-            push @from, "c.enterer_no"; 
+	if ( $field eq 'authorizer') {
+	    push @from, "p1.name as authorizer";
+	    push @left_joins, "LEFT JOIN person as p1 on p1.person_no = c.authorizer_no";
+	} elsif ($field eq 'enterer') {
+            push @from, "p2.name as enterer";
+	    push @left_joins, "LEFT JOIN person as p2 on p2.person_no = c.enterer_no";
         } elsif ($field eq 'modifier') {
-            push @from, "c.modifier_no"; 
+            push @from, "p3.name as modifier";
+	    push @left_joins, "LEFT JOIN person as p3 on p3.person_no = c.modifier_no";
         } else {
             push @from, "c.$field";
         }
     }
-
-
+    
     # 9.4.08
     if ( $options{'field_name'} =~ /[a-z]/ && $options{'field_includes'} =~ /[A-Za-z0-9]/ )	{
 	$options{$options{'field_name'}} = $options{'field_includes'};
