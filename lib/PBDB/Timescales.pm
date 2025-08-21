@@ -878,8 +878,6 @@ sub listTimescales {
     
     my $dbh = $dbt->dbh;
     
-    my $html .= "<div class=\"ts_list\"><h4>Main timescales</h4>\n<ul>\n";
-    
     my ($sql, $result);
     
     my ($main_heading, $global_heading, $regional_heading, $nz_heading);
@@ -887,33 +885,81 @@ sub listTimescales {
     $sql = "SELECT * FROM $TABLE{SCALE_DATA}
 	    ORDER BY scale_no";
     
-    # Add headings, to indicate the various groupings of timescales according to
-    # their identifying numbers.
+    # Group the timescales into categories.
+    
+    my (@main, @global, @regional, @nz);
     
     foreach my $s ( $dbh->selectall_array($sql, { Slice => { } }) )
     {
 	my $snum = $s->{scale_no};
+	my $locality = $s->{locality};
+	
+	if ( $snum <= 10 )
+	{
+	    push @main, $s;
+	}
+	
+	elsif ( $locality eq 'global' )
+	{
+	    push @global, $s;
+	}
+	
+	elsif ( $locality eq 'New Zealand' )
+	{
+	    push @nz, $s;
+	}
+	
+	else
+	{
+	    push @regional, $s;
+	}
+    }
+    
+    # Generate the HTML output.
+    
+    my $html .= "<div class=\"ts_list\"><h4>Main timescales</h4>\n<ul>\n";
+    
+    foreach my $s ( @main )
+    {
+	my $snum = $s->{scale_no};
 	my $name = $s->{scale_name};
-		
-	if ( $snum > 10 && ! $global_heading )
-	{
-	    $html .= "</ul>\n<h4>Additional global timescales</h4>\n<ul>\n";
-	    $global_heading = 1;
-	}
 	
-	if ( $snum >= 50 && ! $regional_heading )
-	{
-	    $html .= "</ul>\n<h4>Regional timescales</h4>\n<ul>\n";
-	    $regional_heading = 1;
-	}
+	my $anchor = makeObAnchor('displayTimescale', "scale=$snum", $name);
 	
-	if ( $snum >= 250 && ! $nz_heading )
-	{
-	    $html .= "</ul>\n<h4>New Zealand timescales</h4>\n<ul>\n";
-	    $nz_heading = 1;
-	}
+	$html .= "<li>$anchor</li>\n";
+    }
+    
+    $html .= "</ul>\n<h4>Additional global timescales</h4>\n<ul>\n";
+    
+    foreach my $s ( @global )
+    {
+	my $snum = $s->{scale_no};
+	my $name = $s->{scale_name};
 	
-	# my $link = "/classic/displayTimescale?scale=$snum";
+	my $anchor = makeObAnchor('displayTimescale', "scale=$snum", $name);
+	
+	$html .= "<li>$anchor</li>\n";
+    }
+    
+    $html .= "</ul>\n<h4>Regional timescales</h4>\n<ul>\n";
+    
+    foreach my $s ( @regional )
+    {
+	my $snum = $s->{scale_no};
+	my $name = $s->{scale_name};
+	
+	my $anchor = makeObAnchor('displayTimescale', "scale=$snum", $name);
+	
+	$html .= "<li>$anchor</li>\n";
+    }
+    
+    $html .= "</ul>\n<h4>New Zealand timescales</h4>\n<ul>\n";
+    
+    foreach my $s ( @nz )
+    {
+	my $snum = $s->{scale_no};
+	my $name = $s->{scale_name};
+	
 	my $anchor = makeObAnchor('displayTimescale', "scale=$snum", $name);
 	
 	$html .= "<li>$anchor</li>\n";
