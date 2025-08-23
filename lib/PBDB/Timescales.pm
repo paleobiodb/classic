@@ -887,31 +887,27 @@ sub listTimescales {
     
     # Group the timescales into categories.
     
-    my (@main, @global, @regional, @nz);
+    my (@main, @global, @regional);
     
     foreach my $s ( $dbh->selectall_array($sql, { Slice => { } }) )
     {
 	my $snum = $s->{scale_no};
 	my $locality = $s->{locality};
+	my $place = $s->{place};
 	
-	if ( $snum <= 10 )
+	if ( $locality eq 'main' )
 	{
-	    push @main, $s;
+	    placeTimescale(\@main, $s);
 	}
 	
 	elsif ( $locality eq 'global' )
 	{
-	    push @global, $s;
-	}
-	
-	elsif ( $locality eq 'New Zealand' )
-	{
-	    push @nz, $s;
+	    placeTimescale(\@global, $s);
 	}
 	
 	else
 	{
-	    push @regional, $s;
+	    placeTimescale(\@regional, $s);
 	}
     }
     
@@ -953,18 +949,6 @@ sub listTimescales {
 	$html .= "<li>$anchor</li>\n";
     }
     
-    $html .= "</ul>\n<h4>New Zealand timescales</h4>\n<ul>\n";
-    
-    foreach my $s ( @nz )
-    {
-	my $snum = $s->{scale_no};
-	my $name = $s->{scale_name};
-	
-	my $anchor = makeObAnchor('displayTimescale', "scale=$snum", $name);
-	
-	$html .= "<li>$anchor</li>\n";
-    }
-    
     $html .= "</ul></div>\n";
     
     my $fields = { heading => "<h3 class=\"ts_heading\">The following timescales are defined in The Paleobiology Database:</h3>",
@@ -975,6 +959,51 @@ sub listTimescales {
     $hbo->pageTitle('PBDB Timescale List');
     
     return $output;
+}
+
+
+# placeTimescale ( list, record )
+#
+# Place the timescale record $record into the list $list.
+
+sub placeTimescale {
+
+    my ($list, $record) = @_;
+    
+    # If $record has a 'place' value, insert it into the list after the last
+    # record with the same 'place' value. If there are none, insert it into the
+    # list after the last record with a smaller 'place' value. As a fallback,
+    # append it to the list.
+    
+    if ( $record->{place} )
+    {
+	foreach my $i ( reverse 0..$#$list )
+	{
+	    if ( $list->[$i]{place} && $list->[$i]{place} eq $record->{place} )
+	    {
+		splice(@$list, $i+1, 0, $record);
+		return;
+	    }
+	}
+	
+	foreach my $i ( reverse 0..$#$list )
+	{
+	    if ( $list->[$i]{place} && $list->[$i]{place} < $record->{place} )
+	    {
+		splice(@$list, $i+1, 0, $record);
+		return;
+	    }
+	}
+	
+	push $list->@*, $record;
+    }
+    
+    # Otherwise, just append the record to the list.
+    
+    else
+    {
+	push $list->@*, $record;
+    }
 }
 
 
