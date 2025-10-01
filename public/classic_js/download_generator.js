@@ -533,18 +533,22 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	 "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
 	 "*plant organs", "plant", "Plant organ(s) if any",
 	 "*abundance", "abund", "Abundance of the occurrence (if any) in its collection",
-	 "*collection", "coll", "The name and description of the collection in which the occurrence (if any) was found",
+	 "*ecospace", "ecospace", "The ecological space that the organism occupies or occupied",
+	 "*taphonomy", "taphonomy", "Information about the taphonomy of this specimen",
+	 "*collection", "coll", "The name and description of the collection from which the specimen was taken",
 	 "*coordinates", "coords", "Latitude and longitude of the occurrence (if any)",
 	 "*location", "loc", "Additional info about the geographic locality of the occurrence (if any)",
+	 "macrostrat", "mslink", "The macrostrat column and unit ids (if any) of the collection",
 	 "*paleolocation", "paleoloc", "Paleogeographic location of this collection, all models",
-	 "paleoloc (selected)", "paleoloc2", "Paleogeographic location using the model selected above",
 	 "*protection", "prot", "Indicates whether source of specimen was on protected land (if known)",
+	 "*ages", "ages", "Precise age(s), if any, determined for the collection",
 	 "stratigraphy", "strat", "Basic stratigraphy of the occurrence (if any)",
 	 "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence (if any)",
 	 "lithology", "lith", "Basic lithology of the occurrence (if any)",
 	 "*lithology ext.", "lithext", "Detailed lithology of the occurrence (if any)",
-	 "*geological context", "geo", "Additional info about the geological context (if known)",
 	 "*methods", "methods", "Info about the collection methods used (if known)",
+	 "*environment", "env", "The paleoenvironment associated with the collection",
+	 "*geological context", "geo", "Additional info about the geological context (if known)",
 	 "remarks", "rem", "Additional remarks about the associated collection (if any)",
 	 "resgroup", "resgroup", "The research group(s) if any associated with this collection",
 	 "reference", "ref", "The reference from which this specimen was entered, as formatted text",
@@ -559,6 +563,46 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	setInnerHTML("od_specs", content);
 	
+	content = "<tr><td>\n";
+	
+	content += makeBlockControl( "od_meas",
+	["*specimen info", "spec", "Information about the specimen associated with the measurement",
+	 "*classification", "class", "Taxonomic classification of the specimen",
+	 "classification ext.", "classext", "Taxonomic classification including taxon ids",
+	 "genus", "genus", "Use instead of the above if you just want the genus",
+	 "subgenus", "subgenus", "Use with any of the above to include subgenus as well",
+	 "*plant organs", "plant", "Plant organ(s) if any",
+	 "*abundance", "abund", "Abundance of the occurrence (if any) in its collection",
+	 "*ecospace", "ecospace", "The ecological space that the organism occupies or occupied",
+	 "*taphonomy", "taphonomy", "Information about the taphonomy of this specimen",
+	 "*collection", "coll", "The name and description of the collection from which the specimen was taken",
+	 "*coordinates", "coords", "Latitude and longitude of the occurrence (if any)",
+	 "*location", "loc", "Additional info about the geographic locality of the occurrence (if any)",
+	 "macrostrat", "mslink", "The macrostrat column and unit ids (if any) of the collection",
+	 "*paleolocation", "paleoloc", "Paleogeographic location of this collection, all models",
+	 "*protection", "prot", "Indicates whether source of specimen was on protected land (if known)",
+	 "*ages", "ages", "Precise age(s), if any, determined for the collection",
+	 "stratigraphy", "strat", "Basic stratigraphy of the occurrence (if any)",
+	 "*stratigraphy ext.", "stratext", "Detailed stratigraphy of the occurrence (if any)",
+	 "lithology", "lith", "Basic lithology of the occurrence (if any)",
+	 "*lithology ext.", "lithext", "Detailed lithology of the occurrence (if any)",
+	 "*methods", "methods", "Info about the collection methods used (if known)",
+	 "*environment", "env", "The paleoenvironment associated with the collection",
+	 "*geological context", "geo", "Additional info about the geological context (if known)",
+	 "remarks", "rem", "Additional remarks about the associated collection (if any)",
+	 "resgroup", "resgroup", "The research group(s) if any associated with this collection",
+	 "reference", "ref", "The reference from which this specimen was entered, as formatted text",
+	 "*ref attribution", "refattr", "Author(s) and publication year of the reference",
+	 "enterer ids", "ent", "Identifiers of the people who authorized/entered/modified this record",
+	 "enterer names", "entname", "Names of the people who authorized/entered/modified this record",
+	 "created/modified", "crmod", "Creation and modification timestamps" ]);
+	
+	content += "</td></tr>\n";
+	
+	content += makeOutputHelpRow("specs/measurements");
+	
+	setInnerHTML("od_meas", content);
+		
 	content = "<tr><td>\n";
 	
 	content += makeBlockControl( "od_taxa",
