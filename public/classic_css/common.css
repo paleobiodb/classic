@@ -124,6 +124,8 @@ H1, H2, H3, H4, H5, H6 {
 .cell {  font-size : 1.1em; text-decoration:none; }
 .blue {  font-size : .85em; color : #0040FF; text-decoration:none; }
 
+.menuheading { margin-bottom: 2px; }
+
 .pageTitle	{
 	font-size: 1.5em;
         margin-top: 1em;
@@ -177,7 +179,7 @@ H1, H2, H3, H4, H5, H6 {
 }
 
 .innerMainPanel	{
-    padding-top: 40px;
+    padding-top: 20px;
     /*text-align: center;*/
     margin:0 auto;
     vertical-align: middle;
