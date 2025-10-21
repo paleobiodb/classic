@@ -3086,7 +3086,7 @@ sub basicTaxonInfo	{
     
     if ( $result =~ /^\d+$/ )
     {
-	redirect "/classic/basicTaxonInfo?taxon_no=$result", 303;
+	redirect "/classic/basicTaxonInfo?rdr=1&taxon_no=$result", 303;
 	return $result;
     }
     

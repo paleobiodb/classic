@@ -177,7 +177,7 @@ function GDDTaxonInfoApp( gdd_url, taxon_name, panel_id, var_name )
     
     function generateTermContent ( )
     {
-	var content = "<p><a href=\"https://geodeepdive.org/\" target=\"_blank\">" +
+	var content = "<p><a href=\"https://xdd.wisc.edu/\" target=\"_blank\">" +
 	    "GeoDeepDive</a> matched this taxon in " + term_data.n_docs + " documents";
 	
 	if ( term_data.n_pubs )

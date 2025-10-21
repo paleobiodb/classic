@@ -2289,8 +2289,9 @@ sub getMostRecentClassification {
 			FROM taxon_trees as t join authorities as a using (orig_no)
 			WHERE a.taxon_no = $parent_no";
 		($ints_no) = $dbh->selectrow_array($sql);
-		$ints_no ||= 0;
 	    }
+	    
+	    $ints_no ||= 0;
 	    
 	    $sql = "UPDATE taxon_trees SET opinion_no=$opinion_no, immpar_no=$parent_no,
 			senpar_no=$parent_no, ints_no = $ints_no
