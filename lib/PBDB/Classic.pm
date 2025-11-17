@@ -594,46 +594,47 @@ sub menu	{
     my $output = '';
     my %vars;
     $vars{'message'} = $message;
+    my $template = 'menu';
+
+    if ( $q->param('menu') eq 'old' )
+    {
+	$template = 'menu-old';
+    }
     
-	# Clear Queue?  This is highest priority
-	if ( $q->param("clear") ) {
-		$s->clearQueue(); 
-	} else {
+    # Clear Queue?  This is highest priority
+    if ( $q->param("clear") ) {
+	$s->clearQueue(); 
+    } else {
 	
-		# QUEUE
-		# See if there is something to do.  If so, do it first.
-		my %queue = $s->dequeue();
-		my $action = $queue{action} || $queue{a};
-		if ( $action ) {
-	
-			# Set each parameter
-			foreach my $parm ( keys %queue ) {
-				$q->param($parm => $queue{$parm});
-			}
-
-	 		# Run the command
-			return execAction($q, $s, $dbt, $hbo, $action);
-		}
+	# QUEUE
+	# See if there is something to do.  If so, do it first.
+	my %queue = $s->dequeue();
+	my $action = $queue{action} || $queue{a};
+	if ( $action ) {
+	    
+	    # Set each parameter
+	    foreach my $parm ( keys %queue ) {
+		$q->param($parm => $queue{$parm});
+	    }
+	    
+	    # Run the command
+	    return execAction($q, $s, $dbt, $hbo, $action);
 	}
-
-	if ($s->isDBMember()) {
-		$output = $hbo->stdIncludes($PAGE_TOP);
-		unless ( $s->get('role') =~ /authorizer|enterer/ )
-		{
-			$vars{'limited'} = 1;
-		}
-		$output .= $hbo->populateHTML('menu',\%vars);
-		$output .= $hbo->stdIncludes($PAGE_BOTTOM);
-	} else	{
-        	# if ($q->param('user') eq 'Contributor') {
-		# 	login( "Please log in first.","menu" );
-		# } else	{
-		# 	menu($q, $s, $dbt, $hbo);
-		# }
-	    $output = $hbo->stdIncludes($PAGE_TOP);
-	    $output .= $hbo->populateHTML('menu', \%vars);
-	    $output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    }
+    
+    if ($s->isDBMember()) {
+	$output = $hbo->stdIncludes($PAGE_TOP);
+	unless ( $s->get('role') =~ /authorizer|enterer/ )
+	{
+	    $vars{'limited'} = 1;
 	}
+	$output .= $hbo->populateHTML($template,\%vars);
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    } else	{
+	$output = $hbo->stdIncludes($PAGE_TOP);
+	$output .= $hbo->populateHTML('menu', \%vars);
+	$output .= $hbo->stdIncludes($PAGE_BOTTOM);
+    }
     
     $hbo->pageTitle('PBDB Main Menu');
     

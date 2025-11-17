@@ -1,5 +1,4 @@
 
-<!-- <center><p class="pageTitle" align="center" style="margin-bottom: 1em;">Paleobiology Database Main Menu</p></center> -->
 <center>
   <h2>
     Paleobiology Database Main Menu
@@ -8,128 +7,98 @@
 </center>
 
 <table border="0" align="center">
-        <tr>
-          <td valign="top" class="medium">
-          <div style="margin-left: 8em;">
-
-            <p class="large">Basic steps</p>
-            <ul>
-              <li><a href="/app/refs?type=new">Add a new reference</a></li>
-              <div hide="limited">
-              <li><a href="/classic/displayAuthorityTaxonSearchForm">Add/edit taxonomic name</A></li>
-              <li><a href="/classic/displayOpinionSearchForm">Add/edit taxonomic opinion</A></li>
-              </div>
-              <li><a href="/app/collections#add">Add a new collection (BETA)</a></li>
-              <li><a href="/classic/displaySearchCollsForAdd">Add a new collection (original)</a></li>
-	      <li><a href="/app/collections#occs">Add taxonomic occurrences (BETA)</a>
-              <li><a href="/classic/displayOccurrenceAddEdit">Add taxonomic occurrences (original)</a>&nbsp;&nbsp;</li>
-              <li><a href="/classic/displaySearchColls?type=occurrence_list">Paste in an occurrence list</a>&nbsp;&nbsp;</li>
-              <!-- <li><a href="/classic/displaySearchColls?type=occurrence_table">Add/edit a table of occurrences</a>&nbsp;&nbsp;</li> -->
-	      <li><a href="/classic/app/specimen-entry">Enter new specimens</a></li>
-            </ul>
-
-            <p class="large">References</p>
-            <ul>
-              <li><a href="/app/refs">Change current reference</a></li>
-            </ul>
-
-            <p class="large">Collections and occurrences</p>
-            <ul>
-              <li><a href="/app/collections#edit">Edit an old collection (BETA)</a></li>
-              <li><a href="/classic/displaySearchColls?type=edit">Edit an old collection (original)</a></li>
-	      <li><a href="/app/collections#occs">Edit old occurrences (BETA)</a></li>
-              <li><a href="/classic/displayOccurrenceAddEdit">Edit old occurrences</a>&nbsp;&nbsp;</li>
-              <li><a href="/classic/displayReIDCollsAndOccsSearchForm">Reidentify occurrences</a></li>
-              <li><a href="/classic/startStartReclassifyOccurrences">Reclassify occurrences of homonyms</a></li>
-              <li><a href="/classic/searchOccurrenceMisspellingForm">Correct misspellings</a></li>
-            </ul>
-
-          </div>
-          </td>
-
-          <td valign="top" class="medium">
-          <div style="margin-left: 2em;">
-
-            <p class="large">Search</p>
-            <ul>
-              <li><a href="/app/refs">Search for a reference</a></li>
-              <li><a href="/app/collections">Search for collections (BETA)</a></li>
-              <li><a href="/classic/displaySearchColls?type=view">Search for collections (original)</a></li>
-	      <li><a href="/classic/nexusFileSearch">Search for nexus files</a></li>
-              <li><a href="/classic/displaySearchStrataForm?type=view">Search for a stratigraphic unit</a></li>
-              <li><a href="/classic/beginTaxonInfo">Search for a taxon</a></li>
-	      <li><a href="/classic/displayTimescale?type=list">Browse time scales</a></li>
-              <li><a href="/classic/classificationForm">Print a taxonomic hierarchy</a></li>
-<!--
-              <li><a href="?a=listReviews">Read review pages</a></li>
--->
-            </ul>
-
-            <p class="large">Download</p>
-            <ul>
-	      <li><a href="/classic/displayDownloadGenerator">Download records of all types</a></li>
-              <!-- <li><a href="/classic/displayDownloadForm">Old form for occurrences</a></li> -->
-              <!-- <li><a href="/classic/displayDownloadTaxonomyForm">Old form for taxonomic names</a></li> -->
-              <!-- <li><a href="/classic/displayDownloadMeasurementsForm">Old form for measurements</a></li> -->
-	          <!-- <li><a href="/classic?page=OSA">Download curated data archives</a></li> -->
-              <li><a href="/classic/app/archive/list">Download static archives</a></li>
-            </ul>
-            <br>
-            <p class="large">Additional entry functions</p>
-            <ul>
-              <li><a href="/classic/app/resource-sub">Submit an external resource</a></li>
-              <li><a href="/classic/startStartEcologyTaphonomySearch">Add/edit ecological/taphonomic data</a></li>
-              <li><a href="/classic/startStartEcologyVertebrateSearch">Add/edit vertebrate ecology data</a></li>
-              <li><a href="/classic/displaySpecimenSearchForm">Add/edit specimen measurement data</a></li>
-              <li><a href="/classic/badNameForm">Search for bad names</a></li>
-	          <li><a href="/classic/uploadNexusFile">Upload a nexus file</a></li>
-	        </ul>
-            <!-- <p class="large">Database settings</p> -->
-            <!-- <ul> -->
-              <!-- <div show="officer"> -->
-              <!-- <li><a href="?a=personForm">Add person</a></li> -->
-              <!-- <li style="margin-bottom: 0em;">Edit person named -->
-              <!--   <form method="GET" action=""> -->
-              <!--   <input type="hidden" name="a" value="personForm"> -->
-              <!--   <input type="text" size="30" name="name" style="font-size: 0.5em; margin-bottom: -1em;"> -->
-              <!--   </form> -->
-              <!-- </li> -->
-              <!-- </div> -->
-              <!-- <li><a href="?a=logout">Log out or change login</a></li> -->
-              <!-- <li><a href="?a=displayPermissionListForm">Change editing permission list</a></li> -->
-	      <!-- <li><a href="http://paleodb.org/cgi-bin/yabb2/YaBB.pl" target="_blank">View discussion forum</a></li> -->
-            <!-- </ul> -->
-          </td>
-          </div>
-        </tr>
-        <tr>
-          <td colspan=2>
-<br>
-<div style="align: left; padding-left: 3em; padding-right: 3em;">
-<p class="tiny">Please consult the <a href="javascript: tipsPopup('/public/tips/tutorial.html')">data entry tutorial</a> and tip sheets for entering
-<a href="javascript: tipsPopup('/public/tips/tips.html')">collection data</a>,
-<a href="javascript: tipsPopup('/public/tips/occurrence_tips.html')">occurrences</a>,
-<a href="javascript: tipsPopup('/public/tips/lithtips.html')">lithologies</a>,
-<a href="javascript: tipsPopup('/public/tips/environtips.html')">paleoenvironments/tectonic settings</a>,
-<a href="javascript: tipsPopup('/public/tips/taxonomy_FAQ.html')">taxonomic data</a>,
-<a href="javascript: tipsPopup('/public/tips/ecology_tips.html')">ecology/taphonomy</a>, and 
-<a href="javascript: tipsPopup('/public/tips/paleobotany_tips.html')">paleobotany data</a>.
-<!-- <a href="javascript: tipsPopup('/public/tips/upload_tips.html')">batch uploads</a>. -->
-
- <!-- If you have further questions you can write to any member of the <a href="?page=EC">Executive Committee</a> or the <a href="mailto:admin@paleobiodb.org">database administrator</a>.-->
-<p class="tiny">Remember: Enter all the data, don't enter lumped or mixed collections. Also search carefully to avoid entering duplicates.</p>
-<p class="tiny">
-    <!-- Visit the the PBDB <a href="https://github.com/paleobiodb/PBDB_changelog/issues"><b>change log</b></a> for updates.-->
-    <br>
-    Report technical malfunctions found on this site to the <a
-        href="mailto:admin@paleobiodb.org"><b>database
-            administrator</b></a>.<br>
-    For general questions or requests from the media, contact <a
-        href="mailto:info@paleobiodb.org"><b>
-                                                                   PBDB
-                                                                   Information</b></a>.
-</p>
-</div>
+  <tr>
+    <td valign="top" class="medium">
+      <div style="margin-left: 4em;">
+	
+        <p class="large menuheading">References</p>
+        <ul>
+          <li><a href="/app/refs">Search for a reference</a></li>
+          <li><a href="/app/refs?type=new">Add a new reference</a></li>
+	  <li><a href="/app/refs?type=select" target="_blank">Change current reference</a></li>
+	  <li><a href="/classic?a=clearRef&type=select">Clear current reference</a></li>
+	</ul>
+	
+	<p class="large menuheading">Collections</p>
+	<ul>
+          <li><a href="/app/collections">Search for collections</a></li>
+          <li><a href="/app/collections#add">Add a new collection</a></li>
+          <li><a href="/app/collections#edit">Edit an old collection</a></li>
+	</ul>
+	
+	<p class="large menuheading">Specimens</p>
+	<ul>
+	  <li><a href="/classic/app/specimen-entry">Enter new specimens</a></li>
+          <li><a href="/classic/displaySpecimenSearchForm">Add/edit specimen
+	      measurement data</a></li>
+	</ul>
+	
+	<p class="large menuheading">Additional functions</p>
+	<ul>
+          <li><a href="/classic/app/resource-sub">Submit an external resource</a></li>
+          <li><a href="/classic/displaySearchStrataForm?type=view">Search for a
+	      stratigraphic unit</a></li>
+	  <li><a href="/classic/displayTimescale?type=list">Browse time scales</a></li>
+	</ul>
+	
+      </div>
+    </td>
+    
+    <td valign="top" class="medium">
+      <p class="large menuheading">Taxonomic Names and Opinions</p>
+      <ul>
+        <li><a href="/classic/beginTaxonInfo">Search for a taxon</a></li>
+	<div hide="limited">
+	  <li><a href="/classic/displayAuthorityTaxonSearchForm">Add/edit taxonomic name</a></li>
+	  <li><a href="/classic/displayOpinionSearchForm">Add/edit taxonomic opinion</a></li>
+        </div>
+        <li><a href="/classic/classificationForm">View a taxonomic hierarchy</a></li>
+	<div hide="limited">
+	  <li><a href="/classic/startStartEcologyTaphonomySearch">Add/edit
+	      ecological/taphonomic data</a></li>
+	  <li><a href="/classic/badNameForm">Search for bad names</a></li>
+	</div>
+      </ul>
+      
+      <p class="large menuheading">Occurrences</p>
+      <ul>
+	<li><a href="/app/collections#occs">Add/Edit occurrences</a>
+        <li><a href="/classic/displayReIDCollsAndOccsSearchForm">Reidentify
+	    occurrences</a></li>
+        <li><a href="/classic/startStartReclassifyOccurrences">Reclassify
+	    occurrences of homonyms</a></li>
+        <li><a href="/classic/searchOccurrenceMisspellingForm">Correct
+	    misspelled occurrences</a></li>
+      </ul>
+      
+      <p class="large menuheading">Download</p>
+      <ul>
+	<li><a href="/classic/displayDownloadGenerator">Download records of all types</a></li>
+        <li><a href="/classic/app/archive/list">Download static archives</a></li>
+      </ul>
+      
+    </td>
+  </tr>
+  <tr>
+    <td colspan=2>
+      
+      <div style="align: left; padding-left: 3em; padding-right: 3em;">
+	<p>You can switch to the <a href="/classic?menu=old"><strong>Old main menu</strong></a>
+	  if you prefer.</p>
+	
+	<p>Please consult the
+	  <a href="https://escholarship.org/content/qt6tm05630/qt6tm05630.pdf?t=s0797i"
+	     target="_blank"><strong>User Guide</strong> </a>
+	  for detailed instructions on entering and downloading data.
+	  Remember: Enter all the data, don't enter lumped or mixed collections. Also search
+	  carefully to avoid entering duplicates.</p>
+	<p>
+	  Report technical malfunctions to the <a href="mailto:admin@paleobiodb.org">
+	    <strong>database administrator</strong></a>.
+	  For general questions or requests from the media, contact
+	  <a href="mailto:info@paleobiodb.org"><strong>PBDB Information</strong></a>.
+	</p>
+      </div>
     </td>
   </tr>
 </table>
