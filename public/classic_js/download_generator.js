@@ -825,15 +825,19 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	
 	setInnerHTML("pd_reftypes", content);
 	
-	var taxon_mods = [ 'nm', 'no modifiers', 'ns', 'n. sp.', 'ng', 'n. (sub)gen', 'af', 'aff.', 'cf', 'cf.',
-			   'sl', 'sensu lato', 'if', 'informal', 'eg', 'ex gr.',
-			   'qm', '?', 'qu', '&quot;&quot;' ];
+	var gen_mods = [ 'nm', 'no modifiers', 'ns', 'n. gen./n. subgen.', 'af', 'aff.', 'cf', 'cf.',
+			 'ss', 'sensu stricto', 'sl', 'sensu lato', 'if', 'informal', 'eg', 'ex gr.',
+			 'qm', '?', 'qu', '&quot;&quot;' ];
 	
-	content = makeCheckList( "pm_idgenmod", taxon_mods, 'dgapp.checkTaxonMods()' );
+	content = makeCheckList( "pm_idgenmod", gen_mods, 'dgapp.checkTaxonMods()' );
 	
 	setInnerHTML("pd_idgenmod", content);
 	
-	content = makeCheckList( "pm_idspcmod", taxon_mods, 'dgapp.checkTaxonMods()' );
+	var spc_mods = [ 'nm', 'no modifiers', 'ns', 'n. sp./n. subsp.', 'af', 'aff.', 'cf', 'cf.',
+			 'ss', 'sensu stricto', 'sl', 'sensu lato', 'if', 'informal', 'eg', 'ex gr.',
+			 'qm', '?', 'qu', '&quot;&quot;' ];
+	
+	content = makeCheckList( "pm_idspcmod", spc_mods, 'dgapp.checkTaxonMods()' );
 	
 	setInnerHTML("pd_idspcmod", content);
 	
@@ -3015,7 +3019,8 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    if ( param_errors.base_name ) errors_found = 1;
 	    
 	    if ( data_type == "occs" || data_type == "specs" || data_type == "meas" ||
-		 data_type == "colls" || data_type == "strata" || data_type == "diversity" )
+		 data_type == "colls" || data_type == "strata" || data_type == "diversity" ||
+		 data_type == "taxa" )
 	    {
 		// The "taxonomic resolution" parameter is different for diversity than for the
 		// other data types.
@@ -3061,7 +3066,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		}
 	    }
 	    
-	    else if ( data_type == "taxa" || data_type == "ops" || data_type == "refs" )
+	    if ( data_type == "taxa" || data_type == "ops" || data_type == "refs" )
 	    {
 		var taxon_rank = getElementValue("pm_taxon_rank");
 		
@@ -3486,7 +3491,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	{
 	    if ( my_op == 'opinions/list' ) my_op = 'taxa/opinions';
 	}
-
+	
 	if ( refs_required )
 	{
 	    if      ( my_op == 'occs/list' ) { my_op = 'occs/byref'; all_required = 1; }
@@ -3497,6 +3502,23 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    else if ( my_op == 'specs/list' ) { my_op = 'specs/byref'; all_required = 1; }
 	    else if ( my_op == 'strata/list' ) { my_op = 'occs/strata'; all_required = 1; }
 	    else if ( my_op == 'taxa/refs' && use_ref_list ) my_op = 'refs/list';
+	}
+	
+	// If the operation is 'taxa/list', then remove any parameters related to
+	// identification. These parameters are not accepted by this operation.
+	
+	if ( my_op == 'taxa/list' )
+	{
+	    param_list = param_list.filter(function (param) {
+		return ! /^ident=|^idqual=|^idmod=|^idgenmod=|^idspcmod=|^taxon_reso=/.test(param);
+	    });
+	}
+	
+	else if ( my_op == 'occs/taxa' )
+	{
+	    param_list = param_list.filter(function (param) {
+		return ! /^taxon_reso=/.test(param);
+	    });
 	}
 	
 	// If no "significant" parameter has been entered, then see if we need to add the
