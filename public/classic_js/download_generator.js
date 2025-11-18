@@ -3046,11 +3046,15 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		    if ( params.ident && params.ident != 'latest' )
 			param_list.push("ident=" + params.ident);
 		    
-		    if ( params.idqual )
+		    if ( params.idqual ) {
 			param_list.push("idqual=" + params.idqual);
+			occs_required = 1;
+		    }
 		    
 		    if ( params.idgenmod || params.idspcmod )
 		    {
+			occs_required = 1;
+			
 			if ( params.idgenmod == params.idspcmod )
 			    param_list.push("idmod=" + params.idgenmod);
 			
