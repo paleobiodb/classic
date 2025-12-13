@@ -103,7 +103,7 @@ sub log_request {
 	my $procid = sprintf("%5s", $$);
 	my $method = $q->request_method;
 	print $rlfh "$procid : $datetime : START $action\n";
-
+	
 	my $details = $remote_addr . ' ' . $method . ' ' . $q->path_info . '?' . $q->query_string;
 	print $rlfh encode_utf8("$details\n");
 	print $rlfh encode_utf8($q->list_params) if $method eq 'PUT' || $method eq 'POST';
