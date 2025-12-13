@@ -14,6 +14,7 @@ our @EXPORT_OK = qw(dbg save_request load_request log_request log_step
 
 
 use PBDB::Constants qw(%CONFIG $LOG_REQUESTS $APP_DIR $CGI_DEBUG);
+use Encode qw(encode_utf8);
 
 my $rlfh;
 
@@ -94,13 +95,18 @@ sub dbg {
 
 sub log_request {
     
-    my ($action, $timestamp) = @_;
+    my ($action, $timestamp, $remote_addr, $q) = @_;
     
     if ( $rlfh )
     {
 	my $datetime = localtime($timestamp);
 	my $procid = sprintf("%5s", $$);
+	my $method = $q->request_method;
 	print $rlfh "$procid : $datetime : START $action\n";
+
+	my $details = $remote_addr . ' ' . $method . ' ' . $q->path_info . '?' . $q->query_string;
+	print $rlfh encode_utf8("$details\n");
+	print $rlfh encode_utf8($q->list_params) if $method eq 'PUT' || $method eq 'POST';
     }
 }
 

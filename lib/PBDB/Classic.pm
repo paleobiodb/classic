@@ -187,19 +187,9 @@ sub classic_request {
 	croak "Test error!!!";
     }
     
-    # Log this request if $LOG_REQUESTS is true.
+    # Create a PBDB request record. This tells us about the parameters of the current request.
     
-    if ( $CONFIG{LOG_REQUESTS} || $CONFIG{PROFILE_REQUESTS} )
-    {
-	$starttime = time;
-	log_request($action, $starttime) if $CONFIG{LOG_REQUESTS};
-	$profile_out = profile_request($action) if DB->can('enable_profile') ||
-	    $CONFIG{PROFILE_REQUESTS};
-    }
-    
-    # Get a database connection handle.
-    
-    my $dbt = PBDB::DBTransactionManager->new();
+    my $q = PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
     
     # Determine the remote address from which this request came. If X-Real-IP is set, use
     # that. Otherwise, the remote address will just be a dummy one set up by docker. We have to
@@ -218,6 +208,20 @@ sub classic_request {
 	$remote_addr = request->env->{REMOTE_ADDR};
     }
     
+    # Log this request if $LOG_REQUESTS is true.
+    
+    if ( $CONFIG{LOG_REQUESTS} || $CONFIG{PROFILE_REQUESTS} )
+    {
+	$starttime = time;
+	log_request($action, $starttime, $remote_addr, $q) if $CONFIG{LOG_REQUESTS};
+	$profile_out = profile_request($action) if DB->can('enable_profile') ||
+	    $CONFIG{PROFILE_REQUESTS};
+    }
+    
+    # Get a database connection handle.
+    
+    my $dbt = PBDB::DBTransactionManager->new();
+    
     # Create a PBDB session record, starting with the info we get from Wing. This gives us info about
     # the user who made the request and about the current login session.
     
@@ -233,6 +237,7 @@ sub classic_request {
     
     if ( $s->{reason} )
     {
+	log_step($action, '303 /login', $starttime, $starttime)if $CONFIG{LOG_REQUESTS};
 	return redirect "/login?reason=$s->{reason}", 303;
     }
     
@@ -243,10 +248,6 @@ sub classic_request {
     {
 	var 'user' => $user;
     }
-    
-    # Create a PBDB request record. This tells us about the parameters of the current request.
-    
-    my $q = PBDB::Request->new(request->method, scalar(params), request->uri, cookies);
     
     # If we are not running under debug mode, and if the $CGI_DEBUG flag is on, then save this
     # request for later debugging.
@@ -296,6 +297,7 @@ sub classic_request {
     
     if ( param('redirectMain') )
     {
+	log_step($action, '303 /classic', $starttime, $starttime)if $CONFIG{LOG_REQUESTS};
 	return redirect '/classic', 303;
     }
     
