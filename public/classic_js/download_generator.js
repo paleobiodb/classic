@@ -3215,7 +3215,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	{
 	    if ( params.strat && params.strat != "" ) {
 		param_list.push("strat=" + params.strat);
-		occs_required = 1;
+		// occs_required = 1;
 		has_main_param = 1
 	    }
 	    
@@ -3223,13 +3223,13 @@ function DownloadGeneratorApp( data_url, is_contributor )
 	    
 	    if ( visible.advanced && params.lithtype && params.lithtype != "" ) {
 		param_list.push("lithology=" + params.lithtype);
-		occs_required = 1;
+		// occs_required = 1;
 		has_main_param = 1;
 	    }
 	    
 	    if ( visible.advanced && params.envtype && params.envtype != "" ) {
 		param_list.push("envtype=" + params.envtype);
-		occs_required = 1;
+		// occs_required = 1;
 		has_main_param = 1;
 	    }
 	}
