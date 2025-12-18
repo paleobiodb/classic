@@ -60,7 +60,7 @@ async function APIRequest (query_url, body, method, our_options) {
     }
 
     catch (error) {
-	handleAPIError({}, '999', error.message);
+	handleAPIError({}, 999, error.message);
 	return {};
     }
 }
@@ -101,9 +101,9 @@ async function APIRequestAsync (query_url, success_func, fail_func) {
 
 	    catch (error) {
 		if ( fail_func )
-		    fail_func({}, '999', error.message);
+		    fail_func({}, 999, error.message);
 		else
-		    handleAPIError({}, '999', error.message);
+		    handleAPIError({}, 999, error.message);
 		return;
 	    }
 	});
@@ -115,9 +115,6 @@ function handleAPIError (content_data, status, textStatus) {
     let message = "API Error: ";
 
     switch (status) {
-	case 999:
-	    message += textStatus;
-	    break;
 	case 400:
 	    if ( content_data.errors )
 		message += "Bad Request (400) - " + content_data.errors[0];
@@ -154,6 +151,12 @@ function handleAPIError (content_data, status, textStatus) {
 	case 504:
 	    message += "The API is temporarily down (504). Please try again later.";
 	    break;
+	case 999:
+			if ( textStatus == "Load failed" || textStatus == "Failed to fetch" )
+				message += "Could not contact server. Please try again later.";
+			else
+				message += textStatus;
+			break;
 	default:
 	    message += status + " - " + textStatus;
     }
