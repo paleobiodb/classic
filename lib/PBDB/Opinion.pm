@@ -1568,9 +1568,8 @@ sub update_opinion_cache {
     my $sql = "REPLACE INTO order_opinions (opinion_no, orig_no, child_rank, child_spelling_no,
 					   parent_no, parent_spelling_no, ri, pubyr,
 					   status, spelling_reason, reference_no, author, suppress)
-		SELECT o.opinion_no, a1.orig_no, a1.taxon_rank,
-			if(o.child_spelling_no > 0, o.child_spelling_no, o.child_no), 
-			a2.orig_no,
+		SELECT o.opinion_no, a1.orig_no, a1.taxon_rank,	o.child_spelling_no,
+			if(o.parent_spelling_no > 0, a2.orig_no, o.parent_no),
 			if(o.parent_spelling_no > 0, o.parent_spelling_no, o.parent_no),
 			CASE o.basis
  			WHEN 'second hand' THEN 1
@@ -1586,7 +1585,7 @@ sub update_opinion_cache {
 		FROM opinions as o
 			LEFT JOIN refs as r using (reference_no)
 			JOIN authorities as a1 on a1.taxon_no = o.child_spelling_no
-			LEFT JOIN authorities as a2 on o.parent_spelling_no
+			LEFT JOIN authorities as a2 on a2.taxon_no = o.parent_spelling_no
 		WHERE opinion_no in ($opinion_string)";
     
     my $result = $dbh->do($sql);
