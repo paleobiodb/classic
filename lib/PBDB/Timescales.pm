@@ -15,6 +15,10 @@ use List::Util qw(min max all);
 use PBDB::Constants qw($INTERVAL_URL $RANGE_URL makeObTag makeObAnchor makeObAnchorWA);
 use JSON;
 
+use base 'Exporter';
+
+our (@EXPORT_OK) = qw(collectionIntervalLabel);
+
 
 # displayTimescale ( )
 # 
