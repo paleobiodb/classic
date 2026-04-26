@@ -12,7 +12,7 @@ use PBDB::AuthorNames;
 use Class::Date qw(now date);
 use PBDB::Debug qw(dbg);
 use PBDB::Constants qw($TAXA_TREE_CACHE $COLLECTION_NO makeAnchor makeObAnchor
-		       makeAnchorWithAttrs makeObAnchorWA makeATag makeFormPostTag);
+		       makeAnchorWithAttrs makeObAnchorWA makeObTag makeATag makeFormPostTag);
 use PBDB::Download;
 use PBDB::Person;
 # calls to these two modules need to be removed eventually

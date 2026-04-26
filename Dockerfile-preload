@@ -8,7 +8,7 @@
 # source code, configuration file and other local content. You can build this preload
 # image locally using the command 'pbdb build classic preload'.
 
-FROM perl:5.38-threaded AS paleomacro_classic_preload
+FROM perl:5.42-threaded AS paleomacro_classic_preload
 
 ENV LANG=en_US.UTF-8
 
@@ -42,6 +42,7 @@ RUN cpanm DBI && \
     cpanm DBIx::Class::TimeStamp && \
     cpanm DBIx::Class::InflateColumn::Serializer && \
     cpanm DBIx::Class::DeploymentHandler && \
+    cpanm DBIx::Class::Storage::DBI::MariaDB && \
     cpanm Data::GUID && \
     cpanm Crypt::Eksblowfish::Bcrypt && \
     cpanm Ouch
@@ -54,7 +55,7 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm Cache::FastMmap && \
     cpanm Data::Serializer && \
     cpanm Text::CSV_XS && \
-    cpanm Class::Date && \
+    cpanm --force Class::Date && \
     cpanm Mail::Mailer && \
     cpanm Wing::Client && \
     cpanm JSON::XS && \
@@ -70,8 +71,6 @@ RUN cpanm --force Plugin::Tiny && \
     cpanm IO::Socket::SSL && \
     cpanm --force Term::ReadLine::Gnu && \
     cpanm URL::Encode
-
-RUN cpanm DBIx::Class::Storage::DBI::MariaDB
 
 LABEL org.opencontainers.image.title="PBDB Classic Base Image"
 

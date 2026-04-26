@@ -241,7 +241,7 @@ function AutoCompleteObject ( search_box_id, req_type, link_handler )
 		    itemLink = '/classic/displaySearchStrataResults?group_formation_member=' + encodeURI(d.nam);
 		    htmlResult += '<a href="' + itemLink + '">';
 		}
-		htmlResult += "<p class='tt-suggestion'>" + d.nam + " " + stratRankMap[d.rnk] + " <small class=taxaRank>in " + 
+				htmlResult += "<p class='tt-suggestion'>" + d.nam + " " + (stratRankMap[d.rnk]||d.rnk) + " <small class=taxaRank>in " + 
 		    d.cc2 + "</small></p>"
 		if ( link_classic ) htmlResult += "</a>";
 		htmlResult += "</div>\n";

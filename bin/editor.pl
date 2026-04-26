@@ -15,7 +15,8 @@ use lib 'lib/PBData';
 
 # use CoreFunction qw(connectDB);
 use TaxonDefs qw(%RANK_STRING %TAXON_TABLE);
-use TableDefs qw($OCC_MATRIX $OCCURRENCES $REIDS);
+use TableDefs qw(%TABLE);
+use CoreTableDefs;
 use TaxonTables qw(fixOpinionCache);
 use OccurrenceTables qw(updateOccurrenceMatrix);
 
@@ -52,7 +53,7 @@ my $STORED = { };
 my %COLUMN_INFO;
 my %COLUMN_TYPE;
 
-my %TABLE = (
+my %MYTABLE = (
     authorities => [ 'authorities', 'taxon_no' ],
     auth => [ 'authorities', 'taxon_no' ],
     authname => [ 'authorities', 'taxon_name' ],
@@ -141,15 +142,18 @@ my %SELECTION_LABEL = ( AUTH => 'authorities',
 
 my %PERSON;
 
-my $TREE_TABLE = 'taxon_trees';
-my $AUTH_TABLE = 'authorities';
-my $OPIN_TABLE = 'opinions';
-my $OPIN_CACHE = 'order_opinions';
-my $NAME_TABLE = 'taxon_names';
+# my $TREE_TABLE = 'taxon_trees';
+# my $AUTH_TABLE = 'authorities';
+# my $OPIN_TABLE = 'opinions';
+# my $OPIN_CACHE = 'order_opinions';
+# my $NAME_TABLE = 'taxon_names';
 
 # Create a new Term::ReadLine object, for our command loop.
 
-my $TERM = Term::ReadLine->new('PBDB Editor');
+my $TERM = $DB::term || Term::ReadLine->new('PBDB Editor');
+
+$TERM->enableUTF8 if $TERM->isa('Term::ReadLine::Gnu');
+
 my $OUT = $TERM->OUT || \*STDOUT;
 
 sub print_msg ($);
@@ -651,7 +655,7 @@ interpreted as record identifiers if a record type is specified, and external id
 
 Types:
 
-  taxon|taxa|tx ARGS [rank=RANK]
+  taxon|taxa|tx|authority|authorities|auth|au ARGS [rank=RANK]
 
     String arguments are matched against the 'taxon_name' field of the 'authorities'
     table. Identifiers are matched against the 'taxon_no' field. All matching taxa are selected,
@@ -700,16 +704,16 @@ sub do_select {
 	clear_list();
     }
     
-    # If the first argument is an external identifier, then we weren't given a type.
-    # Select the records corresponding to valid identifiers, and print error messages
-    # for the rest.
+    # # If the first argument is an external identifier, then we weren't given a type.
+    # # Select the records corresponding to valid identifiers, and print error messages
+    # # for the rest.
     
-    if ( $args =~ qr{ ^ [a-z][a-z][a-z][:]\d+ } )
-    {
-	return select_extids($command, $args);
-    }
+    # if ( $args =~ qr{ ^ [a-z][a-z][a-z][:]\d+ }x )
+    # {
+    # 	return select_extids($command, $args);
+    # }
     
-    elsif ( $args =~ qr{ ^ \d } )
+    if ( $args =~ qr{ ^ \d }x )
     {
 	return print_line "INVALID ARGUMENT: you must specify a record type";
     }
@@ -919,9 +923,10 @@ Options:
   selhist               Clears the selection history
   undo                  Clears the undo list
   taxon|taxa|tx         Clears all taxa from the current selection
+  authorities|auth|au   Clears all taxa from the current selection
   opinion|opin|op       Clears all opinions from the current selection
-  occurrence|occ|oc     Clears all occurrences from the current selection
-  collection|coll|co    Clears all collections from the current selection
+  occurrences|occ|oc     Clears all occurrences from the current selection
+  collections|coll|co    Clears all collections from the current selection
   settings              Resets application settings to defaults
   all                   Clears everything
 
@@ -961,12 +966,12 @@ sub do_clear {
 	clear_selection('all');
     }
     
-    elsif ( $rest =~ qr{ ^ (taxon|taxa|authority|authoritie|auth) s? $ }xsi )
+    elsif ( $rest =~ qr{ ^ (taxon|taxa|tx|authority|authoritie|auth|au) s? $ }xsi )
     {
 	clear_selection('authorities');
     }
     
-    elsif ( $rest =~ qr{ ^ (opinion|opin) s? $ }xsi )
+    elsif ( $rest =~ qr{ ^ (opinion|opin|op) s? $ }xsi )
     {
 	clear_selection('opinions');
     }
@@ -1003,6 +1008,11 @@ sub parse_selection_type {
 	return 'INVALID', '';
     }
     
+    elsif ( $args =~ qr{ ^ (?:txn|var) [:] (\d+.*) }xsi )
+    {
+	return 'AUTH', $1;
+    }
+    
     elsif ( $args =~ qr{ ^ (?:taxon|taxa|authority|authorities|auths?|au|tx) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'AUTH', $1;
@@ -1034,10 +1044,15 @@ sub parse_selection_type {
     
     elsif ( $args =~ qr{ ^ [/]? tt (?: $ | \s+ (.*) ) }xsi )
     {
-	return 'AUTH', "/tt $1";
+	return 'TT', $1;
     }
     
     elsif ( $args =~ qr{ ^ [/]? (?:opinions?|opins?|ops?) (?: $ | \s+ (.*) ) }xsi )
+    {
+	return 'OPIN', $1;
+    }
+    
+    elsif ( $args =~ qr{ ^ opn [:] (\d+.*) }xsi )
     {
 	return 'OPIN', $1;
     }
@@ -1053,7 +1068,17 @@ sub parse_selection_type {
 	return 'COLL', $1;
     }
     
+    elsif ( $args =~ qr{ ^ col [:] (\d+.*) }xsi )
+    {
+	return 'COLL', $1;
+    }
+    
     elsif ( $args =~ qr{ ^ [/]? (?:occurrences?|occs?|oc) (?: $ | \s+ (.*) ) }xsi )
+    {
+	return 'OCCS', $1;
+    }
+    
+    elsif ( $args =~ qr{ ^ occ [:] (/d+.*) }xsi )
     {
 	return 'OCCS', $1;
     }
@@ -1063,7 +1088,17 @@ sub parse_selection_type {
 	return 'REID', $1;
     }
     
+    elsif ( $args =~ qr{ ^ rei [:] (\d+.*) }xsi )
+    {
+	return 'REID', $1;
+    }
+    
     elsif ( $args =~ qr{ ^ [/]? (?: specimens?|specs?|sp) (?: $ | \s+ (.*) ) }xsi )
+    {
+	return 'SPEC', $1;
+    }
+    
+    elsif ( $args =~ qr{ ^ spm [:] (\d+.*) }xsi )
     {
 	return 'SPEC', $1;
     }
@@ -1073,7 +1108,17 @@ sub parse_selection_type {
 	return 'MEAS', $1;
     }
     
+    elsif ( $args =~ qr{ ^ mea [:] (\d+.*) }xsi )
+    {
+	return 'MEAS', $1;
+    }
+    
     elsif ( $args =~ qr{ ^ [/]? (?: people|persons?|pers|pe) (?: $ | \s+ (.*) ) }xsi )
+    {
+	return 'PERS', $1;
+    }
+    
+    elsif ( $args =~ qr{ ^ prs [:] (\d+.*) }xsi )
     {
 	return 'PERS', $1;
     }
@@ -1081,6 +1126,16 @@ sub parse_selection_type {
     elsif ( $args =~ qr{ ^ [/]? (?: references?|refs?|re) (?: $ | \s+ (.*) ) }xsi )
     {
 	return 'REFS', $1;
+    }
+    
+    elsif ( $args =~ qr{ ^ ref [:] (\d+.*) }xsi )
+    {
+	return 'REFS', $1;
+    }
+    
+    elsif ( $args =~ qr{ ^ [a-z][a-z][a-z][:]\d+ }xsi )
+    {
+	return 'INVALID', '';
     }
     
     else
@@ -1240,16 +1295,6 @@ sub parse_simple_args {
 }
 
 
-sub select_extids {
-
-    my ($argstring) = @_;
-    
-    my $a = 1;
-
-    print_msg "NOT YET IMPLEMENTED: selection by external identifiers\n";
-}
-
-
 sub select_auth {
     
     my ($command, $table, $argstring) = @_;
@@ -1393,42 +1438,50 @@ sub select_auth {
 	{
 	    if ( $id )
 	    {
-		$sql = "SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
-			FROM $TREE_TABLE as t WHERE orig_no = '$id'
-			UNION SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
-			FROM $TREE_TABLE as t WHERE spelling_no = '$id'";
+		$sql = "SELECT orig_no, spelling_no as taxon_no, name as taxon_name,
+				rank as taxon_rank
+			FROM $TABLE{TAXON_TREES} as t WHERE orig_no = '$id'
+			UNION SELECT orig_no, spelling_no as taxon_no, name as taxon_name,
+				rank as taxon_rank
+			FROM $TABLE{TAXON_TREES} as t WHERE spelling_no = '$id'";
 	    }
 	    
 	    else
 	    {
 		$sql = "SELECT orig_no, spelling_no as taxon_no, name as taxon_name, rank as taxon_rank
-			FROM $TREE_TABLE WHERE $selector";
+			FROM $TABLE{TAXON_TREES} WHERE $selector";
 	    }
 	}
 	
 	elsif ( $selection_type eq 'synonyms' )
 	{
-	    $sql = "SELECT distinct t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-		    FROM $TREE_TABLE as t join $TREE_TABLE as base using (synonym_no)
-			join $AUTH_TABLE as a on base.orig_no = a.orig_no
-		    WHERE a.taxon_no = '$id'";
+	    $sql = "SELECT distinct t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name,
+			t.rank as taxon_rank
+		FROM $TABLE{TAXON_TREES} as t join $TABLE{TAXON_TREES} as base using (synonym_no)
+		    join $TABLE{AUTHORITY_DATA} as a on base.orig_no = a.orig_no
+		WHERE a.taxon_no = '$id'";
 	}
 	
 	elsif ( $selection_type eq 'children' )
 	{
-	    $sql = "SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM $TREE_TABLE as t join $TREE_TABLE as base on t.immpar_no = base.orig_no
-			  join $AUTH_TABLE as a on base.orig_no = a.orig_no
-			WHERE a.$selector
-			UNION SELECTt.orig_no, t.spelling_no as taxon_no, t.name as taxon_name, t.rank as taxon_rank
-			FROM $TREE_TABLE as t join $TREE_TABLE as base on t.senpar_no = base.orig_no
-			  join $AUTH_TABLE as a on base.orig_no = a.orig_no
-			WHERE a.taxon_no = '$id'";
+	    $sql = "SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name,
+			t.rank as taxon_rank
+		FROM $TABLE{TAXON_TREES} as t join $TABLE{TAXON_TREES} as base
+			on t.immpar_no = base.orig_no
+		    join $TABLE{AUTHORITY_DATA} as a on base.orig_no = a.orig_no
+		WHERE a.$selector
+		UNION SELECT t.orig_no, t.spelling_no as taxon_no, t.name as taxon_name,
+			t.rank as taxon_rank
+		FROM $TABLE{TAXON_TREES} as t join $TABLE{TAXON_TREES} as base
+			on t.senpar_no = base.orig_no
+		    join $TABLE{AUTHORITY_DATA} as a on base.orig_no = a.orig_no
+		WHERE a.taxon_no = '$id'";
 	}
 	
 	elsif ( $selection_type eq 'authorities' )
 	{
-	    $sql = "SELECT orig_no, taxon_no, taxon_name, taxon_rank FROM $AUTH_TABLE WHERE taxon_no = '$id'";
+	    $sql = "SELECT orig_no, taxon_no, taxon_name, taxon_rank FROM $TABLE{AUTHORITY_DATA}
+		WHERE taxon_no = '$id'";
 	}
 	
 	else
@@ -1474,7 +1527,7 @@ sub select_auth {
 	    my $idstring = join(',', keys %orig_no);
 	    
 	    my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank
-			FROM $AUTH_TABLE as a WHERE a.orig_no in ($idstring)";
+			FROM $TABLE{AUTHORITY_DATA} as a WHERE a.orig_no in ($idstring)";
 	    
 	    print_msg $sql if $DEBUG{sql};
 	    
@@ -1505,11 +1558,13 @@ sub select_auth {
 	    
 	    my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank,
 			    o.opinion_no, null as child_no, o.child_spelling_no
-			FROM $OPIN_TABLE as o join $AUTH_TABLE as a on a.taxon_no = o.child_no
+			FROM $TABLE{OPINION_DATA} as o
+			    join $TABLE{AUTHORITY_DATA} as a on a.taxon_no = o.child_no
 			WHERE o.child_spelling_no in ($idstring) and o.child_no <> o.child_spelling_no
 			UNION SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank,
 			    o.opinion_no, o.child_no, null as child_spelling_no
-			FROM $OPIN_TABLE as o join $AUTH_TABLE as a on a.taxon_no = o.child_spelling_no
+			FROM $TABLE{OPINION_DATA} as o
+			    join $TABLE{AUTHORITY_DATA} as a on a.taxon_no = o.child_spelling_no
 			WHERE o.child_no in ($idstring) and o.child_no <> o.child_spelling_no";
 	    
 	    print_msg $sql if $DEBUG{sql};
@@ -1865,7 +1920,7 @@ sub select_opin {
     	if ( $type eq 'opn' )
     	{
      	    push @sql_list,
-    		"SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+    		"SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
 		WHERE opinion_no in ($id)";
     	}
 	
@@ -1874,7 +1929,7 @@ sub select_opin {
     	    if ( $include_variants )
     	    {
     		my $sql = "SELECT group_concat(distinct a.taxon_no)
-    			FROM $AUTH_TABLE as a join $AUTH_TABLE as base using (orig_no)
+    			FROM $TABLE{AUTHORITY_DATA} as a join $TABLE{AUTHORITY_DATA} as base using (orig_no)
     			WHERE base.taxon_no in ($id)";
 		
     		print_msg $sql if $DEBUG{sql};
@@ -1885,47 +1940,47 @@ sub select_opin {
     	    if ( $select{child_no} )
     	    {
     		push @sql_list,
-    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+    		    "SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
 			WHERE o.child_no in ($id)";
     	    }
 	    
     	    if ( $select{child_spelling_no} )
     	    {
     		push @sql_list,
-    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+    		    "SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
 			WHERE o.child_spelling_no in ($id)";
     	    }
 	    
     	    if ( $select{parent_spelling_no} )
     	    {
     		push @sql_list,
-    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+    		    "SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
 			WHERE o.parent_spelling_no in ($id)";
     	    }
 	    
     	    if ( $select{classop} )
     	    {
     		push @sql_list,
-    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
-			join $TREE_TABLE as t using (opinion_no) join $AUTH_TABLE as a on a.orig_no = t.orig_no
+    		    "SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
+			join $TABLE{TAXON_TREES} as t using (opinion_no) join $TABLE{AUTHORITY_DATA} as a on a.orig_no = t.orig_no
     		 WHERE a.taxon_no in ($id)";
     	    }
 	    
     	    if ( $select{groupop} )
     	    {
     		push @sql_list,
-    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
-			join $NAME_TABLE as n using (opinion_no)
+    		    "SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
+			join $TABLE{TAXON_NAMES} as n using (opinion_no)
     		 WHERE n.taxon_no in ($id)";
     	    }
 	    
     	    if ( $select{spellop} )
     	    {
     		push @sql_list,
-    		    "SELECT $fields FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
-		     join $NAME_TABLE as n using (opinion_no)
-    		     join $TREE_TABLE as t on n.taxon_no = t.spelling_no
-    		     join $AUTH_TABLE as a on t.orig_no = a.orig_no
+    		    "SELECT $fields FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
+		     join $TABLE{TAXON_NAMES} as n using (opinion_no)
+    		     join $TABLE{TAXON_TREES} as t on n.taxon_no = t.spelling_no
+    		     join $TABLE{AUTHORITY_DATA} as a on t.orig_no = a.orig_no
     		 WHERE a.taxon_no in ($id)";
     	    }
 	}
@@ -2122,7 +2177,8 @@ sub resolve_name {
 	
 	$filter .= " AND $ct_filter";
 	
-	$sql = "SELECT a.taxon_no FROM $AUTH_TABLE as a join $TREE_TABLE as t using (orig_no)
+	$sql = "SELECT a.taxon_no FROM $TABLE{AUTHORITY_DATA} as a
+		    join $TABLE{TAXON_TREES} as t using (orig_no)
 		WHERE taxon_name like $quoted $filter";
     }
     
@@ -2130,7 +2186,7 @@ sub resolve_name {
     {
 	my $quoted = $DBH->quote($name_arg);
 	
-	$sql = "SELECT a.taxon_no FROM $AUTH_TABLE as a
+	$sql = "SELECT a.taxon_no FROM $TABLE{AUTHORITY_DATA} as a
 		WHERE a.taxon_name like $quoted $filter";
     }
     
@@ -2154,7 +2210,7 @@ sub containing_taxon_filter {
     
     my $quoted = $DBH->quote($filter_name);
     
-    my $sql = "SELECT lft, rgt FROM $TREE_TABLE where name like $quoted and rank > 5";
+    my $sql = "SELECT lft, rgt FROM $TABLE{TAXON_TREES} where name like $quoted and rank > 5";
     
     print_msg $sql if $DEBUG{sql};
     
@@ -2484,9 +2540,9 @@ sub output_auth {
 		    # group.author as group_author, group.pubyr as group_pubyr,
 		    # spell.author as spell_author, spell.pubyr as spell_pubyr,";
 	# $long_tables = "
-	# 	    left join $OPIN_CACHE as `class` on class.opinion_no = t.opinion_no
-	# 	    left join $OPIN_CACHE as `group` on group.opinion_no = gr.opinion_no
-	# 	    left join $OPIN_CACHE as `spell` on spell.opinion_no = sp.opinion_no";
+	# 	    left join $TABLE{OPINION_CACHE} as `class` on class.opinion_no = t.opinion_no
+	# 	    left join $TABLE{OPINION_CACHE} as `group` on group.opinion_no = gr.opinion_no
+	# 	    left join $TABLE{OPINION_CACHE} as `spell` on spell.opinion_no = sp.opinion_no";
     }
     
     my $sql = "SELECT a.taxon_no, a.orig_no, a.taxon_name, a.taxon_rank, t.name as tree_name, t.rank as tree_rank,
@@ -2494,13 +2550,13 @@ sub output_auth {
 		    t.accepted_no, t.status, $long_fields
 		    acc.name as accepted_name, ao.taxon_name as orig_name,
 		    par.name as parent_name, syn.name as synonym_name
-		FROM $AUTH_TABLE as a left join $AUTH_TABLE as ao on ao.taxon_no = a.orig_no
-		    left join $NAME_TABLE as `gr` on gr.taxon_no = a.taxon_no
-		    left join $TREE_TABLE as t on t.orig_no = a.orig_no
-		    left join $NAME_TABLE as `sp` on sp.taxon_no = t.spelling_no
-		    left join $TREE_TABLE as `acc` on acc.orig_no = t.accepted_no
-		    left join $TREE_TABLE as `par` on par.orig_no = t.senpar_no
-		    left join $TREE_TABLE as `syn` on syn.orig_no = t.synonym_no
+		FROM $TABLE{AUTHORITY_DATA} as a left join $TABLE{AUTHORITY_DATA} as ao on ao.taxon_no = a.orig_no
+		    left join $TABLE{TAXON_NAMES} as `gr` on gr.taxon_no = a.taxon_no
+		    left join $TABLE{TAXON_TREES} as t on t.orig_no = a.orig_no
+		    left join $TABLE{TAXON_NAMES} as `sp` on sp.taxon_no = t.spelling_no
+		    left join $TABLE{TAXON_TREES} as `acc` on acc.orig_no = t.accepted_no
+		    left join $TABLE{TAXON_TREES} as `par` on par.orig_no = t.senpar_no
+		    left join $TABLE{TAXON_TREES} as `syn` on syn.orig_no = t.synonym_no
 		WHERE a.taxon_no in ($id_string)";
     
     print_msg $sql if $DEBUG{sql};
@@ -2542,7 +2598,7 @@ sub output_auth {
 	my $op_string = join(',', keys %opinion);
 	
 	my $sql = "SELECT opinion_no, author, pubyr, ri
-		    FROM $OPIN_CACHE WHERE opinion_no in ($op_string)";
+		    FROM $TABLE{OPINION_CACHE} WHERE opinion_no in ($op_string)";
 
 	print_msg $sql if $DEBUG{sql};
 
@@ -2809,13 +2865,13 @@ sub output_opin {
 		    ac.taxon_name as child_name, asp.taxon_name as spelling_name, ap.taxon_name as parent_name,
 		    ac.taxon_rank as child_rank, asp.taxon_rank as spelling_rank, ap.taxon_rank as parent_rank,
 		    t.name as class_tree_name, tn.name as spell_tree_name
-		FROM $OPIN_TABLE as o join $OPIN_CACHE as `oo` using (opinion_no)
-		    left join $AUTH_TABLE as `ac` on ac.taxon_no = o.child_no
-		    left join $AUTH_TABLE as `asp` on asp.taxon_no = o.child_spelling_no
-		    left join $AUTH_TABLE as `ap` on ap.taxon_no = o.parent_spelling_no
-		    left join $TREE_TABLE as t on t.opinion_no = o.opinion_no
-		    left join $NAME_TABLE as n on n.opinion_no = o.opinion_no
-		    left join $TREE_TABLE as tn on tn.spelling_no = n.taxon_no
+		FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as `oo` using (opinion_no)
+		    left join $TABLE{AUTHORITY_DATA} as `ac` on ac.taxon_no = o.child_no
+		    left join $TABLE{AUTHORITY_DATA} as `asp` on asp.taxon_no = o.child_spelling_no
+		    left join $TABLE{AUTHORITY_DATA} as `ap` on ap.taxon_no = o.parent_spelling_no
+		    left join $TABLE{TAXON_TREES} as t on t.opinion_no = o.opinion_no
+		    left join $TABLE{TAXON_NAMES} as n on n.opinion_no = o.opinion_no
+		    left join $TABLE{TAXON_TREES} as tn on tn.spelling_no = n.taxon_no
 		WHERE o.opinion_no in ($id_string)";
     
     print_msg $sql if $DEBUG{sql};
@@ -3413,13 +3469,13 @@ sub output_opin {
 #     }
     
 #     $sql = "	SELECT $fields
-# 		FROM $AUTH_TABLE as a JOIN $AUTH_TABLE as base using (orig_no)
-# 			LEFT JOIN $TREE_TABLE as t using (orig_no)
+# 		FROM $TABLE{AUTHORITY_DATA} as a JOIN $TABLE{AUTHORITY_DATA} as base using (orig_no)
+# 			LEFT JOIN $TABLE{TAXON_TREES} as t using (orig_no)
 # 			LEFT JOIN taxon_attrs as v using (orig_no)
 # 			LEFT JOIN taxon_ints as ph using (ints_no)
 # 			LEFT JOIN refs as r on r.reference_no = a.reference_no
-# 			LEFT JOIN $TREE_TABLE as pt on pt.orig_no = t.$SETTINGS{immpar}
-# 			LEFT JOIN $TREE_TABLE as at on at.orig_no = t.$SETTINGS{accepted}
+# 			LEFT JOIN $TABLE{TAXON_TREES} as pt on pt.orig_no = t.$SETTINGS{immpar}
+# 			LEFT JOIN $TABLE{TAXON_TREES} as at on at.orig_no = t.$SETTINGS{accepted}
 # 		WHERE $where_clause
 # 		GROUP BY a.taxon_no";
         
@@ -3571,7 +3627,7 @@ sub output_opin {
 #     # they must be deleted or updated first.
     
 #     my $op_res = $dbh->selectall_arrayref("
-# 		SELECT opinion_no, orig_no, child_spelling_no FROM $OPIN_CACHE
+# 		SELECT opinion_no, orig_no, child_spelling_no FROM $TABLE{OPINION_CACHE}
 # 		WHERE orig_no = $taxon_no or child_spelling_no = $taxon_no", { Slice => {} });
     
 #     my ($op_string);
@@ -3645,7 +3701,7 @@ sub output_opin {
 #     if ( $taxon_no eq $orig_no )
 #     {
 # 	my $dependent_nos = $dbh->selectcol_arrayref("
-# 		SELECT orig_no FROM $TREE_TABLE
+# 		SELECT orig_no FROM $TABLE{TAXON_TREES}
 # 		WHERE ($SETTINGS{immpar} = $orig_no or $SETTINGS{senpar} = $orig_no or $SETTINGS{accepted} = $orig_no)
 # 			and orig_no <> $orig_no");
 	
@@ -3665,10 +3721,10 @@ sub output_opin {
 #     else
 #     {
 # 	my $result = $dbh->do("
-# 		UPDATE $TREE_TABLE SET spelling_no = orig_no
+# 		UPDATE $TABLE{TAXON_TREES} SET spelling_no = orig_no
 # 		WHERE orig_no = $orig_no and spelling_no = $taxon_no");
 	
-# 	print_msg("RESET spelling_no for $TREE_TABLE entry: $orig_no") if $result;
+# 	print_msg("RESET spelling_no for $TABLE{TAXON_TREES} entry: $orig_no") if $result;
 #     }
     
 #     # If we get here, then all of the preconditions for deleting the authority
@@ -4166,7 +4222,7 @@ sub output_opin {
 # 	my $opinion_no = $options->{by_selection} ? ($keyval->{opinion_no} || $keyval->{class_no}): $keyval;
 	
 # 	$sql = "SELECT $fields
-# 		FROM $OPIN_TABLE as o join $OPIN_CACHE as oo using (opinion_no)
+# 		FROM $TABLE{OPINION_DATA} as o join $TABLE{OPINION_CACHE} as oo using (opinion_no)
 # 			LEFT JOIN authorities as ac on ac.taxon_no = o.child_spelling_no
 # 			LEFT JOIN refs as rc on rc.reference_no = ac.reference_no
 # 			LEFT JOIN authorities as ap on ap.taxon_no = o.parent_spelling_no
@@ -4185,8 +4241,8 @@ sub output_opin {
 # 	my $order_clause = $options->{all} ? "ORDER BY if(o.opinion_no = t.opinion_no, 0, 1)" : "";
 	
 # 	$sql = "SELECT $fields
-# 		FROM authorities as base JOIN $OPIN_TABLE as o on (o.child_no = base.taxon_no or o.child_spelling_no = base.taxon_no)
-# 			JOIN $OPIN_CACHE as oo using (opinion_no)
+# 		FROM authorities as base JOIN $TABLE{OPINION_DATA} as o on (o.child_no = base.taxon_no or o.child_spelling_no = base.taxon_no)
+# 			JOIN $TABLE{OPINION_CACHE} as oo using (opinion_no)
 # 			LEFT JOIN authorities as ac on ac.taxon_no = o.child_spelling_no
 # 			LEFT JOIN taxon_trees as t on t.orig_no = ac.orig_no
 # 			LEFT JOIN refs as rc on rc.reference_no = ac.reference_no
@@ -4445,8 +4501,8 @@ sub output_opin {
 #     if ( $key eq 'taxon_name' || $options->{by_name} )
 #     {
 # 	$sql = "SELECT $fields
-# 		FROM authorities as base JOIN $OCC_MATRIX as o using (orig_no)
-# 			JOIN $OCCURRENCES as oo using (occurrence_no)
+# 		FROM authorities as base JOIN $TABLE{OCCURRENCE_MATRIX} as o using (orig_no)
+# 			JOIN $TABLE{OCCURRENCE_DATA} as oo using (occurrence_no)
 # 			LEFT JOIN authorities as a on a.taxon_no = o.taxon_no
 # 			LEFT JOIN taxon_trees as t on t.orig_no = o.orig_no
 # 			LEFT JOIN taxon_trees as at on at.orig_no = t.accepted_no
@@ -4465,7 +4521,7 @@ sub output_opin {
 # 	}
 	
 # 	$sql = "SELECT $fields
-# 		FROM $OCC_MATRIX as o join $OCCURRENCES as oo using (occurrence_no)
+# 		FROM $TABLE{OCCURRENCE_MATRIX} as o join $TABLE{OCCURRENCE_DATA} as oo using (occurrence_no)
 # 			LEFT JOIN authorities as a on a.taxon_no = o.taxon_no
 # 			LEFT JOIN taxon_trees as t on t.orig_no = o.orig_no
 # 			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
@@ -4581,7 +4637,7 @@ sub output_opin {
 #     my $occurrence_no = $r->{occurrence_no};
 #     updateOccurrenceMatrix($dbh, $occurrence_no);
     
-#     print_msg("UPDATED $OCC_MATRIX: $occurrence_no");
+#     print_msg("UPDATED $TABLE{OCCURRENCE_MATRIX}: $occurrence_no");
 # }
 
 
@@ -4660,11 +4716,11 @@ sub output_opin {
         
 #     my $occurrence_no = $r->{occurrence_no};
     
-#     my $delete_sql = make_delete_sql($dbh, $OCC_MATRIX, $occurrence_no);
+#     my $delete_sql = make_delete_sql($dbh, $TABLE{OCCURRENCE_MATRIX}, $occurrence_no);
     
 #     if ( execute_sql($dbh, $delete_sql) )
 #     {
-# 	print_msg("DELETED $OCC_MATRIX: $occurrence_no");
+# 	print_msg("DELETED $TABLE{OCCURRENCE_MATRIX}: $occurrence_no");
 #     }
     
 #     my $a = 1;	# we can stop here when debugging
@@ -4690,7 +4746,7 @@ sub output_opin {
 #     {
 # 	$sql = "SELECT $fields
 # 		FROM authorities as base JOIN authorities as a using (orig_no)
-# 			JOIN $REIDS as re on reid.taxon_no = a.taxon_no
+# 			JOIN $TABLE{REID_DATA} as re on reid.taxon_no = a.taxon_no
 # 			LEFT JOIN taxon_trees as t on t.orig_no = a.orig_no
 # 			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
 # 		WHERE base.taxon_name like $value
@@ -4700,7 +4756,7 @@ sub output_opin {
 #     elsif ( $key eq 'orig_no' )
 #     {
 # 	$sql = "SELECT $fields
-# 		FROM $REIDS as re JOIN authorities as a using (taxon_no)
+# 		FROM $TABLE{REID_DATA} as re JOIN authorities as a using (taxon_no)
 # 			LEFT JOIN taxon_trees as t on t.orig_no = a.orig_no
 # 			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
 # 		WHERE a.orig_no in ($value)
@@ -4711,7 +4767,7 @@ sub output_opin {
 #     elsif ( $key eq 'occurrence_no' || $key eq 'reid_no' || $key eq 'taxon_no' )
 #     {
 # 	$sql = "SELECT $fields
-# 		FROM $REIDS as re
+# 		FROM $TABLE{REID_DATA} as re
 # 			LEFT JOIN authorities as a on a.taxon_no = re.taxon_no
 # 			LEFT JOIN taxon_trees as t on t.orig_no = a.orig_no
 # 			LEFT JOIN taxon_trees as at on at.orig_no = t.$SETTINGS{accepted}
@@ -5794,7 +5850,7 @@ sub execute_redo {
 	
     # 	if ( $action eq 'DELETE' )
     # 	{
-    # 	    $sql = "DELETE FROM $OCC_MATRIX WHERE occurrence_no = $occurrence_no";
+    # 	    $sql = "DELETE FROM $TABLE{OCCURRENCE_MATRIX} WHERE occurrence_no = $occurrence_no";
     # 	    $result = $dbh->do($sql);
     # 	}
 	

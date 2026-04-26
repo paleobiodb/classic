@@ -37,15 +37,15 @@ ENV WING_APP=/data/MyApp
 
 CMD ["perl", "bin/start_classic.pl"]
 
-COPY classic/patch/error-render.patch /var/tmp/error-render.patch
+# COPY classic/patch/error-render.patch /var/tmp/error-render.patch
 # RUN patch `perl -MDancer::Error -e 'print $INC{"Dancer/Error.pm"}'` /var/tmp/error-render.patch
 
-COPY classic /data/MyApp
+# COPY classic /data/MyApp
 COPY wing /data/Wing
 COPY wing/bin/wing /usr/local/bin/
-COPY pbapi/lib /data/MyApp/lib/PBData
-COPY pbdb-app/ /data/MyApp/resources
-RUN ln -s /data/Wing/lib/Wing /data/MyApp/lib/Wing
+# COPY pbapi/lib /data/MyApp/lib/PBData
+# COPY pbdb-app/ /data/MyApp/resources
+# RUN ln -s /data/Wing/lib/Wing /data/MyApp/lib/Wing
 
 RUN mkdir -p /data/MyApp/captcha/temp
 

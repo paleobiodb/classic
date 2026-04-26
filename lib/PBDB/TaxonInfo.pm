@@ -2289,8 +2289,9 @@ sub getMostRecentClassification {
 			FROM taxon_trees as t join authorities as a using (orig_no)
 			WHERE a.taxon_no = $parent_no";
 		($ints_no) = $dbh->selectrow_array($sql);
-		$ints_no ||= 0;
 	    }
+	    
+	    $ints_no ||= 0;
 	    
 	    $sql = "UPDATE taxon_trees SET opinion_no=$opinion_no, immpar_no=$parent_no,
 			senpar_no=$parent_no, ints_no = $ints_no
@@ -4641,9 +4642,9 @@ sub getTaxonNos {
     if ( $dbt && ( $name || $author || $year || $type_body_part || $preservation ) )  {
         my $dbh = $dbt->dbh;
         my $sql;
-        $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no";
+        $sql = "SELECT a.taxon_no FROM authorities a STRAIGHT_JOIN $TAXA_TREE_CACHE t WHERE a.taxon_no=t.taxon_no";
         if ( $author || $year )	{
-            $sql = "SELECT a.taxon_no FROM authorities a,$TAXA_TREE_CACHE t,refs r WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no ";
+            $sql = "SELECT a.taxon_no FROM authorities a STRAIGHT_JOIN $TAXA_TREE_CACHE t,refs r WHERE a.taxon_no=t.taxon_no AND a.reference_no=r.reference_no ";
         }
         if ( $name )	{
             #$sql .= " AND (a.taxon_name LIKE ".$dbh->quote($name)." OR a.common_name LIKE ".$dbh->quote($name).")";
