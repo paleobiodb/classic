@@ -60,6 +60,7 @@ async function APIRequest (query_url, body, method, our_options) {
     }
 
     catch (error) {
+	if ( debug_api_requests ) console.log(error);
 	handleAPIError({}, '999', error.message);
 	return {};
     }
@@ -100,6 +101,7 @@ async function APIRequestAsync (query_url, success_func, fail_func) {
 	    }
 
 	    catch (error) {
+		if ( debug_api_requests ) console.log(error);
 		if ( fail_func )
 		    fail_func({}, '999', error.message);
 		else
