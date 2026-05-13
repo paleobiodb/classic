@@ -10,6 +10,8 @@
 # Once you have the preload image, you can build the Classic container image using
 # the command 'pbdb build classic'.
 
+ARG TZ=Etc/UTC
+
 FROM paleomacro_classic_preload
 
 EXPOSE 6000 6001 6003
@@ -21,7 +23,7 @@ WORKDIR /data/MyApp
 # will do this automatically. Without any argument it will default to UTC, with no
 # local time available. To override the language setting, use --build-arg LANG=xxx.
 
-ARG TZ=Etc/UTC
+ARG TZ
 
 RUN echo $TZ > /etc/timezone && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
