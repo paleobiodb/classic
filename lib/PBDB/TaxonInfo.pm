@@ -350,7 +350,44 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
         if ( $htmlBasicInfo =~ /No taxon/ )	{
             $width = "44em;";
         }
+	
+	my ($authinfo) = @{$dbt->getData(<<~END_SQL)};
+	    SELECT p1.name as authorizer, p2.name as enterer, p3.name as modifier,
+	           a.created, a.modified
+	    FROM authorities as a
+	        left join person as p1 on p1.person_no = a.authorizer_no
+	        left join person as p2 on p2.person_no = a.enterer_no
+	        left join person as p3 on p3.person_no = a.modifier_no
+	    WHERE a.taxon_no = '$taxon_no'
+	    END_SQL
+	
+	my $mod_string = "<em>by $authinfo->{enterer}";
+	$mod_string .= " (authorized by $authinfo->{authorizer})"
+	    if $authinfo->{authorizer} ne $authinfo->{enterer};
+	$authinfo->{created} =~ s/ .*//;
+	$authinfo->{modified} =~ s/ .*//;
+	$mod_string .= " on $authinfo->{created}";
+	
+	if ( $authinfo->{modifier} )
+	{
+	    $mod_string .= "; modified by $authinfo->{modifier} on $authinfo->{modified}";
+	}
+	
+	$mod_string .= "</em>";
+	
+	# my $mod_html = $authinfo->{modifier} ? <<~END_HTML : '';
+	#     <span class="small">Modifier: $authinfo->{modifier}</span>
+	#     END_HTML
 
+	# $output .= <<~END_HTML;
+	#     <div align="left" class="small displayPanelContent"
+	#          style="width: $width; padding-left: 2.5em; padding-bottom: 12px">
+	#       <span class="small" style="margin-right: 3em">Authorizer: $authinfo->{authorizer}</span>
+	#       <span class="small" style="margin-right: 3em">Enterer: $authinfo->{enterer}</span>
+	#       $mod_html
+	#     </div>
+	#     END_HTML
+	
         #doThumbs($dbt,$in_list);
 
 	# JA 5.9.11
@@ -404,6 +441,17 @@ var gddapp = new GDDTaxonInfoApp ( "' . $GDD_URL . '", "' . $taxon_name . '", "p
         $output .= "<center>";
 
         $output .= displayRelatedTaxa($dbt, $taxon_no, $spelling_no, $taxon_name,$is_real_user);
+	
+	$output .= <<~END_HTML;
+	    <div class="displayPanel" align="left" style="margin-bottom: 2em;
+	           padding-left: 1em; padding-bottom: 1em;">
+	      <span class="displayPanelHeader">Entered</span>
+	      <div class="displayPanelContent">
+	         $mod_string
+	      </div>
+	    </div>
+	    END_HTML
+	
 	$output .= "</center>\n";
         if($s->isDBMember() && $s->get('role') =~ /authorizer|student|technician/) {
             # Entered Taxon
