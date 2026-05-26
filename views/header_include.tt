@@ -78,7 +78,7 @@
               <ul class="dropdown-menu">
                 <li><a href="/app/collections#">Fossil collection records</a></li>
                 <li><a href="/classic/beginTaxonInfo">Fossil organisms</a></li>
-                <li><a href="/classic/app/refs">Published references</a></li>
+                <li><a href="/app/refs">Bibliographic references</a></li>
                 <li><a href="/classic/classificationForm">Classifications of taxa in groups</a></li>
                 <li><a href="/classic/displaySearchStrataForm">Stratigraphic units</a></li>
                 <li><a href="/classic/app/archive/list">Data archives</a></li>
