@@ -60,7 +60,7 @@
               <ul class="dropdown-menu">
 		<li class="dropdown"><a onclick="NewTab('https://doi.org/10.5070/P9.62178')">User Guide</a></li>
 		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vQPrlNL2sUTFbZAzZFs2Jhs4j-1h3RfAIFNl54JstnHfxhhRcjMGImGU4VRk89C9Er_kNEWj7NTAqaR/pub')">FAQ</a></li>
-		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vSa6qptD9Ox02NoD3pD5XreK0lh9P0JCxsHo1cpwV5My7HPh77vLYy6zjOqLPo0Gy09DKbAK3x69yMr/pub')">Recent Changes</a></li>
+		<!-- <li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vSa6qptD9Ox02NoD3pD5XreK0lh9P0JCxsHo1cpwV5My7HPh77vLYy6zjOqLPo0Gy09DKbAK3x69yMr/pub')">Recent Changes</a></li> -->
 		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vSMxYT8vGz-8UOZmwKyEgMfuSbbk52fW-oQDbUxdMwIMd8xjqaQvue_sJvvW5LewvPGC-aeQActioIL/pub')">Data Definitions</a></li>
 		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vRGNLWHekf_Pi2tfxfJeGvIAR3S3Z9BT6apmPQ-AGQhCHm0YB7AAwvSDh8F0bmrgeTO9LsB4Yw5IVsn/pub')">People</a></li>
 		<li><a onclick="NewTab('https://docs.google.com/document/d/e/2PACX-1vTj4EvmyKBAMq-mbfa7_TFbZMyA-JCRJhAjiEY5IFjaiPcjBTPO1uU54iefy_OxalV188qbKa2FZP8c/pub')">Funding</a></li>
