@@ -36,7 +36,7 @@ function PBDB_map_widget(mapElementName, options) {
           new ol.layer.Tile({
             source: new ol.source.XYZ({
               attributions: [attribution],
-              url: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+			  url: `https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${tile_api_key}`
             })
           }),
           vectorLayer
