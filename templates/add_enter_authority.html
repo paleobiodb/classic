@@ -69,13 +69,13 @@ function checkForm()	{
     }
     if ( frm.author1last.value && frm.author1last.value != "" && bad_name_char.test(frm.author1last.value) 
 	 && ! /, [sSjJ]r\./.test(frm.author1last.value) )	{
-	error += "* There seems to be a typo in the first author's last name\n";
+		error += "* The first author's last name contains an invalid character, probably something that looks like an apostrophe but isn't. Try re-typing it manually.\n";
     }
     if ( frm.author2init.value && frm.author2init.value != "" && ! init_check.test(frm.author2init.value) )	{
 		error += "* The second author's initials are misformatted\n";
     }
     if ( frm.author2last.value != "" &&  bad_name_char.test(frm.author2last.value) && ! /, [sSjJ]r\./.test(frm.author2last.value) )	{
-	error += "* There seems to be a typo in the second author's last name\n";
+		error += "* The second author's last name contains an invalid character, probably something that looks like an apostrophe but isn't. Try re-typing it manually.\n";
     }
     if ( /[^0-9]/.test(frm.pubyr.value) )	{
 	error += "* The publication year is misformatted\n";
