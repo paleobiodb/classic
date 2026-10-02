@@ -3695,7 +3695,7 @@ sub basicTaxonInfo	{
 		if ( scalar @taxon_nos == 1 )	{
 			$taxon_no = getSeniorSynonym($dbt,$taxon_nos[0]); 
 		} elsif ( scalar @taxon_nos > 1 )	{
-			$output .= listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
+			return listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		} else	{
 			$error = "<center>Nothing matching your search is in the database. Please try again.</center>";
 			$taxon_name = "Failed search!";
@@ -3786,7 +3786,7 @@ sub basicTaxonInfo	{
 			$taxon_no = getSeniorSynonym($dbt,$taxon_nos[0]); 
 		}
 		elsif ( scalar @taxon_nos > 1 )	{
-		    $output .= listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
+		    return listTaxonChoices($dbt,$hbo,\@taxon_nos,1);
 		}
 	} else	{ # this should never happen
 	    return "<p>You must enter a taxon name.</p>\n\n";
@@ -4650,9 +4650,9 @@ sub listTaxonChoices	{
 </div>
 </div>
 |;
-	if ( $numbersOnly > 0 )	{
-		return;
-	}
+	# if ( $numbersOnly > 0 )	{
+	# 	return;
+	# }
 
     return $output;
 }
