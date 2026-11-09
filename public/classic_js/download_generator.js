@@ -229,7 +229,7 @@ function DownloadGeneratorApp( data_url, is_contributor )
 		}
 		
 		else if ( record.cfg == "rsg" ) {
-		    api_data.res_groups.push(record.rsg, record.rsg);
+		    api_data.res_groups.push(record.nam, record.nam);
 		}
 	    }
 	    
